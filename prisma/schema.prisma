@@ -1,0 +1,574 @@
+// ============================================
+// OneID by Fivents - Prisma Schema
+// SaaS Multi-tenant para Credenciamento Facial
+// ============================================
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============================================
+// ENUMS
+// ============================================
+
+enum Role {
+  SUPER_ADMIN
+  ORG_OWNER
+  ORG_ADMIN
+  EVENT_MANAGER
+  STAFF
+}
+
+enum EventStatus {
+  DRAFT
+  PUBLISHED
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum CheckInMethod {
+  FACIAL
+  QR_CODE
+  MANUAL
+}
+
+enum TotemStatus {
+  ONLINE
+  OFFLINE
+  MAINTENANCE
+}
+
+enum PlanTier {
+  FREE
+  STARTER
+  PROFESSIONAL
+  ENTERPRISE
+  CUSTOM
+}
+
+enum PlanRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum AuditAction {
+  CHECK_IN
+  CHECK_IN_DENIED
+  TOTEM_AUTH
+  TOTEM_AUTH_FAILED
+  PARTICIPANT_CREATED
+  PARTICIPANT_UPDATED
+  PARTICIPANT_DELETED
+  EVENT_CREATED
+  EVENT_UPDATED
+  EVENT_DELETED
+  USER_LOGIN
+  USER_LOGOUT
+  FACE_REGISTERED
+  FACE_UPDATED
+  CONSENT_GRANTED
+  CONSENT_REVOKED
+  EXPORT_DATA
+  PLAN_CREATED
+  PLAN_UPDATED
+  PLAN_DELETED
+  PLAN_CHANGE_REQUESTED
+  PLAN_CHANGE_APPROVED
+  PLAN_CHANGE_REJECTED
+  USER_CREATED
+  USER_UPDATED
+  USER_DELETED
+  USER_PASSWORD_RESET
+  ORG_CREATED
+  ORG_UPDATED
+  ORG_DELETED
+  ORG_ACTIVATED
+  ORG_DEACTIVATED
+}
+
+// ============================================
+// ORGANIZATION (tenant root)
+// ============================================
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  document  String?  // CNPJ
+  email     String?
+  phone     String?
+  logoUrl   String?  @map("logo_url")
+
+  isActive  Boolean  @default(true) @map("is_active")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  // Relations
+  memberships        Membership[]
+  events             Event[]
+  totems             Totem[]
+  participants       Participant[]
+  auditLogs          AuditLog[]
+  subscription       Subscription?
+  invites            Invite[]
+  planChangeRequests PlanChangeRequest[]
+
+  @@map("organizations")
+}
+
+// ============================================
+// USER (humano - nosso time + clientes)
+// ============================================
+
+model User {
+  id              String    @id @default(cuid())
+  name            String
+  email           String    @unique
+  passwordHash    String?   @map("password_hash")
+  avatarUrl       String?   @map("avatar_url")
+  googleId        String?   @unique @map("google_id")
+
+  emailVerified   Boolean   @default(false) @map("email_verified")
+  isActive        Boolean   @default(true) @map("is_active")
+  mustSetPassword Boolean   @default(false) @map("must_set_password")
+  setupToken      String?   @unique @map("setup_token")
+  setupTokenExpiresAt DateTime? @map("setup_token_expires_at")
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  deletedAt       DateTime? @map("deleted_at")
+
+  // Relations
+  memberships     Membership[]
+  sessions        Session[]
+  auditLogs       AuditLog[]       @relation("AuditUser")
+  notifications   Notification[]
+
+  @@map("users")
+}
+
+// ============================================
+// MEMBERSHIP (User <-> Organization, RBAC)
+// ============================================
+
+model Membership {
+  id             String   @id @default(cuid())
+  role           Role     @default(STAFF)
+
+  userId         String   @map("user_id")
+  organizationId String   @map("organization_id")
+
+  isActive       Boolean  @default(true) @map("is_active")
+
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, organizationId])
+  @@index([organizationId])
+  @@map("memberships")
+}
+
+// ============================================
+// SESSION (auth sessions)
+// ============================================
+
+model Session {
+  id        String   @id @default(cuid())
+  token     String   @unique
+
+  userId    String   @map("user_id")
+
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  ipAddress String?  @map("ip_address")
+  userAgent String?  @map("user_agent")
+
+  // Relations
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+// ============================================
+// INVITE (convites para membros)
+// ============================================
+
+model Invite {
+  id             String   @id @default(cuid())
+  email          String
+  role           Role     @default(STAFF)
+  token          String   @unique
+
+  organizationId String   @map("organization_id")
+  invitedById    String   @map("invited_by_id")
+
+  acceptedAt     DateTime? @map("accepted_at")
+  expiresAt      DateTime  @map("expires_at")
+
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  // Relations
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([token])
+  @@map("invites")
+}
+
+// ============================================
+// EVENT
+// ============================================
+
+model Event {
+  id             String      @id @default(cuid())
+  name           String
+  slug           String
+  description    String?
+
+  status         EventStatus @default(DRAFT)
+
+  startsAt       DateTime    @map("starts_at")
+  endsAt         DateTime    @map("ends_at")
+
+  location       String?
+  address        String?
+
+  maxParticipants Int?       @map("max_participants")
+
+  checkInMethods CheckInMethod[] @default([FACIAL]) @map("check_in_methods")
+
+  organizationId String      @map("organization_id")
+
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+  deletedAt      DateTime?   @map("deleted_at")
+
+  // Relations
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  participants   Participant[]
+  checkInPoints  CheckInPoint[]
+  totems         Totem[]
+  checkIns       CheckIn[]
+  auditLogs      AuditLog[]
+
+  @@unique([slug, organizationId])
+  @@index([organizationId])
+  @@index([status])
+  @@map("events")
+}
+
+// ============================================
+// CHECK-IN POINT (locais de check-in: entrada, salas, etc.)
+// ============================================
+
+model CheckInPoint {
+  id        String   @id @default(cuid())
+  name      String   // e.g. "Entrada Principal", "Sala A"
+
+  eventId   String   @map("event_id")
+
+  isActive  Boolean  @default(true) @map("is_active")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  totems    Totem[]
+  checkIns  CheckIn[]
+
+  @@index([eventId])
+  @@map("check_in_points")
+}
+
+// ============================================
+// PARTICIPANT
+// ============================================
+
+model Participant {
+  id             String   @id @default(cuid())
+  name           String
+  email          String?
+  document       String?  // CPF
+  phone          String?
+
+  // Face recognition
+  faceImageUrl   String?  @map("face_image_url")
+  faceEmbedding  Bytes?   @map("face_embedding")
+
+  organizationId String   @map("organization_id")
+  eventId        String   @map("event_id")
+
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+  deletedAt      DateTime? @map("deleted_at")
+
+  // Relations
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  event          Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  checkIns       CheckIn[]
+  consents       Consent[]
+
+  @@unique([email, eventId])
+  @@unique([document, eventId])
+  @@index([organizationId])
+  @@index([eventId])
+  @@map("participants")
+}
+
+// ============================================
+// CONSENT (LGPD - consentimento biométrico)
+// ============================================
+
+model Consent {
+  id            String   @id @default(cuid())
+
+  participantId String   @map("participant_id")
+
+  termVersion   String   @map("term_version")
+  grantedAt     DateTime @default(now()) @map("granted_at")
+  revokedAt     DateTime? @map("revoked_at")
+
+  ipAddress     String?  @map("ip_address")
+
+  // Relations
+  participant   Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+
+  @@index([participantId])
+  @@map("consents")
+}
+
+// ============================================
+// TOTEM (dispositivo - NÃO é usuário)
+// ============================================
+
+model Totem {
+  id             String      @id @default(cuid())
+  name           String
+
+  apiKey         String      @unique @map("api_key")
+  apiKeyHash     String      @map("api_key_hash")
+
+  status         TotemStatus @default(OFFLINE)
+
+  lastHeartbeat  DateTime?   @map("last_heartbeat")
+
+  organizationId String      @map("organization_id")
+  eventId        String      @map("event_id")
+  checkInPointId String      @map("check_in_point_id")
+
+  isActive       Boolean     @default(true) @map("is_active")
+
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+  deletedAt      DateTime?   @map("deleted_at")
+
+  // Relations
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  event          Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  checkInPoint   CheckInPoint @relation(fields: [checkInPointId], references: [id], onDelete: Cascade)
+  checkIns       CheckIn[]
+  auditLogs      AuditLog[]   @relation("AuditTotem")
+
+  @@index([organizationId])
+  @@index([eventId])
+  @@index([checkInPointId])
+  @@map("totems")
+}
+
+// ============================================
+// CHECK-IN (registro de credenciamento)
+// ============================================
+
+model CheckIn {
+  id             String        @id @default(cuid())
+
+  method         CheckInMethod
+  confidence     Float?
+
+  participantId  String        @map("participant_id")
+  eventId        String        @map("event_id")
+  checkInPointId String        @map("check_in_point_id")
+  totemId        String?       @map("totem_id")
+
+  checkedInAt    DateTime      @default(now()) @map("checked_in_at")
+
+  // Relations
+  participant    Participant   @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  event          Event         @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  checkInPoint   CheckInPoint  @relation(fields: [checkInPointId], references: [id], onDelete: Cascade)
+  totem          Totem?        @relation(fields: [totemId], references: [id], onDelete: SetNull)
+
+  @@unique([participantId, checkInPointId])
+  @@index([eventId])
+  @@index([checkInPointId])
+  @@index([checkedInAt])
+  @@map("check_ins")
+}
+
+// ============================================
+// AUDIT LOG (auditoria completa)
+// ============================================
+
+model AuditLog {
+  id             String      @id @default(cuid())
+
+  action         AuditAction
+  description    String?
+  metadata       Json?
+
+  organizationId String?     @map("organization_id")
+  eventId        String?     @map("event_id")
+  userId         String?     @map("user_id")
+  totemId        String?     @map("totem_id")
+
+  ipAddress      String?     @map("ip_address")
+  userAgent      String?     @map("user_agent")
+
+  createdAt      DateTime    @default(now()) @map("created_at")
+
+  // Relations
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  event          Event?       @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  user           User?        @relation("AuditUser", fields: [userId], references: [id], onDelete: SetNull)
+  totem          Totem?       @relation("AuditTotem", fields: [totemId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([eventId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// ============================================
+// PLAN (planos gerenciados pelo SUPER_ADMIN)
+// ============================================
+
+model Plan {
+  id                       String   @id @default(cuid())
+  name                     String
+  tier                     PlanTier @default(FREE)
+  description              String?
+  price                    Float    @default(0)
+
+  maxEvents                Int      @default(1) @map("max_events")
+  maxParticipantsPerEvent  Int      @default(100) @map("max_participants_per_event")
+  maxTotems                Int      @default(1) @map("max_totems")
+  maxMembers               Int      @default(5) @map("max_members")
+  maxCheckInPointsPerEvent Int      @default(1) @map("max_check_in_points_per_event")
+
+  allowFacial              Boolean  @default(true) @map("allow_facial")
+  allowQrCode              Boolean  @default(false) @map("allow_qr_code")
+
+  isCustom                 Boolean  @default(false) @map("is_custom")
+  isActive                 Boolean  @default(true) @map("is_active")
+  sortOrder                Int      @default(0) @map("sort_order")
+
+  createdAt                DateTime @default(now()) @map("created_at")
+  updatedAt                DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  subscriptions            Subscription[]
+  planChangeRequests       PlanChangeRequest[]
+
+  @@map("plans")
+}
+
+// ============================================
+// SUBSCRIPTION (vincula organização a um plano)
+// ============================================
+
+model Subscription {
+  id             String   @id @default(cuid())
+
+  organizationId String   @unique @map("organization_id")
+  planId         String   @map("plan_id")
+
+  startsAt       DateTime @map("starts_at")
+  endsAt         DateTime? @map("ends_at")
+
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  plan           Plan         @relation(fields: [planId], references: [id])
+
+  @@map("subscriptions")
+}
+
+// ============================================
+// PLAN CHANGE REQUEST (solicitação de troca de plano)
+// ============================================
+
+model PlanChangeRequest {
+  id              String            @id @default(cuid())
+
+  organizationId  String            @map("organization_id")
+  requestedPlanId String            @map("requested_plan_id")
+
+  status          PlanRequestStatus @default(PENDING)
+  message         String?
+
+  resolvedAt      DateTime?         @map("resolved_at")
+  resolvedById    String?           @map("resolved_by_id")
+  resolvedNote    String?           @map("resolved_note")
+
+  createdAt       DateTime          @default(now()) @map("created_at")
+
+  // Relations
+  organization    Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  requestedPlan   Plan              @relation(fields: [requestedPlanId], references: [id])
+
+  @@index([organizationId])
+  @@index([status])
+  @@map("plan_change_requests")
+}
+
+// ============================================
+// NOTIFICATION
+// ============================================
+
+enum NotificationType {
+  PLAN_REQUEST
+  PLAN_APPROVED
+  PLAN_REJECTED
+  LIMIT_WARNING
+  EXPIRATION_WARNING
+  NEW_MEMBER
+  EVENT_CREATED
+  SYSTEM_MESSAGE
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String           @map("user_id")
+  type      NotificationType
+  title     String
+  message   String
+  data      String?          // JSON string for extra data
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now()) @map("created_at")
+
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read])
+  @@index([userId, createdAt])
+  @@map("notifications")
+}
