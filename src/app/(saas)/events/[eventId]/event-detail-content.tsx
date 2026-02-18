@@ -5,20 +5,11 @@ import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   ArrowLeft,
   Calendar,
@@ -26,9 +17,15 @@ import {
   Users,
   Monitor,
   ScanFace,
-  Plus,
+  Tag,
+  MapPinned,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import type { Role } from "@/generated/prisma/client";
+import { ParticipantsTab } from "./participants-tab";
+import { CheckInPointsTab } from "./check-in-points-tab";
+import { TotemsTab } from "./totems-tab";
+import { LabelConfigTab } from "./label-config-tab";
 
 type CheckInPoint = {
   id: string;
@@ -41,8 +38,21 @@ type Participant = {
   name: string;
   email: string | null;
   document: string | null;
+  phone: string | null;
+  company: string | null;
+  jobTitle: string | null;
+  faceImageUrl: string | null;
   hasFaceEmbedding: boolean;
   checkIns: { checkInPoint: { name: string } }[];
+};
+
+type TotemData = {
+  id: string;
+  name: string;
+  status: string;
+  lastHeartbeat: string | null;
+  checkInPoint: { id: string; name: string };
+  _count: { checkIns: number };
 };
 
 type EventData = {
@@ -51,15 +61,24 @@ type EventData = {
   description: string | null;
   status: string;
   startsAt: string;
+  endsAt: string;
   location: string | null;
   maxParticipants: number | null;
   organizationId: string;
+  organizationName: string;
   checkInPoints: CheckInPoint[];
   _count: {
     participants: number;
     checkIns: number;
     totems: number;
   };
+};
+
+type PlanLimits = {
+  maxCheckInPoints: number;
+  maxTotems: number;
+  maxParticipants: number;
+  allowQrCode: boolean;
 };
 
 const localeMap: Record<string, string> = {
@@ -73,13 +92,21 @@ const localeMap: Record<string, string> = {
 export function EventDetailContent({
   event,
   participants,
+  totems,
+  labelConfig,
   checkedInCount,
   isSuperAdmin,
+  userRole,
+  planLimits,
 }: {
   event: EventData;
   participants: Participant[];
+  totems: TotemData[];
+  labelConfig: Record<string, unknown> | null;
   checkedInCount: number;
   isSuperAdmin: boolean;
+  userRole: Role;
+  planLimits: PlanLimits;
 }) {
   const { t, locale } = useI18n();
 
@@ -99,6 +126,7 @@ export function EventDetailContent({
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon-sm" asChild>
           <Link href="/events">
@@ -116,6 +144,7 @@ export function EventDetailContent({
         </div>
       </div>
 
+      {/* Stats cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -179,123 +208,64 @@ export function EventDetailContent({
         </Card>
       </div>
 
+      {/* Tabs */}
       <Tabs defaultValue="participants">
-        <TabsList>
-          <TabsTrigger value="participants">
-            {t("events.detail.participants")}
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="participants" className="gap-1.5">
+            <Users className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">{t("events.detail.participants")}</span>
           </TabsTrigger>
-          <TabsTrigger value="check-in-points">
-            {t("events.detail.checkInPoints")}
+          <TabsTrigger value="check-in-points" className="gap-1.5">
+            <MapPinned className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">{t("events.detail.checkInPoints")}</span>
+          </TabsTrigger>
+          <TabsTrigger value="totems" className="gap-1.5">
+            <Monitor className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">{t("events.detail.totems")}</span>
+          </TabsTrigger>
+          <TabsTrigger value="labels" className="gap-1.5">
+            <Tag className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">{t("events.detail.labels")}</span>
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="participants" className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold">
-              {t("events.detail.eventParticipants")}
-            </h2>
-            {!isSuperAdmin && (
-              <Button size="sm" asChild>
-                <Link href={`/events/${event.id}/participants/new`}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  {t("events.detail.add")}
-                </Link>
-              </Button>
-            )}
-          </div>
-
-          {participants.length === 0 ? (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <Users className="mb-4 h-10 w-10 text-muted-foreground" />
-                <p className="text-sm text-muted-foreground">
-                  {t("events.detail.noParticipants")}
-                </p>
-              </CardContent>
-            </Card>
-          ) : (
-            <Card>
-              <CardContent className="p-0">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>{t("common.labels.name")}</TableHead>
-                      <TableHead>{t("common.labels.email")}</TableHead>
-                      <TableHead>{t("common.labels.document")}</TableHead>
-                      <TableHead>{t("events.detail.face")}</TableHead>
-                      <TableHead>{t("events.detail.checkIns")}</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {participants.map((p) => (
-                      <TableRow key={p.id}>
-                        <TableCell className="font-medium">
-                          {p.name}
-                        </TableCell>
-                        <TableCell>{p.email ?? "—"}</TableCell>
-                        <TableCell>{p.document ?? "—"}</TableCell>
-                        <TableCell>
-                          {p.hasFaceEmbedding ? (
-                            <Badge variant="default">
-                              {t("events.detail.faceRegistered")}
-                            </Badge>
-                          ) : (
-                            <Badge variant="secondary">
-                              {t("common.status.pending")}
-                            </Badge>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {p.checkIns.length > 0 ? (
-                            <Badge variant="default">
-                              {p.checkIns.map((c) => c.checkInPoint.name).join(", ")}
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline">
-                              {t("events.detail.waiting")}
-                            </Badge>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          )}
+        <TabsContent value="participants">
+          <ParticipantsTab
+            eventId={event.id}
+            organizationId={event.organizationId}
+            participants={participants}
+            isSuperAdmin={isSuperAdmin}
+            userRole={userRole}
+          />
         </TabsContent>
 
-        <TabsContent value="check-in-points" className="space-y-4">
-          <h2 className="text-lg font-semibold">
-            {t("events.detail.checkInPoints")}
-          </h2>
-          {event.checkInPoints.length === 0 ? (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <MapPin className="mb-4 h-10 w-10 text-muted-foreground" />
-                <p className="text-sm text-muted-foreground">
-                  {t("events.detail.noCheckInPoints")}
-                </p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid gap-3 md:grid-cols-2">
-              {event.checkInPoints.map((point) => (
-                <Card key={point.id}>
-                  <CardHeader>
-                    <CardTitle className="text-base">{point.name}</CardTitle>
-                    <CardDescription>
-                      <Badge variant={point.isActive ? "default" : "secondary"}>
-                        {point.isActive
-                          ? t("common.status.active")
-                          : t("common.status.inactive")}
-                      </Badge>
-                    </CardDescription>
-                  </CardHeader>
-                </Card>
-              ))}
-            </div>
-          )}
+        <TabsContent value="check-in-points">
+          <CheckInPointsTab
+            eventId={event.id}
+            checkInPoints={event.checkInPoints}
+            totems={totems}
+            maxCheckInPoints={planLimits.maxCheckInPoints}
+            userRole={userRole}
+          />
+        </TabsContent>
+
+        <TabsContent value="totems">
+          <TotemsTab
+            eventId={event.id}
+            totems={totems}
+            checkInPoints={event.checkInPoints}
+            maxTotems={planLimits.maxTotems}
+            userRole={userRole}
+          />
+        </TabsContent>
+
+        <TabsContent value="labels">
+          <LabelConfigTab
+            eventId={event.id}
+            organizationName={event.organizationName}
+            initialConfig={labelConfig}
+            allowQrCode={planLimits.allowQrCode}
+          />
         </TabsContent>
       </Tabs>
     </div>

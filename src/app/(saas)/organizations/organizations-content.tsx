@@ -116,7 +116,7 @@ export function OrganizationsContent(props: OrganizationsContentProps) {
   const [form, setForm] = useState({ name: "", email: "", document: "", phone: "", planId: "" });
   const [loading, setLoading] = useState(false);
 
-  const dateLocale = locale === "pt" ? "pt-BR" : locale;
+  const dateLocale = locale === "pt" ? "pt-BR" : locale === "en" ? "en-US" : locale === "fr" ? "fr-FR" : locale === "es" ? "es-ES" : "zh-CN";
 
   if (!props.isSuperAdmin) {
     const { org } = props;
@@ -139,9 +139,9 @@ export function OrganizationsContent(props: OrganizationsContentProps) {
               <CardDescription>/{org.slug}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-2 text-sm">
-              {org.email && <p><span className="text-muted-foreground">E-mail:</span> {org.email}</p>}
-              {org.document && <p><span className="text-muted-foreground">CNPJ:</span> {org.document}</p>}
-              {org.phone && <p><span className="text-muted-foreground">Telefone:</span> {org.phone}</p>}
+              {org.email && <p><span className="text-muted-foreground">{t("common.labels.email")}:</span> {org.email}</p>}
+              {org.document && <p><span className="text-muted-foreground">{t("common.labels.document")}:</span> {org.document}</p>}
+              {org.phone && <p><span className="text-muted-foreground">{t("common.labels.phone")}:</span> {org.phone}</p>}
             </CardContent>
           </Card>
           <Card>
@@ -150,15 +150,15 @@ export function OrganizationsContent(props: OrganizationsContentProps) {
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="flex items-center justify-between">
-                <span className="flex items-center gap-2 text-sm text-muted-foreground"><Calendar className="h-4 w-4" /> Eventos</span>
+                <span className="flex items-center gap-2 text-sm text-muted-foreground"><Calendar className="h-4 w-4" /> {t("billing.orgView.events")}</span>
                 <span className="font-semibold">{org.eventCount}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="flex items-center gap-2 text-sm text-muted-foreground"><Users className="h-4 w-4" /> Membros</span>
+                <span className="flex items-center gap-2 text-sm text-muted-foreground"><Users className="h-4 w-4" /> {t("organizations.detail.members")}</span>
                 <span className="font-semibold">{org.memberCount}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="flex items-center gap-2 text-sm text-muted-foreground"><CreditCard className="h-4 w-4" /> Plano</span>
+                <span className="flex items-center gap-2 text-sm text-muted-foreground"><CreditCard className="h-4 w-4" /> {t("organizations.detail.plan")}</span>
                 <Badge variant="outline">{org.planName ?? "—"}</Badge>
               </div>
             </CardContent>
@@ -228,10 +228,10 @@ export function OrganizationsContent(props: OrganizationsContentProps) {
             phone: form.phone || undefined,
           }),
         });
-        if (!res.ok) { toast.error("Erro ao atualizar organização"); return; }
-        toast.success("Organização atualizada");
+        if (!res.ok) { toast.error(t("toast.errorOccurred")); return; }
+        toast.success(t("toast.updated"));
       } else {
-        if (!form.planId) { toast.error("Selecione um plano para a organização"); return; }
+        if (!form.planId) { toast.error(t("organizations.form.selectPlan")); return; }
         const res = await fetch("/api/organizations", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -244,13 +244,13 @@ export function OrganizationsContent(props: OrganizationsContentProps) {
           }),
         });
         const data = await res.json();
-        if (!res.ok) { toast.error(data.error || "Erro ao criar organização"); return; }
-        toast.success("Organização criada");
+        if (!res.ok) { toast.error(data.error || t("organizations.form.createError")); return; }
+        toast.success(t("toast.created"));
       }
       setDialogOpen(false);
       router.refresh();
     } catch {
-      toast.error("Erro de conexão");
+      toast.error(t("organizations.form.connectionError"));
     } finally {
       setLoading(false);
     }
@@ -262,39 +262,39 @@ export function OrganizationsContent(props: OrganizationsContentProps) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ toggleActive: !org.isActive }),
     });
-    if (!res.ok) { toast.error("Erro ao alterar status"); return; }
-    toast.success(org.isActive ? "Organização desativada" : "Organização ativada");
+    if (!res.ok) { toast.error(t("toast.errorOccurred")); return; }
+    toast.success(t("toast.updated"));
     router.refresh();
   }
 
   async function handleDelete(org: OrgListItem) {
     const ok = await confirm({
-      title: "Excluir Organização",
-      description: `Tem certeza que deseja excluir "${org.name}"? Os membros perderão acesso.`,
-      confirmLabel: "Excluir",
+      title: t("confirm.deleteTitle"),
+      description: t("confirm.deleteDescription"),
+      confirmLabel: t("common.actions.delete"),
       variant: "destructive",
       requireText: org.name,
     });
     if (!ok) return;
 
     const res = await fetch(`/api/organizations/${org.id}`, { method: "DELETE" });
-    if (!res.ok) { toast.error("Erro ao excluir"); return; }
-    toast.success("Organização excluída");
+    if (!res.ok) { toast.error(t("toast.errorOccurred")); return; }
+    toast.success(t("toast.deleted"));
     router.refresh();
   }
 
   function handleExportExcel() {
     const columns: ExportColumn[] = [
-      { key: "name", header: "Nome", width: 30 },
+      { key: "name", header: t("common.labels.name"), width: 30 },
       { key: "slug", header: "Slug", width: 20 },
-      { key: "email", header: "E-mail", width: 28 },
-      { key: "document", header: "CNPJ", width: 20 },
-      { key: "phone", header: "Telefone", width: 16 },
-      { key: "plan", header: "Plano", width: 16 },
-      { key: "events", header: "Eventos", width: 10 },
-      { key: "members", header: "Membros", width: 10 },
-      { key: "status", header: "Status", width: 10 },
-      { key: "createdAt", header: "Criado em", width: 14 },
+      { key: "email", header: t("common.labels.email"), width: 28 },
+      { key: "document", header: t("common.labels.document"), width: 20 },
+      { key: "phone", header: t("common.labels.phone"), width: 16 },
+      { key: "plan", header: t("organizations.detail.plan"), width: 16 },
+      { key: "events", header: t("organizations.detail.events"), width: 10 },
+      { key: "members", header: t("organizations.detail.members"), width: 10 },
+      { key: "status", header: t("common.labels.status"), width: 10 },
+      { key: "createdAt", header: t("common.labels.createdAt"), width: 14 },
     ];
     const data = filtered.map((o) => ({
       name: o.name,
@@ -305,22 +305,22 @@ export function OrganizationsContent(props: OrganizationsContentProps) {
       plan: o.planName ?? "—",
       events: String(o.eventCount),
       members: String(o.memberCount),
-      status: o.isActive ? "Ativa" : "Inativa",
+      status: o.isActive ? t("common.status.active") : t("common.status.inactive"),
       createdAt: new Date(o.createdAt).toLocaleDateString(dateLocale),
     }));
     exportToExcel(data, columns, `organizacoes-${new Date().toISOString().slice(0, 10)}`);
-    toast.success("Excel exportado");
+    toast.success(t("export.exportComplete"));
   }
 
   function handleExportPDF() {
     const columns: ExportColumn[] = [
-      { key: "name", header: "Nome", width: 35 },
-      { key: "email", header: "E-mail", width: 30 },
-      { key: "document", header: "CNPJ", width: 22 },
-      { key: "plan", header: "Plano", width: 18 },
-      { key: "events", header: "Eventos", width: 12 },
-      { key: "members", header: "Membros", width: 12 },
-      { key: "status", header: "Status", width: 12 },
+      { key: "name", header: t("common.labels.name"), width: 35 },
+      { key: "email", header: t("common.labels.email"), width: 30 },
+      { key: "document", header: t("common.labels.document"), width: 22 },
+      { key: "plan", header: t("organizations.detail.plan"), width: 18 },
+      { key: "events", header: t("organizations.detail.events"), width: 12 },
+      { key: "members", header: t("organizations.detail.members"), width: 12 },
+      { key: "status", header: t("common.labels.status"), width: 12 },
     ];
     const data = filtered.map((o) => ({
       name: o.name,
@@ -329,14 +329,14 @@ export function OrganizationsContent(props: OrganizationsContentProps) {
       plan: o.planName ?? "—",
       events: String(o.eventCount),
       members: String(o.memberCount),
-      status: o.isActive ? "Ativa" : "Inativa",
+      status: o.isActive ? t("common.status.active") : t("common.status.inactive"),
     }));
     exportToPDF(data, columns, `organizacoes-${new Date().toISOString().slice(0, 10)}`, {
-      title: "Relatório de Organizações",
-      subtitle: `OneID by Fivents — ${filtered.length} organizações — ${new Date().toLocaleDateString(dateLocale)}`,
+      title: t("organizations.list.title"),
+      subtitle: `OneID by Fivents — ${filtered.length} — ${new Date().toLocaleDateString(dateLocale)}`,
       orientation: "landscape",
     });
-    toast.success("PDF exportado");
+    toast.success(t("export.exportComplete"));
   }
 
   async function handleImportExcel(e: React.ChangeEvent<HTMLInputElement>) {
@@ -350,7 +350,7 @@ export function OrganizationsContent(props: OrganizationsContentProps) {
         const ws = wb.Sheets[wb.SheetNames[0]];
         const rows = XLSX.utils.sheet_to_json<Record<string, string>>(ws);
 
-        if (rows.length === 0) { toast.error("Planilha vazia"); return; }
+        if (rows.length === 0) { toast.error(t("common.labels.noResults")); return; }
 
         let created = 0;
         let errors = 0;
@@ -384,10 +384,10 @@ export function OrganizationsContent(props: OrganizationsContentProps) {
           else errors++;
         }
 
-        toast.success(`Importação: ${created} criadas, ${errors} erros`);
+        toast.success(`${t("toast.success")}: ${created} ✓, ${errors} ✗`);
         router.refresh();
       } catch {
-        toast.error("Erro ao processar planilha");
+        toast.error(t("toast.errorOccurred"));
       }
     };
     reader.readAsBinaryString(file);
@@ -407,7 +407,7 @@ export function OrganizationsContent(props: OrganizationsContentProps) {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm">
-                <Download className="mr-2 h-4 w-4" /> Exportar
+                <Download className="mr-2 h-4 w-4" /> {t("common.actions.export")}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent>
@@ -421,12 +421,12 @@ export function OrganizationsContent(props: OrganizationsContentProps) {
           </DropdownMenu>
           <Button variant="outline" size="sm" asChild>
             <label className="cursor-pointer">
-              <Upload className="mr-2 h-4 w-4" /> Importar
+              <Upload className="mr-2 h-4 w-4" /> {t("common.actions.import")}
               <input type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImportExcel} />
             </label>
           </Button>
           <Button onClick={openCreateDialog}>
-            <Plus className="mr-2 h-4 w-4" /> Nova Organização
+            <Plus className="mr-2 h-4 w-4" /> {t("organizations.list.newOrg")}
           </Button>
         </div>
       </div>
@@ -437,28 +437,28 @@ export function OrganizationsContent(props: OrganizationsContentProps) {
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-2">
               <Filter className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm font-medium">Filtros:</span>
+              <span className="text-sm font-medium">{t("common.actions.filter")}:</span>
             </div>
             <div className="relative flex-1 min-w-48">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar por nome, slug, e-mail ou CNPJ..." className="pl-9" />
+              <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={`${t("common.actions.search")}...`} className="pl-9" />
             </div>
             <Select value={filterStatus} onValueChange={setFilterStatus}>
               <SelectTrigger className="w-36">
-                <SelectValue placeholder="Status" />
+                <SelectValue placeholder={t("common.labels.status")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Todos</SelectItem>
-                <SelectItem value="active">Ativas</SelectItem>
-                <SelectItem value="inactive">Inativas</SelectItem>
+                <SelectItem value="all">{t("common.labels.all")}</SelectItem>
+                <SelectItem value="active">{t("common.status.active")}</SelectItem>
+                <SelectItem value="inactive">{t("common.status.inactive")}</SelectItem>
               </SelectContent>
             </Select>
             <Select value={filterPlan} onValueChange={setFilterPlan}>
               <SelectTrigger className="w-40">
-                <SelectValue placeholder="Plano" />
+                <SelectValue placeholder={t("organizations.detail.plan")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Todos os planos</SelectItem>
+                <SelectItem value="all">{t("common.labels.all")}</SelectItem>
                 {uniquePlanTiers.map((t) => (
                   <SelectItem key={t} value={t}>{t}</SelectItem>
                 ))}
@@ -466,7 +466,7 @@ export function OrganizationsContent(props: OrganizationsContentProps) {
             </Select>
             {hasFilters && (
               <Button variant="ghost" size="sm" onClick={clearFilters}>
-                <X className="mr-1 h-3.5 w-3.5" /> Limpar
+                <X className="mr-1 h-3.5 w-3.5" /> {t("common.actions.clear")}
               </Button>
             )}
           </div>
@@ -482,22 +482,22 @@ export function OrganizationsContent(props: OrganizationsContentProps) {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Organização</TableHead>
-                <TableHead>E-mail</TableHead>
-                <TableHead>CNPJ</TableHead>
-                <TableHead>Plano</TableHead>
-                <TableHead>Eventos</TableHead>
-                <TableHead>Membros</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Criado em</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
+                <TableHead>{t("common.labels.organization")}</TableHead>
+                <TableHead>{t("common.labels.email")}</TableHead>
+                <TableHead>{t("common.labels.document")}</TableHead>
+                <TableHead>{t("organizations.detail.plan")}</TableHead>
+                <TableHead>{t("organizations.detail.events")}</TableHead>
+                <TableHead>{t("organizations.detail.members")}</TableHead>
+                <TableHead>{t("common.labels.status")}</TableHead>
+                <TableHead>{t("common.labels.createdAt")}</TableHead>
+                <TableHead className="text-right">{t("common.labels.actions")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filtered.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={9} className="py-12 text-center text-muted-foreground">
-                    Nenhuma organização encontrada
+                    {t("organizations.list.noOrgs")}
                   </TableCell>
                 </TableRow>
               ) : (
@@ -518,7 +518,7 @@ export function OrganizationsContent(props: OrganizationsContentProps) {
                     <TableCell>{org.memberCount}</TableCell>
                     <TableCell>
                       <Badge variant={org.isActive ? "default" : "destructive"}>
-                        {org.isActive ? "Ativa" : "Inativa"}
+                        {org.isActive ? t("common.status.active") : t("common.status.inactive")}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
@@ -532,22 +532,22 @@ export function OrganizationsContent(props: OrganizationsContentProps) {
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem asChild>
                             <Link href={`/organizations/${org.id}`}>
-                              <Eye className="mr-2 h-4 w-4" /> Ver Detalhes
+                              <Eye className="mr-2 h-4 w-4" /> {t("common.actions.viewDetails")}
                             </Link>
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => openEditDialog(org)}>
-                            <Pencil className="mr-2 h-4 w-4" /> Editar
+                            <Pencil className="mr-2 h-4 w-4" /> {t("common.actions.edit")}
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => handleToggleActive(org)}>
                             {org.isActive ? (
-                              <><PowerOff className="mr-2 h-4 w-4" /> Desativar</>
+                              <><PowerOff className="mr-2 h-4 w-4" /> {t("users.labels.deactivate")}</>
                             ) : (
-                              <><Power className="mr-2 h-4 w-4" /> Ativar</>
+                              <><Power className="mr-2 h-4 w-4" /> {t("users.labels.activate")}</>
                             )}
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem onClick={() => handleDelete(org)} className="text-destructive focus:text-destructive">
-                            <Trash2 className="mr-2 h-4 w-4" /> Excluir
+                            <Trash2 className="mr-2 h-4 w-4" /> {t("common.actions.delete")}
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -564,36 +564,36 @@ export function OrganizationsContent(props: OrganizationsContentProps) {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>{editingOrg ? "Editar Organização" : "Nova Organização"}</DialogTitle>
+            <DialogTitle>{editingOrg ? `${t("common.actions.edit")} ${t("common.labels.organization")}` : t("organizations.list.newOrg")}</DialogTitle>
             <DialogDescription>
-              {editingOrg ? "Altere os dados da organização." : "Preencha os dados e selecione o plano da nova organização."}
+              {editingOrg ? t("organizations.form.editDescription") : t("organizations.form.createDescription")}
             </DialogDescription>
           </DialogHeader>
 
           <div className="grid gap-4 py-2">
             <div className="space-y-2">
-              <Label>Nome *</Label>
-              <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Nome da organização"  />
+              <Label>{t("common.labels.name")} *</Label>
+              <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder={t("organizations.form.namePlaceholder")}  />
             </div>
             <div className="space-y-2">
-              <Label>E-mail</Label>
-              <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="contato@empresa.com" />
+              <Label>{t("common.labels.email")}</Label>
+              <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder={t("organizations.form.emailPlaceholder")} />
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label>CNPJ</Label>
-                <Input value={form.document} onChange={(e) => setForm({ ...form, document: e.target.value })} placeholder="00.000.000/0001-00" />
+                <Label>{t("common.labels.document")}</Label>
+                <Input value={form.document} onChange={(e) => setForm({ ...form, document: e.target.value })} placeholder={t("organizations.form.documentPlaceholder")} />
               </div>
               <div className="space-y-2">
-                <Label>Telefone</Label>
-                <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="(11) 99999-9999" />
+                <Label>{t("common.labels.phone")}</Label>
+                <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder={t("organizations.form.phonePlaceholder")} />
               </div>
             </div>
             {!editingOrg && (
               <div className="space-y-2">
-                <Label>Plano *</Label>
+                <Label>{t("organizations.detail.plan")} *</Label>
                 <Select value={form.planId} onValueChange={(v) => setForm({ ...form, planId: v })}>
-                  <SelectTrigger><SelectValue placeholder="Selecione o plano" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder={t("organizations.form.selectPlan")} /></SelectTrigger>
                   <SelectContent>
                     {plans.map((p) => (
                       <SelectItem key={p.id} value={p.id}>
@@ -602,15 +602,15 @@ export function OrganizationsContent(props: OrganizationsContentProps) {
                     ))}
                   </SelectContent>
                 </Select>
-                <p className="text-xs text-muted-foreground">O plano é obrigatório para novas organizações.</p>
+                <p className="text-xs text-muted-foreground">{t("organizations.form.planRequired")}</p>
               </div>
             )}
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>{t("common.actions.cancel")}</Button>
             <Button onClick={handleSave} disabled={loading || !form.name || (!editingOrg && !form.planId)}>
-              {loading ? "Salvando..." : editingOrg ? "Salvar" : "Criar Organização"}
+              {loading ? t("common.actions.loading") : editingOrg ? t("common.actions.save") : t("organizations.list.newOrg")}
             </Button>
           </DialogFooter>
         </DialogContent>

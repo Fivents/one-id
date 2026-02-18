@@ -215,15 +215,15 @@ export function EventsContent({ events, isSuperAdmin, organizations }: EventsCon
 
       if (!res.ok) {
         const data = await res.json();
-        toast.error(data.error || "Erro ao salvar evento");
+        toast.error(data.error || t("events.new.createError"));
         return;
       }
 
-      toast.success(editingEvent ? "Evento atualizado" : "Evento criado");
+      toast.success(editingEvent ? t("toast.updated") : t("toast.created"));
       setDialogOpen(false);
       router.refresh();
     } catch {
-      toast.error("Erro de conexão");
+      toast.error(t("auth.login.connectionError"));
     } finally {
       setLoading(false);
     }
@@ -231,9 +231,9 @@ export function EventsContent({ events, isSuperAdmin, organizations }: EventsCon
 
   async function handleDelete(event: EventItem) {
     const ok = await confirm({
-      title: "Excluir Evento",
-      description: `Tem certeza que deseja excluir o evento "${event.name}"? Ele será cancelado e marcado como removido.`,
-      confirmLabel: "Excluir",
+      title: t("events.actions.deleteConfirmTitle"),
+      description: t("events.actions.deleteConfirmDescription").replace("{0}", event.name),
+      confirmLabel: t("common.actions.delete"),
       variant: "destructive",
     });
     if (!ok) return;
@@ -243,10 +243,10 @@ export function EventsContent({ events, isSuperAdmin, organizations }: EventsCon
       { method: "DELETE" }
     );
     if (!res.ok) {
-      toast.error("Erro ao excluir evento");
+      toast.error(t("toast.errorOccurred"));
       return;
     }
-    toast.success("Evento excluído");
+    toast.success(t("toast.deleted"));
     router.refresh();
   }
 
@@ -260,10 +260,10 @@ export function EventsContent({ events, isSuperAdmin, organizations }: EventsCon
       }
     );
     if (!res.ok) {
-      toast.error("Erro ao alterar status");
+      toast.error(t("toast.errorOccurred"));
       return;
     }
-    toast.success("Status atualizado");
+    toast.success(t("toast.updated"));
     router.refresh();
   }
 
@@ -271,7 +271,7 @@ export function EventsContent({ events, isSuperAdmin, organizations }: EventsCon
     const columns: ExportColumn[] = [
       { key: "name", header: t("events.form.name"), width: 30 },
       ...(isSuperAdmin
-        ? [{ key: "organizationName", header: "Organização", width: 24 } as ExportColumn]
+        ? [{ key: "organizationName", header: t("common.labels.organization"), width: 24 } as ExportColumn]
         : []),
       { key: "location", header: t("events.form.location"), width: 24 },
       {
@@ -313,14 +313,14 @@ export function EventsContent({ events, isSuperAdmin, organizations }: EventsCon
       `eventos-${ts}`,
       dateLocale
     );
-    toast.success("Excel exportado");
+    toast.success(t("export.exportComplete"));
   }
 
   function handleExportPDF() {
     const columns: ExportColumn[] = [
       { key: "name", header: t("events.form.name"), width: 35 },
       ...(isSuperAdmin
-        ? [{ key: "organizationName", header: "Organização", width: 30 } as ExportColumn]
+        ? [{ key: "organizationName", header: t("common.labels.organization"), width: 30 } as ExportColumn]
         : []),
       { key: "location", header: t("events.form.location"), width: 25 },
       {
@@ -350,12 +350,12 @@ export function EventsContent({ events, isSuperAdmin, organizations }: EventsCon
       `eventos-${ts}`,
       {
         title: t("events.list.title"),
-        subtitle: `${filtered.length} eventos — ${new Date().toLocaleDateString(dateLocale)}`,
+        subtitle: `${t("events.list.eventCount").replace("{0}", String(filtered.length))} — ${new Date().toLocaleDateString(dateLocale)}`,
         orientation: "landscape",
       },
       dateLocale
     );
-    toast.success("PDF exportado");
+    toast.success(t("export.exportComplete"));
   }
 
   function formatDateRange(start: string, end: string) {
@@ -417,26 +417,26 @@ export function EventsContent({ events, isSuperAdmin, organizations }: EventsCon
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem asChild>
                         <Link href={`/events/${ev.id}`}>
-                          <Eye className="mr-2 h-4 w-4" /> Ver detalhes
+                          <Eye className="mr-2 h-4 w-4" /> {t("common.actions.viewDetails")}
                         </Link>
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => openEditDialog(ev)}>
-                        <Pencil className="mr-2 h-4 w-4" /> Editar
+                        <Pencil className="mr-2 h-4 w-4" /> {t("common.actions.edit")}
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       {ev.status === "DRAFT" && (
                         <DropdownMenuItem onClick={() => handleStatusChange(ev, "PUBLISHED")}>
-                          Publicar
+                          {t("events.actions.publish")}
                         </DropdownMenuItem>
                       )}
                       {ev.status === "PUBLISHED" && (
                         <DropdownMenuItem onClick={() => handleStatusChange(ev, "ACTIVE")}>
-                          Iniciar
+                          {t("events.actions.start")}
                         </DropdownMenuItem>
                       )}
                       {ev.status === "ACTIVE" && (
                         <DropdownMenuItem onClick={() => handleStatusChange(ev, "COMPLETED")}>
-                          Finalizar
+                          {t("events.actions.finish")}
                         </DropdownMenuItem>
                       )}
                       <DropdownMenuSeparator />
@@ -444,7 +444,7 @@ export function EventsContent({ events, isSuperAdmin, organizations }: EventsCon
                         className="text-destructive"
                         onClick={() => handleDelete(ev)}
                       >
-                        <Trash2 className="mr-2 h-4 w-4" /> Excluir
+                        <Trash2 className="mr-2 h-4 w-4" /> {t("common.actions.delete")}
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -511,14 +511,14 @@ export function EventsContent({ events, isSuperAdmin, organizations }: EventsCon
             <TableHeader>
               <TableRow>
                 <TableHead>{t("events.form.name")}</TableHead>
-                {isSuperAdmin && <TableHead>Organização</TableHead>}
+                {isSuperAdmin && <TableHead>{t("common.labels.organization")}</TableHead>}
                 <TableHead>{t("events.form.location")}</TableHead>
                 <TableHead>{t("events.form.startDate")}</TableHead>
                 <TableHead>{t("events.form.status")}</TableHead>
                 <TableHead className="text-center">{t("events.detail.participants")}</TableHead>
                 <TableHead className="text-center">{t("events.detail.checkIns")}</TableHead>
                 <TableHead className="text-center">{t("events.detail.totems")}</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
+                <TableHead className="text-right">{t("common.labels.actions")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -577,26 +577,26 @@ export function EventsContent({ events, isSuperAdmin, organizations }: EventsCon
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem asChild>
                           <Link href={`/events/${ev.id}`}>
-                            <Eye className="mr-2 h-4 w-4" /> Ver detalhes
+                            <Eye className="mr-2 h-4 w-4" /> {t("common.actions.viewDetails")}
                           </Link>
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => openEditDialog(ev)}>
-                          <Pencil className="mr-2 h-4 w-4" /> Editar
+                          <Pencil className="mr-2 h-4 w-4" /> {t("common.actions.edit")}
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         {ev.status === "DRAFT" && (
                           <DropdownMenuItem onClick={() => handleStatusChange(ev, "PUBLISHED")}>
-                            Publicar
+                            {t("events.actions.publish")}
                           </DropdownMenuItem>
                         )}
                         {ev.status === "PUBLISHED" && (
                           <DropdownMenuItem onClick={() => handleStatusChange(ev, "ACTIVE")}>
-                            Iniciar
+                            {t("events.actions.start")}
                           </DropdownMenuItem>
                         )}
                         {ev.status === "ACTIVE" && (
                           <DropdownMenuItem onClick={() => handleStatusChange(ev, "COMPLETED")}>
-                            Finalizar
+                            {t("events.actions.finish")}
                           </DropdownMenuItem>
                         )}
                         <DropdownMenuSeparator />
@@ -604,7 +604,7 @@ export function EventsContent({ events, isSuperAdmin, organizations }: EventsCon
                           className="text-destructive"
                           onClick={() => handleDelete(ev)}
                         >
-                          <Trash2 className="mr-2 h-4 w-4" /> Excluir
+                          <Trash2 className="mr-2 h-4 w-4" /> {t("common.actions.delete")}
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -631,7 +631,7 @@ export function EventsContent({ events, isSuperAdmin, organizations }: EventsCon
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm">
                 <FileDown className="mr-2 h-4 w-4" />
-                Exportar
+                {t("common.actions.export")}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent>
@@ -655,7 +655,7 @@ export function EventsContent({ events, isSuperAdmin, organizations }: EventsCon
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Buscar eventos..."
+            placeholder={t("events.list.searchPlaceholder")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9"
@@ -666,7 +666,7 @@ export function EventsContent({ events, isSuperAdmin, organizations }: EventsCon
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Todos os Status</SelectItem>
+            <SelectItem value="all">{t("events.list.allStatuses")}</SelectItem>
             <SelectItem value="DRAFT">{t("events.statuses.DRAFT")}</SelectItem>
             <SelectItem value="PUBLISHED">{t("events.statuses.PUBLISHED")}</SelectItem>
             <SelectItem value="ACTIVE">{t("events.statuses.ACTIVE")}</SelectItem>
@@ -677,10 +677,10 @@ export function EventsContent({ events, isSuperAdmin, organizations }: EventsCon
         {isSuperAdmin && organizations.length > 0 && (
           <Select value={orgFilter} onValueChange={setOrgFilter}>
             <SelectTrigger className="w-full sm:w-52">
-              <SelectValue placeholder="Organização" />
+              <SelectValue placeholder={t("common.labels.organization")} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Todas as Organizações</SelectItem>
+              <SelectItem value="all">{t("events.list.allOrganizations")}</SelectItem>
               {organizations.map((org) => (
                 <SelectItem key={org.id} value={org.id}>
                   {org.name}
@@ -711,10 +711,10 @@ export function EventsContent({ events, isSuperAdmin, organizations }: EventsCon
 
       {/* Summary */}
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <span>{filtered.length} evento{filtered.length !== 1 ? "s" : ""}</span>
+        <span>{t("events.list.eventCount").replace("{0}", String(filtered.length))}</span>
         {search || statusFilter !== "all" || orgFilter !== "all" ? (
           <span>
-            (filtrado de {events.length})
+            {t("events.list.filteredOf").replace("{0}", String(events.length))}
           </span>
         ) : null}
       </div>
@@ -737,13 +737,13 @@ export function EventsContent({ events, isSuperAdmin, organizations }: EventsCon
           <div className="grid gap-4 py-2">
             {isSuperAdmin && !editingEvent && (
               <div className="space-y-2">
-                <Label>Organização *</Label>
+                <Label>{t("events.form.organization")} *</Label>
                 <Select
                   value={form.organizationId}
                   onValueChange={(v) => setForm({ ...form, organizationId: v })}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Selecione a organização" />
+                    <SelectValue placeholder={t("events.form.selectOrganization")} />
                   </SelectTrigger>
                   <SelectContent>
                     {organizations.map((org) => (
@@ -825,7 +825,7 @@ export function EventsContent({ events, isSuperAdmin, organizations }: EventsCon
             </div>
 
             <div className="space-y-2">
-              <Label>Métodos de Check-in</Label>
+              <Label>{t("events.form.checkInMethods")}</Label>
               <div className="flex gap-4">
                 <label className="flex items-center gap-2 rounded-lg border p-3 cursor-pointer hover:bg-accent flex-1">
                   <input
@@ -840,7 +840,7 @@ export function EventsContent({ events, isSuperAdmin, organizations }: EventsCon
                     className="h-4 w-4 rounded"
                   />
                   <ScanFace className="h-4 w-4" />
-                  <span className="text-sm">Facial</span>
+                  <span className="text-sm">{t("events.form.facial")}</span>
                 </label>
                 <label className="flex items-center gap-2 rounded-lg border p-3 cursor-pointer hover:bg-accent flex-1">
                   <input
@@ -868,7 +868,7 @@ export function EventsContent({ events, isSuperAdmin, organizations }: EventsCon
                     }}
                     className="h-4 w-4 rounded"
                   />
-                  <span className="text-sm">Manual</span>
+                  <span className="text-sm">{t("events.form.manual")}</span>
                 </label>
               </div>
             </div>
@@ -876,16 +876,16 @@ export function EventsContent({ events, isSuperAdmin, organizations }: EventsCon
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>
-              Cancelar
+              {t("common.actions.cancel")}
             </Button>
             <Button
               onClick={handleSave}
               disabled={loading || !form.name || !form.startsAt || !form.endsAt || (!editingEvent && isSuperAdmin && !form.organizationId)}
             >
               {loading
-                ? "Salvando..."
+                ? t("events.form.saving")
                 : editingEvent
-                  ? "Salvar Alterações"
+                  ? t("events.form.saveChanges")
                   : t("events.form.createTitle")}
             </Button>
           </DialogFooter>

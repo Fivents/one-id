@@ -227,3 +227,84 @@ export async function getEventParticipantsForTotem(totemId: string) {
     },
   });
 }
+
+// ─── SUPER_ADMIN Management ─────────────────────────────────
+
+export async function getAllTotems() {
+  return db.totem.findMany({
+    where: { deletedAt: null },
+    include: {
+      organization: { select: { id: true, name: true } },
+      event: { select: { id: true, name: true, status: true } },
+      checkInPoint: { select: { id: true, name: true } },
+      _count: { select: { checkIns: true } },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+}
+
+export async function toggleTotemActive(totemId: string, userId: string) {
+  const totem = await db.totem.findUnique({ where: { id: totemId } });
+  if (!totem || totem.deletedAt) return { error: "Totem não encontrado" };
+
+  const updated = await db.totem.update({
+    where: { id: totemId },
+    data: { isActive: !totem.isActive },
+  });
+
+  await db.auditLog.create({
+    data: {
+      action: "TOTEM_AUTH",
+      organizationId: totem.organizationId,
+      eventId: totem.eventId,
+      userId,
+      totemId: totem.id,
+      description: `Totem "${totem.name}" ${updated.isActive ? "ativado" : "desativado"}`,
+    },
+  });
+
+  return { totem: updated };
+}
+
+export async function deleteTotem(totemId: string, userId: string) {
+  const totem = await db.totem.findUnique({ where: { id: totemId } });
+  if (!totem || totem.deletedAt) return { error: "Totem não encontrado" };
+
+  await db.totem.update({
+    where: { id: totemId },
+    data: { deletedAt: new Date() },
+  });
+
+  await db.auditLog.create({
+    data: {
+      action: "TOTEM_AUTH",
+      organizationId: totem.organizationId,
+      eventId: totem.eventId,
+      userId,
+      totemId: totem.id,
+      description: `Totem "${totem.name}" removido`,
+    },
+  });
+
+  return { success: true };
+}
+
+export async function getTotemDetails(totemId: string) {
+  return db.totem.findUnique({
+    where: { id: totemId },
+    include: {
+      organization: { select: { id: true, name: true } },
+      event: { select: { id: true, name: true, status: true, startsAt: true, endsAt: true } },
+      checkInPoint: { select: { id: true, name: true } },
+      checkIns: {
+        take: 20,
+        orderBy: { checkedInAt: "desc" },
+        include: {
+          participant: { select: { id: true, name: true, company: true } },
+          checkInPoint: { select: { name: true } },
+        },
+      },
+      _count: { select: { checkIns: true } },
+    },
+  });
+}

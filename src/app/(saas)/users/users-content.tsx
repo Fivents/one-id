@@ -100,14 +100,6 @@ type UsersContentProps =
 
 const roles = ["SUPER_ADMIN", "ORG_OWNER", "ORG_ADMIN", "EVENT_MANAGER", "STAFF"] as const;
 
-const roleLabels: Record<string, string> = {
-  SUPER_ADMIN: "Administrador",
-  ORG_OWNER: "Proprietário",
-  ORG_ADMIN: "Admin Org.",
-  EVENT_MANAGER: "Gerente Eventos",
-  STAFF: "Operador",
-};
-
 function getInitials(name: string) {
   return name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
 }
@@ -127,7 +119,11 @@ export function UsersContent(props: UsersContentProps) {
   const [form, setForm] = useState({ name: "", email: "", role: "STAFF", organizationId: "" });
   const [loading, setLoading] = useState(false);
 
-  const dateLocale = locale === "pt" ? "pt-BR" : locale;
+  const dateLocale = locale === "pt" ? "pt-BR" : locale === "en" ? "en-US" : locale === "fr" ? "fr-FR" : locale === "es" ? "es-ES" : "zh-CN";
+
+  function getRoleLabel(role: string) {
+    return t(`nav.roleLabels.${role}` as any) ?? role;
+  }
 
   if (!props.isSuperAdmin) {
     const { members } = props;
@@ -163,7 +159,7 @@ export function UsersContent(props: UsersContentProps) {
                       </div>
                     </TableCell>
                     <TableCell>{m.userEmail}</TableCell>
-                    <TableCell><Badge variant="secondary">{roleLabels[m.role] ?? m.role}</Badge></TableCell>
+                    <TableCell><Badge variant="secondary">{getRoleLabel(m.role)}</Badge></TableCell>
                     <TableCell>
                       <Badge variant={m.userIsActive ? "default" : "destructive"}>
                         {m.userIsActive ? t("common.status.active") : t("common.status.inactive")}
@@ -231,7 +227,7 @@ export function UsersContent(props: UsersContentProps) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ name: form.name, email: form.email }),
         });
-        if (!res.ok) { toast.error("Erro ao atualizar usuário"); return; }
+        if (!res.ok) { toast.error(t("toast.errorOccurred")); return; }
 
         if (form.organizationId && form.role) {
           await fetch(`/api/users/${editingUser.id}`, {
@@ -240,7 +236,7 @@ export function UsersContent(props: UsersContentProps) {
             body: JSON.stringify({ role: form.role, organizationId: form.organizationId }),
           });
         }
-        toast.success("Usuário atualizado");
+        toast.success(t("toast.updated"));
       } else {
         const res = await fetch("/api/users", {
           method: "POST",
@@ -253,17 +249,17 @@ export function UsersContent(props: UsersContentProps) {
           }),
         });
         const data = await res.json();
-        if (!res.ok) { toast.error(data.error || "Erro ao criar usuário"); return; }
+        if (!res.ok) { toast.error(data.error || t("toast.errorOccurred")); return; }
         if (data.data?.setupUrl) {
-          toast.success("Usuário criado! Link de configuração gerado.");
+          toast.success(t("toast.created"));
         } else {
-          toast.success("Usuário adicionado à organização");
+          toast.success(t("toast.created"));
         }
       }
       setDialogOpen(false);
       router.refresh();
     } catch {
-      toast.error("Erro de conexão");
+      toast.error(t("toast.errorOccurred"));
     } finally {
       setLoading(false);
     }
@@ -275,16 +271,16 @@ export function UsersContent(props: UsersContentProps) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ toggleActive: !user.isActive }),
     });
-    if (!res.ok) { toast.error("Erro ao alterar status"); return; }
-    toast.success(user.isActive ? "Usuário desativado" : "Usuário ativado");
+    if (!res.ok) { toast.error(t("toast.errorOccurred")); return; }
+    toast.success(t("toast.updated"));
     router.refresh();
   }
 
   async function handleResetPassword(user: UserListItem) {
     const ok = await confirm({
-      title: "Resetar Senha",
-      description: `Será gerado um link para ${user.name} definir uma nova senha.`,
-      confirmLabel: "Resetar",
+      title: t("users.labels.resetPassword"),
+      description: t("confirm.deleteDescription"),
+      confirmLabel: t("users.labels.resetPassword"),
     });
     if (!ok) return;
 
@@ -294,67 +290,67 @@ export function UsersContent(props: UsersContentProps) {
       body: JSON.stringify({ resetPassword: true }),
     });
     const data = await res.json();
-    if (!res.ok) { toast.error("Erro ao resetar senha"); return; }
-    toast.success(`Link gerado: ${data.data?.setupUrl ?? "verifique o e-mail"}`);
+    if (!res.ok) { toast.error(t("toast.errorOccurred")); return; }
+    toast.success(t("toast.success"));
   }
 
   async function handleDelete(user: UserListItem) {
     const ok = await confirm({
-      title: "Excluir Usuário",
-      description: `Tem certeza que deseja excluir "${user.name}"?`,
-      confirmLabel: "Excluir",
+      title: t("confirm.deleteTitle"),
+      description: t("confirm.deleteDescription"),
+      confirmLabel: t("common.actions.delete"),
       variant: "destructive",
     });
     if (!ok) return;
 
     const res = await fetch(`/api/users/${user.id}`, { method: "DELETE" });
-    if (!res.ok) { toast.error("Erro ao excluir"); return; }
-    toast.success("Usuário excluído");
+    if (!res.ok) { toast.error(t("toast.errorOccurred")); return; }
+    toast.success(t("toast.deleted"));
     router.refresh();
   }
 
   function handleExportExcel() {
     const columns: ExportColumn[] = [
-      { key: "name", header: "Nome", width: 30 },
-      { key: "email", header: "E-mail", width: 30 },
-      { key: "org", header: "Organização", width: 25 },
-      { key: "role", header: "Papel", width: 18 },
-      { key: "status", header: "Status", width: 12 },
-      { key: "createdAt", header: "Criado em", width: 14 },
+      { key: "name", header: t("common.labels.name"), width: 30 },
+      { key: "email", header: t("common.labels.email"), width: 30 },
+      { key: "org", header: t("common.labels.organization"), width: 25 },
+      { key: "role", header: t("common.labels.role"), width: 18 },
+      { key: "status", header: t("common.labels.status"), width: 12 },
+      { key: "createdAt", header: t("common.labels.createdAt"), width: 14 },
     ];
     const data = filtered.map((u) => ({
       name: u.name,
       email: u.email,
       org: u.memberships.map((m) => m.organizationName).join(", ") || "—",
-      role: u.memberships.map((m) => roleLabels[m.role] ?? m.role).join(", ") || "—",
-      status: u.isActive ? "Ativo" : "Inativo",
+      role: u.memberships.map((m) => getRoleLabel(m.role)).join(", ") || "—",
+      status: u.isActive ? t("common.status.active") : t("common.status.inactive"),
       createdAt: new Date(u.createdAt).toLocaleDateString(dateLocale),
     }));
     exportToExcel(data, columns, `usuarios-${new Date().toISOString().slice(0, 10)}`);
-    toast.success("Excel exportado");
+    toast.success(t("export.exportComplete"));
   }
 
   function handleExportPDF() {
     const columns: ExportColumn[] = [
-      { key: "name", header: "Nome", width: 35 },
-      { key: "email", header: "E-mail", width: 40 },
-      { key: "org", header: "Organização", width: 30 },
-      { key: "role", header: "Papel", width: 22 },
-      { key: "status", header: "Status", width: 14 },
+      { key: "name", header: t("common.labels.name"), width: 35 },
+      { key: "email", header: t("common.labels.email"), width: 40 },
+      { key: "org", header: t("common.labels.organization"), width: 30 },
+      { key: "role", header: t("common.labels.role"), width: 22 },
+      { key: "status", header: t("common.labels.status"), width: 14 },
     ];
     const data = filtered.map((u) => ({
       name: u.name,
       email: u.email,
       org: u.memberships.map((m) => m.organizationName).join(", ") || "—",
-      role: u.memberships.map((m) => roleLabels[m.role] ?? m.role).join(", ") || "—",
-      status: u.isActive ? "Ativo" : "Inativo",
+      role: u.memberships.map((m) => getRoleLabel(m.role)).join(", ") || "—",
+      status: u.isActive ? t("common.status.active") : t("common.status.inactive"),
     }));
     exportToPDF(data, columns, `usuarios-${new Date().toISOString().slice(0, 10)}`, {
-      title: "Relatório de Usuários",
-      subtitle: `OneID by Fivents — ${filtered.length} usuários — ${new Date().toLocaleDateString(dateLocale)}`,
+      title: t("users.list.title"),
+      subtitle: `OneID by Fivents — ${filtered.length} — ${new Date().toLocaleDateString(dateLocale)}`,
       orientation: "landscape",
     });
-    toast.success("PDF exportado");
+    toast.success(t("export.exportComplete"));
   }
 
   async function handleImportExcel(e: React.ChangeEvent<HTMLInputElement>) {
@@ -368,7 +364,7 @@ export function UsersContent(props: UsersContentProps) {
         const ws = wb.Sheets[wb.SheetNames[0]];
         const rows = XLSX.utils.sheet_to_json<Record<string, string>>(ws);
 
-        if (rows.length === 0) { toast.error("Planilha vazia"); return; }
+        if (rows.length === 0) { toast.error(t("common.labels.noResults")); return; }
 
         let created = 0;
         let errors = 0;
@@ -385,9 +381,7 @@ export function UsersContent(props: UsersContentProps) {
             (o) => o.name.toLowerCase() === orgName.toLowerCase()
           )?.id || organizations[0]?.id;
 
-          const mappedRole = Object.entries(roleLabels).find(
-            ([, label]) => label.toLowerCase() === role.toLowerCase()
-          )?.[0] ?? (roles.includes(role.toUpperCase() as typeof roles[number]) ? role.toUpperCase() : "STAFF");
+          const mappedRole = roles.includes(role.toUpperCase() as typeof roles[number]) ? role.toUpperCase() : "STAFF";
 
           const res = await fetch("/api/users", {
             method: "POST",
@@ -399,10 +393,10 @@ export function UsersContent(props: UsersContentProps) {
           else errors++;
         }
 
-        toast.success(`Importação: ${created} criados, ${errors} erros`);
+        toast.success(t("toast.success"));
         router.refresh();
       } catch {
-        toast.error("Erro ao processar planilha");
+        toast.error(t("toast.errorOccurred"));
       }
     };
     reader.readAsBinaryString(file);
@@ -421,28 +415,28 @@ export function UsersContent(props: UsersContentProps) {
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm">
                 <Download className="mr-2 h-4 w-4" />
-                Exportar
+                {t("common.actions.export")}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent>
               <DropdownMenuItem onClick={handleExportExcel}>
-                <FileSpreadsheet className="mr-2 h-4 w-4" /> Excel (.xlsx)
+                <FileSpreadsheet className="mr-2 h-4 w-4" /> {t("export.excel")}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={handleExportPDF}>
-                <FileText className="mr-2 h-4 w-4" /> PDF
+                <FileText className="mr-2 h-4 w-4" /> {t("export.pdf")}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
           <Button variant="outline" size="sm" asChild>
             <label className="cursor-pointer">
               <Upload className="mr-2 h-4 w-4" />
-              Importar
+              {t("common.actions.import")}
               <input type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImportExcel} />
             </label>
           </Button>
           <Button onClick={openCreateDialog}>
             <Plus className="mr-2 h-4 w-4" />
-            Novo Usuário
+            {t("users.list.newUser")}
           </Button>
         </div>
       </div>
@@ -453,45 +447,45 @@ export function UsersContent(props: UsersContentProps) {
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-2">
               <Filter className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm font-medium">Filtros:</span>
+              <span className="text-sm font-medium">{t("common.actions.filter")}:</span>
             </div>
             <div className="relative flex-1 min-w-48">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Buscar por nome ou e-mail..."
+                placeholder={`${t("common.actions.search")}...`}
                 className="pl-9"
               />
             </div>
             <Select value={filterRole} onValueChange={setFilterRole}>
               <SelectTrigger className="w-44">
-                <SelectValue placeholder="Papel" />
+                <SelectValue placeholder={t("common.labels.role")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Todos os papéis</SelectItem>
+                <SelectItem value="all">{t("common.labels.all")}</SelectItem>
                 {roles.map((r) => (
-                  <SelectItem key={r} value={r}>{roleLabels[r]}</SelectItem>
+                  <SelectItem key={r} value={r}>{getRoleLabel(r)}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
             <Select value={filterStatus} onValueChange={setFilterStatus}>
               <SelectTrigger className="w-40">
-                <SelectValue placeholder="Status" />
+                <SelectValue placeholder={t("common.labels.status")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Todos os status</SelectItem>
-                <SelectItem value="active">Ativo</SelectItem>
-                <SelectItem value="inactive">Inativo</SelectItem>
-                <SelectItem value="pending">Pendente</SelectItem>
+                <SelectItem value="all">{t("common.labels.all")}</SelectItem>
+                <SelectItem value="active">{t("common.status.active")}</SelectItem>
+                <SelectItem value="inactive">{t("common.status.inactive")}</SelectItem>
+                <SelectItem value="pending">{t("common.status.pending")}</SelectItem>
               </SelectContent>
             </Select>
             <Select value={filterOrg} onValueChange={setFilterOrg}>
               <SelectTrigger className="w-48">
-                <SelectValue placeholder="Organização" />
+                <SelectValue placeholder={t("common.labels.organization")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Todas as organizações</SelectItem>
+                <SelectItem value="all">{t("common.labels.all")}</SelectItem>
                 {organizations.map((o) => (
                   <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>
                 ))}
@@ -499,7 +493,7 @@ export function UsersContent(props: UsersContentProps) {
             </Select>
             {hasFilters && (
               <Button variant="ghost" size="sm" onClick={clearFilters}>
-                <X className="mr-1 h-3.5 w-3.5" /> Limpar
+                <X className="mr-1 h-3.5 w-3.5" /> {t("common.actions.clear")}
               </Button>
             )}
           </div>
@@ -515,20 +509,20 @@ export function UsersContent(props: UsersContentProps) {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Usuário</TableHead>
-                <TableHead>E-mail</TableHead>
-                <TableHead>Organização</TableHead>
-                <TableHead>Papel</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Criado em</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
+                <TableHead>{t("common.labels.name")}</TableHead>
+                <TableHead>{t("common.labels.email")}</TableHead>
+                <TableHead>{t("common.labels.organization")}</TableHead>
+                <TableHead>{t("common.labels.role")}</TableHead>
+                <TableHead>{t("common.labels.status")}</TableHead>
+                <TableHead>{t("common.labels.createdAt")}</TableHead>
+                <TableHead className="text-right">{t("common.labels.actions")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filtered.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={7} className="py-12 text-center text-muted-foreground">
-                    Nenhum usuário encontrado
+                    {t("users.list.noUsers")}
                   </TableCell>
                 </TableRow>
               ) : (
@@ -559,7 +553,7 @@ export function UsersContent(props: UsersContentProps) {
                     <TableCell>
                       {u.memberships.length > 0 ? (
                         <Badge variant="secondary" className="text-[10px]">
-                          {roleLabels[u.memberships[0].role] ?? u.memberships[0].role}
+                          {getRoleLabel(u.memberships[0].role)}
                         </Badge>
                       ) : (
                         <span className="text-muted-foreground">—</span>
@@ -567,10 +561,10 @@ export function UsersContent(props: UsersContentProps) {
                     </TableCell>
                     <TableCell>
                       {u.mustSetPassword ? (
-                        <Badge variant="outline" className="text-amber-600 border-amber-300">Pendente</Badge>
+                        <Badge variant="outline" className="text-amber-600 border-amber-300">{t("common.status.pending")}</Badge>
                       ) : (
                         <Badge variant={u.isActive ? "default" : "destructive"}>
-                          {u.isActive ? "Ativo" : "Inativo"}
+                          {u.isActive ? t("common.status.active") : t("common.status.inactive")}
                         </Badge>
                       )}
                     </TableCell>
@@ -586,21 +580,21 @@ export function UsersContent(props: UsersContentProps) {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem onClick={() => openEditDialog(u)}>
-                            <Pencil className="mr-2 h-4 w-4" /> Editar
+                            <Pencil className="mr-2 h-4 w-4" /> {t("common.actions.edit")}
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => handleResetPassword(u)}>
-                            <KeyRound className="mr-2 h-4 w-4" /> Resetar Senha
+                            <KeyRound className="mr-2 h-4 w-4" /> {t("users.labels.resetPassword")}
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => handleToggleActive(u)}>
                             {u.isActive ? (
-                              <><UserX className="mr-2 h-4 w-4" /> Desativar</>
+                              <><UserX className="mr-2 h-4 w-4" /> {t("users.labels.deactivate")}</>
                             ) : (
-                              <><UserCheck className="mr-2 h-4 w-4" /> Ativar</>
+                              <><UserCheck className="mr-2 h-4 w-4" /> {t("users.labels.activate")}</>
                             )}
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem onClick={() => handleDelete(u)} className="text-destructive focus:text-destructive">
-                            <Trash2 className="mr-2 h-4 w-4" /> Excluir
+                            <Trash2 className="mr-2 h-4 w-4" /> {t("common.actions.delete")}
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -617,25 +611,25 @@ export function UsersContent(props: UsersContentProps) {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{editingUser ? "Editar Usuário" : "Novo Usuário"}</DialogTitle>
+            <DialogTitle>{editingUser ? t("users.form.editTitle") : t("users.list.newUser")}</DialogTitle>
             <DialogDescription>
-              {editingUser ? "Altere os dados do usuário." : "Preencha os dados do novo usuário. Um e-mail de configuração será enviado."}
+              {editingUser ? t("users.form.editDescription") : t("users.form.createDescription")}
             </DialogDescription>
           </DialogHeader>
 
           <div className="grid gap-4 py-2">
             <div className="space-y-2">
-              <Label>Nome *</Label>
-              <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Nome completo" />
+              <Label>{t("users.form.name")} *</Label>
+              <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder={t("users.form.name")} />
             </div>
             <div className="space-y-2">
-              <Label>E-mail *</Label>
-              <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="email@exemplo.com" />
+              <Label>{t("users.form.email")} *</Label>
+              <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder={t("users.form.email")} />
             </div>
             <div className="space-y-2">
-              <Label>Organização</Label>
+              <Label>{t("users.form.organization")}</Label>
               <Select value={form.organizationId} onValueChange={(v) => setForm({ ...form, organizationId: v })}>
-                <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={t("users.form.organization")} /></SelectTrigger>
                 <SelectContent>
                   {organizations.map((o) => (
                     <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>
@@ -644,12 +638,12 @@ export function UsersContent(props: UsersContentProps) {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Papel</Label>
+              <Label>{t("users.form.role")}</Label>
               <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {roles.map((r) => (
-                    <SelectItem key={r} value={r}>{roleLabels[r]}</SelectItem>
+                    <SelectItem key={r} value={r}>{getRoleLabel(r)}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -657,9 +651,9 @@ export function UsersContent(props: UsersContentProps) {
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>{t("common.actions.cancel")}</Button>
             <Button onClick={handleSave} disabled={loading || !form.name || !form.email}>
-              {loading ? "Salvando..." : editingUser ? "Salvar" : "Criar Usuário"}
+              {loading ? t("common.actions.loading") : editingUser ? t("common.actions.save") : t("users.list.newUser")}
             </Button>
           </DialogFooter>
         </DialogContent>

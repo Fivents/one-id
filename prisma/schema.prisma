@@ -76,6 +76,15 @@ enum AuditAction {
   CONSENT_GRANTED
   CONSENT_REVOKED
   EXPORT_DATA
+  IMPORT_DATA
+  LABEL_CONFIG_CREATED
+  LABEL_CONFIG_UPDATED
+  TOTEM_CREATED
+  TOTEM_UPDATED
+  TOTEM_DELETED
+  CHECK_IN_POINT_CREATED
+  CHECK_IN_POINT_UPDATED
+  CHECK_IN_POINT_DELETED
   PLAN_CREATED
   PLAN_UPDATED
   PLAN_DELETED
@@ -266,6 +275,7 @@ model Event {
   totems         Totem[]
   checkIns       CheckIn[]
   auditLogs      AuditLog[]
+  labelConfig    LabelConfig?
 
   @@unique([slug, organizationId])
   @@index([organizationId])
@@ -307,6 +317,8 @@ model Participant {
   email          String?
   document       String?  // CPF
   phone          String?
+  company        String?
+  jobTitle       String?  @map("job_title")
 
   // Face recognition
   faceImageUrl   String?  @map("face_image_url")
@@ -454,6 +466,81 @@ model AuditLog {
   @@index([action])
   @@index([createdAt])
   @@map("audit_logs")
+}
+
+// ============================================
+// LABEL CONFIG (configuração de etiqueta por evento)
+// ============================================
+
+model LabelConfig {
+  id              String   @id @default(cuid())
+
+  eventId         String   @unique @map("event_id")
+
+  // Paper settings
+  paperWidth      Float    @default(62) @map("paper_width")   // mm
+  paperHeight     Float    @default(100) @map("paper_height") // mm
+  orientation     String   @default("portrait") // portrait | landscape
+
+  // Margins
+  marginTop       Float    @default(5) @map("margin_top")
+  marginRight     Float    @default(5) @map("margin_right")
+  marginBottom    Float    @default(5) @map("margin_bottom")
+  marginLeft      Float    @default(5) @map("margin_left")
+
+  // Fivents logo (always required)
+  showFiventsLogo    Boolean @default(true) @map("show_fivents_logo")
+  fiventsLogoPosition String @default("top") @map("fivents_logo_position") // top|bottom
+  fiventsLogoSize    Float   @default(20) @map("fivents_logo_size") // mm height
+
+  // Organization logo
+  showOrgLogo        Boolean @default(true) @map("show_org_logo")
+  orgLogoPosition    String  @default("top") @map("org_logo_position")
+  orgLogoSize        Float   @default(25) @map("org_logo_size")
+
+  // QR Code
+  showQrCode         Boolean @default(true) @map("show_qr_code")
+  qrCodePosition     String  @default("center") @map("qr_code_position")
+  qrCodeSize         Float   @default(30) @map("qr_code_size") // mm
+  qrCodeContent      String  @default("participant_id") @map("qr_code_content") // participant_id|check_in_url|custom
+
+  // Participant name
+  showName           Boolean @default(true) @map("show_name")
+  namePosition       String  @default("center") @map("name_position")
+  nameFontSize       Float   @default(16) @map("name_font_size") // pt
+  nameBold           Boolean @default(true) @map("name_bold")
+
+  // Company
+  showCompany        Boolean @default(true) @map("show_company")
+  companyPosition    String  @default("center") @map("company_position")
+  companyFontSize    Float   @default(12) @map("company_font_size")
+
+  // Job title
+  showJobTitle       Boolean @default(true) @map("show_job_title")
+  jobTitlePosition   String  @default("center") @map("job_title_position")
+  jobTitleFontSize   Float   @default(10) @map("job_title_font_size")
+
+  // Items ordering (JSON array of item keys in display order)
+  itemsOrder         String  @default("[\"fiventsLogo\",\"orgLogo\",\"name\",\"company\",\"jobTitle\",\"qrCode\"]") @map("items_order")
+
+  // Printer settings
+  printerDpi         Int     @default(203) @map("printer_dpi")
+  printerType        String  @default("thermal") @map("printer_type") // thermal|inkjet|laser
+  printSpeed         Int     @default(3) @map("print_speed") // 1-5
+  copies             Int     @default(1)
+
+  // Styling
+  backgroundColor    String  @default("#ffffff") @map("background_color")
+  textColor          String  @default("#000000") @map("text_color")
+  fontFamily         String  @default("Arial") @map("font_family")
+
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  event              Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@map("label_configs")
 }
 
 // ============================================

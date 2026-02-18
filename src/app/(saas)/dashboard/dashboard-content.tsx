@@ -271,14 +271,14 @@ export function DashboardContent({
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <TrendingUp className="h-5 w-5" />
-              Check-ins (últimos 7 dias)
+              {t("dashboard.charts.checkInsLast7Days")}
             </CardTitle>
-            <CardDescription>Volume diário de check-ins realizados</CardDescription>
+            <CardDescription>{t("dashboard.charts.checkInsLast7DaysDescription")}</CardDescription>
           </CardHeader>
           <CardContent>
             {checkInChartData.every((d) => d.checkIns === 0) ? (
               <div className="flex h-48 items-center justify-center text-sm text-muted-foreground">
-                Nenhum check-in nos últimos 7 dias
+                {t("dashboard.charts.noCheckInsLast7Days")}
               </div>
             ) : (
               <ResponsiveContainer width="100%" height={240}>
@@ -317,14 +317,14 @@ export function DashboardContent({
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Activity className="h-5 w-5" />
-              Distribuição de Eventos
+              {t("dashboard.charts.eventDistribution")}
             </CardTitle>
-            <CardDescription>Eventos agrupados por status</CardDescription>
+            <CardDescription>{t("dashboard.charts.eventDistributionDescription")}</CardDescription>
           </CardHeader>
           <CardContent>
             {statusDistribution.length === 0 ? (
               <div className="flex h-48 items-center justify-center text-sm text-muted-foreground">
-                Nenhum evento cadastrado
+                {t("dashboard.charts.noEventsRegistered")}
               </div>
             ) : (
               <ResponsiveContainer width="100%" height={240}>
@@ -370,13 +370,13 @@ export function DashboardContent({
         {/* Top Events */}
         <Card>
           <CardHeader>
-            <CardTitle>Eventos Recentes</CardTitle>
-            <CardDescription>Últimos eventos com contadores</CardDescription>
+            <CardTitle>{t("dashboard.recentEvents")}</CardTitle>
+            <CardDescription>{t("dashboard.recentEventsDescription")}</CardDescription>
           </CardHeader>
           <CardContent>
             {topEvents.length === 0 ? (
               <p className="py-4 text-center text-sm text-muted-foreground">
-                Nenhum evento
+                {t("dashboard.noEvents")}
               </p>
             ) : (
               <div className="space-y-3">
@@ -401,17 +401,17 @@ export function DashboardContent({
         {/* Recent Check-ins */}
         <Card>
           <CardHeader>
-            <CardTitle>Check-ins Recentes</CardTitle>
+            <CardTitle>{t("dashboard.recentCheckIns")}</CardTitle>
             <CardDescription>
               {isSuperAdmin
-                ? "Últimos check-ins da plataforma"
-                : "Últimos check-ins da organização"}
+                ? t("dashboard.recentCheckInsPlatform")
+                : t("dashboard.recentCheckInsOrg")}
             </CardDescription>
           </CardHeader>
           <CardContent>
             {recentCheckIns.length === 0 ? (
               <p className="py-4 text-center text-sm text-muted-foreground">
-                Nenhum check-in realizado
+                {t("dashboard.noCheckIns")}
               </p>
             ) : (
               <div className="space-y-3">
@@ -466,6 +466,7 @@ function AuditLogViewer({
   orgsForAudit: OrgForAudit[];
   dateLocale: string;
 }) {
+  const { t } = useI18n();
   const [selectedOrgId, setSelectedOrgId] = useState<string>("");
   const [selectedEventId, setSelectedEventId] = useState<string>("");
   const [logs, setLogs] = useState<AuditLogEntry[]>([]);
@@ -515,7 +516,7 @@ function AuditLogViewer({
           Audit Log Viewer
         </CardTitle>
         <CardDescription>
-          Selecione uma organização e opcionalmente um evento para visualizar os logs de auditoria
+          {t("dashboard.auditLog.description")}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -523,7 +524,7 @@ function AuditLogViewer({
         <div className="flex flex-col gap-3 sm:flex-row">
           <Select value={selectedOrgId} onValueChange={handleOrgChange}>
             <SelectTrigger className="w-full sm:w-64">
-              <SelectValue placeholder="Selecione a organização" />
+              <SelectValue placeholder={t("dashboard.auditLog.selectOrganization")} />
             </SelectTrigger>
             <SelectContent>
               {orgsForAudit.map((org) => (
@@ -537,10 +538,10 @@ function AuditLogViewer({
           {events.length > 0 && (
             <Select value={selectedEventId} onValueChange={setSelectedEventId}>
               <SelectTrigger className="w-full sm:w-64">
-                <SelectValue placeholder="Todos os eventos" />
+                <SelectValue placeholder={t("dashboard.auditLog.allEvents")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Todos os eventos</SelectItem>
+                <SelectItem value="all">{t("dashboard.auditLog.allEvents")}</SelectItem>
                 {events.map((ev) => (
                   <SelectItem key={ev.id} value={ev.id}>
                     {ev.name}
@@ -552,7 +553,7 @@ function AuditLogViewer({
 
           {selectedOrgId && (
             <Button variant="outline" size="sm" onClick={fetchLogs} disabled={loadingLogs}>
-              {loadingLogs ? "Carregando..." : "Atualizar"}
+              {loadingLogs ? t("dashboard.auditLog.loading") : t("dashboard.auditLog.refresh")}
             </Button>
           )}
         </div>
@@ -570,7 +571,7 @@ function AuditLogViewer({
               </>
             )}
             <ChevronRight className="h-3.5 w-3.5" />
-            <span>{logs.length} log{logs.length !== 1 ? "s" : ""}</span>
+            <span>{t("dashboard.auditLog.logCount").replace("{0}", String(logs.length))}</span>
           </div>
         )}
 
@@ -579,18 +580,18 @@ function AuditLogViewer({
           <div className="flex h-64 items-center justify-center rounded-lg border-2 border-dashed text-sm text-muted-foreground">
             <div className="text-center">
               <Terminal className="mx-auto mb-2 h-8 w-8" />
-              Selecione uma organização para visualizar os logs
+              {t("dashboard.auditLog.selectOrgPrompt")}
             </div>
           </div>
         ) : loadingLogs ? (
           <div className="flex h-64 items-center justify-center rounded-lg bg-gray-950 text-sm text-green-400">
-            Carregando logs...
+            {t("dashboard.auditLog.loadingLogs")}
           </div>
         ) : (
-          <div className="max-h-[500px] overflow-auto rounded-lg bg-gray-950 p-4 font-mono text-xs leading-relaxed">
+          <div className="max-h-125 overflow-auto rounded-lg bg-gray-950 p-4 font-mono text-xs leading-relaxed">
             {logs.length === 0 ? (
               <span className="text-gray-500">
-                {">"} Nenhum log encontrado para os filtros selecionados.
+                {">"} {t("dashboard.auditLog.noLogs")}
               </span>
             ) : (
               logs.map((log) => (

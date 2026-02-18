@@ -248,15 +248,15 @@ export function BillingContent(props: BillingContentProps) {
 
       if (!res.ok) {
         const data = await res.json();
-        toast.error(data.error || "Erro ao salvar plano");
+        toast.error(data.error || t("billing.superAdmin.planSaveError"));
         return;
       }
 
-      toast.success(editingPlan ? "Plano atualizado" : "Plano criado");
+      toast.success(editingPlan ? t("billing.superAdmin.planUpdated") : t("billing.superAdmin.planCreated"));
       setDialogOpen(false);
       router.refresh();
     } catch {
-      toast.error("Erro de conexão");
+      toast.error(t("auth.login.connectionError"));
     } finally {
       setLoading(false);
     }
@@ -264,9 +264,9 @@ export function BillingContent(props: BillingContentProps) {
 
   async function handleDelete(plan: PlanItem) {
     const ok = await confirm({
-      title: "Excluir Plano",
-      description: `Tem certeza que deseja excluir o plano "${plan.name}"? Esta ação não pode ser desfeita.`,
-      confirmLabel: "Excluir",
+      title: t("billing.superAdmin.planDeleteTitle"),
+      description: t("billing.superAdmin.planDeleteDescription").replace("{0}", plan.name),
+      confirmLabel: t("common.actions.delete"),
       variant: "destructive",
     });
     if (!ok) return;
@@ -274,10 +274,10 @@ export function BillingContent(props: BillingContentProps) {
     const res = await fetch(`/api/plans/${plan.id}`, { method: "DELETE" });
     if (!res.ok) {
       const data = await res.json();
-      toast.error(data.error || "Erro ao excluir plano");
+      toast.error(data.error || t("billing.superAdmin.planDeleteError"));
       return;
     }
-    toast.success("Plano excluído");
+    toast.success(t("billing.superAdmin.planDeleted"));
     router.refresh();
   }
 
@@ -288,10 +288,10 @@ export function BillingContent(props: BillingContentProps) {
       body: JSON.stringify({ isActive: !plan.isActive }),
     });
     if (!res.ok) {
-      toast.error("Erro ao alterar status do plano");
+      toast.error(t("billing.superAdmin.planToggleError"));
       return;
     }
-    toast.success(plan.isActive ? "Plano desativado" : "Plano ativado");
+    toast.success(plan.isActive ? t("billing.superAdmin.planDeactivated") : t("billing.superAdmin.planActivated"));
     router.refresh();
   }
 
@@ -302,27 +302,34 @@ export function BillingContent(props: BillingContentProps) {
       body: JSON.stringify({ requestId, action }),
     });
     if (!res.ok) {
-      toast.error("Erro ao resolver solicitação");
+      toast.error(t("billing.superAdmin.requestResolveError"));
       return;
     }
-    toast.success(action === "APPROVED" ? "Solicitação aprovada" : "Solicitação rejeitada");
+    toast.success(action === "APPROVED" ? t("billing.superAdmin.requestApproved") : t("billing.superAdmin.requestRejected"));
     router.refresh();
   }
 
   const pendingRequests = requests.filter((r) => r.status === "PENDING");
   const resolvedRequests = requests.filter((r) => r.status !== "PENDING");
-  const dateLocale = locale === "pt" ? "pt-BR" : locale;
+  const localeMap: Record<string, string> = {
+    pt: "pt-BR",
+    en: "en-US",
+    fr: "fr-FR",
+    es: "es-ES",
+    zh: "zh-CN",
+  };
+  const dateLocale = localeMap[locale] ?? "pt-BR";
 
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">{t("billing.title")}</h1>
-          <p className="text-muted-foreground">Gerencie os planos da plataforma e solicitações de mudança</p>
+          <p className="text-muted-foreground">{t("billing.superAdmin.description")}</p>
         </div>
         <Button onClick={openCreateDialog}>
           <Plus className="mr-2 h-4 w-4" />
-          Novo Plano
+          {t("billing.superAdmin.newPlan")}
         </Button>
       </div>
 
@@ -334,13 +341,13 @@ export function BillingContent(props: BillingContentProps) {
           return (
             <Card
               key={plan.id}
-              className={`relative overflow-hidden bg-gradient-to-br ${gradient} transition-all hover:shadow-lg ${!plan.isActive ? "opacity-60" : ""}`}
+              className={`relative overflow-hidden bg-linear-to-br ${gradient} transition-all hover:shadow-lg ${!plan.isActive ? "opacity-60" : ""}`}
             >
               {plan.isCustom && (
                 <div className="absolute right-3 top-3">
                   <Badge variant="outline" className="bg-background/80 backdrop-blur-sm">
                     <Sparkles className="mr-1 h-3 w-3" />
-                    Customizável
+                    {t("billing.superAdmin.customizable")}
                   </Badge>
                 </div>
               )}
@@ -354,7 +361,7 @@ export function BillingContent(props: BillingContentProps) {
                     <div className="flex items-center gap-2">
                       <Badge variant="secondary" className="text-[10px]">{plan.tier}</Badge>
                       <Badge variant={plan.isActive ? "default" : "destructive"} className="text-[10px]">
-                        {plan.isActive ? "Ativo" : "Inativo"}
+                        {plan.isActive ? t("common.status.active") : t("common.status.inactive")}
                       </Badge>
                     </div>
                   </div>
@@ -367,9 +374,9 @@ export function BillingContent(props: BillingContentProps) {
               <CardContent className="space-y-4">
                 <div className="flex items-baseline gap-1">
                   <span className="text-3xl font-bold">
-                    {plan.price === 0 ? "Grátis" : `R$ ${plan.price.toFixed(2)}`}
+                    {plan.price === 0 ? t("billing.superAdmin.free") : `R$ ${plan.price.toFixed(2)}`}
                   </span>
-                  {plan.price > 0 && <span className="text-sm text-muted-foreground">/mês</span>}
+                  {plan.price > 0 && <span className="text-sm text-muted-foreground">{t("billing.superAdmin.perMonth")}</span>}
                 </div>
 
                 <Separator />
@@ -377,31 +384,31 @@ export function BillingContent(props: BillingContentProps) {
                 <div className="space-y-2.5 text-sm">
                   <div className="flex items-center justify-between">
                     <span className="flex items-center gap-2 text-muted-foreground">
-                      <Calendar className="h-3.5 w-3.5" /> Eventos
+                      <Calendar className="h-3.5 w-3.5" /> {t("billing.orgView.events")}
                     </span>
                     <span className="font-semibold">{plan.maxEvents}</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="flex items-center gap-2 text-muted-foreground">
-                      <Users className="h-3.5 w-3.5" /> Part./Evento
+                      <Users className="h-3.5 w-3.5" /> {t("billing.superAdmin.participantsPerEvent")}
                     </span>
                     <span className="font-semibold">{plan.maxParticipantsPerEvent.toLocaleString()}</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="flex items-center gap-2 text-muted-foreground">
-                      <Monitor className="h-3.5 w-3.5" /> Totems
+                      <Monitor className="h-3.5 w-3.5" /> {t("billing.orgView.totems")}
                     </span>
                     <span className="font-semibold">{plan.maxTotems}</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="flex items-center gap-2 text-muted-foreground">
-                      <Users className="h-3.5 w-3.5" /> Membros
+                      <Users className="h-3.5 w-3.5" /> {t("billing.superAdmin.members")}
                     </span>
                     <span className="font-semibold">{plan.maxMembers}</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="flex items-center gap-2 text-muted-foreground">
-                      <MapPin className="h-3.5 w-3.5" /> Pontos/Evento
+                      <MapPin className="h-3.5 w-3.5" /> {t("billing.superAdmin.pointsPerEvent")}
                     </span>
                     <span className="font-semibold">{plan.maxCheckInPointsPerEvent}</span>
                   </div>
@@ -417,7 +424,7 @@ export function BillingContent(props: BillingContentProps) {
                       <X className="h-4 w-4 text-muted-foreground" />
                     )}
                     <span className={plan.allowFacial ? "" : "text-muted-foreground line-through"}>
-                      Reconhecimento Facial
+                      {t("billing.superAdmin.facialRecognition")}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
@@ -427,7 +434,7 @@ export function BillingContent(props: BillingContentProps) {
                       <X className="h-4 w-4 text-muted-foreground" />
                     )}
                     <span className={plan.allowQrCode ? "" : "text-muted-foreground line-through"}>
-                      QR Code
+                      {t("billing.superAdmin.qrCode")}
                     </span>
                   </div>
                 </div>
@@ -437,7 +444,7 @@ export function BillingContent(props: BillingContentProps) {
                     <Separator />
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Building2 className="h-3.5 w-3.5" />
-                      {plan.subscriberCount} organização{plan.subscriberCount !== 1 ? "ões" : ""} vinculada{plan.subscriberCount !== 1 ? "s" : ""}
+                      {t("billing.superAdmin.subscriberCount").replace("{0}", String(plan.subscriberCount))}
                     </div>
                   </>
                 )}
@@ -446,10 +453,10 @@ export function BillingContent(props: BillingContentProps) {
               <CardFooter className="flex gap-2 border-t bg-background/50 px-6 py-3">
                 <Button variant="outline" size="sm" onClick={() => openEditDialog(plan)} className="flex-1">
                   <Pencil className="mr-1.5 h-3.5 w-3.5" />
-                  Editar
+                  {t("common.actions.edit")}
                 </Button>
                 <Button variant="outline" size="sm" onClick={() => handleToggleActive(plan)} className="flex-1">
-                  {plan.isActive ? "Desativar" : "Ativar"}
+                  {plan.isActive ? t("users.labels.deactivate") : t("users.labels.activate")}
                 </Button>
                 {plan.subscriberCount === 0 && (
                   <Button variant="destructive" size="sm" onClick={() => handleDelete(plan)}>
@@ -468,20 +475,20 @@ export function BillingContent(props: BillingContentProps) {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <DollarSign className="h-5 w-5" />
-              Solicitações Pendentes ({pendingRequests.length})
+              {t("billing.superAdmin.pendingRequests")} ({pendingRequests.length})
             </CardTitle>
-            <CardDescription>Solicitações de mudança de plano aguardando aprovação</CardDescription>
+            <CardDescription>{t("billing.superAdmin.pendingDescription")}</CardDescription>
           </CardHeader>
           <CardContent className="p-0">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Organização</TableHead>
-                  <TableHead>Plano Atual</TableHead>
-                  <TableHead>Plano Solicitado</TableHead>
-                  <TableHead>Mensagem</TableHead>
-                  <TableHead>Data</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
+                  <TableHead>{t("common.labels.organization")}</TableHead>
+                  <TableHead>{t("billing.superAdmin.currentPlan")}</TableHead>
+                  <TableHead>{t("billing.superAdmin.requestedPlan")}</TableHead>
+                  <TableHead>{t("billing.superAdmin.message")}</TableHead>
+                  <TableHead>{t("common.labels.date")}</TableHead>
+                  <TableHead className="text-right">{t("common.labels.actions")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -495,10 +502,10 @@ export function BillingContent(props: BillingContentProps) {
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
                         <Button size="sm" onClick={() => handleResolveRequest(req.id, "APPROVED")}>
-                          <Check className="mr-1 h-3.5 w-3.5" /> Aprovar
+                          <Check className="mr-1 h-3.5 w-3.5" /> {t("billing.superAdmin.approve")}
                         </Button>
                         <Button size="sm" variant="destructive" onClick={() => handleResolveRequest(req.id, "REJECTED")}>
-                          <X className="mr-1 h-3.5 w-3.5" /> Rejeitar
+                          <X className="mr-1 h-3.5 w-3.5" /> {t("billing.superAdmin.reject")}
                         </Button>
                       </div>
                     </TableCell>
@@ -513,16 +520,16 @@ export function BillingContent(props: BillingContentProps) {
       {resolvedRequests.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Histórico de Solicitações ({resolvedRequests.length})</CardTitle>
+            <CardTitle>{t("billing.superAdmin.requestHistory")} ({resolvedRequests.length})</CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Organização</TableHead>
-                  <TableHead>Plano Solicitado</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Data</TableHead>
+                  <TableHead>{t("common.labels.organization")}</TableHead>
+                  <TableHead>{t("billing.superAdmin.requestedPlan")}</TableHead>
+                  <TableHead>{t("common.labels.status")}</TableHead>
+                  <TableHead>{t("common.labels.date")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -532,7 +539,7 @@ export function BillingContent(props: BillingContentProps) {
                     <TableCell>{req.requestedPlanName}</TableCell>
                     <TableCell>
                       <Badge variant={req.status === "APPROVED" ? "default" : "destructive"}>
-                        {req.status === "APPROVED" ? "Aprovado" : "Rejeitado"}
+                        {req.status === "APPROVED" ? t("common.status.approved") : t("common.status.rejected")}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">{new Date(req.createdAt).toLocaleDateString(dateLocale)}</TableCell>
@@ -548,20 +555,20 @@ export function BillingContent(props: BillingContentProps) {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
-            <DialogTitle>{editingPlan ? "Editar Plano" : "Novo Plano"}</DialogTitle>
+            <DialogTitle>{editingPlan ? t("billing.superAdmin.editPlan") : t("billing.superAdmin.newPlan")}</DialogTitle>
             <DialogDescription>
-              {editingPlan ? "Altere as configurações do plano." : "Configure os limites e recursos do novo plano."}
+              {editingPlan ? t("billing.superAdmin.editPlanDescription") : t("billing.superAdmin.newPlanDescription")}
             </DialogDescription>
           </DialogHeader>
 
           <div className="grid gap-4 py-2">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label>Nome *</Label>
+                <Label>{t("billing.superAdmin.planName")} *</Label>
                 <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Ex: Professional" />
               </div>
               <div className="space-y-2">
-                <Label>Tier</Label>
+                <Label>{t("billing.superAdmin.tier")}</Label>
                 <Select value={form.tier} onValueChange={(v) => setForm({ ...form, tier: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -576,86 +583,86 @@ export function BillingContent(props: BillingContentProps) {
             </div>
 
             <div className="space-y-2">
-              <Label>Descrição</Label>
-              <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Descrição do plano" rows={2} />
+              <Label>{t("billing.superAdmin.planDescription")}</Label>
+              <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder={t("billing.superAdmin.planDescriptionPlaceholder")} rows={2} />
             </div>
 
             <div className="grid gap-4 sm:grid-cols-3">
               <div className="space-y-2">
-                <Label>Preço (R$)</Label>
+                <Label>{t("billing.superAdmin.priceLabel")}</Label>
                 <Input type="number" min="0" step="0.01" value={form.price} onChange={(e) => setForm({ ...form, price: +e.target.value })} />
               </div>
               <div className="space-y-2">
-                <Label>Ordem de exibição</Label>
+                <Label>{t("billing.superAdmin.sortOrder")}</Label>
                 <Input type="number" min="0" value={form.sortOrder} onChange={(e) => setForm({ ...form, sortOrder: +e.target.value })} />
               </div>
             </div>
 
             <Separator />
-            <h4 className="text-sm font-medium">Limites</h4>
+            <h4 className="text-sm font-medium">{t("billing.superAdmin.limits")}</h4>
 
             <div className="grid gap-4 sm:grid-cols-3">
               <div className="space-y-2">
-                <Label>Máx. Eventos</Label>
+                <Label>{t("billing.superAdmin.maxEventsLabel")}</Label>
                 <Input type="number" min="1" value={form.maxEvents} onChange={(e) => setForm({ ...form, maxEvents: +e.target.value })} />
               </div>
               <div className="space-y-2">
-                <Label>Participantes/Evento</Label>
+                <Label>{t("billing.superAdmin.maxParticipantsLabel")}</Label>
                 <Input type="number" min="1" value={form.maxParticipantsPerEvent} onChange={(e) => setForm({ ...form, maxParticipantsPerEvent: +e.target.value })} />
               </div>
               <div className="space-y-2">
-                <Label>Máx. Totems</Label>
+                <Label>{t("billing.superAdmin.maxTotemsLabel")}</Label>
                 <Input type="number" min="1" value={form.maxTotems} onChange={(e) => setForm({ ...form, maxTotems: +e.target.value })} />
               </div>
               <div className="space-y-2">
-                <Label>Máx. Membros</Label>
+                <Label>{t("billing.superAdmin.maxMembersLabel")}</Label>
                 <Input type="number" min="1" value={form.maxMembers} onChange={(e) => setForm({ ...form, maxMembers: +e.target.value })} />
               </div>
               <div className="space-y-2">
-                <Label>Pontos Check-in/Evento</Label>
+                <Label>{t("billing.superAdmin.checkInPointsLabel")}</Label>
                 <Input type="number" min="1" value={form.maxCheckInPointsPerEvent} onChange={(e) => setForm({ ...form, maxCheckInPointsPerEvent: +e.target.value })} />
               </div>
             </div>
 
             <Separator />
-            <h4 className="text-sm font-medium">Recursos & Opções</h4>
+            <h4 className="text-sm font-medium">{t("billing.superAdmin.featuresOptions")}</h4>
 
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="flex items-center gap-3 rounded-lg border p-3 cursor-pointer hover:bg-accent">
                 <input type="checkbox" checked={form.allowFacial} onChange={(e) => setForm({ ...form, allowFacial: e.target.checked })} className="h-4 w-4 rounded" />
                 <div>
-                  <p className="text-sm font-medium">Reconhecimento Facial</p>
-                  <p className="text-xs text-muted-foreground">Check-in por reconhecimento facial</p>
+                  <p className="text-sm font-medium">{t("billing.superAdmin.facialRecognition")}</p>
+                  <p className="text-xs text-muted-foreground">{t("billing.superAdmin.facialDescription")}</p>
                 </div>
               </label>
               <label className="flex items-center gap-3 rounded-lg border p-3 cursor-pointer hover:bg-accent">
                 <input type="checkbox" checked={form.allowQrCode} onChange={(e) => setForm({ ...form, allowQrCode: e.target.checked })} className="h-4 w-4 rounded" />
                 <div>
-                  <p className="text-sm font-medium">QR Code</p>
-                  <p className="text-xs text-muted-foreground">Check-in por QR Code</p>
+                  <p className="text-sm font-medium">{t("billing.superAdmin.qrCode")}</p>
+                  <p className="text-xs text-muted-foreground">{t("billing.superAdmin.qrCodeDescription")}</p>
                 </div>
               </label>
               <label className="flex items-center gap-3 rounded-lg border p-3 cursor-pointer hover:bg-accent">
                 <input type="checkbox" checked={form.isCustom} onChange={(e) => setForm({ ...form, isCustom: e.target.checked })} className="h-4 w-4 rounded" />
                 <div>
-                  <p className="text-sm font-medium">Plano Customizável</p>
-                  <p className="text-xs text-muted-foreground">Limites ajustáveis por organização</p>
+                  <p className="text-sm font-medium">{t("billing.superAdmin.customPlan")}</p>
+                  <p className="text-xs text-muted-foreground">{t("billing.superAdmin.customPlanDescription")}</p>
                 </div>
               </label>
               <label className="flex items-center gap-3 rounded-lg border p-3 cursor-pointer hover:bg-accent">
                 <input type="checkbox" checked={form.isActive} onChange={(e) => setForm({ ...form, isActive: e.target.checked })} className="h-4 w-4 rounded" />
                 <div>
-                  <p className="text-sm font-medium">Ativo</p>
-                  <p className="text-xs text-muted-foreground">Disponível para novas assinaturas</p>
+                  <p className="text-sm font-medium">{t("billing.superAdmin.activePlan")}</p>
+                  <p className="text-xs text-muted-foreground">{t("billing.superAdmin.activeDescription")}</p>
                 </div>
               </label>
             </div>
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>{t("common.actions.cancel")}</Button>
             <Button onClick={handleSave} disabled={loading || !form.name}>
-              {loading ? "Salvando..." : editingPlan ? "Salvar Alterações" : "Criar Plano"}
+              {loading ? t("events.form.saving") : editingPlan ? t("events.form.saveChanges") : t("billing.superAdmin.createPlan")}
             </Button>
           </DialogFooter>
         </DialogContent>

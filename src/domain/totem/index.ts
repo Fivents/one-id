@@ -5,6 +5,10 @@ export {
   getTotemsByOrganization,
   heartbeat,
   getEventParticipantsForTotem,
+  getAllTotems,
+  toggleTotemActive,
+  deleteTotem,
+  getTotemDetails,
 } from "./totem.service";
 export {
   createTotemSchema,

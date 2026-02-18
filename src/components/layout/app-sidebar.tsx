@@ -37,6 +37,7 @@ import {
   ScanFace,
   ChevronUp,
   Shield,
+  Monitor,
 } from "lucide-react";
 
 interface NavItem {
@@ -76,6 +77,12 @@ const navItems: NavItem[] = [
     href: "/billing",
     icon: CreditCard,
     roles: ["SUPER_ADMIN", "ORG_OWNER"],
+  },
+  {
+    titleKey: "nav.sidebar.totems",
+    href: "/totems",
+    icon: Monitor,
+    roles: ["SUPER_ADMIN"],
   },
   {
     titleKey: "nav.sidebar.settings",
