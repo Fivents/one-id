@@ -49,7 +49,7 @@ api.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
     const message = ErrorMapper.toMessage(error);
-    Logger.error(message, error);
+    Logger.error(message, { error: String(error) });
     return Promise.reject(error);
   },
 );

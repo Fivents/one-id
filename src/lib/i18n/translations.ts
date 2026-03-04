@@ -70,6 +70,7 @@ export const translations: Translations = {
         loggingIn: 'Entrando...',
         connectionError: 'Erro de conexão. Tente novamente.',
         invalidCredentials: 'Credenciais inválidas',
+        invalidToken: 'Código de acesso inválido',
       },
       setPassword: {
         title: 'Definir Senha',
@@ -635,6 +636,7 @@ export const translations: Translations = {
         loggingIn: 'Signing in...',
         connectionError: 'Connection error. Please try again.',
         invalidCredentials: 'Invalid credentials',
+        invalidToken: 'Invalid access code',
       },
       setPassword: {
         title: 'Set Password',
@@ -1198,6 +1200,7 @@ export const translations: Translations = {
         loggingIn: 'Connexion en cours...',
         connectionError: 'Erreur de connexion. Veuillez réessayer.',
         invalidCredentials: 'Identifiants invalides',
+        invalidToken: "Code d'accès invalide",
       },
       setPassword: {
         title: 'Définir le mot de passe',
@@ -1763,6 +1766,7 @@ export const translations: Translations = {
         loggingIn: 'Iniciando sesión...',
         connectionError: 'Error de conexión. Inténtelo de nuevo.',
         invalidCredentials: 'Credenciales inválidas',
+        invalidToken: 'Código de acceso inválido',
       },
       setPassword: {
         title: 'Establecer Contraseña',
@@ -2327,6 +2331,7 @@ export const translations: Translations = {
         loggingIn: '正在登录...',
         connectionError: '连接错误，请重试。',
         invalidCredentials: '凭据无效',
+        invalidToken: '无效的访问代码',
       },
       setPassword: {
         title: '设置密码',

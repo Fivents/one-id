@@ -68,6 +68,7 @@ export type TranslationSchema = {
       loggingIn: string;
       connectionError: string;
       invalidCredentials: string;
+      invalidToken: string;
     };
     setPassword: {
       title: string;
