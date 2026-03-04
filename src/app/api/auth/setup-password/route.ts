@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { SetupPasswordError } from '@/core/application/use-cases/auth/setup-client-password.use-case';
 import { setupPasswordRequestSchema } from '@/core/communication/requests/auth';
-import { makeSetupClientPasswordUseCase } from '@/core/infrastructure/database/container';
+import { makeSetupClientPasswordUseCase } from '@/core/infrastructure/factories';
 import { parseWithZod } from '@/core/utils/parse-with-zod';
 
 export async function POST(request: NextRequest) {

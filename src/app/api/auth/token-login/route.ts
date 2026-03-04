@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { TotemLoginError } from '@/core/application/use-cases/auth/login-with-access-code-totem.use-case';
 import { loginAccessCodeRequestSchema } from '@/core/communication/requests/auth';
-import { makeLoginWithAccessCodeTotemUseCase } from '@/core/infrastructure/database/container';
+import { makeLoginWithAccessCodeTotemUseCase } from '@/core/infrastructure/factories';
 import { parseWithZod } from '@/core/utils/parse-with-zod';
 
 export async function POST(request: NextRequest) {

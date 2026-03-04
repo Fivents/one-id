@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { CheckEmailError } from '@/core/application/use-cases/auth/check-email-client.use-case';
 import { checkEmailRequestSchema } from '@/core/communication/requests/auth';
-import { makeCheckEmailClientUseCase } from '@/core/infrastructure/database/container';
+import { makeCheckEmailClientUseCase } from '@/core/infrastructure/factories';
 import { parseWithZod } from '@/core/utils/parse-with-zod';
 
 export async function POST(request: NextRequest) {

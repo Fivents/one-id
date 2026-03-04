@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-import { getGoogleOAuthProvider } from '@/core/infrastructure/database/container';
+import { getGoogleOAuthProvider } from '@/core/infrastructure/factories';
 
 export async function GET() {
   try {
