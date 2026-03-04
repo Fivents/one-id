@@ -36,7 +36,18 @@ export class LoginWithGoogleAdminUseCase {
       });
     }
 
-    const userWithMembership = await this.userRepository.findByEmailWithMembership(googleUser.email);
+    let userWithMembership = await this.userRepository.findByEmailWithMembership(googleUser.email);
+
+    // Auto-create membership for new @fivents.com admins (no membership yet)
+    if (!userWithMembership) {
+      const fiventsOrg = await this.userRepository.findOrCreateFiventsOrganization();
+      await this.userRepository.createMembership({
+        userId: user.id,
+        organizationId: fiventsOrg.id,
+        role: 'SUPER_ADMIN',
+      });
+      userWithMembership = await this.userRepository.findByEmailWithMembership(googleUser.email);
+    }
 
     if (!userWithMembership || !isAdminRole(userWithMembership.role)) {
       throw new GoogleAdminLoginError('Account is not authorized as admin.');

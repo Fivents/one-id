@@ -78,4 +78,34 @@ export class PrismaUserRepository implements IUserRepository {
       avatarUrl: user.avatarUrl,
     });
   }
+
+  async findOrCreateFiventsOrganization(): Promise<{ id: string }> {
+    let org = await this.db.organization.findUnique({
+      where: { slug: 'fivents' },
+      select: { id: true },
+    });
+
+    if (!org) {
+      org = await this.db.organization.create({
+        data: {
+          name: 'Fivents',
+          slug: 'fivents',
+          isActive: true,
+        },
+        select: { id: true },
+      });
+    }
+
+    return org;
+  }
+
+  async createMembership(data: { userId: string; organizationId: string; role: Role }): Promise<void> {
+    await this.db.membership.create({
+      data: {
+        userId: data.userId,
+        organizationId: data.organizationId,
+        role: data.role,
+      },
+    });
+  }
 }
