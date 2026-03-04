@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-import { GoogleAdminLoginError } from '@/application/auth/use-cases/login-with-google-admin.use-case';
-import { AdminDomainError } from '@/domain/auth';
-import { makeLoginWithGoogleAdminUseCase } from '@/infrastructure/container';
+import { AdminDomainError } from '@/core/application/services/admin-domain.service';
+import { GoogleAdminLoginError } from '@/core/application/use-cases/auth/login-with-google-admin.use-case';
+import { makeLoginWithGoogleAdminUseCase } from '@/core/infrastructure/database/container';
 
 export async function GET(request: NextRequest) {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL!;

@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-import { checkEmailRequestSchema } from '@/application/auth/communication/request/check-email.request';
-import { CheckEmailError } from '@/application/auth/use-cases/check-email-client.use-case';
-import { makeCheckEmailClientUseCase } from '@/infrastructure/container';
-import { parseWithZod } from '@/lib/utils/parse-with-zod';
+import { CheckEmailError } from '@/core/application/use-cases/auth/check-email-client.use-case';
+import { checkEmailRequestSchema } from '@/core/communication/requests/auth';
+import { makeCheckEmailClientUseCase } from '@/core/infrastructure/database/container';
+import { parseWithZod } from '@/core/utils/parse-with-zod';
 
 export async function POST(request: NextRequest) {
   try {

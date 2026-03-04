@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-import { loginEmailRequestSchema } from '@/application/auth/communication/request/login-email.request';
-import { LoginEmailError } from '@/application/auth/use-cases/login-with-email-client.use-case';
-import { makeLoginWithEmailClientUseCase } from '@/infrastructure/container';
-import { parseWithZod } from '@/lib/utils/parse-with-zod';
+import { LoginEmailError } from '@/core/application/use-cases/auth/login-with-email-client.use-case';
+import { loginEmailRequestSchema } from '@/core/communication/requests/auth';
+import { makeLoginWithEmailClientUseCase } from '@/core/infrastructure/database/container';
+import { parseWithZod } from '@/core/utils/parse-with-zod';
 
 export async function POST(request: NextRequest) {
   try {

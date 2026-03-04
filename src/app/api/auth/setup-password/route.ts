@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-import { setupPasswordRequestSchema } from '@/application/auth/communication/request/setup-password.request';
-import { SetupPasswordError } from '@/application/auth/use-cases/setup-client-password.use-case';
-import { makeSetupClientPasswordUseCase } from '@/infrastructure/container';
-import { parseWithZod } from '@/lib/utils/parse-with-zod';
+import { SetupPasswordError } from '@/core/application/use-cases/auth/setup-client-password.use-case';
+import { setupPasswordRequestSchema } from '@/core/communication/requests/auth';
+import { makeSetupClientPasswordUseCase } from '@/core/infrastructure/database/container';
+import { parseWithZod } from '@/core/utils/parse-with-zod';
 
 export async function POST(request: NextRequest) {
   try {

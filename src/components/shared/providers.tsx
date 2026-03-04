@@ -5,7 +5,7 @@ import { ThemeProvider as NextThemesProvider } from 'next-themes';
 import { ConfirmProvider } from '@/components/shared/confirm-dialog';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { I18nProvider } from '@/lib/i18n';
+import { I18nProvider } from '@/i18n';
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (

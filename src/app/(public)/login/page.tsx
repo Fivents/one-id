@@ -2,7 +2,7 @@
 
 import { Suspense } from 'react';
 
-import { LoginForm } from '@/features/auth/components/login-form';
+import { LoginForm } from '@/components/auth/login-form';
 
 export default function LoginPage() {
   return (

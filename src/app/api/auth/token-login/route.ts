@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-import { loginAccessCodeRequestSchema } from '@/application/auth/communication/request/login-access-code.request';
-import { TotemLoginError } from '@/application/auth/use-cases/login-with-access-code-totem.use-case';
-import { makeLoginWithAccessCodeTotemUseCase } from '@/infrastructure/container';
-import { parseWithZod } from '@/lib/utils/parse-with-zod';
+import { TotemLoginError } from '@/core/application/use-cases/auth/login-with-access-code-totem.use-case';
+import { loginAccessCodeRequestSchema } from '@/core/communication/requests/auth';
+import { makeLoginWithAccessCodeTotemUseCase } from '@/core/infrastructure/database/container';
+import { parseWithZod } from '@/core/utils/parse-with-zod';
 
 export async function POST(request: NextRequest) {
   try {
