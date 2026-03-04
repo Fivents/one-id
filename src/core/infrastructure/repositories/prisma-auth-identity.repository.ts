@@ -19,6 +19,9 @@ export class PrismaAuthIdentityRepository implements IAuthIdentityRepository {
       passwordHash: identity.passwordHash,
       allowAccess: identity.allowAccess,
       userId: identity.userId,
+      createdAt: identity.createdAt,
+      updatedAt: identity.updatedAt,
+      deletedAt: identity.deletedAt,
     });
   }
 
@@ -39,6 +42,9 @@ export class PrismaAuthIdentityRepository implements IAuthIdentityRepository {
       passwordHash: identity.passwordHash,
       allowAccess: identity.allowAccess,
       userId: identity.userId,
+      createdAt: identity.createdAt,
+      updatedAt: identity.updatedAt,
+      deletedAt: identity.deletedAt,
     });
   }
 
@@ -64,6 +70,9 @@ export class PrismaAuthIdentityRepository implements IAuthIdentityRepository {
       passwordHash: identity.passwordHash,
       allowAccess: identity.allowAccess,
       userId: identity.userId,
+      createdAt: identity.createdAt,
+      updatedAt: identity.updatedAt,
+      deletedAt: identity.deletedAt,
     });
   }
 
