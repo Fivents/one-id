@@ -1,5 +1,3 @@
-import { isAxiosError } from 'axios';
-
 import { AppError } from './app-error';
 
 export class ErrorMapper {
@@ -7,19 +5,6 @@ export class ErrorMapper {
     if (err instanceof AppError) return err.message;
 
     if (err instanceof Error) return err.message;
-
-    if (isAxiosError(err)) {
-      if (err.response) {
-        const status = err.response.status;
-        const statusText = err.response.statusText || '';
-        const message = err.response.data?.message || err.message || '';
-        return message ? `${status} ${statusText}: ${message}` : `${status} ${statusText}`;
-      }
-      if (err.request) {
-        return 'No response received from server.';
-      }
-      return err.message;
-    }
 
     if (typeof err === 'object' && err !== null) {
       const e = err as Record<string, unknown>;

@@ -6,8 +6,8 @@ import { usePathname, useRouter } from 'next/navigation';
 
 import { ChevronUp, LayoutDashboard, Link, LogOut, ScanFace, Settings, Shield } from 'lucide-react';
 
+import { authClient } from '@/core/application/client-services';
 import { Role } from '@/core/domain/value-objects';
-import api from '@/core/infrastructure/http/axios-instance';
 import { getNameInitials } from '@/core/utils/get-name-initials';
 import { useI18n } from '@/i18n';
 
@@ -69,7 +69,7 @@ export function AppSidebar({ user }: AppSidebarProps) {
   const filteredNavItems = navItems.filter((item) => item.roles.includes(user.role));
 
   async function handleLogout() {
-    await api.post('/auth/auth/logout');
+    await authClient.logout();
     router.push('/login');
   }
 
