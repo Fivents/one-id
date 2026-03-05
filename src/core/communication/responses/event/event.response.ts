@@ -1,0 +1,17 @@
+import type { EventStatus } from '@/core/domain/entities/event.entity';
+
+export interface EventResponse {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  timezone: string;
+  address: string | null;
+  status: EventStatus;
+  startsAt: Date;
+  endsAt: Date;
+  organizationId: string;
+  printConfigId: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}

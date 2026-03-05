@@ -1,0 +1,9 @@
+export { ActivateEventController } from './activate-event.controller';
+export { CancelEventController } from './cancel-event.controller';
+export { CreateEventController } from './create-event.controller';
+export { DeleteEventController } from './delete-event.controller';
+export { DuplicateEventController } from './duplicate-event.controller';
+export { GetEventController } from './get-event.controller';
+export { ListEventsController } from './list-events.controller';
+export { PublishEventController } from './publish-event.controller';
+export { UpdateEventController } from './update-event.controller';
