@@ -1,4 +1,5 @@
 import { IFeatureRepository, IPlanFeatureRepository, ISubscriptionRepository } from '@/core/domain/contracts';
+import { AppError, ErrorCode } from '@/core/errors';
 
 export class PlanLimitValidationService {
   constructor(
@@ -15,16 +16,34 @@ export class PlanLimitValidationService {
     const subscription = await this.subscriptionRepository.findByOrganization(organizationId);
 
     if (!subscription) {
-      throw new PlanLimitValidationError('Organization does not have an active subscription.');
+      throw new AppError({
+        code: ErrorCode.PLAN_LIMIT_VALIDATION_ERROR,
+        message: 'Organization does not have an active subscription.',
+        httpStatus: 403,
+        level: 'warning',
+        context: { organizationId },
+      });
     }
 
     if (!subscription.isActive()) {
-      throw new PlanLimitValidationError('Subscription is not active.');
+      throw new AppError({
+        code: ErrorCode.SUBSCRIPTION_NOT_ACTIVE,
+        message: 'Subscription is not active.',
+        httpStatus: 403,
+        level: 'warning',
+        context: { organizationId },
+      });
     }
 
     const feature = await this.featureRepository.findByCode(featureCode);
     if (!feature) {
-      throw new PlanLimitValidationError(`Feature "${featureCode}" not found.`);
+      throw new AppError({
+        code: ErrorCode.FEATURE_NOT_FOUND,
+        message: `Feature "${featureCode}" not found.`,
+        httpStatus: 404,
+        level: 'warning',
+        context: { featureCode },
+      });
     }
 
     const planFeature = await this.planFeatureRepository.findByPlanAndFeature(subscription.planId, feature.id);
@@ -47,12 +66,5 @@ export class PlanLimitValidationService {
   async isFeatureEnabled(organizationId: string, featureCode: string): Promise<boolean> {
     const result = await this.validateFeatureLimit(organizationId, featureCode, 0);
     return result.allowed;
-  }
-}
-
-export class PlanLimitValidationError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'PlanLimitValidationError';
   }
 }

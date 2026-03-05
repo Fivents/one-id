@@ -1,7 +1,8 @@
 import type { LinkTotemToOrgRequest } from '@/core/communication/requests/totem-organization-subscription';
+import { AppError } from '@/core/errors';
 
-import { LinkTotemToOrgError, LinkTotemToOrgUseCase } from '../../use-cases/totem-organization-subscription';
-import { conflict, type ControllerResponse, created, serverError } from '../controller-response';
+import { LinkTotemToOrgUseCase } from '../../use-cases/totem-organization-subscription';
+import { type ControllerResponse, created, serverError } from '../controller-response';
 
 export class LinkTotemToOrgController {
   constructor(private readonly linkTotemToOrgUseCase: LinkTotemToOrgUseCase) {}
@@ -12,8 +13,8 @@ export class LinkTotemToOrgController {
 
       return created(subscription.toJSON());
     } catch (error) {
-      if (error instanceof LinkTotemToOrgError) {
-        return conflict(error.message);
+      if (error instanceof AppError) {
+        return { statusCode: error.httpStatus, body: { error: error.message } };
       }
 
       return serverError();

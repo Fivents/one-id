@@ -1,5 +1,6 @@
 import { IPrintConfigRepository } from '@/core/domain/contracts';
 import type { PrintConfigEntity } from '@/core/domain/entities';
+import { PrintConfigNotFoundError } from '@/core/errors';
 
 export class DuplicatePrintConfigUseCase {
   constructor(private readonly printConfigRepository: IPrintConfigRepository) {}
@@ -8,19 +9,12 @@ export class DuplicatePrintConfigUseCase {
     const config = await this.printConfigRepository.findById(id);
 
     if (!config) {
-      throw new DuplicatePrintConfigError('Print config not found.');
+      throw new PrintConfigNotFoundError(id);
     }
 
     const json = config.toJSON();
     const { id: _id, createdAt: _c, updatedAt: _u, ...rest } = json;
 
     return this.printConfigRepository.create(rest as Parameters<typeof this.printConfigRepository.create>[0]);
-  }
-}
-
-export class DuplicatePrintConfigError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'DuplicatePrintConfigError';
   }
 }

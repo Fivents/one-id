@@ -1,5 +1,7 @@
-import { GetAuditLogError, GetAuditLogUseCase } from '../../use-cases/audit-log';
-import { type ControllerResponse, notFound, ok, serverError } from '../controller-response';
+import { AppError } from '@/core/errors';
+
+import { GetAuditLogUseCase } from '../../use-cases/audit-log';
+import { type ControllerResponse, ok, serverError } from '../controller-response';
 
 export class GetAuditLogController {
   constructor(private readonly getAuditLogUseCase: GetAuditLogUseCase) {}
@@ -10,8 +12,8 @@ export class GetAuditLogController {
 
       return ok(log.toJSON());
     } catch (error) {
-      if (error instanceof GetAuditLogError) {
-        return notFound(error.message);
+      if (error instanceof AppError) {
+        return { statusCode: error.httpStatus, body: { error: error.message } };
       }
 
       return serverError();

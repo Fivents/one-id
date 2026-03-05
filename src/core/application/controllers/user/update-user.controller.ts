@@ -1,7 +1,8 @@
 import type { UpdateUserRequest } from '@/core/communication/requests/user';
+import { AppError } from '@/core/errors';
 
-import { UpdateUserError, UpdateUserUseCase } from '../../use-cases/user';
-import { type ControllerResponse, notFound, ok, serverError } from '../controller-response';
+import { UpdateUserUseCase } from '../../use-cases/user';
+import { type ControllerResponse, ok, serverError } from '../controller-response';
 
 export class UpdateUserController {
   constructor(private readonly updateUserUseCase: UpdateUserUseCase) {}
@@ -15,8 +16,8 @@ export class UpdateUserController {
 
       return ok(user.toJSON());
     } catch (error) {
-      if (error instanceof UpdateUserError) {
-        return notFound(error.message);
+      if (error instanceof AppError) {
+        return { statusCode: error.httpStatus, body: { error: error.message } };
       }
 
       return serverError();

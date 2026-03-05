@@ -1,7 +1,8 @@
 import type { UpdateParticipantRequest } from '@/core/communication/requests/event-participant';
+import { AppError } from '@/core/errors';
 
-import { UpdateParticipantError, UpdateParticipantUseCase } from '../../use-cases/event-participant';
-import { type ControllerResponse, notFound, ok, serverError } from '../controller-response';
+import { UpdateParticipantUseCase } from '../../use-cases/event-participant';
+import { type ControllerResponse, ok, serverError } from '../controller-response';
 
 export class UpdateParticipantController {
   constructor(private readonly updateParticipantUseCase: UpdateParticipantUseCase) {}
@@ -12,8 +13,8 @@ export class UpdateParticipantController {
 
       return ok(participant.toJSON());
     } catch (error) {
-      if (error instanceof UpdateParticipantError) {
-        return notFound(error.message);
+      if (error instanceof AppError) {
+        return { statusCode: error.httpStatus, body: { error: error.message } };
       }
 
       return serverError();

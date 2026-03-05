@@ -1,4 +1,5 @@
 import { IPlanRepository } from '@/core/domain/contracts';
+import { PlanAlreadyInactiveError, PlanNotFoundError } from '@/core/errors';
 
 export class DeactivatePlanUseCase {
   constructor(private readonly planRepository: IPlanRepository) {}
@@ -7,20 +8,13 @@ export class DeactivatePlanUseCase {
     const plan = await this.planRepository.findById(id);
 
     if (!plan) {
-      throw new DeactivatePlanError('Plan not found.');
+      throw new PlanNotFoundError(id);
     }
 
     if (!plan.isActive) {
-      throw new DeactivatePlanError('Plan is already inactive.');
+      throw new PlanAlreadyInactiveError(id);
     }
 
     await this.planRepository.update(id, { isActive: false });
-  }
-}
-
-export class DeactivatePlanError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'DeactivatePlanError';
   }
 }

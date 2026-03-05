@@ -1,5 +1,6 @@
 import { CreateFeatureData, IFeatureRepository } from '@/core/domain/contracts';
 import type { FeatureEntity } from '@/core/domain/entities/feature.entity';
+import { FeatureAlreadyExistsError } from '@/core/errors';
 
 export class CreateFeatureUseCase {
   constructor(private readonly featureRepository: IFeatureRepository) {}
@@ -8,16 +9,9 @@ export class CreateFeatureUseCase {
     const existing = await this.featureRepository.findByCode(data.code);
 
     if (existing) {
-      throw new CreateFeatureError('A feature with this code already exists.');
+      throw new FeatureAlreadyExistsError(data.code);
     }
 
     return this.featureRepository.create(data);
-  }
-}
-
-export class CreateFeatureError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'CreateFeatureError';
   }
 }

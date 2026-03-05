@@ -1,7 +1,8 @@
 import type { AuthTokenResponse } from '@/core/communication/responses/auth';
+import { AppError } from '@/core/errors';
 
-import { LoginWithTokenUseCase, TokenLoginError } from '../../use-cases/auth';
-import { type ControllerResponse, ok, serverError, unauthorized } from '../controller-response';
+import { LoginWithTokenUseCase } from '../../use-cases/auth';
+import { type ControllerResponse, ok, serverError } from '../controller-response';
 
 export interface TokenLoginMeta {
   ipAddress: string;
@@ -18,8 +19,8 @@ export class TokenLoginController {
 
       return ok(result);
     } catch (error) {
-      if (error instanceof TokenLoginError) {
-        return unauthorized(error.message);
+      if (error instanceof AppError) {
+        return { statusCode: error.httpStatus, body: { error: error.message } };
       }
 
       return serverError();

@@ -1,5 +1,6 @@
 import { IUserRepository } from '@/core/domain/contracts';
 import type { UserEntity } from '@/core/domain/entities';
+import { UserAlreadyExistsError } from '@/core/errors';
 
 export class CreateUserUseCase {
   constructor(private readonly userRepository: IUserRepository) {}
@@ -8,16 +9,9 @@ export class CreateUserUseCase {
     const existing = await this.userRepository.findByEmail(data.email);
 
     if (existing) {
-      throw new CreateUserError('A user with this email already exists.');
+      throw new UserAlreadyExistsError(data.email);
     }
 
     return this.userRepository.create(data);
-  }
-}
-
-export class CreateUserError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'CreateUserError';
   }
 }

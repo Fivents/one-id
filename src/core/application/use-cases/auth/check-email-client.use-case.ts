@@ -1,6 +1,7 @@
 import { CheckEmailResponse } from '@/core/communication/responses/auth/auth.response';
 import { IAuthIdentityRepository, ITokenProvider, IUserRepository } from '@/core/domain/contracts';
 import { isClientRole } from '@/core/domain/value-objects';
+import { AccessDisabledError, LoginMethodUnavailableError, UserNotFoundError } from '@/core/errors';
 
 export class CheckEmailClientUseCase {
   constructor(
@@ -13,11 +14,11 @@ export class CheckEmailClientUseCase {
     const user = await this.userRepository.findByEmailWithMembership(email);
 
     if (!user) {
-      throw new CheckEmailError('User not found.');
+      throw new UserNotFoundError();
     }
 
     if (!isClientRole(user.role)) {
-      throw new CheckEmailError('This login method is not available for your account type.');
+      throw new LoginMethodUnavailableError({ email });
     }
 
     const identity = await this.authIdentityRepository.findByUserIdAndProvider(user.id, 'credentials');
@@ -31,16 +32,9 @@ export class CheckEmailClientUseCase {
     }
 
     if (!identity.isAccessAllowed()) {
-      throw new CheckEmailError('Your access has been disabled. Contact your administrator.');
+      throw new AccessDisabledError({ userId: user.id });
     }
 
     return { status: 'ready' };
-  }
-}
-
-export class CheckEmailError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'CheckEmailError';
   }
 }

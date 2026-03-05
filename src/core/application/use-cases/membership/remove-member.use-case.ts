@@ -1,4 +1,5 @@
 import { IMembershipRepository } from '@/core/domain/contracts';
+import { MemberNotFoundError } from '@/core/errors';
 
 export class RemoveMemberUseCase {
   constructor(private readonly membershipRepository: IMembershipRepository) {}
@@ -7,16 +8,9 @@ export class RemoveMemberUseCase {
     const membership = await this.membershipRepository.findById(membershipId);
 
     if (!membership) {
-      throw new RemoveMemberError('Membership not found.');
+      throw new MemberNotFoundError(membershipId);
     }
 
     await this.membershipRepository.softDelete(membershipId);
-  }
-}
-
-export class RemoveMemberError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'RemoveMemberError';
   }
 }

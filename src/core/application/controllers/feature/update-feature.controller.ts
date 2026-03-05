@@ -1,7 +1,8 @@
 import type { UpdateFeatureRequest } from '@/core/communication/requests/feature';
+import { AppError } from '@/core/errors';
 
-import { UpdateFeatureError, UpdateFeatureUseCase } from '../../use-cases/feature';
-import { type ControllerResponse, notFound, ok, serverError } from '../controller-response';
+import { UpdateFeatureUseCase } from '../../use-cases/feature';
+import { type ControllerResponse, ok, serverError } from '../controller-response';
 
 export class UpdateFeatureController {
   constructor(private readonly updateFeatureUseCase: UpdateFeatureUseCase) {}
@@ -12,8 +13,8 @@ export class UpdateFeatureController {
 
       return ok(feature.toJSON());
     } catch (error) {
-      if (error instanceof UpdateFeatureError) {
-        return notFound(error.message);
+      if (error instanceof AppError) {
+        return { statusCode: error.httpStatus, body: { error: error.message } };
       }
 
       return serverError();

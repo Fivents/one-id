@@ -1,3 +1,5 @@
+import { AppError, ErrorCode } from '@/core/errors';
+
 import { BaseEntity } from './base.entity';
 
 export type CheckInMethod = 'FACE_RECOGNITION' | 'QR_CODE' | 'MANUAL';
@@ -20,7 +22,12 @@ export class CheckInEntity extends BaseEntity {
 
   static create(props: CheckInProps): CheckInEntity {
     if (props.method === 'FACE_RECOGNITION' && props.confidence == null) {
-      throw new Error('Face recognition check-in requires a confidence score');
+      throw new AppError({
+        code: ErrorCode.ENTITY_INVARIANT_VIOLATION,
+        message: 'Face recognition check-in requires a confidence score',
+        httpStatus: 400,
+        level: 'error',
+      });
     }
     return new CheckInEntity(props);
   }

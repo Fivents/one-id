@@ -1,9 +1,9 @@
 import { ZodType } from 'zod/v4';
 
-import { ZodValidationError } from '../errors';
+import { ValidationError } from '../errors';
 
 export const parseWithZod = <T>(schema: ZodType<T>, data: unknown): T => {
   const result = schema.safeParse(data);
-  if (!result.success) throw new ZodValidationError(result.error);
+  if (!result.success) throw new ValidationError(result.error);
   return result.data;
 };

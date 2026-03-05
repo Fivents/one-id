@@ -1,5 +1,6 @@
 import { CreateMembershipData, IMembershipRepository } from '@/core/domain/contracts';
 import type { MembershipEntity } from '@/core/domain/entities';
+import { MemberAlreadyExistsError } from '@/core/errors';
 
 export class AddMemberUseCase {
   constructor(private readonly membershipRepository: IMembershipRepository) {}
@@ -8,16 +9,9 @@ export class AddMemberUseCase {
     const existing = await this.membershipRepository.findByUserAndOrganization(data.userId, data.organizationId);
 
     if (existing) {
-      throw new AddMemberError('User is already a member of this organization.');
+      throw new MemberAlreadyExistsError(data.userId, data.organizationId);
     }
 
     return this.membershipRepository.create(data);
-  }
-}
-
-export class AddMemberError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'AddMemberError';
   }
 }

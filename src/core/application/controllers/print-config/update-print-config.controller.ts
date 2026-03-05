@@ -1,7 +1,8 @@
 import type { UpdatePrintConfigRequest } from '@/core/communication/requests/print-config';
+import { AppError } from '@/core/errors';
 
-import { UpdatePrintConfigError, UpdatePrintConfigUseCase } from '../../use-cases/print-config';
-import { type ControllerResponse, notFound, ok, serverError } from '../controller-response';
+import { UpdatePrintConfigUseCase } from '../../use-cases/print-config';
+import { type ControllerResponse, ok, serverError } from '../controller-response';
 
 export class UpdatePrintConfigController {
   constructor(private readonly updatePrintConfigUseCase: UpdatePrintConfigUseCase) {}
@@ -12,8 +13,8 @@ export class UpdatePrintConfigController {
 
       return ok(config.toJSON());
     } catch (error) {
-      if (error instanceof UpdatePrintConfigError) {
-        return notFound(error.message);
+      if (error instanceof AppError) {
+        return { statusCode: error.httpStatus, body: { error: error.message } };
       }
 
       return serverError();

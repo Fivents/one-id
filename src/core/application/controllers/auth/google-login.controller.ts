@@ -1,7 +1,8 @@
 import type { AuthTokenResponse } from '@/core/communication/responses/auth';
+import { AppError } from '@/core/errors';
 
-import { GoogleAdminLoginError, LoginWithGoogleAdminUseCase } from '../../use-cases/auth';
-import { type ControllerResponse, forbidden, ok, serverError, unauthorized } from '../controller-response';
+import { LoginWithGoogleAdminUseCase } from '../../use-cases/auth';
+import { type ControllerResponse, ok, serverError } from '../controller-response';
 
 export interface GoogleLoginMeta {
   ipAddress: string;
@@ -18,12 +19,8 @@ export class GoogleLoginController {
 
       return ok(result);
     } catch (error) {
-      if (error instanceof GoogleAdminLoginError) {
-        return forbidden(error.message);
-      }
-
-      if (error instanceof Error && error.name === 'AdminDomainError') {
-        return unauthorized(error.message);
+      if (error instanceof AppError) {
+        return { statusCode: error.httpStatus, body: { error: error.message } };
       }
 
       return serverError();

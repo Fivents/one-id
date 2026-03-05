@@ -1,5 +1,6 @@
 import { IOrganizationRepository, IPlanRepository, ISubscriptionRepository } from '@/core/domain/contracts';
 import type { SubscriptionEntity } from '@/core/domain/entities/subscription.entity';
+import { AppError, ErrorCode, OrganizationNotFoundError } from '@/core/errors';
 
 interface CreateSubscriptionInput {
   organizationId: string;
@@ -18,21 +19,39 @@ export class CreateSubscriptionUseCase {
   async execute(input: CreateSubscriptionInput): Promise<SubscriptionEntity> {
     const organization = await this.organizationRepository.findById(input.organizationId);
     if (!organization) {
-      throw new CreateSubscriptionError('Organization not found.');
+      throw new OrganizationNotFoundError(input.organizationId);
     }
 
     const plan = await this.planRepository.findById(input.planId);
     if (!plan) {
-      throw new CreateSubscriptionError('Plan not found.');
+      throw new AppError({
+        code: ErrorCode.PLAN_NOT_FOUND,
+        message: 'Plan not found.',
+        httpStatus: 404,
+        level: 'warning',
+        context: { planId: input.planId },
+      });
     }
 
     if (!plan.isAvailable()) {
-      throw new CreateSubscriptionError('Plan is not available.');
+      throw new AppError({
+        code: ErrorCode.PLAN_NOT_AVAILABLE,
+        message: 'Plan is not available.',
+        httpStatus: 409,
+        level: 'warning',
+        context: { planId: input.planId },
+      });
     }
 
     const existing = await this.subscriptionRepository.findByOrganization(input.organizationId);
     if (existing && existing.isActive()) {
-      throw new CreateSubscriptionError('Organization already has an active subscription.');
+      throw new AppError({
+        code: ErrorCode.SUBSCRIPTION_ALREADY_ACTIVE,
+        message: 'Organization already has an active subscription.',
+        httpStatus: 409,
+        level: 'warning',
+        context: { organizationId: input.organizationId },
+      });
     }
 
     return this.subscriptionRepository.create({
@@ -41,12 +60,5 @@ export class CreateSubscriptionUseCase {
       startedAt: input.startedAt,
       expiresAt: input.expiresAt,
     });
-  }
-}
-
-export class CreateSubscriptionError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'CreateSubscriptionError';
   }
 }

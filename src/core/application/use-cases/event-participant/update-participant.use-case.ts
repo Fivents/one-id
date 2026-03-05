@@ -1,5 +1,6 @@
 import { IEventParticipantRepository, UpdateEventParticipantData } from '@/core/domain/contracts';
 import type { EventParticipantEntity } from '@/core/domain/entities';
+import { ParticipantNotFoundError } from '@/core/errors';
 
 export class UpdateParticipantUseCase {
   constructor(private readonly eventParticipantRepository: IEventParticipantRepository) {}
@@ -8,16 +9,9 @@ export class UpdateParticipantUseCase {
     const participant = await this.eventParticipantRepository.findById(id);
 
     if (!participant) {
-      throw new UpdateParticipantError('Participant not found.');
+      throw new ParticipantNotFoundError(id);
     }
 
     return this.eventParticipantRepository.update(id, data);
-  }
-}
-
-export class UpdateParticipantError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'UpdateParticipantError';
   }
 }

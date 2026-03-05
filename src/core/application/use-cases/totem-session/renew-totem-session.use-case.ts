@@ -1,4 +1,5 @@
 import { ISessionRepository, ITokenProvider, ITotemRepository } from '@/core/domain/contracts';
+import { TotemAccessDeniedError, TotemNotFoundError } from '@/core/errors';
 
 export class RenewTotemSessionUseCase {
   constructor(
@@ -11,11 +12,11 @@ export class RenewTotemSessionUseCase {
     const totem = await this.totemRepository.findById(totemId);
 
     if (!totem) {
-      throw new RenewTotemSessionError('Totem not found.');
+      throw new TotemNotFoundError(totemId);
     }
 
     if (!totem.canAuthenticate()) {
-      throw new RenewTotemSessionError('Totem is not active.');
+      throw new TotemAccessDeniedError(totemId);
     }
 
     await this.sessionRepository.revokeTotemSessions(totem.id);
@@ -35,12 +36,5 @@ export class RenewTotemSessionUseCase {
     });
 
     return { token };
-  }
-}
-
-export class RenewTotemSessionError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'RenewTotemSessionError';
   }
 }

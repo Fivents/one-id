@@ -1,5 +1,6 @@
 import { IEventRepository } from '@/core/domain/contracts';
 import type { EventEntity } from '@/core/domain/entities';
+import { EventInvalidTransitionError, EventNotFoundError } from '@/core/errors';
 
 export class ActivateEventUseCase {
   constructor(private readonly eventRepository: IEventRepository) {}
@@ -8,20 +9,13 @@ export class ActivateEventUseCase {
     const event = await this.eventRepository.findById(id);
 
     if (!event) {
-      throw new ActivateEventError('Event not found.');
+      throw new EventNotFoundError(id);
     }
 
     if (!event.canTransitionTo('ACTIVE')) {
-      throw new ActivateEventError(`Cannot activate event with status "${event.status}".`);
+      throw new EventInvalidTransitionError(event.status, 'ACTIVE');
     }
 
     return this.eventRepository.update(id, { status: 'ACTIVE' });
-  }
-}
-
-export class ActivateEventError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'ActivateEventError';
   }
 }

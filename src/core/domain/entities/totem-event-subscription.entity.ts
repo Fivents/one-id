@@ -1,3 +1,5 @@
+import { AppError, ErrorCode } from '@/core/errors';
+
 import { BaseEntity } from './base.entity';
 
 export interface TotemEventSubscriptionProps {
@@ -16,7 +18,12 @@ export class TotemEventSubscriptionEntity extends BaseEntity {
 
   static create(props: TotemEventSubscriptionProps): TotemEventSubscriptionEntity {
     if (props.endsAt <= props.startsAt) {
-      throw new Error('Event subscription end date must be after start date');
+      throw new AppError({
+        code: ErrorCode.ENTITY_INVARIANT_VIOLATION,
+        message: 'Event subscription end date must be after start date',
+        httpStatus: 400,
+        level: 'error',
+      });
     }
     return new TotemEventSubscriptionEntity(props);
   }

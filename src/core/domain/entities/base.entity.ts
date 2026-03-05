@@ -1,7 +1,14 @@
+import { AppError, ErrorCode } from '@/core/errors';
+
 export abstract class BaseEntity {
   protected constructor(private readonly _id: string) {
     if (!_id) {
-      throw new Error('Entity id is required');
+      throw new AppError({
+        code: ErrorCode.ENTITY_INVARIANT_VIOLATION,
+        message: 'Entity id is required',
+        httpStatus: 500,
+        level: 'error',
+      });
     }
   }
 

@@ -1,5 +1,7 @@
-import { RegisterFaceCheckInError, RegisterFaceCheckInUseCase } from '../../use-cases/check-in';
-import { conflict, type ControllerResponse, created, serverError } from '../controller-response';
+import { AppError } from '@/core/errors';
+
+import { RegisterFaceCheckInUseCase } from '../../use-cases/check-in';
+import { type ControllerResponse, created, serverError } from '../controller-response';
 
 export class RegisterFaceCheckInController {
   constructor(private readonly registerFaceCheckInUseCase: RegisterFaceCheckInUseCase) {}
@@ -14,8 +16,8 @@ export class RegisterFaceCheckInController {
 
       return created(checkIn.toJSON());
     } catch (error) {
-      if (error instanceof RegisterFaceCheckInError) {
-        return conflict(error.message);
+      if (error instanceof AppError) {
+        return { statusCode: error.httpStatus, body: { error: error.message } };
       }
 
       return serverError();

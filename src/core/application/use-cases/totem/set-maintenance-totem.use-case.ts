@@ -1,4 +1,5 @@
 import { ITotemRepository } from '@/core/domain/contracts';
+import { TotemAlreadyInMaintenanceError, TotemNotFoundError } from '@/core/errors';
 
 export class SetMaintenanceTotemUseCase {
   constructor(private readonly totemRepository: ITotemRepository) {}
@@ -7,20 +8,13 @@ export class SetMaintenanceTotemUseCase {
     const totem = await this.totemRepository.findById(id);
 
     if (!totem) {
-      throw new SetMaintenanceTotemError('Totem not found.');
+      throw new TotemNotFoundError(id);
     }
 
     if (totem.isInMaintenance()) {
-      throw new SetMaintenanceTotemError('Totem is already in maintenance.');
+      throw new TotemAlreadyInMaintenanceError(id);
     }
 
     await this.totemRepository.update(id, { status: 'MAINTENANCE' });
-  }
-}
-
-export class SetMaintenanceTotemError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'SetMaintenanceTotemError';
   }
 }

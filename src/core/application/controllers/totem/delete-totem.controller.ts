@@ -1,5 +1,7 @@
-import { DeleteTotemError, DeleteTotemUseCase } from '../../use-cases/totem';
-import { type ControllerResponse, noContent, notFound, serverError } from '../controller-response';
+import { AppError } from '@/core/errors';
+
+import { DeleteTotemUseCase } from '../../use-cases/totem';
+import { type ControllerResponse, noContent, serverError } from '../controller-response';
 
 export class DeleteTotemController {
   constructor(private readonly deleteTotemUseCase: DeleteTotemUseCase) {}
@@ -10,8 +12,8 @@ export class DeleteTotemController {
 
       return noContent();
     } catch (error) {
-      if (error instanceof DeleteTotemError) {
-        return notFound(error.message);
+      if (error instanceof AppError) {
+        return { statusCode: error.httpStatus, body: { error: error.message } };
       }
 
       return serverError();

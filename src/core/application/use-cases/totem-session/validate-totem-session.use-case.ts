@@ -1,4 +1,5 @@
 import { ISessionRepository, ITokenProvider } from '@/core/domain/contracts';
+import { TotemSessionExpiredError, TotemSessionNotFoundError, UnauthorizedError } from '@/core/errors';
 
 export class ValidateTotemSessionUseCase {
   constructor(
@@ -8,26 +9,19 @@ export class ValidateTotemSessionUseCase {
 
   async execute(token: string): Promise<{ totemId: string; sessionId: string }> {
     const payload = await this.tokenProvider.verifyTotemToken(token).catch(() => {
-      throw new ValidateTotemSessionError('Invalid totem token.');
+      throw new UnauthorizedError();
     });
 
     const session = await this.sessionRepository.findTotemSessionById(payload.sub);
 
     if (!session) {
-      throw new ValidateTotemSessionError('Totem session not found.');
+      throw new TotemSessionNotFoundError(payload.sub);
     }
 
     if (new Date() >= session.expiresAt) {
-      throw new ValidateTotemSessionError('Totem session has expired.');
+      throw new TotemSessionExpiredError(session.id);
     }
 
     return { totemId: session.totemId, sessionId: session.id };
-  }
-}
-
-export class ValidateTotemSessionError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'ValidateTotemSessionError';
   }
 }

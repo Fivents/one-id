@@ -1,3 +1,5 @@
+import { AdminDomainNotAllowedError } from '@/core/errors';
+
 const ALLOWED_ADMIN_DOMAIN = 'fivents.com';
 
 export class AdminDomainService {
@@ -8,14 +10,7 @@ export class AdminDomainService {
 
   static validateAdminEmail(email: string): void {
     if (!this.isAllowedAdminDomain(email)) {
-      throw new AdminDomainError(`Email domain not authorized. Only @${ALLOWED_ADMIN_DOMAIN} accounts are allowed.`);
+      throw new AdminDomainNotAllowedError(ALLOWED_ADMIN_DOMAIN);
     }
-  }
-}
-
-export class AdminDomainError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'AdminDomainError';
   }
 }

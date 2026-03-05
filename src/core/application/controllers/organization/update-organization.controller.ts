@@ -1,7 +1,8 @@
 import type { UpdateOrganizationRequest } from '@/core/communication/requests/organization';
+import { AppError } from '@/core/errors';
 
-import { UpdateOrganizationError, UpdateOrganizationUseCase } from '../../use-cases/organization';
-import { type ControllerResponse, notFound, ok, serverError } from '../controller-response';
+import { UpdateOrganizationUseCase } from '../../use-cases/organization';
+import { type ControllerResponse, ok, serverError } from '../controller-response';
 
 export class UpdateOrganizationController {
   constructor(private readonly updateOrganizationUseCase: UpdateOrganizationUseCase) {}
@@ -12,8 +13,8 @@ export class UpdateOrganizationController {
 
       return ok(organization.toJSON());
     } catch (error) {
-      if (error instanceof UpdateOrganizationError) {
-        return notFound(error.message);
+      if (error instanceof AppError) {
+        return { statusCode: error.httpStatus, body: { error: error.message } };
       }
 
       return serverError();

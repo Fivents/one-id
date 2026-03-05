@@ -7,6 +7,7 @@ import {
   IUserRepository,
 } from '@/core/domain/contracts';
 import { isAdminRole } from '@/core/domain/value-objects';
+import { UnauthorizedError } from '@/core/errors';
 
 import { AdminDomainService } from '../../services/admin-domain.service';
 
@@ -51,7 +52,7 @@ export class LoginWithGoogleAdminUseCase {
     }
 
     if (!userWithMembership || !isAdminRole(userWithMembership.role)) {
-      throw new GoogleAdminLoginError('Account is not authorized as admin.');
+      throw new UnauthorizedError('Account is not authorized as admin.');
     }
 
     const existingIdentity = await this.authIdentityRepository.findByProviderAndProviderId('google', googleUser.id);
@@ -93,12 +94,5 @@ export class LoginWithGoogleAdminUseCase {
         organizationId: userWithMembership.organizationId,
       },
     };
-  }
-}
-
-export class GoogleAdminLoginError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'GoogleAdminLoginError';
   }
 }

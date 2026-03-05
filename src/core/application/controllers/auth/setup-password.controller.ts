@@ -1,5 +1,7 @@
-import { SetupClientPasswordUseCase, SetupPasswordError } from '../../use-cases/auth';
-import { badRequest, type ControllerResponse, ok, serverError, unauthorized } from '../controller-response';
+import { AppError } from '@/core/errors';
+
+import { SetupClientPasswordUseCase } from '../../use-cases/auth';
+import { type ControllerResponse, ok, serverError, unauthorized } from '../controller-response';
 
 export class SetupPasswordController {
   constructor(private readonly setupPasswordUseCase: SetupClientPasswordUseCase) {}
@@ -10,8 +12,8 @@ export class SetupPasswordController {
 
       return ok({ success: true as const });
     } catch (error) {
-      if (error instanceof SetupPasswordError) {
-        return badRequest(error.message);
+      if (error instanceof AppError) {
+        return { statusCode: error.httpStatus, body: { error: error.message } };
       }
 
       if (error instanceof Error && error.message.includes('JW')) {

@@ -1,5 +1,6 @@
 import { IEventRepository } from '@/core/domain/contracts';
 import type { EventEntity } from '@/core/domain/entities';
+import { EventInvalidTransitionError, EventNotFoundError } from '@/core/errors';
 
 export class CancelEventUseCase {
   constructor(private readonly eventRepository: IEventRepository) {}
@@ -8,20 +9,13 @@ export class CancelEventUseCase {
     const event = await this.eventRepository.findById(id);
 
     if (!event) {
-      throw new CancelEventError('Event not found.');
+      throw new EventNotFoundError(id);
     }
 
     if (!event.canTransitionTo('CANCELED')) {
-      throw new CancelEventError(`Cannot cancel event with status "${event.status}".`);
+      throw new EventInvalidTransitionError(event.status, 'CANCELED');
     }
 
     return this.eventRepository.update(id, { status: 'CANCELED' });
-  }
-}
-
-export class CancelEventError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'CancelEventError';
   }
 }

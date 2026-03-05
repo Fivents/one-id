@@ -1,5 +1,6 @@
 import { ITotemRepository } from '@/core/domain/contracts';
 import type { TotemEntity } from '@/core/domain/entities/totem.entity';
+import { TotemNotFoundError } from '@/core/errors';
 
 export class GetTotemUseCase {
   constructor(private readonly totemRepository: ITotemRepository) {}
@@ -8,16 +9,9 @@ export class GetTotemUseCase {
     const totem = await this.totemRepository.findById(id);
 
     if (!totem) {
-      throw new GetTotemError('Totem not found.');
+      throw new TotemNotFoundError(id);
     }
 
     return totem;
-  }
-}
-
-export class GetTotemError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'GetTotemError';
   }
 }

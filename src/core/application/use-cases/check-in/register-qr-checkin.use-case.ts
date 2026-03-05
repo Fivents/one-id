@@ -4,6 +4,7 @@ import {
   ITotemEventSubscriptionRepository,
 } from '@/core/domain/contracts';
 import type { CheckInEntity } from '@/core/domain/entities/check-in.entity';
+import { AppError, ErrorCode, ParticipantNotFoundError } from '@/core/errors';
 
 interface RegisterQrCheckInInput {
   eventParticipantId: string;
@@ -20,12 +21,18 @@ export class RegisterQrCheckInUseCase {
   async execute(input: RegisterQrCheckInInput): Promise<CheckInEntity> {
     const participant = await this.eventParticipantRepository.findById(input.eventParticipantId);
     if (!participant) {
-      throw new RegisterQrCheckInError('Participant not found.');
+      throw new ParticipantNotFoundError(input.eventParticipantId);
     }
 
     const totemEventSub = await this.totemEventSubRepository.findById(input.totemEventSubscriptionId);
     if (!totemEventSub) {
-      throw new RegisterQrCheckInError('Totem-event subscription not found.');
+      throw new AppError({
+        code: ErrorCode.TOTEM_EVENT_SUBSCRIPTION_NOT_FOUND,
+        message: 'Totem-event subscription not found.',
+        httpStatus: 404,
+        level: 'warning',
+        context: { totemEventSubscriptionId: input.totemEventSubscriptionId },
+      });
     }
 
     const existing = await this.checkInRepository.findByParticipantAndLocation(
@@ -34,7 +41,13 @@ export class RegisterQrCheckInUseCase {
     );
 
     if (existing) {
-      throw new RegisterQrCheckInError('Participant already checked in at this location.');
+      throw new AppError({
+        code: ErrorCode.CHECKIN_DUPLICATE,
+        message: 'Participant already checked in at this location.',
+        httpStatus: 409,
+        level: 'warning',
+        context: { eventParticipantId: input.eventParticipantId },
+      });
     }
 
     return this.checkInRepository.create({
@@ -43,12 +56,5 @@ export class RegisterQrCheckInUseCase {
       eventParticipantId: input.eventParticipantId,
       totemEventSubscriptionId: input.totemEventSubscriptionId,
     });
-  }
-}
-
-export class RegisterQrCheckInError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'RegisterQrCheckInError';
   }
 }

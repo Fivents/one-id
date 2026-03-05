@@ -1,4 +1,5 @@
 import { ITotemRepository } from '@/core/domain/contracts';
+import { TotemAlreadyInactiveError, TotemNotFoundError } from '@/core/errors';
 
 export class DeactivateTotemUseCase {
   constructor(private readonly totemRepository: ITotemRepository) {}
@@ -7,20 +8,13 @@ export class DeactivateTotemUseCase {
     const totem = await this.totemRepository.findById(id);
 
     if (!totem) {
-      throw new DeactivateTotemError('Totem not found.');
+      throw new TotemNotFoundError(id);
     }
 
     if (totem.isInactive()) {
-      throw new DeactivateTotemError('Totem is already inactive.');
+      throw new TotemAlreadyInactiveError(id);
     }
 
     await this.totemRepository.update(id, { status: 'INACTIVE' });
-  }
-}
-
-export class DeactivateTotemError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'DeactivateTotemError';
   }
 }

@@ -1,5 +1,6 @@
 import { IEventParticipantRepository } from '@/core/domain/contracts';
 import type { EventParticipantEntity } from '@/core/domain/entities';
+import { ParticipantNotFoundError } from '@/core/errors';
 
 export class GetParticipantUseCase {
   constructor(private readonly eventParticipantRepository: IEventParticipantRepository) {}
@@ -8,16 +9,9 @@ export class GetParticipantUseCase {
     const participant = await this.eventParticipantRepository.findById(id);
 
     if (!participant) {
-      throw new GetParticipantError('Participant not found.');
+      throw new ParticipantNotFoundError(id);
     }
 
     return participant;
-  }
-}
-
-export class GetParticipantError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'GetParticipantError';
   }
 }

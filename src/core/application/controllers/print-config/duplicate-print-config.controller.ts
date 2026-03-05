@@ -1,5 +1,7 @@
-import { DuplicatePrintConfigError, DuplicatePrintConfigUseCase } from '../../use-cases/print-config';
-import { type ControllerResponse, created, notFound, serverError } from '../controller-response';
+import { AppError } from '@/core/errors';
+
+import { DuplicatePrintConfigUseCase } from '../../use-cases/print-config';
+import { type ControllerResponse, created, serverError } from '../controller-response';
 
 export class DuplicatePrintConfigController {
   constructor(private readonly duplicatePrintConfigUseCase: DuplicatePrintConfigUseCase) {}
@@ -10,8 +12,8 @@ export class DuplicatePrintConfigController {
 
       return created(config.toJSON());
     } catch (error) {
-      if (error instanceof DuplicatePrintConfigError) {
-        return notFound(error.message);
+      if (error instanceof AppError) {
+        return { statusCode: error.httpStatus, body: { error: error.message } };
       }
 
       return serverError();

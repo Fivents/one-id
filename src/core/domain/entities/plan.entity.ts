@@ -1,3 +1,5 @@
+import { AppError, ErrorCode } from '@/core/errors';
+
 import { BaseEntity } from './base.entity';
 
 export interface PlanProps {
@@ -21,10 +23,20 @@ export class PlanEntity extends BaseEntity {
 
   static create(props: PlanProps): PlanEntity {
     if (props.price < 0) {
-      throw new Error('Plan price cannot be negative');
+      throw new AppError({
+        code: ErrorCode.ENTITY_INVARIANT_VIOLATION,
+        message: 'Plan price cannot be negative',
+        httpStatus: 400,
+        level: 'error',
+      });
     }
     if (props.discount < 0) {
-      throw new Error('Plan discount cannot be negative');
+      throw new AppError({
+        code: ErrorCode.ENTITY_INVARIANT_VIOLATION,
+        message: 'Plan discount cannot be negative',
+        httpStatus: 400,
+        level: 'error',
+      });
     }
     return new PlanEntity(props);
   }

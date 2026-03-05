@@ -1,5 +1,6 @@
 import { IUserRepository } from '@/core/domain/contracts';
 import type { UserEntity } from '@/core/domain/entities';
+import { UserNotFoundError } from '@/core/errors';
 
 export class GetUserUseCase {
   constructor(private readonly userRepository: IUserRepository) {}
@@ -8,16 +9,9 @@ export class GetUserUseCase {
     const user = await this.userRepository.findById(id);
 
     if (!user) {
-      throw new GetUserError('User not found.');
+      throw new UserNotFoundError(id);
     }
 
     return user;
-  }
-}
-
-export class GetUserError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'GetUserError';
   }
 }

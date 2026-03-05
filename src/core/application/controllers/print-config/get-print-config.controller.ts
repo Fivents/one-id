@@ -1,5 +1,7 @@
-import { GetPrintConfigError, GetPrintConfigUseCase } from '../../use-cases/print-config';
-import { type ControllerResponse, notFound, ok, serverError } from '../controller-response';
+import { AppError } from '@/core/errors';
+
+import { GetPrintConfigUseCase } from '../../use-cases/print-config';
+import { type ControllerResponse, ok, serverError } from '../controller-response';
 
 export class GetPrintConfigController {
   constructor(private readonly getPrintConfigUseCase: GetPrintConfigUseCase) {}
@@ -10,8 +12,8 @@ export class GetPrintConfigController {
 
       return ok(config.toJSON());
     } catch (error) {
-      if (error instanceof GetPrintConfigError) {
-        return notFound(error.message);
+      if (error instanceof AppError) {
+        return { statusCode: error.httpStatus, body: { error: error.message } };
       }
 
       return serverError();

@@ -1,5 +1,7 @@
-import { RemoveMemberError, RemoveMemberUseCase } from '../../use-cases/membership';
-import { type ControllerResponse, noContent, notFound, serverError } from '../controller-response';
+import { AppError } from '@/core/errors';
+
+import { RemoveMemberUseCase } from '../../use-cases/membership';
+import { type ControllerResponse, noContent, serverError } from '../controller-response';
 
 export class RemoveMemberController {
   constructor(private readonly removeMemberUseCase: RemoveMemberUseCase) {}
@@ -10,8 +12,8 @@ export class RemoveMemberController {
 
       return noContent();
     } catch (error) {
-      if (error instanceof RemoveMemberError) {
-        return notFound(error.message);
+      if (error instanceof AppError) {
+        return { statusCode: error.httpStatus, body: { error: error.message } };
       }
 
       return serverError();

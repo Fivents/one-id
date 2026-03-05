@@ -1,3 +1,5 @@
+import { AppError, ErrorCode } from '@/core/errors';
+
 import { BaseEntity } from './base.entity';
 
 export interface SubscriptionProps {
@@ -16,7 +18,12 @@ export class SubscriptionEntity extends BaseEntity {
 
   static create(props: SubscriptionProps): SubscriptionEntity {
     if (props.expiresAt <= props.startedAt) {
-      throw new Error('Subscription expiration must be after start date');
+      throw new AppError({
+        code: ErrorCode.ENTITY_INVARIANT_VIOLATION,
+        message: 'Subscription expiration must be after start date',
+        httpStatus: 400,
+        level: 'error',
+      });
     }
     return new SubscriptionEntity(props);
   }

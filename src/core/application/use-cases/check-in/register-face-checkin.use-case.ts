@@ -4,6 +4,8 @@ import {
   ITotemEventSubscriptionRepository,
 } from '@/core/domain/contracts';
 import type { CheckInEntity } from '@/core/domain/entities/check-in.entity';
+import { AppError, ErrorCode } from '@/core/errors';
+import { ParticipantNotFoundError } from '@/core/errors';
 
 interface RegisterFaceCheckInInput {
   eventParticipantId: string;
@@ -22,17 +24,29 @@ export class RegisterFaceCheckInUseCase {
 
   async execute(input: RegisterFaceCheckInInput): Promise<CheckInEntity> {
     if (input.confidence < MIN_CONFIDENCE_THRESHOLD) {
-      throw new RegisterFaceCheckInError('Confidence score is too low for face recognition check-in.');
+      throw new AppError({
+        code: ErrorCode.CHECKIN_LOW_CONFIDENCE,
+        message: 'Confidence score is too low for face recognition check-in.',
+        httpStatus: 400,
+        level: 'warning',
+        context: { confidence: input.confidence, threshold: MIN_CONFIDENCE_THRESHOLD },
+      });
     }
 
     const participant = await this.eventParticipantRepository.findById(input.eventParticipantId);
     if (!participant) {
-      throw new RegisterFaceCheckInError('Participant not found.');
+      throw new ParticipantNotFoundError(input.eventParticipantId);
     }
 
     const totemEventSub = await this.totemEventSubRepository.findById(input.totemEventSubscriptionId);
     if (!totemEventSub) {
-      throw new RegisterFaceCheckInError('Totem-event subscription not found.');
+      throw new AppError({
+        code: ErrorCode.TOTEM_EVENT_SUBSCRIPTION_NOT_FOUND,
+        message: 'Totem-event subscription not found.',
+        httpStatus: 404,
+        level: 'warning',
+        context: { totemEventSubscriptionId: input.totemEventSubscriptionId },
+      });
     }
 
     const existing = await this.checkInRepository.findByParticipantAndLocation(
@@ -41,7 +55,13 @@ export class RegisterFaceCheckInUseCase {
     );
 
     if (existing) {
-      throw new RegisterFaceCheckInError('Participant already checked in at this location.');
+      throw new AppError({
+        code: ErrorCode.CHECKIN_DUPLICATE,
+        message: 'Participant already checked in at this location.',
+        httpStatus: 409,
+        level: 'warning',
+        context: { eventParticipantId: input.eventParticipantId },
+      });
     }
 
     return this.checkInRepository.create({
@@ -51,12 +71,5 @@ export class RegisterFaceCheckInUseCase {
       eventParticipantId: input.eventParticipantId,
       totemEventSubscriptionId: input.totemEventSubscriptionId,
     });
-  }
-}
-
-export class RegisterFaceCheckInError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'RegisterFaceCheckInError';
   }
 }

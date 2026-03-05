@@ -1,7 +1,8 @@
 import type { AddMemberRequest } from '@/core/communication/requests/membership';
+import { AppError } from '@/core/errors';
 
-import { AddMemberError, AddMemberUseCase } from '../../use-cases/membership';
-import { conflict, type ControllerResponse, created, serverError } from '../controller-response';
+import { AddMemberUseCase } from '../../use-cases/membership';
+import { type ControllerResponse, created, serverError } from '../controller-response';
 
 export class AddMemberController {
   constructor(private readonly addMemberUseCase: AddMemberUseCase) {}
@@ -12,8 +13,8 @@ export class AddMemberController {
 
       return created(membership.toJSON());
     } catch (error) {
-      if (error instanceof AddMemberError) {
-        return conflict(error.message);
+      if (error instanceof AppError) {
+        return { statusCode: error.httpStatus, body: { error: error.message } };
       }
 
       return serverError();

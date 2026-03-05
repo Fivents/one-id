@@ -1,4 +1,5 @@
 import { IEventParticipantRepository } from '@/core/domain/contracts';
+import { ParticipantNotFoundError } from '@/core/errors';
 
 export class RemoveParticipantUseCase {
   constructor(private readonly eventParticipantRepository: IEventParticipantRepository) {}
@@ -7,16 +8,9 @@ export class RemoveParticipantUseCase {
     const participant = await this.eventParticipantRepository.findById(id);
 
     if (!participant) {
-      throw new RemoveParticipantError('Participant not found.');
+      throw new ParticipantNotFoundError(id);
     }
 
     await this.eventParticipantRepository.softDelete(id);
-  }
-}
-
-export class RemoveParticipantError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'RemoveParticipantError';
   }
 }

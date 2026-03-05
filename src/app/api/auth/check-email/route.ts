@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-import { CheckEmailError } from '@/core/application/use-cases/auth/check-email-client.use-case';
 import { checkEmailRequestSchema } from '@/core/communication/requests/auth';
+import { AppError } from '@/core/errors';
 import { makeCheckEmailClientUseCase } from '@/core/infrastructure/factories';
 import { parseWithZod } from '@/core/utils/parse-with-zod';
 
@@ -15,12 +15,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(result);
   } catch (error) {
-    if (error instanceof CheckEmailError) {
-      return NextResponse.json({ error: error.message }, { status: 404 });
-    }
-
-    if (error instanceof Error && error.name === 'ZodValidationError') {
-      return NextResponse.json({ error: 'Invalid request data.' }, { status: 400 });
+    if (error instanceof AppError) {
+      return NextResponse.json({ error: error.message }, { status: error.httpStatus });
     }
 
     return NextResponse.json({ error: 'Internal server error.' }, { status: 500 });

@@ -1,5 +1,6 @@
 import { IEventRepository } from '@/core/domain/contracts';
 import type { EventEntity } from '@/core/domain/entities';
+import { EventNotFoundError } from '@/core/errors';
 
 export class GetEventUseCase {
   constructor(private readonly eventRepository: IEventRepository) {}
@@ -8,16 +9,9 @@ export class GetEventUseCase {
     const event = await this.eventRepository.findById(id);
 
     if (!event) {
-      throw new GetEventError('Event not found.');
+      throw new EventNotFoundError(id);
     }
 
     return event;
-  }
-}
-
-export class GetEventError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'GetEventError';
   }
 }

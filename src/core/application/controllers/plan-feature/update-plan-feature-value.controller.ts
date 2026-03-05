@@ -1,7 +1,8 @@
 import type { UpdatePlanFeatureValueRequest } from '@/core/communication/requests/plan-feature';
+import { AppError } from '@/core/errors';
 
-import { UpdatePlanFeatureValueError, UpdatePlanFeatureValueUseCase } from '../../use-cases/plan-feature';
-import { type ControllerResponse, notFound, ok, serverError } from '../controller-response';
+import { UpdatePlanFeatureValueUseCase } from '../../use-cases/plan-feature';
+import { type ControllerResponse, ok, serverError } from '../controller-response';
 
 export class UpdatePlanFeatureValueController {
   constructor(private readonly updatePlanFeatureValueUseCase: UpdatePlanFeatureValueUseCase) {}
@@ -16,8 +17,8 @@ export class UpdatePlanFeatureValueController {
 
       return ok(planFeature.toJSON());
     } catch (error) {
-      if (error instanceof UpdatePlanFeatureValueError) {
-        return notFound(error.message);
+      if (error instanceof AppError) {
+        return { statusCode: error.httpStatus, body: { error: error.message } };
       }
 
       return serverError();

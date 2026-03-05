@@ -1,4 +1,5 @@
 import { IPlanFeatureRepository } from '@/core/domain/contracts';
+import { PlanFeatureNotFoundError } from '@/core/errors';
 
 export class RemoveFeatureFromPlanUseCase {
   constructor(private readonly planFeatureRepository: IPlanFeatureRepository) {}
@@ -7,16 +8,9 @@ export class RemoveFeatureFromPlanUseCase {
     const planFeature = await this.planFeatureRepository.findByPlanAndFeature(planId, featureId);
 
     if (!planFeature) {
-      throw new RemoveFeatureFromPlanError('Feature is not associated with this plan.');
+      throw new PlanFeatureNotFoundError({ planId, featureId });
     }
 
     await this.planFeatureRepository.softDelete(planFeature.id);
-  }
-}
-
-export class RemoveFeatureFromPlanError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'RemoveFeatureFromPlanError';
   }
 }

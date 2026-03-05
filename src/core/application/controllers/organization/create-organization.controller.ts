@@ -1,7 +1,8 @@
 import type { CreateOrganizationRequest } from '@/core/communication/requests/organization';
+import { AppError } from '@/core/errors';
 
-import { CreateOrganizationError, CreateOrganizationUseCase } from '../../use-cases/organization';
-import { conflict, type ControllerResponse, created, serverError } from '../controller-response';
+import { CreateOrganizationUseCase } from '../../use-cases/organization';
+import { type ControllerResponse, created, serverError } from '../controller-response';
 
 export class CreateOrganizationController {
   constructor(private readonly createOrganizationUseCase: CreateOrganizationUseCase) {}
@@ -12,8 +13,8 @@ export class CreateOrganizationController {
 
       return created(organization.toJSON());
     } catch (error) {
-      if (error instanceof CreateOrganizationError) {
-        return conflict(error.message);
+      if (error instanceof AppError) {
+        return { statusCode: error.httpStatus, body: { error: error.message } };
       }
 
       return serverError();

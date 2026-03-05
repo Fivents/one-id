@@ -1,5 +1,6 @@
 import { ITotemRepository, UpdateTotemData } from '@/core/domain/contracts';
 import type { TotemEntity } from '@/core/domain/entities';
+import { TotemNotFoundError } from '@/core/errors';
 
 export class UpdateTotemUseCase {
   constructor(private readonly totemRepository: ITotemRepository) {}
@@ -8,16 +9,9 @@ export class UpdateTotemUseCase {
     const totem = await this.totemRepository.findById(id);
 
     if (!totem) {
-      throw new UpdateTotemError('Totem not found.');
+      throw new TotemNotFoundError(id);
     }
 
     return this.totemRepository.update(id, data);
-  }
-}
-
-export class UpdateTotemError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'UpdateTotemError';
   }
 }

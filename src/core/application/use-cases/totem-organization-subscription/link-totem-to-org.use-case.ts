@@ -4,6 +4,7 @@ import {
   ITotemRepository,
 } from '@/core/domain/contracts';
 import type { TotemOrganizationSubscriptionEntity } from '@/core/domain/entities/totem-organization-subscription.entity';
+import { OrganizationNotFoundError, TotemNotFoundError, TotemOrgSubscriptionAlreadyExistsError } from '@/core/errors';
 
 interface LinkTotemToOrgInput {
   totemId: string;
@@ -22,12 +23,12 @@ export class LinkTotemToOrgUseCase {
   async execute(input: LinkTotemToOrgInput): Promise<TotemOrganizationSubscriptionEntity> {
     const totem = await this.totemRepository.findById(input.totemId);
     if (!totem) {
-      throw new LinkTotemToOrgError('Totem not found.');
+      throw new TotemNotFoundError(input.totemId);
     }
 
     const organization = await this.organizationRepository.findById(input.organizationId);
     if (!organization) {
-      throw new LinkTotemToOrgError('Organization not found.');
+      throw new OrganizationNotFoundError(input.organizationId);
     }
 
     const existing = await this.totemOrgSubRepository.findActiveByTotemAndOrganization(
@@ -36,7 +37,7 @@ export class LinkTotemToOrgUseCase {
     );
 
     if (existing) {
-      throw new LinkTotemToOrgError('Totem is already linked to this organization.');
+      throw new TotemOrgSubscriptionAlreadyExistsError(input.totemId, input.organizationId);
     }
 
     return this.totemOrgSubRepository.create({
@@ -45,12 +46,5 @@ export class LinkTotemToOrgUseCase {
       startsAt: input.startsAt,
       endsAt: input.endsAt,
     });
-  }
-}
-
-export class LinkTotemToOrgError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'LinkTotemToOrgError';
   }
 }

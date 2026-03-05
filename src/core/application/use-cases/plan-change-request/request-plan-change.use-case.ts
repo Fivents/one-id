@@ -1,5 +1,11 @@
 import { IPlanChangeRequestRepository, IPlanRepository, ISubscriptionRepository } from '@/core/domain/contracts';
 import type { PlanChangeRequestEntity } from '@/core/domain/entities/plan-change-request.entity';
+import {
+  PlanAlreadySelectedError,
+  PlanChangeRequestPendingError,
+  PlanNotFoundError,
+  SubscriptionNotFoundError,
+} from '@/core/errors';
 
 interface RequestPlanChangeInput {
   organizationId: string;
@@ -17,21 +23,21 @@ export class RequestPlanChangeUseCase {
   async execute(input: RequestPlanChangeInput): Promise<PlanChangeRequestEntity> {
     const subscription = await this.subscriptionRepository.findByOrganization(input.organizationId);
     if (!subscription) {
-      throw new RequestPlanChangeError('Organization does not have an active subscription.');
+      throw new SubscriptionNotFoundError({ organizationId: input.organizationId });
     }
 
     const requestedPlan = await this.planRepository.findById(input.requestedPlanId);
     if (!requestedPlan) {
-      throw new RequestPlanChangeError('Requested plan not found.');
+      throw new PlanNotFoundError(input.requestedPlanId);
     }
 
     if (subscription.planId === input.requestedPlanId) {
-      throw new RequestPlanChangeError('Cannot request change to the same plan.');
+      throw new PlanAlreadySelectedError(input.requestedPlanId);
     }
 
     const pendingRequests = await this.planChangeRequestRepository.findPendingByOrganization(input.organizationId);
     if (pendingRequests.length > 0) {
-      throw new RequestPlanChangeError('Organization already has a pending plan change request.');
+      throw new PlanChangeRequestPendingError(input.organizationId);
     }
 
     return this.planChangeRequestRepository.create({
@@ -40,12 +46,5 @@ export class RequestPlanChangeUseCase {
       currentPlanId: subscription.planId,
       requestedPlanId: input.requestedPlanId,
     });
-  }
-}
-
-export class RequestPlanChangeError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'RequestPlanChangeError';
   }
 }

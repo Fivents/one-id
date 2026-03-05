@@ -1,6 +1,7 @@
 import { IMembershipRepository } from '@/core/domain/contracts';
 import type { MembershipEntity } from '@/core/domain/entities';
 import type { Role } from '@/core/domain/value-objects';
+import { MemberNotFoundError } from '@/core/errors';
 
 export class UpdateMemberRoleUseCase {
   constructor(private readonly membershipRepository: IMembershipRepository) {}
@@ -9,16 +10,9 @@ export class UpdateMemberRoleUseCase {
     const membership = await this.membershipRepository.findById(membershipId);
 
     if (!membership) {
-      throw new UpdateMemberRoleError('Membership not found.');
+      throw new MemberNotFoundError(membershipId);
     }
 
     return this.membershipRepository.updateRole(membershipId, role);
-  }
-}
-
-export class UpdateMemberRoleError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'UpdateMemberRoleError';
   }
 }

@@ -1,7 +1,8 @@
 import type { Role } from '@/core/domain/value-objects';
+import { AppError } from '@/core/errors';
 
-import { UpdateMemberRoleError, UpdateMemberRoleUseCase } from '../../use-cases/membership';
-import { type ControllerResponse, notFound, ok, serverError } from '../controller-response';
+import { UpdateMemberRoleUseCase } from '../../use-cases/membership';
+import { type ControllerResponse, ok, serverError } from '../controller-response';
 
 export class UpdateMemberRoleController {
   constructor(private readonly updateMemberRoleUseCase: UpdateMemberRoleUseCase) {}
@@ -12,8 +13,8 @@ export class UpdateMemberRoleController {
 
       return ok(membership.toJSON());
     } catch (error) {
-      if (error instanceof UpdateMemberRoleError) {
-        return notFound(error.message);
+      if (error instanceof AppError) {
+        return { statusCode: error.httpStatus, body: { error: error.message } };
       }
 
       return serverError();

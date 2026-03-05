@@ -1,5 +1,6 @@
 import { ITotemEventSubscriptionRepository } from '@/core/domain/contracts';
 import type { TotemEventSubscriptionEntity } from '@/core/domain/entities/totem-event-subscription.entity';
+import { TotemEventSubscriptionNotFoundError } from '@/core/errors';
 
 export class SetTotemLocationUseCase {
   constructor(private readonly totemEventSubRepository: ITotemEventSubscriptionRepository) {}
@@ -8,16 +9,9 @@ export class SetTotemLocationUseCase {
     const subscription = await this.totemEventSubRepository.findById(subscriptionId);
 
     if (!subscription) {
-      throw new SetTotemLocationError('Totem-event subscription not found.');
+      throw new TotemEventSubscriptionNotFoundError(subscriptionId);
     }
 
     return this.totemEventSubRepository.update(subscriptionId, { locationName });
-  }
-}
-
-export class SetTotemLocationError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'SetTotemLocationError';
   }
 }

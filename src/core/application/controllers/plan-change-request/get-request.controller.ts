@@ -1,5 +1,7 @@
-import { GetRequestError, GetRequestUseCase } from '../../use-cases/plan-change-request';
-import { type ControllerResponse, notFound, ok, serverError } from '../controller-response';
+import { AppError } from '@/core/errors';
+
+import { GetRequestUseCase } from '../../use-cases/plan-change-request';
+import { type ControllerResponse, ok, serverError } from '../controller-response';
 
 export class GetRequestController {
   constructor(private readonly getRequestUseCase: GetRequestUseCase) {}
@@ -10,8 +12,8 @@ export class GetRequestController {
 
       return ok(request.toJSON());
     } catch (error) {
-      if (error instanceof GetRequestError) {
-        return notFound(error.message);
+      if (error instanceof AppError) {
+        return { statusCode: error.httpStatus, body: { error: error.message } };
       }
 
       return serverError();

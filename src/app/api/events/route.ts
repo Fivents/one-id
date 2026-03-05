@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { makeCreateEventController, makeListEventsController } from '@/core/application/controller-factories';
 import { createEventRequestSchema } from '@/core/communication/requests/event';
+import { AppError } from '@/core/errors';
 import { withAuth, withRBAC } from '@/core/infrastructure/http/middlewares';
 import { toNextResponse } from '@/core/infrastructure/http/to-next-response';
 import { getUserAuth } from '@/core/infrastructure/http/types';
@@ -31,8 +32,8 @@ export const POST = withAuth(
 
       return toNextResponse(result);
     } catch (error) {
-      if (error instanceof Error && error.name === 'ZodValidationError') {
-        return NextResponse.json({ error: 'Invalid request data.' }, { status: 400 });
+      if (error instanceof AppError) {
+        return NextResponse.json({ error: error.message }, { status: error.httpStatus });
       }
 
       return NextResponse.json({ error: 'Internal server error.' }, { status: 500 });

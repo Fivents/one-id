@@ -1,5 +1,6 @@
 import { IEventRepository, UpdateEventData } from '@/core/domain/contracts';
 import type { EventEntity } from '@/core/domain/entities';
+import { EventNotFoundError } from '@/core/errors';
 
 export class UpdateEventUseCase {
   constructor(private readonly eventRepository: IEventRepository) {}
@@ -8,16 +9,9 @@ export class UpdateEventUseCase {
     const event = await this.eventRepository.findById(id);
 
     if (!event) {
-      throw new UpdateEventError('Event not found.');
+      throw new EventNotFoundError(id);
     }
 
     return this.eventRepository.update(id, data);
-  }
-}
-
-export class UpdateEventError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'UpdateEventError';
   }
 }

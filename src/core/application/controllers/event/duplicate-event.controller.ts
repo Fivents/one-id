@@ -1,7 +1,8 @@
 import type { DuplicateEventRequest } from '@/core/communication/requests/event';
+import { AppError } from '@/core/errors';
 
-import { DuplicateEventError, DuplicateEventUseCase } from '../../use-cases/event';
-import { type ControllerResponse, created, notFound, serverError } from '../controller-response';
+import { DuplicateEventUseCase } from '../../use-cases/event';
+import { type ControllerResponse, created, serverError } from '../controller-response';
 
 export class DuplicateEventController {
   constructor(private readonly duplicateEventUseCase: DuplicateEventUseCase) {}
@@ -12,8 +13,8 @@ export class DuplicateEventController {
 
       return created(event.toJSON());
     } catch (error) {
-      if (error instanceof DuplicateEventError) {
-        return notFound(error.message);
+      if (error instanceof AppError) {
+        return { statusCode: error.httpStatus, body: { error: error.message } };
       }
 
       return serverError();

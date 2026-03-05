@@ -1,5 +1,6 @@
 import { IPersonRepository, UpdatePersonData } from '@/core/domain/contracts';
 import type { PersonEntity } from '@/core/domain/entities';
+import { PersonNotFoundError } from '@/core/errors';
 
 export class UpdatePersonUseCase {
   constructor(private readonly personRepository: IPersonRepository) {}
@@ -8,16 +9,9 @@ export class UpdatePersonUseCase {
     const person = await this.personRepository.findById(id);
 
     if (!person) {
-      throw new UpdatePersonError('Person not found.');
+      throw new PersonNotFoundError(id);
     }
 
     return this.personRepository.update(id, data);
-  }
-}
-
-export class UpdatePersonError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'UpdatePersonError';
   }
 }

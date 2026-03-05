@@ -3,6 +3,7 @@ import {
   ITotemOrganizationSubscriptionRepository,
   ITotemRepository,
 } from '@/core/domain/contracts';
+import { TotemNotFoundError } from '@/core/errors';
 
 export class TotemManagementService {
   constructor(
@@ -19,7 +20,7 @@ export class TotemManagementService {
   }> {
     const totem = await this.totemRepository.findById(totemId);
     if (!totem) {
-      throw new TotemManagementServiceError('Totem not found.');
+      throw new TotemNotFoundError(totemId);
     }
 
     const orgSubs = await this.totemOrgSubRepository.findByOrganization(totemId);
@@ -37,12 +38,5 @@ export class TotemManagementService {
       activeOrgSubscriptions: activeOrgSubs.length,
       activeEventSubscriptions: activeEventSubs,
     };
-  }
-}
-
-export class TotemManagementServiceError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'TotemManagementServiceError';
   }
 }

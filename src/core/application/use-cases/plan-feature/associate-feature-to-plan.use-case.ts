@@ -1,5 +1,6 @@
 import { IFeatureRepository, IPlanFeatureRepository, IPlanRepository } from '@/core/domain/contracts';
 import type { PlanFeatureEntity } from '@/core/domain/entities/plan-feature.entity';
+import { FeatureNotFoundError, PlanFeatureAlreadyExistsError, PlanNotFoundError } from '@/core/errors';
 
 interface AssociateFeatureToPlanInput {
   planId: string;
@@ -17,17 +18,17 @@ export class AssociateFeatureToPlanUseCase {
   async execute(input: AssociateFeatureToPlanInput): Promise<PlanFeatureEntity> {
     const plan = await this.planRepository.findById(input.planId);
     if (!plan) {
-      throw new AssociateFeatureToPlanError('Plan not found.');
+      throw new PlanNotFoundError(input.planId);
     }
 
     const feature = await this.featureRepository.findById(input.featureId);
     if (!feature) {
-      throw new AssociateFeatureToPlanError('Feature not found.');
+      throw new FeatureNotFoundError(input.featureId);
     }
 
     const existing = await this.planFeatureRepository.findByPlanAndFeature(input.planId, input.featureId);
     if (existing) {
-      throw new AssociateFeatureToPlanError('Feature is already associated with this plan.');
+      throw new PlanFeatureAlreadyExistsError(input.planId, input.featureId);
     }
 
     return this.planFeatureRepository.create({
@@ -35,12 +36,5 @@ export class AssociateFeatureToPlanUseCase {
       featureId: input.featureId,
       value: input.value,
     });
-  }
-}
-
-export class AssociateFeatureToPlanError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'AssociateFeatureToPlanError';
   }
 }

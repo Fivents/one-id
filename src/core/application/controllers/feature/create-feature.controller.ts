@@ -1,7 +1,8 @@
 import type { CreateFeatureRequest } from '@/core/communication/requests/feature';
+import { AppError } from '@/core/errors';
 
-import { CreateFeatureError, CreateFeatureUseCase } from '../../use-cases/feature';
-import { conflict, type ControllerResponse, created, serverError } from '../controller-response';
+import { CreateFeatureUseCase } from '../../use-cases/feature';
+import { type ControllerResponse, created, serverError } from '../controller-response';
 
 export class CreateFeatureController {
   constructor(private readonly createFeatureUseCase: CreateFeatureUseCase) {}
@@ -12,8 +13,8 @@ export class CreateFeatureController {
 
       return created(feature.toJSON());
     } catch (error) {
-      if (error instanceof CreateFeatureError) {
-        return conflict(error.message);
+      if (error instanceof AppError) {
+        return { statusCode: error.httpStatus, body: { error: error.message } };
       }
 
       return serverError();

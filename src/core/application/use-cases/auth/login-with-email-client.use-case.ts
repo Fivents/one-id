@@ -8,6 +8,12 @@ import {
   IUserRepository,
 } from '@/core/domain/contracts';
 import { isClientRole } from '@/core/domain/value-objects';
+import {
+  AccessDisabledError,
+  InvalidCredentialsError,
+  LoginMethodUnavailableError,
+  PasswordNotConfiguredError,
+} from '@/core/errors';
 
 export class LoginWithEmailClientUseCase {
   constructor(
@@ -25,27 +31,27 @@ export class LoginWithEmailClientUseCase {
     const user = await this.userRepository.findByEmailWithMembership(request.email);
 
     if (!user) {
-      throw new LoginEmailError('Invalid credentials.');
+      throw new InvalidCredentialsError();
     }
 
     if (!isClientRole(user.role)) {
-      throw new LoginEmailError('This login method is not available for your account type.');
+      throw new LoginMethodUnavailableError({ email: request.email });
     }
 
     const identity = await this.authIdentityRepository.findByUserIdAndProvider(user.id, 'credentials');
 
     if (!identity || !identity.isPasswordConfigured()) {
-      throw new LoginEmailError('Password not configured. Please set up your password first.');
+      throw new PasswordNotConfiguredError({ userId: user.id });
     }
 
     if (!identity.isAccessAllowed()) {
-      throw new LoginEmailError('Your access has been disabled. Contact your administrator.');
+      throw new AccessDisabledError({ userId: user.id });
     }
 
     const isValid = await this.passwordHasher.compare(request.password, identity.passwordHash!);
 
     if (!isValid) {
-      throw new LoginEmailError('Invalid credentials.');
+      throw new InvalidCredentialsError();
     }
 
     const userType = 'client' as const;
@@ -81,12 +87,5 @@ export class LoginWithEmailClientUseCase {
         organizationId: user.organizationId,
       },
     };
-  }
-}
-
-export class LoginEmailError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'LoginEmailError';
   }
 }

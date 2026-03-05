@@ -1,7 +1,8 @@
 import type { RegisterParticipantRequest } from '@/core/communication/requests/event-participant';
+import { AppError } from '@/core/errors';
 
-import { RegisterParticipantError, RegisterParticipantUseCase } from '../../use-cases/event-participant';
-import { conflict, type ControllerResponse, created, serverError } from '../controller-response';
+import { RegisterParticipantUseCase } from '../../use-cases/event-participant';
+import { type ControllerResponse, created, serverError } from '../controller-response';
 
 export class RegisterParticipantController {
   constructor(private readonly registerParticipantUseCase: RegisterParticipantUseCase) {}
@@ -12,8 +13,8 @@ export class RegisterParticipantController {
 
       return created(participant.toJSON());
     } catch (error) {
-      if (error instanceof RegisterParticipantError) {
-        return conflict(error.message);
+      if (error instanceof AppError) {
+        return { statusCode: error.httpStatus, body: { error: error.message } };
       }
 
       return serverError();

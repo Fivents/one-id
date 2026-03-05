@@ -1,5 +1,6 @@
 import { IEventRepository } from '@/core/domain/contracts';
 import type { EventEntity } from '@/core/domain/entities';
+import { EventNotFoundError } from '@/core/errors';
 
 export class DuplicateEventUseCase {
   constructor(private readonly eventRepository: IEventRepository) {}
@@ -11,7 +12,7 @@ export class DuplicateEventUseCase {
     const event = await this.eventRepository.findById(id);
 
     if (!event) {
-      throw new DuplicateEventError('Event not found.');
+      throw new EventNotFoundError(id);
     }
 
     return this.eventRepository.create({
@@ -26,12 +27,5 @@ export class DuplicateEventUseCase {
       organizationId: event.organizationId,
       printConfigId: event.printConfigId ?? undefined,
     });
-  }
-}
-
-export class DuplicateEventError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'DuplicateEventError';
   }
 }

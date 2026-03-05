@@ -1,5 +1,6 @@
 import { AuthTokenResponse } from '@/core/communication/responses/auth/auth.response';
 import { ISessionRepository, ITokenProvider, IUserRepository } from '@/core/domain/contracts';
+import { UserNotFoundError } from '@/core/errors';
 
 export class LoginWithTokenUseCase {
   constructor(
@@ -17,7 +18,7 @@ export class LoginWithTokenUseCase {
     const user = await this.userRepository.findByEmailWithMembership(payload.email);
 
     if (!user) {
-      throw new TokenLoginError('User not found.');
+      throw new UserNotFoundError();
     }
 
     const newToken = await this.tokenProvider.signUserToken({
@@ -49,12 +50,5 @@ export class LoginWithTokenUseCase {
         organizationId: user.organizationId,
       },
     };
-  }
-}
-
-export class TokenLoginError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'TokenLoginError';
   }
 }

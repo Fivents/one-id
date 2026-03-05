@@ -1,5 +1,6 @@
 import { CreateEventParticipantData, IEventParticipantRepository } from '@/core/domain/contracts';
 import type { EventParticipantEntity } from '@/core/domain/entities';
+import { ParticipantAlreadyRegisteredError } from '@/core/errors';
 
 export class RegisterParticipantUseCase {
   constructor(private readonly eventParticipantRepository: IEventParticipantRepository) {}
@@ -8,16 +9,9 @@ export class RegisterParticipantUseCase {
     const existing = await this.eventParticipantRepository.findByPersonAndEvent(data.personId, data.eventId);
 
     if (existing) {
-      throw new RegisterParticipantError('Person is already registered for this event.');
+      throw new ParticipantAlreadyRegisteredError({ personId: data.personId, eventId: data.eventId });
     }
 
     return this.eventParticipantRepository.create(data);
-  }
-}
-
-export class RegisterParticipantError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'RegisterParticipantError';
   }
 }

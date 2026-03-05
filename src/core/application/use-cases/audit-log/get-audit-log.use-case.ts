@@ -1,5 +1,6 @@
 import { IAuditLogRepository } from '@/core/domain/contracts';
 import type { AuditLogEntity } from '@/core/domain/entities/audit-log.entity';
+import { AuditLogNotFoundError } from '@/core/errors';
 
 export class GetAuditLogUseCase {
   constructor(private readonly auditLogRepository: IAuditLogRepository) {}
@@ -8,16 +9,9 @@ export class GetAuditLogUseCase {
     const log = await this.auditLogRepository.findById(id);
 
     if (!log) {
-      throw new GetAuditLogError('Audit log not found.');
+      throw new AuditLogNotFoundError(id);
     }
 
     return log;
-  }
-}
-
-export class GetAuditLogError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'GetAuditLogError';
   }
 }

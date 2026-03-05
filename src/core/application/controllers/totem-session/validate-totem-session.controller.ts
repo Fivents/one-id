@@ -1,5 +1,7 @@
-import { ValidateTotemSessionError, ValidateTotemSessionUseCase } from '../../use-cases/totem-session';
-import { type ControllerResponse, ok, serverError, unauthorized } from '../controller-response';
+import { AppError } from '@/core/errors';
+
+import { ValidateTotemSessionUseCase } from '../../use-cases/totem-session';
+import { type ControllerResponse, ok, serverError } from '../controller-response';
 
 export class ValidateTotemSessionController {
   constructor(private readonly validateTotemSessionUseCase: ValidateTotemSessionUseCase) {}
@@ -10,8 +12,8 @@ export class ValidateTotemSessionController {
 
       return ok(result);
     } catch (error) {
-      if (error instanceof ValidateTotemSessionError) {
-        return unauthorized(error.message);
+      if (error instanceof AppError) {
+        return { statusCode: error.httpStatus, body: { error: error.message } };
       }
 
       return serverError();

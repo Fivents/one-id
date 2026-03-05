@@ -1,5 +1,7 @@
-import { DeactivateTotemError, DeactivateTotemUseCase } from '../../use-cases/totem';
-import { badRequest, type ControllerResponse, noContent, serverError } from '../controller-response';
+import { AppError } from '@/core/errors';
+
+import { DeactivateTotemUseCase } from '../../use-cases/totem';
+import { type ControllerResponse, noContent, serverError } from '../controller-response';
 
 export class DeactivateTotemController {
   constructor(private readonly deactivateTotemUseCase: DeactivateTotemUseCase) {}
@@ -10,8 +12,8 @@ export class DeactivateTotemController {
 
       return noContent();
     } catch (error) {
-      if (error instanceof DeactivateTotemError) {
-        return badRequest(error.message);
+      if (error instanceof AppError) {
+        return { statusCode: error.httpStatus, body: { error: error.message } };
       }
 
       return serverError();

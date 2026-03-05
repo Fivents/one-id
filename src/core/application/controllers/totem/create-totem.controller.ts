@@ -1,7 +1,8 @@
 import type { CreateTotemRequest } from '@/core/communication/requests/totem';
+import { AppError } from '@/core/errors';
 
-import { CreateTotemError, CreateTotemUseCase } from '../../use-cases/totem';
-import { conflict, type ControllerResponse, created, serverError } from '../controller-response';
+import { CreateTotemUseCase } from '../../use-cases/totem';
+import { type ControllerResponse, created, serverError } from '../controller-response';
 
 export class CreateTotemController {
   constructor(private readonly createTotemUseCase: CreateTotemUseCase) {}
@@ -12,8 +13,8 @@ export class CreateTotemController {
 
       return created(totem.toJSON());
     } catch (error) {
-      if (error instanceof CreateTotemError) {
-        return conflict(error.message);
+      if (error instanceof AppError) {
+        return { statusCode: error.httpStatus, body: { error: error.message } };
       }
 
       return serverError();

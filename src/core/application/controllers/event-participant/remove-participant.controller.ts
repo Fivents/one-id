@@ -1,5 +1,7 @@
-import { RemoveParticipantError, RemoveParticipantUseCase } from '../../use-cases/event-participant';
-import { type ControllerResponse, noContent, notFound, serverError } from '../controller-response';
+import { AppError } from '@/core/errors';
+
+import { RemoveParticipantUseCase } from '../../use-cases/event-participant';
+import { type ControllerResponse, noContent, serverError } from '../controller-response';
 
 export class RemoveParticipantController {
   constructor(private readonly removeParticipantUseCase: RemoveParticipantUseCase) {}
@@ -10,8 +12,8 @@ export class RemoveParticipantController {
 
       return noContent();
     } catch (error) {
-      if (error instanceof RemoveParticipantError) {
-        return notFound(error.message);
+      if (error instanceof AppError) {
+        return { statusCode: error.httpStatus, body: { error: error.message } };
       }
 
       return serverError();

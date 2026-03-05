@@ -1,5 +1,6 @@
 import { IFeatureRepository, UpdateFeatureData } from '@/core/domain/contracts';
 import type { FeatureEntity } from '@/core/domain/entities/feature.entity';
+import { FeatureNotFoundError } from '@/core/errors';
 
 export class UpdateFeatureUseCase {
   constructor(private readonly featureRepository: IFeatureRepository) {}
@@ -8,16 +9,9 @@ export class UpdateFeatureUseCase {
     const feature = await this.featureRepository.findById(id);
 
     if (!feature) {
-      throw new UpdateFeatureError('Feature not found.');
+      throw new FeatureNotFoundError(id);
     }
 
     return this.featureRepository.update(id, data);
-  }
-}
-
-export class UpdateFeatureError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'UpdateFeatureError';
   }
 }

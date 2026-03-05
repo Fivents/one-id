@@ -1,7 +1,8 @@
 import type { CheckEmailResponse } from '@/core/communication/responses/auth';
+import { AppError } from '@/core/errors';
 
-import { CheckEmailClientUseCase, CheckEmailError } from '../../use-cases/auth';
-import { type ControllerResponse, notFound, ok, serverError } from '../controller-response';
+import { CheckEmailClientUseCase } from '../../use-cases/auth';
+import { type ControllerResponse, ok, serverError } from '../controller-response';
 
 export class CheckEmailController {
   constructor(private readonly checkEmailUseCase: CheckEmailClientUseCase) {}
@@ -12,8 +13,8 @@ export class CheckEmailController {
 
       return ok(result);
     } catch (error) {
-      if (error instanceof CheckEmailError) {
-        return notFound(error.message);
+      if (error instanceof AppError) {
+        return { statusCode: error.httpStatus, body: { error: error.message } };
       }
 
       return serverError();

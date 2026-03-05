@@ -1,5 +1,6 @@
 import { IPersonRepository } from '@/core/domain/contracts';
 import type { PersonEntity } from '@/core/domain/entities';
+import { PersonNotFoundError } from '@/core/errors';
 
 export class GetPersonUseCase {
   constructor(private readonly personRepository: IPersonRepository) {}
@@ -8,16 +9,9 @@ export class GetPersonUseCase {
     const person = await this.personRepository.findById(id);
 
     if (!person) {
-      throw new GetPersonError('Person not found.');
+      throw new PersonNotFoundError(id);
     }
 
     return person;
-  }
-}
-
-export class GetPersonError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'GetPersonError';
   }
 }

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-import { AdminDomainError } from '@/core/application/services/admin-domain.service';
-import { GoogleAdminLoginError } from '@/core/application/use-cases/auth/login-with-google-admin.use-case';
+import { AdminDomainNotAllowedError, UnauthorizedError } from '@/core/errors';
 import { makeLoginWithGoogleAdminUseCase } from '@/core/infrastructure/factories';
 
 export async function GET(request: NextRequest) {
@@ -38,11 +37,11 @@ export async function GET(request: NextRequest) {
 
     return response;
   } catch (error) {
-    if (error instanceof AdminDomainError) {
+    if (error instanceof AdminDomainNotAllowedError) {
       return NextResponse.redirect(new URL('/login?error=google_domain_invalid', baseUrl));
     }
 
-    if (error instanceof GoogleAdminLoginError) {
+    if (error instanceof UnauthorizedError) {
       return NextResponse.redirect(new URL('/login?error=google_auth_failed', baseUrl));
     }
 

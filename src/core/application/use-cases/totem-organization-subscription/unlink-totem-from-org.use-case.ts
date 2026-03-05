@@ -1,4 +1,5 @@
 import { ITotemOrganizationSubscriptionRepository } from '@/core/domain/contracts';
+import { TotemOrgSubscriptionNotFoundError } from '@/core/errors';
 
 export class UnlinkTotemFromOrgUseCase {
   constructor(private readonly totemOrgSubRepository: ITotemOrganizationSubscriptionRepository) {}
@@ -7,16 +8,9 @@ export class UnlinkTotemFromOrgUseCase {
     const subscription = await this.totemOrgSubRepository.findById(subscriptionId);
 
     if (!subscription) {
-      throw new UnlinkTotemFromOrgError('Totem-organization subscription not found.');
+      throw new TotemOrgSubscriptionNotFoundError(subscriptionId);
     }
 
     await this.totemOrgSubRepository.softDelete(subscriptionId);
-  }
-}
-
-export class UnlinkTotemFromOrgError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'UnlinkTotemFromOrgError';
   }
 }

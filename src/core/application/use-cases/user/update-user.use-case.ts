@@ -1,5 +1,6 @@
 import { IUserRepository } from '@/core/domain/contracts';
 import type { UserEntity } from '@/core/domain/entities';
+import { UserAlreadyExistsError, UserNotFoundError } from '@/core/errors';
 
 export class UpdateUserUseCase {
   constructor(private readonly userRepository: IUserRepository) {}
@@ -8,23 +9,16 @@ export class UpdateUserUseCase {
     const user = await this.userRepository.findById(id);
 
     if (!user) {
-      throw new UpdateUserError('User not found.');
+      throw new UserNotFoundError(id);
     }
 
     if (data.email && data.email !== user.email) {
       const existing = await this.userRepository.findByEmail(data.email);
       if (existing) {
-        throw new UpdateUserError('A user with this email already exists.');
+        throw new UserAlreadyExistsError(data.email);
       }
     }
 
     return this.userRepository.update(id, data);
-  }
-}
-
-export class UpdateUserError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'UpdateUserError';
   }
 }

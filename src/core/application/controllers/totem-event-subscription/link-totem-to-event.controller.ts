@@ -1,7 +1,8 @@
 import type { LinkTotemToEventRequest } from '@/core/communication/requests/totem-event-subscription';
+import { AppError } from '@/core/errors';
 
-import { LinkTotemToEventError, LinkTotemToEventUseCase } from '../../use-cases/totem-event-subscription';
-import { conflict, type ControllerResponse, created, serverError } from '../controller-response';
+import { LinkTotemToEventUseCase } from '../../use-cases/totem-event-subscription';
+import { type ControllerResponse, created, serverError } from '../controller-response';
 
 export class LinkTotemToEventController {
   constructor(private readonly linkTotemToEventUseCase: LinkTotemToEventUseCase) {}
@@ -12,8 +13,8 @@ export class LinkTotemToEventController {
 
       return created(subscription.toJSON());
     } catch (error) {
-      if (error instanceof LinkTotemToEventError) {
-        return conflict(error.message);
+      if (error instanceof AppError) {
+        return { statusCode: error.httpStatus, body: { error: error.message } };
       }
 
       return serverError();

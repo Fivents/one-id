@@ -1,5 +1,7 @@
-import { ActivateEventError, ActivateEventUseCase } from '../../use-cases/event';
-import { badRequest, type ControllerResponse, ok, serverError } from '../controller-response';
+import { AppError } from '@/core/errors';
+
+import { ActivateEventUseCase } from '../../use-cases/event';
+import { type ControllerResponse, ok, serverError } from '../controller-response';
 
 export class ActivateEventController {
   constructor(private readonly activateEventUseCase: ActivateEventUseCase) {}
@@ -10,8 +12,8 @@ export class ActivateEventController {
 
       return ok(event.toJSON());
     } catch (error) {
-      if (error instanceof ActivateEventError) {
-        return badRequest(error.message);
+      if (error instanceof AppError) {
+        return { statusCode: error.httpStatus, body: { error: error.message } };
       }
 
       return serverError();

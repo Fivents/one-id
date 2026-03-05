@@ -1,7 +1,8 @@
 import type { ResolvePlanChangeRequest } from '@/core/communication/requests/plan-change-request';
+import { AppError } from '@/core/errors';
 
-import { RejectRequestError, RejectRequestUseCase } from '../../use-cases/plan-change-request';
-import { badRequest, type ControllerResponse, ok, serverError } from '../controller-response';
+import { RejectRequestUseCase } from '../../use-cases/plan-change-request';
+import { type ControllerResponse, ok, serverError } from '../controller-response';
 
 export class RejectRequestController {
   constructor(private readonly rejectRequestUseCase: RejectRequestUseCase) {}
@@ -16,8 +17,8 @@ export class RejectRequestController {
 
       return ok(result.toJSON());
     } catch (error) {
-      if (error instanceof RejectRequestError) {
-        return badRequest(error.message);
+      if (error instanceof AppError) {
+        return { statusCode: error.httpStatus, body: { error: error.message } };
       }
 
       return serverError();

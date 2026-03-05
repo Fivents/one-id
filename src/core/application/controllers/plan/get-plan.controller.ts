@@ -1,5 +1,7 @@
-import { GetPlanError, GetPlanUseCase } from '../../use-cases/plan';
-import { type ControllerResponse, notFound, ok, serverError } from '../controller-response';
+import { AppError } from '@/core/errors';
+
+import { GetPlanUseCase } from '../../use-cases/plan';
+import { type ControllerResponse, ok, serverError } from '../controller-response';
 
 export class GetPlanController {
   constructor(private readonly getPlanUseCase: GetPlanUseCase) {}
@@ -10,8 +12,8 @@ export class GetPlanController {
 
       return ok(plan.toJSON());
     } catch (error) {
-      if (error instanceof GetPlanError) {
-        return notFound(error.message);
+      if (error instanceof AppError) {
+        return { statusCode: error.httpStatus, body: { error: error.message } };
       }
 
       return serverError();

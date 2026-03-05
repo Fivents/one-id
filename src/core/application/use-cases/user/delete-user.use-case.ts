@@ -1,4 +1,5 @@
 import { IUserRepository } from '@/core/domain/contracts';
+import { UserNotFoundError } from '@/core/errors';
 
 export class DeleteUserUseCase {
   constructor(private readonly userRepository: IUserRepository) {}
@@ -7,16 +8,9 @@ export class DeleteUserUseCase {
     const user = await this.userRepository.findById(id);
 
     if (!user) {
-      throw new DeleteUserError('User not found.');
+      throw new UserNotFoundError(id);
     }
 
     await this.userRepository.softDelete(id);
-  }
-}
-
-export class DeleteUserError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'DeleteUserError';
   }
 }

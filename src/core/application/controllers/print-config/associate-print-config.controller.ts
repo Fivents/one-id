@@ -1,5 +1,7 @@
-import { AssociatePrintConfigError, AssociatePrintConfigUseCase } from '../../use-cases/print-config';
-import { conflict, type ControllerResponse, ok, serverError } from '../controller-response';
+import { AppError } from '@/core/errors';
+
+import { AssociatePrintConfigUseCase } from '../../use-cases/print-config';
+import { type ControllerResponse, ok, serverError } from '../controller-response';
 
 export class AssociatePrintConfigController {
   constructor(private readonly associatePrintConfigUseCase: AssociatePrintConfigUseCase) {}
@@ -10,8 +12,8 @@ export class AssociatePrintConfigController {
 
       return ok(event.toJSON());
     } catch (error) {
-      if (error instanceof AssociatePrintConfigError) {
-        return conflict(error.message);
+      if (error instanceof AppError) {
+        return { statusCode: error.httpStatus, body: { error: error.message } };
       }
 
       return serverError();

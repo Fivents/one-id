@@ -1,5 +1,6 @@
 import { IPlanRepository, UpdatePlanData } from '@/core/domain/contracts';
 import type { PlanEntity } from '@/core/domain/entities/plan.entity';
+import { PlanNotFoundError } from '@/core/errors';
 
 export class UpdatePlanUseCase {
   constructor(private readonly planRepository: IPlanRepository) {}
@@ -8,16 +9,9 @@ export class UpdatePlanUseCase {
     const plan = await this.planRepository.findById(id);
 
     if (!plan) {
-      throw new UpdatePlanError('Plan not found.');
+      throw new PlanNotFoundError(id);
     }
 
     return this.planRepository.update(id, data);
-  }
-}
-
-export class UpdatePlanError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'UpdatePlanError';
   }
 }

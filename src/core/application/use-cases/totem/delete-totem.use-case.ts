@@ -1,4 +1,5 @@
 import { ITotemRepository } from '@/core/domain/contracts';
+import { TotemNotFoundError } from '@/core/errors';
 
 export class DeleteTotemUseCase {
   constructor(private readonly totemRepository: ITotemRepository) {}
@@ -7,16 +8,9 @@ export class DeleteTotemUseCase {
     const totem = await this.totemRepository.findById(id);
 
     if (!totem) {
-      throw new DeleteTotemError('Totem not found.');
+      throw new TotemNotFoundError(id);
     }
 
     await this.totemRepository.softDelete(id);
-  }
-}
-
-export class DeleteTotemError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'DeleteTotemError';
   }
 }

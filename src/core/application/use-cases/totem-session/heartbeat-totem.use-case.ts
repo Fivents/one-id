@@ -1,4 +1,5 @@
 import { ITotemRepository } from '@/core/domain/contracts';
+import { TotemNotFoundError } from '@/core/errors';
 
 export class HeartbeatTotemUseCase {
   constructor(private readonly totemRepository: ITotemRepository) {}
@@ -7,16 +8,9 @@ export class HeartbeatTotemUseCase {
     const totem = await this.totemRepository.findById(totemId);
 
     if (!totem) {
-      throw new HeartbeatTotemError('Totem not found.');
+      throw new TotemNotFoundError(totemId);
     }
 
     await this.totemRepository.update(totemId, { lastHeartbeat: new Date() });
-  }
-}
-
-export class HeartbeatTotemError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'HeartbeatTotemError';
   }
 }

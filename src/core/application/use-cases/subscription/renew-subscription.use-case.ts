@@ -1,5 +1,6 @@
 import { ISubscriptionRepository } from '@/core/domain/contracts';
 import type { SubscriptionEntity } from '@/core/domain/entities/subscription.entity';
+import { AppError, ErrorCode } from '@/core/errors';
 
 interface RenewSubscriptionInput {
   organizationId: string;
@@ -13,18 +14,17 @@ export class RenewSubscriptionUseCase {
     const subscription = await this.subscriptionRepository.findByOrganization(input.organizationId);
 
     if (!subscription) {
-      throw new RenewSubscriptionError('Subscription not found.');
+      throw new AppError({
+        code: ErrorCode.SUBSCRIPTION_NOT_FOUND,
+        message: 'Subscription not found.',
+        httpStatus: 404,
+        level: 'warning',
+        context: { organizationId: input.organizationId },
+      });
     }
 
     return this.subscriptionRepository.update(subscription.id, {
       expiresAt: input.newExpiresAt,
     });
-  }
-}
-
-export class RenewSubscriptionError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'RenewSubscriptionError';
   }
 }

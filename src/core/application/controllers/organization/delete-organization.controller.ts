@@ -1,5 +1,7 @@
-import { DeleteOrganizationError, DeleteOrganizationUseCase } from '../../use-cases/organization';
-import { type ControllerResponse, noContent, notFound, serverError } from '../controller-response';
+import { AppError } from '@/core/errors';
+
+import { DeleteOrganizationUseCase } from '../../use-cases/organization';
+import { type ControllerResponse, noContent, serverError } from '../controller-response';
 
 export class DeleteOrganizationController {
   constructor(private readonly deleteOrganizationUseCase: DeleteOrganizationUseCase) {}
@@ -10,8 +12,8 @@ export class DeleteOrganizationController {
 
       return noContent();
     } catch (error) {
-      if (error instanceof DeleteOrganizationError) {
-        return notFound(error.message);
+      if (error instanceof AppError) {
+        return { statusCode: error.httpStatus, body: { error: error.message } };
       }
 
       return serverError();

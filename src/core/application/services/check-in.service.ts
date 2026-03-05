@@ -4,6 +4,7 @@ import {
   ITotemEventSubscriptionRepository,
 } from '@/core/domain/contracts';
 import type { CheckInEntity } from '@/core/domain/entities/check-in.entity';
+import { AppError, ErrorCode, ParticipantNotFoundError } from '@/core/errors';
 
 const MIN_CONFIDENCE_THRESHOLD = 0.7;
 
@@ -22,16 +23,28 @@ export class CheckInService {
   }): Promise<CheckInEntity> {
     const participant = await this.eventParticipantRepository.findById(input.eventParticipantId);
     if (!participant) {
-      throw new CheckInServiceError('Participant not found.');
+      throw new ParticipantNotFoundError(input.eventParticipantId);
     }
 
     const totemEventSub = await this.totemEventSubRepository.findById(input.totemEventSubscriptionId);
     if (!totemEventSub) {
-      throw new CheckInServiceError('Totem-event subscription not found.');
+      throw new AppError({
+        code: ErrorCode.TOTEM_EVENT_SUBSCRIPTION_NOT_FOUND,
+        message: 'Totem-event subscription not found.',
+        httpStatus: 404,
+        level: 'warning',
+        context: { totemEventSubscriptionId: input.totemEventSubscriptionId },
+      });
     }
 
     if (!totemEventSub.isActive()) {
-      throw new CheckInServiceError('Totem-event subscription is not active.');
+      throw new AppError({
+        code: ErrorCode.TOTEM_EVENT_SUBSCRIPTION_INACTIVE,
+        message: 'Totem-event subscription is not active.',
+        httpStatus: 409,
+        level: 'warning',
+        context: { totemEventSubscriptionId: input.totemEventSubscriptionId },
+      });
     }
 
     const existing = await this.checkInRepository.findByParticipantAndLocation(
@@ -40,15 +53,32 @@ export class CheckInService {
     );
 
     if (existing) {
-      throw new CheckInServiceError('Participant already checked in at this location.');
+      throw new AppError({
+        code: ErrorCode.CHECKIN_DUPLICATE,
+        message: 'Participant already checked in at this location.',
+        httpStatus: 409,
+        level: 'warning',
+        context: { eventParticipantId: input.eventParticipantId },
+      });
     }
 
     if (input.method === 'FACE_RECOGNITION') {
       if (input.confidence == null) {
-        throw new CheckInServiceError('Confidence score is required for face recognition check-in.');
+        throw new AppError({
+          code: ErrorCode.CHECKIN_CONFIDENCE_REQUIRED,
+          message: 'Confidence score is required for face recognition check-in.',
+          httpStatus: 400,
+          level: 'warning',
+        });
       }
       if (input.confidence < MIN_CONFIDENCE_THRESHOLD) {
-        throw new CheckInServiceError('Confidence score is too low.');
+        throw new AppError({
+          code: ErrorCode.CHECKIN_LOW_CONFIDENCE,
+          message: 'Confidence score is too low.',
+          httpStatus: 400,
+          level: 'warning',
+          context: { confidence: input.confidence, threshold: MIN_CONFIDENCE_THRESHOLD },
+        });
       }
     }
 
@@ -75,12 +105,5 @@ export class CheckInService {
       qrCode: checkIns.filter((c) => c.isQrCode()).length,
       manual: checkIns.filter((c) => c.isManual()).length,
     };
-  }
-}
-
-export class CheckInServiceError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'CheckInServiceError';
   }
 }

@@ -1,5 +1,6 @@
 import { IEventRepository } from '@/core/domain/contracts';
 import type { EventEntity } from '@/core/domain/entities';
+import { EventInvalidTransitionError, EventNotFoundError } from '@/core/errors';
 
 export class PublishEventUseCase {
   constructor(private readonly eventRepository: IEventRepository) {}
@@ -8,20 +9,13 @@ export class PublishEventUseCase {
     const event = await this.eventRepository.findById(id);
 
     if (!event) {
-      throw new PublishEventError('Event not found.');
+      throw new EventNotFoundError(id);
     }
 
     if (!event.canTransitionTo('PUBLISHED')) {
-      throw new PublishEventError(`Cannot publish event with status "${event.status}".`);
+      throw new EventInvalidTransitionError(event.status, 'PUBLISHED');
     }
 
     return this.eventRepository.update(id, { status: 'PUBLISHED' });
-  }
-}
-
-export class PublishEventError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'PublishEventError';
   }
 }

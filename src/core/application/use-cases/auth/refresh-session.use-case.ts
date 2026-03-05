@@ -1,5 +1,6 @@
 import { AuthTokenResponse } from '@/core/communication/responses/auth/auth.response';
 import { IPasswordHasher, ISessionRepository, ITokenProvider, IUserRepository } from '@/core/domain/contracts';
+import { UserNotFoundError } from '@/core/errors';
 
 export class RefreshSessionUseCase {
   constructor(
@@ -18,7 +19,7 @@ export class RefreshSessionUseCase {
     const user = await this.userRepository.findByEmailWithMembership(payload.email);
 
     if (!user) {
-      throw new RefreshSessionError('User not found.');
+      throw new UserNotFoundError();
     }
 
     const newToken = await this.tokenProvider.signUserToken({
@@ -52,12 +53,5 @@ export class RefreshSessionUseCase {
         organizationId: user.organizationId,
       },
     };
-  }
-}
-
-export class RefreshSessionError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'RefreshSessionError';
   }
 }

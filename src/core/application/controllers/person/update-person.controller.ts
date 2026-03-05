@@ -1,7 +1,8 @@
 import type { UpdatePersonRequest } from '@/core/communication/requests/person';
+import { AppError } from '@/core/errors';
 
-import { UpdatePersonError, UpdatePersonUseCase } from '../../use-cases/person';
-import { type ControllerResponse, notFound, ok, serverError } from '../controller-response';
+import { UpdatePersonUseCase } from '../../use-cases/person';
+import { type ControllerResponse, ok, serverError } from '../controller-response';
 
 export class UpdatePersonController {
   constructor(private readonly updatePersonUseCase: UpdatePersonUseCase) {}
@@ -12,8 +13,8 @@ export class UpdatePersonController {
 
       return ok(person.toJSON());
     } catch (error) {
-      if (error instanceof UpdatePersonError) {
-        return notFound(error.message);
+      if (error instanceof AppError) {
+        return { statusCode: error.httpStatus, body: { error: error.message } };
       }
 
       return serverError();

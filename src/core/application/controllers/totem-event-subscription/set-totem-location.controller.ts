@@ -1,7 +1,8 @@
 import type { SetTotemLocationRequest } from '@/core/communication/requests/totem-event-subscription';
+import { AppError } from '@/core/errors';
 
-import { SetTotemLocationError, SetTotemLocationUseCase } from '../../use-cases/totem-event-subscription';
-import { type ControllerResponse, notFound, ok, serverError } from '../controller-response';
+import { SetTotemLocationUseCase } from '../../use-cases/totem-event-subscription';
+import { type ControllerResponse, ok, serverError } from '../controller-response';
 
 export class SetTotemLocationController {
   constructor(private readonly setTotemLocationUseCase: SetTotemLocationUseCase) {}
@@ -15,8 +16,8 @@ export class SetTotemLocationController {
 
       return ok(subscription.toJSON());
     } catch (error) {
-      if (error instanceof SetTotemLocationError) {
-        return notFound(error.message);
+      if (error instanceof AppError) {
+        return { statusCode: error.httpStatus, body: { error: error.message } };
       }
 
       return serverError();

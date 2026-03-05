@@ -1,5 +1,7 @@
-import { DeactivateOrganizationError, DeactivateOrganizationUseCase } from '../../use-cases/organization';
-import { type ControllerResponse, notFound, ok, serverError } from '../controller-response';
+import { AppError } from '@/core/errors';
+
+import { DeactivateOrganizationUseCase } from '../../use-cases/organization';
+import { type ControllerResponse, ok, serverError } from '../controller-response';
 
 export class DeactivateOrganizationController {
   constructor(private readonly deactivateOrganizationUseCase: DeactivateOrganizationUseCase) {}
@@ -10,8 +12,8 @@ export class DeactivateOrganizationController {
 
       return ok(organization.toJSON());
     } catch (error) {
-      if (error instanceof DeactivateOrganizationError) {
-        return notFound(error.message);
+      if (error instanceof AppError) {
+        return { statusCode: error.httpStatus, body: { error: error.message } };
       }
 
       return serverError();

@@ -1,7 +1,8 @@
 import type { AssociateFeatureToPlanRequest } from '@/core/communication/requests/plan-feature';
+import { AppError } from '@/core/errors';
 
-import { AssociateFeatureToPlanError, AssociateFeatureToPlanUseCase } from '../../use-cases/plan-feature';
-import { conflict, type ControllerResponse, created, serverError } from '../controller-response';
+import { AssociateFeatureToPlanUseCase } from '../../use-cases/plan-feature';
+import { type ControllerResponse, created, serverError } from '../controller-response';
 
 export class AssociateFeatureToPlanController {
   constructor(private readonly associateFeatureToPlanUseCase: AssociateFeatureToPlanUseCase) {}
@@ -12,8 +13,8 @@ export class AssociateFeatureToPlanController {
 
       return created(planFeature.toJSON());
     } catch (error) {
-      if (error instanceof AssociateFeatureToPlanError) {
-        return conflict(error.message);
+      if (error instanceof AppError) {
+        return { statusCode: error.httpStatus, body: { error: error.message } };
       }
 
       return serverError();

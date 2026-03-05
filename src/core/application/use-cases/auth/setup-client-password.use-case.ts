@@ -1,4 +1,5 @@
 import { IAuthIdentityRepository, IPasswordHasher, ITokenProvider } from '@/core/domain/contracts';
+import { InvalidSetupTokenError } from '@/core/errors';
 
 export class SetupClientPasswordUseCase {
   constructor(
@@ -11,7 +12,7 @@ export class SetupClientPasswordUseCase {
     const payload = await this.tokenProvider.verifySetupToken(setupToken);
 
     if (payload.purpose !== 'password-setup') {
-      throw new SetupPasswordError('Invalid setup token.');
+      throw new InvalidSetupTokenError();
     }
 
     const userId = payload.sub;
@@ -30,12 +31,5 @@ export class SetupClientPasswordUseCase {
         userId,
       });
     }
-  }
-}
-
-export class SetupPasswordError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'SetupPasswordError';
   }
 }

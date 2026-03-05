@@ -1,7 +1,8 @@
 import type { UpdatePlanRequest } from '@/core/communication/requests/plan';
+import { AppError } from '@/core/errors';
 
-import { UpdatePlanError, UpdatePlanUseCase } from '../../use-cases/plan';
-import { type ControllerResponse, notFound, ok, serverError } from '../controller-response';
+import { UpdatePlanUseCase } from '../../use-cases/plan';
+import { type ControllerResponse, ok, serverError } from '../controller-response';
 
 export class UpdatePlanController {
   constructor(private readonly updatePlanUseCase: UpdatePlanUseCase) {}
@@ -12,8 +13,8 @@ export class UpdatePlanController {
 
       return ok(plan.toJSON());
     } catch (error) {
-      if (error instanceof UpdatePlanError) {
-        return notFound(error.message);
+      if (error instanceof AppError) {
+        return { statusCode: error.httpStatus, body: { error: error.message } };
       }
 
       return serverError();

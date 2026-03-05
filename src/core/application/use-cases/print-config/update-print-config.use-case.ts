@@ -1,5 +1,6 @@
 import { IPrintConfigRepository, UpdatePrintConfigData } from '@/core/domain/contracts';
 import type { PrintConfigEntity } from '@/core/domain/entities';
+import { PrintConfigNotFoundError } from '@/core/errors';
 
 export class UpdatePrintConfigUseCase {
   constructor(private readonly printConfigRepository: IPrintConfigRepository) {}
@@ -8,16 +9,9 @@ export class UpdatePrintConfigUseCase {
     const config = await this.printConfigRepository.findById(id);
 
     if (!config) {
-      throw new UpdatePrintConfigError('Print config not found.');
+      throw new PrintConfigNotFoundError(id);
     }
 
     return this.printConfigRepository.update(id, data);
-  }
-}
-
-export class UpdatePrintConfigError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'UpdatePrintConfigError';
   }
 }

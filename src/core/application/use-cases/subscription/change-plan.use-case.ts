@@ -1,5 +1,6 @@
 import { IPlanRepository, ISubscriptionRepository } from '@/core/domain/contracts';
 import type { SubscriptionEntity } from '@/core/domain/entities/subscription.entity';
+import { AppError, ErrorCode } from '@/core/errors';
 
 interface ChangePlanInput {
   organizationId: string;
@@ -16,31 +17,48 @@ export class ChangePlanUseCase {
     const subscription = await this.subscriptionRepository.findByOrganization(input.organizationId);
 
     if (!subscription) {
-      throw new ChangePlanError('Subscription not found.');
+      throw new AppError({
+        code: ErrorCode.SUBSCRIPTION_NOT_FOUND,
+        message: 'Subscription not found.',
+        httpStatus: 404,
+        level: 'warning',
+        context: { organizationId: input.organizationId },
+      });
     }
 
     const newPlan = await this.planRepository.findById(input.newPlanId);
     if (!newPlan) {
-      throw new ChangePlanError('Plan not found.');
+      throw new AppError({
+        code: ErrorCode.PLAN_NOT_FOUND,
+        message: 'Plan not found.',
+        httpStatus: 404,
+        level: 'warning',
+        context: { planId: input.newPlanId },
+      });
     }
 
     if (!newPlan.isAvailable()) {
-      throw new ChangePlanError('Plan is not available.');
+      throw new AppError({
+        code: ErrorCode.PLAN_NOT_AVAILABLE,
+        message: 'Plan is not available.',
+        httpStatus: 409,
+        level: 'warning',
+        context: { planId: input.newPlanId },
+      });
     }
 
     if (subscription.planId === input.newPlanId) {
-      throw new ChangePlanError('Organization is already on this plan.');
+      throw new AppError({
+        code: ErrorCode.PLAN_ALREADY_SELECTED,
+        message: 'Organization is already on this plan.',
+        httpStatus: 409,
+        level: 'info',
+        context: { planId: input.newPlanId },
+      });
     }
 
     return this.subscriptionRepository.update(subscription.id, {
       planId: input.newPlanId,
     });
-  }
-}
-
-export class ChangePlanError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'ChangePlanError';
   }
 }

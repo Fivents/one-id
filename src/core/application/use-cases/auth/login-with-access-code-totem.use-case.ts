@@ -1,5 +1,6 @@
 import { TotemAuthResponse } from '@/core/communication/responses/auth/auth.response';
 import { ISessionRepository, ITokenProvider, ITotemRepository } from '@/core/domain/contracts';
+import { InvalidAccessCodeError, TotemAccessDeniedError } from '@/core/errors';
 
 export class LoginWithAccessCodeTotemUseCase {
   constructor(
@@ -12,11 +13,11 @@ export class LoginWithAccessCodeTotemUseCase {
     const totem = await this.totemRepository.findByAccessCode(accessCode);
 
     if (!totem) {
-      throw new TotemLoginError('Invalid access code.');
+      throw new InvalidAccessCodeError();
     }
 
     if (!totem.canAuthenticate()) {
-      throw new TotemLoginError('Totem is not active. Contact your administrator.');
+      throw new TotemAccessDeniedError(totem.id);
     }
 
     // Revoke any existing sessions — only one totem connected at a time
@@ -43,12 +44,5 @@ export class LoginWithAccessCodeTotemUseCase {
         name: totem.name,
       },
     };
-  }
-}
-
-export class TotemLoginError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'TotemLoginError';
   }
 }

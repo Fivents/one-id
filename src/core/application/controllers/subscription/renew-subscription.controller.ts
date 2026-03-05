@@ -1,7 +1,8 @@
 import type { RenewSubscriptionRequest } from '@/core/communication/requests/subscription';
+import { AppError } from '@/core/errors';
 
-import { RenewSubscriptionError, RenewSubscriptionUseCase } from '../../use-cases/subscription';
-import { badRequest, type ControllerResponse, ok, serverError } from '../controller-response';
+import { RenewSubscriptionUseCase } from '../../use-cases/subscription';
+import { type ControllerResponse, ok, serverError } from '../controller-response';
 
 export class RenewSubscriptionController {
   constructor(private readonly renewSubscriptionUseCase: RenewSubscriptionUseCase) {}
@@ -12,8 +13,8 @@ export class RenewSubscriptionController {
 
       return ok(subscription.toJSON());
     } catch (error) {
-      if (error instanceof RenewSubscriptionError) {
-        return badRequest(error.message);
+      if (error instanceof AppError) {
+        return { statusCode: error.httpStatus, body: { error: error.message } };
       }
 
       return serverError();

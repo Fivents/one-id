@@ -1,5 +1,7 @@
-import { DeactivatePlanError, DeactivatePlanUseCase } from '../../use-cases/plan';
-import { badRequest, type ControllerResponse, noContent, serverError } from '../controller-response';
+import { AppError } from '@/core/errors';
+
+import { DeactivatePlanUseCase } from '../../use-cases/plan';
+import { type ControllerResponse, noContent, serverError } from '../controller-response';
 
 export class DeactivatePlanController {
   constructor(private readonly deactivatePlanUseCase: DeactivatePlanUseCase) {}
@@ -10,8 +12,8 @@ export class DeactivatePlanController {
 
       return noContent();
     } catch (error) {
-      if (error instanceof DeactivatePlanError) {
-        return badRequest(error.message);
+      if (error instanceof AppError) {
+        return { statusCode: error.httpStatus, body: { error: error.message } };
       }
 
       return serverError();

@@ -1,5 +1,7 @@
-import { GetUserError, GetUserUseCase } from '../../use-cases/user';
-import { type ControllerResponse, notFound, ok, serverError } from '../controller-response';
+import { AppError } from '@/core/errors';
+
+import { GetUserUseCase } from '../../use-cases/user';
+import { type ControllerResponse, ok, serverError } from '../controller-response';
 
 export class GetUserController {
   constructor(private readonly getUserUseCase: GetUserUseCase) {}
@@ -10,8 +12,8 @@ export class GetUserController {
 
       return ok(user.toJSON());
     } catch (error) {
-      if (error instanceof GetUserError) {
-        return notFound(error.message);
+      if (error instanceof AppError) {
+        return { statusCode: error.httpStatus, body: { error: error.message } };
       }
 
       return serverError();

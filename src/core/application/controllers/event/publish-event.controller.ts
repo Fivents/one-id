@@ -1,5 +1,7 @@
-import { PublishEventError, PublishEventUseCase } from '../../use-cases/event';
-import { badRequest, type ControllerResponse, ok, serverError } from '../controller-response';
+import { AppError } from '@/core/errors';
+
+import { PublishEventUseCase } from '../../use-cases/event';
+import { type ControllerResponse, ok, serverError } from '../controller-response';
 
 export class PublishEventController {
   constructor(private readonly publishEventUseCase: PublishEventUseCase) {}
@@ -10,8 +12,8 @@ export class PublishEventController {
 
       return ok(event.toJSON());
     } catch (error) {
-      if (error instanceof PublishEventError) {
-        return badRequest(error.message);
+      if (error instanceof AppError) {
+        return { statusCode: error.httpStatus, body: { error: error.message } };
       }
 
       return serverError();

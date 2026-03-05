@@ -1,3 +1,5 @@
+import { AppError, ErrorCode } from '@/core/errors';
+
 import { BaseEntity } from './base.entity';
 
 export interface TotemOrganizationSubscriptionProps {
@@ -15,7 +17,12 @@ export class TotemOrganizationSubscriptionEntity extends BaseEntity {
 
   static create(props: TotemOrganizationSubscriptionProps): TotemOrganizationSubscriptionEntity {
     if (props.endsAt <= props.startsAt) {
-      throw new Error('Subscription end date must be after start date');
+      throw new AppError({
+        code: ErrorCode.ENTITY_INVARIANT_VIOLATION,
+        message: 'Subscription end date must be after start date',
+        httpStatus: 400,
+        level: 'error',
+      });
     }
     return new TotemOrganizationSubscriptionEntity(props);
   }

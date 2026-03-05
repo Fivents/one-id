@@ -1,5 +1,7 @@
-import { RenewTotemSessionError, RenewTotemSessionUseCase } from '../../use-cases/totem-session';
-import { badRequest, type ControllerResponse, ok, serverError } from '../controller-response';
+import { AppError } from '@/core/errors';
+
+import { RenewTotemSessionUseCase } from '../../use-cases/totem-session';
+import { type ControllerResponse, ok, serverError } from '../controller-response';
 
 export interface RenewTotemSessionMeta {
   ipAddress: string;
@@ -15,8 +17,8 @@ export class RenewTotemSessionController {
 
       return ok(result);
     } catch (error) {
-      if (error instanceof RenewTotemSessionError) {
-        return badRequest(error.message);
+      if (error instanceof AppError) {
+        return { statusCode: error.httpStatus, body: { error: error.message } };
       }
 
       return serverError();

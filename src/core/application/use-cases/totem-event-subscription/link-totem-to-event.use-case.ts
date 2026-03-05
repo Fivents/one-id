@@ -4,6 +4,7 @@ import {
   ITotemOrganizationSubscriptionRepository,
 } from '@/core/domain/contracts';
 import type { TotemEventSubscriptionEntity } from '@/core/domain/entities/totem-event-subscription.entity';
+import { EventNotFoundError, TotemOrgSubscriptionNotFoundError } from '@/core/errors';
 
 interface LinkTotemToEventInput {
   locationName: string;
@@ -23,12 +24,12 @@ export class LinkTotemToEventUseCase {
   async execute(input: LinkTotemToEventInput): Promise<TotemEventSubscriptionEntity> {
     const orgSub = await this.totemOrgSubRepository.findById(input.totemOrganizationSubscriptionId);
     if (!orgSub) {
-      throw new LinkTotemToEventError('Totem-organization subscription not found.');
+      throw new TotemOrgSubscriptionNotFoundError(input.totemOrganizationSubscriptionId);
     }
 
     const event = await this.eventRepository.findById(input.eventId);
     if (!event) {
-      throw new LinkTotemToEventError('Event not found.');
+      throw new EventNotFoundError(input.eventId);
     }
 
     return this.totemEventSubRepository.create({
@@ -38,12 +39,5 @@ export class LinkTotemToEventUseCase {
       startsAt: input.startsAt,
       endsAt: input.endsAt,
     });
-  }
-}
-
-export class LinkTotemToEventError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'LinkTotemToEventError';
   }
 }

@@ -1,5 +1,6 @@
 import { IPlanChangeRequestRepository } from '@/core/domain/contracts';
 import type { PlanChangeRequestEntity } from '@/core/domain/entities/plan-change-request.entity';
+import { PlanChangeRequestAlreadyResolvedError, PlanChangeRequestNotFoundError } from '@/core/errors';
 
 interface RejectRequestInput {
   requestId: string;
@@ -14,11 +15,11 @@ export class RejectRequestUseCase {
     const request = await this.planChangeRequestRepository.findById(input.requestId);
 
     if (!request) {
-      throw new RejectRequestError('Plan change request not found.');
+      throw new PlanChangeRequestNotFoundError(input.requestId);
     }
 
     if (!request.canResolve()) {
-      throw new RejectRequestError('Request has already been resolved.');
+      throw new PlanChangeRequestAlreadyResolvedError(input.requestId);
     }
 
     return this.planChangeRequestRepository.resolve(input.requestId, {
@@ -26,12 +27,5 @@ export class RejectRequestUseCase {
       resolvedById: input.resolvedById,
       resolvedNote: input.resolvedNote ?? null,
     });
-  }
-}
-
-export class RejectRequestError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'RejectRequestError';
   }
 }

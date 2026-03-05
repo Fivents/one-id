@@ -1,5 +1,7 @@
-import { SetMaintenanceTotemError, SetMaintenanceTotemUseCase } from '../../use-cases/totem';
-import { badRequest, type ControllerResponse, noContent, serverError } from '../controller-response';
+import { AppError } from '@/core/errors';
+
+import { SetMaintenanceTotemUseCase } from '../../use-cases/totem';
+import { type ControllerResponse, noContent, serverError } from '../controller-response';
 
 export class SetMaintenanceTotemController {
   constructor(private readonly setMaintenanceTotemUseCase: SetMaintenanceTotemUseCase) {}
@@ -10,8 +12,8 @@ export class SetMaintenanceTotemController {
 
       return noContent();
     } catch (error) {
-      if (error instanceof SetMaintenanceTotemError) {
-        return badRequest(error.message);
+      if (error instanceof AppError) {
+        return { statusCode: error.httpStatus, body: { error: error.message } };
       }
 
       return serverError();

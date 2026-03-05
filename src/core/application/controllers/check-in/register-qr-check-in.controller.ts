@@ -1,5 +1,7 @@
-import { RegisterQrCheckInError, RegisterQrCheckInUseCase } from '../../use-cases/check-in';
-import { conflict, type ControllerResponse, created, serverError } from '../controller-response';
+import { AppError } from '@/core/errors';
+
+import { RegisterQrCheckInUseCase } from '../../use-cases/check-in';
+import { type ControllerResponse, created, serverError } from '../controller-response';
 
 export class RegisterQrCheckInController {
   constructor(private readonly registerQrCheckInUseCase: RegisterQrCheckInUseCase) {}
@@ -13,8 +15,8 @@ export class RegisterQrCheckInController {
 
       return created(checkIn.toJSON());
     } catch (error) {
-      if (error instanceof RegisterQrCheckInError) {
-        return conflict(error.message);
+      if (error instanceof AppError) {
+        return { statusCode: error.httpStatus, body: { error: error.message } };
       }
 
       return serverError();

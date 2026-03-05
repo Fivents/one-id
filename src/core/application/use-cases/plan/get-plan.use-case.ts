@@ -1,5 +1,6 @@
 import { IPlanRepository } from '@/core/domain/contracts';
 import type { PlanEntity } from '@/core/domain/entities/plan.entity';
+import { PlanNotFoundError } from '@/core/errors';
 
 export class GetPlanUseCase {
   constructor(private readonly planRepository: IPlanRepository) {}
@@ -8,16 +9,9 @@ export class GetPlanUseCase {
     const plan = await this.planRepository.findById(id);
 
     if (!plan) {
-      throw new GetPlanError('Plan not found.');
+      throw new PlanNotFoundError(id);
     }
 
     return plan;
-  }
-}
-
-export class GetPlanError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'GetPlanError';
   }
 }

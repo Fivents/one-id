@@ -1,4 +1,5 @@
 import { IEventRepository } from '@/core/domain/contracts';
+import { EventNotFoundError } from '@/core/errors';
 
 export class DeleteEventUseCase {
   constructor(private readonly eventRepository: IEventRepository) {}
@@ -7,16 +8,9 @@ export class DeleteEventUseCase {
     const event = await this.eventRepository.findById(id);
 
     if (!event) {
-      throw new DeleteEventError('Event not found.');
+      throw new EventNotFoundError(id);
     }
 
     await this.eventRepository.softDelete(id);
-  }
-}
-
-export class DeleteEventError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'DeleteEventError';
   }
 }

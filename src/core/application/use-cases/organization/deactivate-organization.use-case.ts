@@ -1,5 +1,6 @@
 import { IOrganizationRepository } from '@/core/domain/contracts';
 import type { OrganizationEntity } from '@/core/domain/entities';
+import { OrganizationAlreadyInactiveError, OrganizationNotFoundError } from '@/core/errors';
 
 export class DeactivateOrganizationUseCase {
   constructor(private readonly organizationRepository: IOrganizationRepository) {}
@@ -8,20 +9,13 @@ export class DeactivateOrganizationUseCase {
     const org = await this.organizationRepository.findById(id);
 
     if (!org) {
-      throw new DeactivateOrganizationError('Organization not found.');
+      throw new OrganizationNotFoundError(id);
     }
 
     if (!org.isActive) {
-      throw new DeactivateOrganizationError('Organization is already inactive.');
+      throw new OrganizationAlreadyInactiveError(id);
     }
 
     return this.organizationRepository.update(id, { isActive: false });
-  }
-}
-
-export class DeactivateOrganizationError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'DeactivateOrganizationError';
   }
 }

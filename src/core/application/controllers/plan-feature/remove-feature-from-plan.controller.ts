@@ -1,5 +1,7 @@
-import { RemoveFeatureFromPlanError, RemoveFeatureFromPlanUseCase } from '../../use-cases/plan-feature';
-import { type ControllerResponse, noContent, notFound, serverError } from '../controller-response';
+import { AppError } from '@/core/errors';
+
+import { RemoveFeatureFromPlanUseCase } from '../../use-cases/plan-feature';
+import { type ControllerResponse, noContent, serverError } from '../controller-response';
 
 export class RemoveFeatureFromPlanController {
   constructor(private readonly removeFeatureFromPlanUseCase: RemoveFeatureFromPlanUseCase) {}
@@ -10,8 +12,8 @@ export class RemoveFeatureFromPlanController {
 
       return noContent();
     } catch (error) {
-      if (error instanceof RemoveFeatureFromPlanError) {
-        return notFound(error.message);
+      if (error instanceof AppError) {
+        return { statusCode: error.httpStatus, body: { error: error.message } };
       }
 
       return serverError();

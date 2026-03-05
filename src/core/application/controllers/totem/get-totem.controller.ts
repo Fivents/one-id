@@ -1,5 +1,7 @@
-import { GetTotemError, GetTotemUseCase } from '../../use-cases/totem';
-import { type ControllerResponse, notFound, ok, serverError } from '../controller-response';
+import { AppError } from '@/core/errors';
+
+import { GetTotemUseCase } from '../../use-cases/totem';
+import { type ControllerResponse, ok, serverError } from '../controller-response';
 
 export class GetTotemController {
   constructor(private readonly getTotemUseCase: GetTotemUseCase) {}
@@ -10,8 +12,8 @@ export class GetTotemController {
 
       return ok(totem.toJSON());
     } catch (error) {
-      if (error instanceof GetTotemError) {
-        return notFound(error.message);
+      if (error instanceof AppError) {
+        return { statusCode: error.httpStatus, body: { error: error.message } };
       }
 
       return serverError();

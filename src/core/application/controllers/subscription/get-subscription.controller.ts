@@ -1,5 +1,7 @@
-import { GetSubscriptionError, GetSubscriptionUseCase } from '../../use-cases/subscription';
-import { type ControllerResponse, notFound, ok, serverError } from '../controller-response';
+import { AppError } from '@/core/errors';
+
+import { GetSubscriptionUseCase } from '../../use-cases/subscription';
+import { type ControllerResponse, ok, serverError } from '../controller-response';
 
 export class GetSubscriptionController {
   constructor(private readonly getSubscriptionUseCase: GetSubscriptionUseCase) {}
@@ -10,8 +12,8 @@ export class GetSubscriptionController {
 
       return ok(subscription.toJSON());
     } catch (error) {
-      if (error instanceof GetSubscriptionError) {
-        return notFound(error.message);
+      if (error instanceof AppError) {
+        return { statusCode: error.httpStatus, body: { error: error.message } };
       }
 
       return serverError();

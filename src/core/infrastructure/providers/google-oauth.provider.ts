@@ -1,4 +1,5 @@
 import { GoogleUserInfo, IGoogleOAuthProvider } from '@/core/domain/contracts';
+import { GoogleOAuthFailedError } from '@/core/errors';
 
 const GOOGLE_AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
 const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
@@ -39,7 +40,7 @@ export class GoogleOAuthProvider implements IGoogleOAuthProvider {
     });
 
     if (!tokenResponse.ok) {
-      throw new GoogleOAuthError('Failed to exchange authorization code for tokens.');
+      throw new GoogleOAuthFailedError('Failed to exchange authorization code for tokens.');
     }
 
     const tokenData = (await tokenResponse.json()) as { access_token: string };
@@ -49,7 +50,7 @@ export class GoogleOAuthProvider implements IGoogleOAuthProvider {
     });
 
     if (!userInfoResponse.ok) {
-      throw new GoogleOAuthError('Failed to fetch user info from Google.');
+      throw new GoogleOAuthFailedError('Failed to fetch user info from Google.');
     }
 
     const userInfo = (await userInfoResponse.json()) as {
@@ -65,12 +66,5 @@ export class GoogleOAuthProvider implements IGoogleOAuthProvider {
       name: userInfo.name,
       picture: userInfo.picture,
     };
-  }
-}
-
-export class GoogleOAuthError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'GoogleOAuthError';
   }
 }

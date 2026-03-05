@@ -1,7 +1,8 @@
 import type { ChangePlanRequest } from '@/core/communication/requests/subscription';
+import { AppError } from '@/core/errors';
 
-import { ChangePlanError, ChangePlanUseCase } from '../../use-cases/subscription';
-import { badRequest, type ControllerResponse, ok, serverError } from '../controller-response';
+import { ChangePlanUseCase } from '../../use-cases/subscription';
+import { type ControllerResponse, ok, serverError } from '../controller-response';
 
 export class ChangePlanController {
   constructor(private readonly changePlanUseCase: ChangePlanUseCase) {}
@@ -15,8 +16,8 @@ export class ChangePlanController {
 
       return ok(subscription.toJSON());
     } catch (error) {
-      if (error instanceof ChangePlanError) {
-        return badRequest(error.message);
+      if (error instanceof AppError) {
+        return { statusCode: error.httpStatus, body: { error: error.message } };
       }
 
       return serverError();

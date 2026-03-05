@@ -1,3 +1,5 @@
+import { AppError, ErrorCode } from '@/core/errors';
+
 import { BaseEntity } from './base.entity';
 
 export type EventStatus = 'DRAFT' | 'PUBLISHED' | 'ACTIVE' | 'COMPLETED' | 'CANCELED';
@@ -34,7 +36,12 @@ export class EventEntity extends BaseEntity {
 
   static create(props: EventProps): EventEntity {
     if (props.endsAt <= props.startsAt) {
-      throw new Error('Event end date must be after start date');
+      throw new AppError({
+        code: ErrorCode.ENTITY_INVARIANT_VIOLATION,
+        message: 'Event end date must be after start date',
+        httpStatus: 400,
+        level: 'error',
+      });
     }
     return new EventEntity(props);
   }
