@@ -1,0 +1,55 @@
+import { NextRequest, NextResponse } from 'next/server';
+
+import {
+  makeDeleteEventController,
+  makeGetEventController,
+  makeUpdateEventController,
+} from '@/core/application/controller-factories';
+import { updateEventRequestSchema } from '@/core/communication/requests/event';
+import { withAuth, withRBAC } from '@/core/infrastructure/http/middlewares';
+import { toNextResponse } from '@/core/infrastructure/http/to-next-response';
+import type { RouteContext } from '@/core/infrastructure/http/types';
+import { parseWithZod } from '@/core/utils/parse-with-zod';
+
+export const GET = withAuth(
+  withRBAC(['EVENT_VIEW'], async (_req: NextRequest, context: RouteContext) => {
+    const { eventId } = await context.params;
+
+    const controller = makeGetEventController();
+    const result = await controller.handle(eventId);
+
+    return toNextResponse(result);
+  }),
+);
+
+export const PATCH = withAuth(
+  withRBAC(['EVENT_UPDATE'], async (req: NextRequest, context: RouteContext) => {
+    try {
+      const { eventId } = await context.params;
+      const body = await req.json();
+      const data = parseWithZod(updateEventRequestSchema, body);
+
+      const controller = makeUpdateEventController();
+      const result = await controller.handle(eventId, data);
+
+      return toNextResponse(result);
+    } catch (error) {
+      if (error instanceof Error && error.name === 'ZodValidationError') {
+        return NextResponse.json({ error: 'Invalid request data.' }, { status: 400 });
+      }
+
+      return NextResponse.json({ error: 'Internal server error.' }, { status: 500 });
+    }
+  }),
+);
+
+export const DELETE = withAuth(
+  withRBAC(['EVENT_DELETE'], async (_req: NextRequest, context: RouteContext) => {
+    const { eventId } = await context.params;
+
+    const controller = makeDeleteEventController();
+    const result = await controller.handle(eventId);
+
+    return toNextResponse(result);
+  }),
+);
