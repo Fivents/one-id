@@ -90,6 +90,53 @@ export class PrismaUserRepository implements IUserRepository {
     });
   }
 
+  async findAll(): Promise<UserEntity[]> {
+    const users = await this.db.user.findMany({
+      where: { deletedAt: null },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return users.map((user) =>
+      UserEntity.create({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        avatarUrl: user.avatarUrl,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+        deletedAt: user.deletedAt,
+      }),
+    );
+  }
+
+  async update(id: string, data: { name?: string; email?: string; avatarUrl?: string }): Promise<UserEntity> {
+    const user = await this.db.user.update({
+      where: { id },
+      data: {
+        name: data.name,
+        email: data.email,
+        avatarUrl: data.avatarUrl,
+      },
+    });
+
+    return UserEntity.create({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      avatarUrl: user.avatarUrl,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+      deletedAt: user.deletedAt,
+    });
+  }
+
+  async softDelete(id: string): Promise<void> {
+    await this.db.user.update({
+      where: { id },
+      data: { deletedAt: new Date() },
+    });
+  }
+
   async findOrCreateFiventsOrganization(): Promise<{ id: string }> {
     let org = await this.db.organization.findUnique({
       where: { slug: 'fivents' },

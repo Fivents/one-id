@@ -84,4 +84,8 @@ export class PrismaTotemOrganizationSubscriptionRepository implements ITotemOrga
       endsAt: sub.endsAt,
     });
   }
+
+  async softDelete(id: string): Promise<void> {
+    await this.db.totemOrganizationSubscription.delete({ where: { id } });
+  }
 }

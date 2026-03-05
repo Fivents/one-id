@@ -1,4 +1,4 @@
-import type { CreateFeatureData, IFeatureRepository } from '@/core/domain/contracts';
+import type { CreateFeatureData, IFeatureRepository, UpdateFeatureData } from '@/core/domain/contracts';
 import { FeatureEntity } from '@/core/domain/entities';
 import type { PrismaClient } from '@/generated/prisma/client';
 
@@ -43,10 +43,51 @@ export class PrismaFeatureRepository implements IFeatureRepository {
     );
   }
 
+  async findById(id: string): Promise<FeatureEntity | null> {
+    const feature = await this.db.feature.findUnique({
+      where: { id, deletedAt: null },
+    });
+
+    if (!feature) return null;
+
+    return FeatureEntity.create({
+      id: feature.id,
+      code: feature.code,
+      name: feature.name,
+      type: feature.type,
+      description: feature.description,
+      createdAt: feature.createdAt,
+      updatedAt: feature.updatedAt,
+      deletedAt: feature.deletedAt,
+    });
+  }
+
   async create(data: CreateFeatureData): Promise<FeatureEntity> {
     const feature = await this.db.feature.create({
       data: {
         code: data.code,
+        name: data.name,
+        type: data.type,
+        description: data.description,
+      },
+    });
+
+    return FeatureEntity.create({
+      id: feature.id,
+      code: feature.code,
+      name: feature.name,
+      type: feature.type,
+      description: feature.description,
+      createdAt: feature.createdAt,
+      updatedAt: feature.updatedAt,
+      deletedAt: feature.deletedAt,
+    });
+  }
+
+  async update(id: string, data: UpdateFeatureData): Promise<FeatureEntity> {
+    const feature = await this.db.feature.update({
+      where: { id },
+      data: {
         name: data.name,
         type: data.type,
         description: data.description,

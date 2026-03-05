@@ -1,17 +1,22 @@
-import { ITotemRepository } from '@/core/domain/contracts';
+import type { CreateTotemData, ITotemRepository, UpdateTotemData } from '@/core/domain/contracts';
 import { TotemEntity, TotemProps } from '@/core/domain/entities';
 import type { PrismaClient } from '@/generated/prisma/client';
 
 export class PrismaTotemRepository implements ITotemRepository {
   constructor(private readonly db: PrismaClient) {}
 
-  async findByAccessCode(accessCode: string): Promise<TotemEntity | null> {
-    const totem = await this.db.totem.findUnique({
-      where: { accessCode, deletedAt: null },
-    });
-
-    if (!totem) return null;
-
+  private toEntity(totem: {
+    id: string;
+    name: string;
+    accessCode: string;
+    status: string;
+    price: number;
+    discount: number;
+    lastHeartbeat: Date | null;
+    createdAt: Date;
+    updatedAt: Date;
+    deletedAt: Date | null;
+  }): TotemEntity {
     return TotemEntity.create({
       id: totem.id,
       name: totem.name,
@@ -26,6 +31,16 @@ export class PrismaTotemRepository implements ITotemRepository {
     });
   }
 
+  async findByAccessCode(accessCode: string): Promise<TotemEntity | null> {
+    const totem = await this.db.totem.findUnique({
+      where: { accessCode, deletedAt: null },
+    });
+
+    if (!totem) return null;
+
+    return this.toEntity(totem);
+  }
+
   async findById(id: string): Promise<TotemEntity | null> {
     const totem = await this.db.totem.findUnique({
       where: { id, deletedAt: null },
@@ -33,17 +48,52 @@ export class PrismaTotemRepository implements ITotemRepository {
 
     if (!totem) return null;
 
-    return TotemEntity.create({
-      id: totem.id,
-      name: totem.name,
-      accessCode: totem.accessCode,
-      status: totem.status as TotemProps['status'],
-      price: totem.price,
-      discount: totem.discount,
-      lastHeartbeat: totem.lastHeartbeat,
-      createdAt: totem.createdAt,
-      updatedAt: totem.updatedAt,
-      deletedAt: totem.deletedAt,
+    return this.toEntity(totem);
+  }
+
+  async findAll(): Promise<TotemEntity[]> {
+    const totems = await this.db.totem.findMany({
+      where: { deletedAt: null },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return totems.map((t) => this.toEntity(t));
+  }
+
+  async create(data: CreateTotemData): Promise<TotemEntity> {
+    const totem = await this.db.totem.create({
+      data: {
+        name: data.name,
+        accessCode: data.accessCode,
+        status: data.status,
+        price: data.price,
+        discount: data.discount,
+      },
+    });
+
+    return this.toEntity(totem);
+  }
+
+  async update(id: string, data: UpdateTotemData): Promise<TotemEntity> {
+    const totem = await this.db.totem.update({
+      where: { id },
+      data: {
+        name: data.name,
+        accessCode: data.accessCode,
+        status: data.status,
+        price: data.price,
+        discount: data.discount,
+        lastHeartbeat: data.lastHeartbeat,
+      },
+    });
+
+    return this.toEntity(totem);
+  }
+
+  async softDelete(id: string): Promise<void> {
+    await this.db.totem.update({
+      where: { id },
+      data: { deletedAt: new Date() },
     });
   }
 }

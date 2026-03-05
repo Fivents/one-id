@@ -107,6 +107,29 @@ export class PrismaPlanRepository implements IPlanRepository {
     });
   }
 
+  async findAll(): Promise<PlanEntity[]> {
+    const plans = await this.db.plan.findMany({
+      where: { deletedAt: null },
+      orderBy: { sortOrder: 'asc' },
+    });
+
+    return plans.map((plan) =>
+      PlanEntity.create({
+        id: plan.id,
+        name: plan.name,
+        description: plan.description,
+        price: plan.price,
+        discount: plan.discount,
+        isCustom: plan.isCustom,
+        isActive: plan.isActive,
+        sortOrder: plan.sortOrder,
+        createdAt: plan.createdAt,
+        updatedAt: plan.updatedAt,
+        deletedAt: plan.deletedAt,
+      }),
+    );
+  }
+
   async softDelete(id: string): Promise<void> {
     await this.db.plan.update({
       where: { id },

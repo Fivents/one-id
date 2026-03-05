@@ -45,4 +45,42 @@ export class PrismaCheckInRepository implements ICheckInRepository {
       totemEventSubscriptionId: checkIn.totemEventSubscriptionId,
     });
   }
+
+  async findByEvent(eventId: string): Promise<CheckInEntity[]> {
+    const checkIns = await this.db.checkIn.findMany({
+      where: {
+        eventParticipant: { eventId },
+      },
+      orderBy: { checkedInAt: 'desc' },
+    });
+
+    return checkIns.map((c) =>
+      CheckInEntity.create({
+        id: c.id,
+        method: c.method as CheckInMethod,
+        confidence: c.confidence,
+        checkedInAt: c.checkedInAt,
+        eventParticipantId: c.eventParticipantId,
+        totemEventSubscriptionId: c.totemEventSubscriptionId,
+      }),
+    );
+  }
+
+  async findByParticipant(eventParticipantId: string): Promise<CheckInEntity[]> {
+    const checkIns = await this.db.checkIn.findMany({
+      where: { eventParticipantId },
+      orderBy: { checkedInAt: 'desc' },
+    });
+
+    return checkIns.map((c) =>
+      CheckInEntity.create({
+        id: c.id,
+        method: c.method as CheckInMethod,
+        confidence: c.confidence,
+        checkedInAt: c.checkedInAt,
+        eventParticipantId: c.eventParticipantId,
+        totemEventSubscriptionId: c.totemEventSubscriptionId,
+      }),
+    );
+  }
 }

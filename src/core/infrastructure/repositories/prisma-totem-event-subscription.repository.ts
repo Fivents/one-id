@@ -1,4 +1,8 @@
-import type { CreateTotemEventSubscriptionData, ITotemEventSubscriptionRepository } from '@/core/domain/contracts';
+import type {
+  CreateTotemEventSubscriptionData,
+  ITotemEventSubscriptionRepository,
+  UpdateTotemEventSubscriptionData,
+} from '@/core/domain/contracts';
 import { TotemEventSubscriptionEntity } from '@/core/domain/entities';
 import type { PrismaClient } from '@/generated/prisma/client';
 
@@ -58,5 +62,29 @@ export class PrismaTotemEventSubscriptionRepository implements ITotemEventSubscr
       startsAt: sub.startsAt,
       endsAt: sub.endsAt,
     });
+  }
+
+  async update(id: string, data: UpdateTotemEventSubscriptionData): Promise<TotemEventSubscriptionEntity> {
+    const sub = await this.db.totemEventSubscription.update({
+      where: { id },
+      data: {
+        locationName: data.locationName,
+        startsAt: data.startsAt,
+        endsAt: data.endsAt,
+      },
+    });
+
+    return TotemEventSubscriptionEntity.create({
+      id: sub.id,
+      locationName: sub.locationName,
+      totemOrganizationSubscriptionId: sub.totemOrganizationSubscriptionId,
+      eventId: sub.eventId,
+      startsAt: sub.startsAt,
+      endsAt: sub.endsAt,
+    });
+  }
+
+  async softDelete(id: string): Promise<void> {
+    await this.db.totemEventSubscription.delete({ where: { id } });
   }
 }

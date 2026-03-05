@@ -47,6 +47,28 @@ export class PrismaOrganizationRepository implements IOrganizationRepository {
     });
   }
 
+  async findAll(): Promise<OrganizationEntity[]> {
+    const orgs = await this.db.organization.findMany({
+      where: { deletedAt: null },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return orgs.map((org) =>
+      OrganizationEntity.create({
+        id: org.id,
+        name: org.name,
+        slug: org.slug,
+        email: org.email,
+        phone: org.phone,
+        logoUrl: org.logoUrl,
+        isActive: org.isActive,
+        createdAt: org.createdAt,
+        updatedAt: org.updatedAt,
+        deletedAt: org.deletedAt,
+      }),
+    );
+  }
+
   async create(data: CreateOrganizationData): Promise<OrganizationEntity> {
     const org = await this.db.organization.create({
       data: {

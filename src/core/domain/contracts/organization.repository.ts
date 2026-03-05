@@ -20,6 +20,7 @@ export interface UpdateOrganizationData {
 export interface IOrganizationRepository {
   findById(id: string): Promise<OrganizationEntity | null>;
   findBySlug(slug: string): Promise<OrganizationEntity | null>;
+  findAll(): Promise<OrganizationEntity[]>;
   create(data: CreateOrganizationData): Promise<OrganizationEntity>;
   update(id: string, data: UpdateOrganizationData): Promise<OrganizationEntity>;
   softDelete(id: string): Promise<void>;

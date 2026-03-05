@@ -12,5 +12,8 @@ export interface CreateAuditLogData {
 
 export interface IAuditLogRepository {
   create(data: CreateAuditLogData): Promise<AuditLogEntity>;
+  findById(id: string): Promise<AuditLogEntity | null>;
   findByOrganization(organizationId: string): Promise<AuditLogEntity[]>;
+  findByUser(userId: string): Promise<AuditLogEntity[]>;
+  findByEntity(entityType: string, entityId: string): Promise<AuditLogEntity[]>;
 }

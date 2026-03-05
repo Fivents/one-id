@@ -15,4 +15,5 @@ export interface ITotemOrganizationSubscriptionRepository {
     organizationId: string,
   ): Promise<TotemOrganizationSubscriptionEntity | null>;
   create(data: CreateTotemOrganizationSubscriptionData): Promise<TotemOrganizationSubscriptionEntity>;
+  softDelete(id: string): Promise<void>;
 }

@@ -13,5 +13,7 @@ export interface ICheckInRepository {
     eventParticipantId: string,
     totemEventSubscriptionId: string,
   ): Promise<CheckInEntity | null>;
+  findByEvent(eventId: string): Promise<CheckInEntity[]>;
+  findByParticipant(eventParticipantId: string): Promise<CheckInEntity[]>;
   create(data: CreateCheckInData): Promise<CheckInEntity>;
 }

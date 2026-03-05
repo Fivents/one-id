@@ -7,7 +7,7 @@ export type {
   IEventParticipantRepository,
   UpdateEventParticipantData,
 } from './event-participant.repository';
-export type { CreateFeatureData, IFeatureRepository } from './feature.repository';
+export type { CreateFeatureData, IFeatureRepository, UpdateFeatureData } from './feature.repository';
 export type { GoogleUserInfo, IGoogleOAuthProvider } from './google-oauth.provider';
 export type { CreateMembershipData, IMembershipRepository } from './membership.repository';
 export type { CreateNotificationData, INotificationRepository } from './notification.repository';
@@ -34,10 +34,11 @@ export type {
   UpdateSubscriptionData,
 } from './subscription.repository';
 export type { ITokenProvider, SetupTokenPayload, TotemTokenPayload, UserTokenPayload } from './token-provider';
-export type { ITotemRepository } from './totem.repository';
+export type { CreateTotemData, ITotemRepository, UpdateTotemData } from './totem.repository';
 export type {
   CreateTotemEventSubscriptionData,
   ITotemEventSubscriptionRepository,
+  UpdateTotemEventSubscriptionData,
 } from './totem-event-subscription.repository';
 export type {
   CreateTotemOrganizationSubscriptionData,

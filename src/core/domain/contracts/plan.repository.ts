@@ -23,6 +23,7 @@ export interface UpdatePlanData {
 export interface IPlanRepository {
   findById(id: string): Promise<PlanEntity | null>;
   findAllActive(): Promise<PlanEntity[]>;
+  findAll(): Promise<PlanEntity[]>;
   create(data: CreatePlanData): Promise<PlanEntity>;
   update(id: string, data: UpdatePlanData): Promise<PlanEntity>;
   softDelete(id: string): Promise<void>;

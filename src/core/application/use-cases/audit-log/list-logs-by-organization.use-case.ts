@@ -1,0 +1,10 @@
+import { IAuditLogRepository } from '@/core/domain/contracts';
+import type { AuditLogEntity } from '@/core/domain/entities/audit-log.entity';
+
+export class ListLogsByOrganizationUseCase {
+  constructor(private readonly auditLogRepository: IAuditLogRepository) {}
+
+  async execute(organizationId: string): Promise<AuditLogEntity[]> {
+    return this.auditLogRepository.findByOrganization(organizationId);
+  }
+}

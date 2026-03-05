@@ -6,6 +6,24 @@ import type { PrismaClient } from '@/generated/prisma/client';
 export class PrismaMembershipRepository implements IMembershipRepository {
   constructor(private readonly db: PrismaClient) {}
 
+  async findById(id: string): Promise<MembershipEntity | null> {
+    const membership = await this.db.membership.findUnique({
+      where: { id, deletedAt: null },
+    });
+
+    if (!membership) return null;
+
+    return MembershipEntity.create({
+      id: membership.id,
+      role: membership.role as Role,
+      userId: membership.userId,
+      organizationId: membership.organizationId,
+      createdAt: membership.createdAt,
+      updatedAt: membership.updatedAt,
+      deletedAt: membership.deletedAt,
+    });
+  }
+
   async findByUserAndOrganization(userId: string, organizationId: string): Promise<MembershipEntity | null> {
     const membership = await this.db.membership.findFirst({
       where: { userId, organizationId, deletedAt: null },
@@ -67,6 +85,23 @@ export class PrismaMembershipRepository implements IMembershipRepository {
         userId: data.userId,
         organizationId: data.organizationId,
       },
+    });
+
+    return MembershipEntity.create({
+      id: membership.id,
+      role: membership.role as Role,
+      userId: membership.userId,
+      organizationId: membership.organizationId,
+      createdAt: membership.createdAt,
+      updatedAt: membership.updatedAt,
+      deletedAt: membership.deletedAt,
+    });
+  }
+
+  async updateRole(id: string, role: Role): Promise<MembershipEntity> {
+    const membership = await this.db.membership.update({
+      where: { id },
+      data: { role },
     });
 
     return MembershipEntity.create({
