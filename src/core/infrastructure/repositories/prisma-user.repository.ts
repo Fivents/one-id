@@ -18,6 +18,9 @@ export class PrismaUserRepository implements IUserRepository {
       name: user.name,
       email: user.email,
       avatarUrl: user.avatarUrl,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+      deletedAt: user.deletedAt,
     });
   }
 
@@ -33,6 +36,9 @@ export class PrismaUserRepository implements IUserRepository {
       name: user.name,
       email: user.email,
       avatarUrl: user.avatarUrl,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+      deletedAt: user.deletedAt,
     });
   }
 
@@ -56,6 +62,9 @@ export class PrismaUserRepository implements IUserRepository {
       name: user.name,
       email: user.email,
       avatarUrl: user.avatarUrl,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+      deletedAt: user.deletedAt,
       role: membership.role as Role,
       organizationId: membership.organizationId,
     };
@@ -75,6 +84,9 @@ export class PrismaUserRepository implements IUserRepository {
       name: user.name,
       email: user.email,
       avatarUrl: user.avatarUrl,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+      deletedAt: user.deletedAt,
     });
   }
 

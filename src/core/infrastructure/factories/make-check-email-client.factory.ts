@@ -1,6 +1,5 @@
+import { containerService } from '@/core/application/services';
 import { CheckEmailClientUseCase } from '@/core/application/use-cases/auth/check-email-client.use-case';
-
-import { serviceContainer } from '../database/service-container';
 
 /**
  * Factory for CheckEmailClientUseCase
@@ -12,8 +11,8 @@ import { serviceContainer } from '../database/service-container';
  */
 export function makeCheckEmailClientUseCase(): CheckEmailClientUseCase {
   return new CheckEmailClientUseCase(
-    serviceContainer.getUserRepository(),
-    serviceContainer.getAuthIdentityRepository(),
-    serviceContainer.getTokenProvider(),
+    containerService.getUserRepository(),
+    containerService.getAuthIdentityRepository(),
+    containerService.getTokenProvider(),
   );
 }

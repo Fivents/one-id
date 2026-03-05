@@ -1,6 +1,5 @@
+import { containerService } from '@/core/application/services';
 import { LoginWithGoogleAdminUseCase } from '@/core/application/use-cases/auth/login-with-google-admin.use-case';
-
-import { serviceContainer } from '../database/service-container';
 
 /**
  * Factory for LoginWithGoogleAdminUseCase
@@ -14,10 +13,10 @@ import { serviceContainer } from '../database/service-container';
  */
 export function makeLoginWithGoogleAdminUseCase(): LoginWithGoogleAdminUseCase {
   return new LoginWithGoogleAdminUseCase(
-    serviceContainer.getGoogleOAuthProvider(),
-    serviceContainer.getUserRepository(),
-    serviceContainer.getAuthIdentityRepository(),
-    serviceContainer.getTokenProvider(),
-    serviceContainer.getSessionRepository(),
+    containerService.getGoogleOAuthProvider(),
+    containerService.getUserRepository(),
+    containerService.getAuthIdentityRepository(),
+    containerService.getTokenProvider(),
+    containerService.getSessionRepository(),
   );
 }

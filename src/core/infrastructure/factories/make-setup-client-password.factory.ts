@@ -1,6 +1,5 @@
+import { containerService } from '@/core/application/services';
 import { SetupClientPasswordUseCase } from '@/core/application/use-cases/auth/setup-client-password.use-case';
-
-import { serviceContainer } from '../database/service-container';
 
 /**
  * Factory for SetupClientPasswordUseCase
@@ -12,8 +11,8 @@ import { serviceContainer } from '../database/service-container';
  */
 export function makeSetupClientPasswordUseCase(): SetupClientPasswordUseCase {
   return new SetupClientPasswordUseCase(
-    serviceContainer.getTokenProvider(),
-    serviceContainer.getAuthIdentityRepository(),
-    serviceContainer.getPasswordHasher(),
+    containerService.getTokenProvider(),
+    containerService.getAuthIdentityRepository(),
+    containerService.getPasswordHasher(),
   );
 }

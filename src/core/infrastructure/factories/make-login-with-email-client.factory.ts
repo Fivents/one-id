@@ -1,6 +1,5 @@
+import { containerService } from '@/core/application/services';
 import { LoginWithEmailClientUseCase } from '@/core/application/use-cases/auth/login-with-email-client.use-case';
-
-import { serviceContainer } from '../database/service-container';
 
 /**
  * Factory for LoginWithEmailClientUseCase
@@ -14,10 +13,10 @@ import { serviceContainer } from '../database/service-container';
  */
 export function makeLoginWithEmailClientUseCase(): LoginWithEmailClientUseCase {
   return new LoginWithEmailClientUseCase(
-    serviceContainer.getUserRepository(),
-    serviceContainer.getAuthIdentityRepository(),
-    serviceContainer.getPasswordHasher(),
-    serviceContainer.getTokenProvider(),
-    serviceContainer.getSessionRepository(),
+    containerService.getUserRepository(),
+    containerService.getAuthIdentityRepository(),
+    containerService.getPasswordHasher(),
+    containerService.getTokenProvider(),
+    containerService.getSessionRepository(),
   );
 }

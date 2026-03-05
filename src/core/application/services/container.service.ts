@@ -1,36 +1,35 @@
 // ── Service Container with Lazy Initialization ──────────────────────
 
+import { env } from '@/core/infrastructure/environment/env';
+import { prisma } from '@/core/infrastructure/prisma-client';
+import { BcryptPasswordHasher } from '@/core/infrastructure/providers/bcrypt-password-hasher';
+import { GoogleOAuthProvider } from '@/core/infrastructure/providers/google-oauth.provider';
+import { JoseTokenProvider } from '@/core/infrastructure/providers/jose-token-provider';
+import { PrismaAuditLogRepository } from '@/core/infrastructure/repositories/prisma-audit-log.repository';
+import { PrismaAuthIdentityRepository } from '@/core/infrastructure/repositories/prisma-auth-identity.repository';
+import { PrismaCheckInRepository } from '@/core/infrastructure/repositories/prisma-check-in.repository';
+import { PrismaEventRepository } from '@/core/infrastructure/repositories/prisma-event.repository';
+import { PrismaEventParticipantRepository } from '@/core/infrastructure/repositories/prisma-event-participant.repository';
+import { PrismaFeatureRepository } from '@/core/infrastructure/repositories/prisma-feature.repository';
+import { PrismaMembershipRepository } from '@/core/infrastructure/repositories/prisma-membership.repository';
+import { PrismaNotificationRepository } from '@/core/infrastructure/repositories/prisma-notification.repository';
+import { PrismaOrganizationRepository } from '@/core/infrastructure/repositories/prisma-organization.repository';
+import { PrismaPersonRepository } from '@/core/infrastructure/repositories/prisma-person.repository';
+import { PrismaPersonFaceRepository } from '@/core/infrastructure/repositories/prisma-person-face.repository';
+import { PrismaPlanRepository } from '@/core/infrastructure/repositories/prisma-plan.repository';
+import { PrismaPlanChangeRequestRepository } from '@/core/infrastructure/repositories/prisma-plan-change-request.repository';
+import { PrismaPlanFeatureRepository } from '@/core/infrastructure/repositories/prisma-plan-feature.repository';
+import { PrismaPrintConfigRepository } from '@/core/infrastructure/repositories/prisma-print-config.repository';
+import { PrismaSessionRepository } from '@/core/infrastructure/repositories/prisma-session.repository';
+import { PrismaSubscriptionRepository } from '@/core/infrastructure/repositories/prisma-subscription.repository';
+import { PrismaTotemRepository } from '@/core/infrastructure/repositories/prisma-totem.repository';
+import { PrismaTotemEventSubscriptionRepository } from '@/core/infrastructure/repositories/prisma-totem-event-subscription.repository';
+import { PrismaTotemOrganizationSubscriptionRepository } from '@/core/infrastructure/repositories/prisma-totem-organization-subscription.repository';
+import { PrismaUserRepository } from '@/core/infrastructure/repositories/prisma-user.repository';
 import type { PrismaClient } from '@/generated/prisma/client';
 
-import { env } from '../environment/env';
-import { prisma } from '../prisma-client';
-import { BcryptPasswordHasher } from '../providers/bcrypt-password-hasher';
-import { GoogleOAuthProvider } from '../providers/google-oauth.provider';
-import { JoseTokenProvider } from '../providers/jose-token-provider';
-import { PrismaAuditLogRepository } from '../repositories/prisma-audit-log.repository';
-import { PrismaAuthIdentityRepository } from '../repositories/prisma-auth-identity.repository';
-import { PrismaCheckInRepository } from '../repositories/prisma-check-in.repository';
-import { PrismaEventRepository } from '../repositories/prisma-event.repository';
-import { PrismaEventParticipantRepository } from '../repositories/prisma-event-participant.repository';
-import { PrismaFeatureRepository } from '../repositories/prisma-feature.repository';
-import { PrismaMembershipRepository } from '../repositories/prisma-membership.repository';
-import { PrismaNotificationRepository } from '../repositories/prisma-notification.repository';
-import { PrismaOrganizationRepository } from '../repositories/prisma-organization.repository';
-import { PrismaPersonRepository } from '../repositories/prisma-person.repository';
-import { PrismaPersonFaceRepository } from '../repositories/prisma-person-face.repository';
-import { PrismaPlanRepository } from '../repositories/prisma-plan.repository';
-import { PrismaPlanChangeRequestRepository } from '../repositories/prisma-plan-change-request.repository';
-import { PrismaPlanFeatureRepository } from '../repositories/prisma-plan-feature.repository';
-import { PrismaPrintConfigRepository } from '../repositories/prisma-print-config.repository';
-import { PrismaSessionRepository } from '../repositories/prisma-session.repository';
-import { PrismaSubscriptionRepository } from '../repositories/prisma-subscription.repository';
-import { PrismaTotemRepository } from '../repositories/prisma-totem.repository';
-import { PrismaTotemEventSubscriptionRepository } from '../repositories/prisma-totem-event-subscription.repository';
-import { PrismaTotemOrganizationSubscriptionRepository } from '../repositories/prisma-totem-organization-subscription.repository';
-import { PrismaUserRepository } from '../repositories/prisma-user.repository';
-
 /**
- * ServiceContainer manages singleton instances across the application.
+ * ContainerService manages singleton instances across the application.
  * Uses lazy initialization for better performance and dependency isolation.
  *
  * Following DDD principles:
@@ -38,7 +37,7 @@ import { PrismaUserRepository } from '../repositories/prisma-user.repository';
  * - Providers (hashers, token, oauth) are instantiated once
  * - Each dependency is independent and testable
  */
-class ServiceContainer {
+class ContainerService {
   private prismaClient: PrismaClient;
   private userRepository: PrismaUserRepository | null = null;
   private authIdentityRepository: PrismaAuthIdentityRepository | null = null;
@@ -250,10 +249,10 @@ class ServiceContainer {
 
 // ── Singleton Instance ──────────────────────────────────────────────
 
-const globalForContainer = globalThis as unknown as { serviceContainer: ServiceContainer };
+const globalForContainer = globalThis as unknown as { containerService: ContainerService };
 
-export const serviceContainer = globalForContainer.serviceContainer || new ServiceContainer(prisma);
+export const containerService = globalForContainer.containerService || new ContainerService(prisma);
 
 if (process.env.NODE_ENV !== 'production') {
-  globalForContainer.serviceContainer = serviceContainer;
+  globalForContainer.containerService = containerService;
 }

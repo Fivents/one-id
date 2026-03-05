@@ -17,7 +17,12 @@ export class PrismaTotemRepository implements ITotemRepository {
       name: totem.name,
       accessCode: totem.accessCode,
       status: totem.status as TotemProps['status'],
+      price: totem.price,
+      discount: totem.discount,
       lastHeartbeat: totem.lastHeartbeat,
+      createdAt: totem.createdAt,
+      updatedAt: totem.updatedAt,
+      deletedAt: totem.deletedAt,
     });
   }
 
@@ -33,7 +38,12 @@ export class PrismaTotemRepository implements ITotemRepository {
       name: totem.name,
       accessCode: totem.accessCode,
       status: totem.status as TotemProps['status'],
+      price: totem.price,
+      discount: totem.discount,
       lastHeartbeat: totem.lastHeartbeat,
+      createdAt: totem.createdAt,
+      updatedAt: totem.updatedAt,
+      deletedAt: totem.deletedAt,
     });
   }
 }

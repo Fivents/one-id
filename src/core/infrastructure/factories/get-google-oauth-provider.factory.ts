@@ -1,6 +1,5 @@
+import { containerService } from '@/core/application/services';
 import { IGoogleOAuthProvider } from '@/core/domain/contracts';
-
-import { serviceContainer } from '../database/service-container';
 
 /**
  * Get configured GoogleOAuthProvider singleton
@@ -9,5 +8,5 @@ import { serviceContainer } from '../database/service-container';
  * for OAuth flow: state generation, URL building, and code exchange.
  */
 export function getGoogleOAuthProvider(): IGoogleOAuthProvider {
-  return serviceContainer.getGoogleOAuthProvider();
+  return containerService.getGoogleOAuthProvider();
 }
