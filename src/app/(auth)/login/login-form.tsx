@@ -1,7 +1,12 @@
+'use client';
+
 import { useState } from 'react';
 
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
+
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useForm } from 'react-hook-form';
 
 import { LanguageSwitcher } from '@/components/shared/language-switcher';
 import { ThemeToggle } from '@/components/shared/theme-toggle';
@@ -11,7 +16,17 @@ import { GoogleIcon } from '@/components/ui/icons';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
+import { authClient } from '@/core/application/client-services';
 import { useI18n } from '@/i18n';
+
+import {
+  type EmailStepData,
+  emailStepSchema,
+  type PasswordStepData,
+  passwordStepSchema,
+  type TotemAccessCodeData,
+  totemAccessCodeSchema,
+} from './login-schema';
 
 type LoginStep = 'email' | 'password' | 'totem';
 
@@ -38,112 +53,77 @@ export function LoginForm() {
 
   const [step, setStep] = useState<LoginStep>('email');
   const [email, setEmail] = useState('');
-  const [error, setError] = useState(urlErrorKey ? t(urlErrorKey) : '');
-  const [loading, setLoading] = useState(false);
+  const [apiError, setApiError] = useState(urlErrorKey ? t(urlErrorKey) : '');
 
-  async function handleCheckEmail(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
+  const emailForm = useForm<EmailStepData>({
+    resolver: zodResolver(emailStepSchema),
+    defaultValues: { email: '' },
+  });
 
-    const formData = new FormData(e.currentTarget);
-    const emailValue = formData.get('email') as string;
+  const passwordForm = useForm<PasswordStepData>({
+    resolver: zodResolver(passwordStepSchema),
+    defaultValues: { password: '' },
+  });
 
-    try {
-      const res = await fetch('/api/auth/check-email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: emailValue }),
-      });
+  const totemForm = useForm<TotemAccessCodeData>({
+    resolver: zodResolver(totemAccessCodeSchema),
+    defaultValues: { accessCode: '' },
+  });
 
-      const data = await res.json();
+  async function handleCheckEmail(data: EmailStepData) {
+    setApiError('');
 
-      if (!res.ok) {
-        setError(data.error || t('auth.login.invalidCredentials'));
-        return;
-      }
+    const result = await authClient.checkEmail({ email: data.email });
 
-      if (data.status === 'needs_setup') {
-        router.push(`/set-password?token=${data.setupToken}`);
-        return;
-      }
-
-      setEmail(emailValue);
-      setStep('password');
-    } catch {
-      setError(t('auth.login.connectionError'));
-    } finally {
-      setLoading(false);
+    if (!result.success) {
+      setApiError(result.error.message);
+      return;
     }
+
+    if (result.data.status === 'needs_setup') {
+      router.push(`/set-password?token=${result.data.setupToken}`);
+      return;
+    }
+
+    setEmail(data.email);
+    setStep('password');
   }
 
-  async function handlePasswordSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
+  async function handlePasswordSubmit(data: PasswordStepData) {
+    setApiError('');
 
-    const formData = new FormData(e.currentTarget);
+    const result = await authClient.loginWithEmail({ email, password: data.password });
 
-    try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email,
-          password: formData.get('password'),
-        }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        setError(data.error || t('auth.login.invalidCredentials'));
-        return;
-      }
-
-      router.push('/dashboard');
-    } catch {
-      setError(t('auth.login.connectionError'));
-    } finally {
-      setLoading(false);
+    if (!result.success) {
+      setApiError(result.error.message);
+      return;
     }
+
+    router.push('/dashboard');
   }
 
-  async function handleTokenSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
+  async function handleTotemSubmit(data: TotemAccessCodeData) {
+    setApiError('');
 
-    const formData = new FormData(e.currentTarget);
-    const accessCode = formData.get('access-code');
+    const result = await authClient.tokenLogin({ accessCode: data.accessCode });
 
-    try {
-      const res = await fetch('/api/auth/token-login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ accessCode }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        setError(data.error || t('auth.login.invalidToken'));
-        return;
-      }
-
-      router.push('/dashboard');
-    } catch {
-      setError(t('auth.login.connectionError'));
-    } finally {
-      setLoading(false);
+    if (!result.success) {
+      setApiError(result.error.message);
+      return;
     }
+
+    router.push('/dashboard');
   }
 
   function handleBackToEmail() {
     setStep('email');
     setEmail('');
-    setError('');
+    setApiError('');
+    passwordForm.reset();
   }
+
+  const isSubmitting =
+    emailForm.formState.isSubmitting || passwordForm.formState.isSubmitting || totemForm.formState.isSubmitting;
 
   return (
     <Card className="relative w-full max-w-md">
@@ -159,7 +139,11 @@ export function LoginForm() {
         <CardDescription>{t('auth.login.description')}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {error && <div className="bg-destructive/10 text-destructive rounded-lg p-3 text-sm">{error}</div>}
+        {apiError && (
+          <div role="alert" className="bg-destructive/10 text-destructive rounded-lg p-3 text-sm">
+            {apiError}
+          </div>
+        )}
 
         {/* ── Google OAuth (Admin only) ───────────────────── */}
         {step !== 'totem' && (
@@ -185,22 +169,28 @@ export function LoginForm() {
 
       {/* ── Step 1: Email Check (Client) ─────────────────── */}
       {step === 'email' && (
-        <form onSubmit={handleCheckEmail}>
+        <form onSubmit={emailForm.handleSubmit(handleCheckEmail)}>
           <CardContent className="space-y-4 pt-0">
             <div className="space-y-2">
               <Label htmlFor="email">{t('auth.login.emailLabel')}</Label>
               <Input
                 id="email"
-                name="email"
                 type="email"
                 placeholder={t('auth.login.emailPlaceholder')}
-                required
                 autoComplete="email"
+                aria-invalid={!!emailForm.formState.errors.email}
+                aria-describedby={emailForm.formState.errors.email ? 'email-error' : undefined}
+                {...emailForm.register('email')}
               />
+              {emailForm.formState.errors.email && (
+                <p id="email-error" className="text-destructive text-sm">
+                  {emailForm.formState.errors.email.message}
+                </p>
+              )}
             </div>
 
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? t('auth.login.loggingIn') : t('common.actions.next')}
+            <Button type="submit" className="w-full" disabled={isSubmitting}>
+              {emailForm.formState.isSubmitting ? t('auth.login.loggingIn') : t('common.actions.next')}
             </Button>
           </CardContent>
         </form>
@@ -208,7 +198,7 @@ export function LoginForm() {
 
       {/* ── Step 2: Password (Client) ────────────────────── */}
       {step === 'password' && (
-        <form onSubmit={handlePasswordSubmit}>
+        <form onSubmit={passwordForm.handleSubmit(handlePasswordSubmit)}>
           <CardContent className="space-y-4 pt-0">
             <div className="bg-muted rounded-lg p-3 text-sm">
               <span className="text-muted-foreground">{t('auth.login.emailLabel')}: </span>
@@ -219,17 +209,23 @@ export function LoginForm() {
               <Label htmlFor="password">{t('auth.login.passwordLabel')}</Label>
               <Input
                 id="password"
-                name="password"
                 type="password"
                 placeholder="••••••••"
-                required
                 autoComplete="current-password"
                 autoFocus
+                aria-invalid={!!passwordForm.formState.errors.password}
+                aria-describedby={passwordForm.formState.errors.password ? 'password-error' : undefined}
+                {...passwordForm.register('password')}
               />
+              {passwordForm.formState.errors.password && (
+                <p id="password-error" className="text-destructive text-sm">
+                  {passwordForm.formState.errors.password.message}
+                </p>
+              )}
             </div>
 
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? t('auth.login.loggingIn') : t('auth.login.loginButton')}
+            <Button type="submit" className="w-full" disabled={isSubmitting}>
+              {passwordForm.formState.isSubmitting ? t('auth.login.loggingIn') : t('auth.login.loginButton')}
             </Button>
 
             <Button type="button" variant="ghost" className="w-full" onClick={handleBackToEmail}>
@@ -253,22 +249,28 @@ export function LoginForm() {
 
       {/* ── Totem Access Code ────────────────────────────── */}
       {step === 'totem' ? (
-        <form onSubmit={handleTokenSubmit}>
+        <form onSubmit={totemForm.handleSubmit(handleTotemSubmit)}>
           <CardContent className="space-y-4 pt-0">
             <div className="space-y-2">
               <Label htmlFor="access-code">{t('auth.login.tokenCodeLabel')}</Label>
               <Input
                 id="access-code"
-                name="access-code"
                 type="text"
                 placeholder={t('auth.login.tokenCodePlaceholder')}
-                required
                 autoFocus
+                aria-invalid={!!totemForm.formState.errors.accessCode}
+                aria-describedby={totemForm.formState.errors.accessCode ? 'access-code-error' : undefined}
+                {...totemForm.register('accessCode')}
               />
+              {totemForm.formState.errors.accessCode && (
+                <p id="access-code-error" className="text-destructive text-sm">
+                  {totemForm.formState.errors.accessCode.message}
+                </p>
+              )}
             </div>
 
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? t('auth.login.loggingIn') : t('auth.login.loginButton')}
+            <Button type="submit" className="w-full" disabled={isSubmitting}>
+              {totemForm.formState.isSubmitting ? t('auth.login.loggingIn') : t('auth.login.loginButton')}
             </Button>
 
             <Button
@@ -277,7 +279,8 @@ export function LoginForm() {
               className="w-full"
               onClick={() => {
                 setStep('email');
-                setError('');
+                setApiError('');
+                totemForm.reset();
               }}
             >
               {t('common.actions.back')}
@@ -289,11 +292,11 @@ export function LoginForm() {
           <Button
             onClick={() => {
               setStep('totem');
-              setError('');
+              setApiError('');
             }}
             className="w-full"
             variant="outline"
-            disabled={loading}
+            disabled={isSubmitting}
           >
             {t('auth.login.loginAsTotemButton')}
           </Button>

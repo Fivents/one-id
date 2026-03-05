@@ -2,6 +2,7 @@ import { AuthTokenResponse } from '@/core/communication/responses/auth/auth.resp
 import {
   IAuthIdentityRepository,
   IGoogleOAuthProvider,
+  IPasswordHasher,
   ISessionRepository,
   ITokenProvider,
   IUserRepository,
@@ -17,6 +18,7 @@ export class LoginWithGoogleAdminUseCase {
     private readonly userRepository: IUserRepository,
     private readonly authIdentityRepository: IAuthIdentityRepository,
     private readonly tokenProvider: ITokenProvider,
+    private readonly passwordHasher: IPasswordHasher,
     private readonly sessionRepository: ISessionRepository,
   ) {}
 
@@ -74,9 +76,11 @@ export class LoginWithGoogleAdminUseCase {
       organizationId: userWithMembership.organizationId,
     });
 
+    const tokenHash = await this.passwordHasher.hash(token.slice(-16));
+
     await this.sessionRepository.createUserSession({
       userId: user.id,
-      tokenHash: token.slice(-16),
+      tokenHash,
       deviceId: meta.deviceId,
       ipAddress: meta.ipAddress,
       userAgent: meta.userAgent,

@@ -4,9 +4,9 @@ import { type ControllerResponse, noContent, serverError } from '../controller-r
 export class LogoutController {
   constructor(private readonly logoutUseCase: LogoutUseCase) {}
 
-  async handle(sessionId: string): Promise<ControllerResponse<null>> {
+  async handle(userId: string): Promise<ControllerResponse<null>> {
     try {
-      await this.logoutUseCase.execute(sessionId);
+      await this.logoutUseCase.execute(userId);
 
       return noContent();
     } catch {

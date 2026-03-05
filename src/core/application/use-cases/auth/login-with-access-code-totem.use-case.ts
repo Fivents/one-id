@@ -1,11 +1,12 @@
 import { TotemAuthResponse } from '@/core/communication/responses/auth/auth.response';
-import { ISessionRepository, ITokenProvider, ITotemRepository } from '@/core/domain/contracts';
+import { IPasswordHasher, ISessionRepository, ITokenProvider, ITotemRepository } from '@/core/domain/contracts';
 import { InvalidAccessCodeError, TotemAccessDeniedError } from '@/core/errors';
 
 export class LoginWithAccessCodeTotemUseCase {
   constructor(
     private readonly totemRepository: ITotemRepository,
     private readonly tokenProvider: ITokenProvider,
+    private readonly passwordHasher: IPasswordHasher,
     private readonly sessionRepository: ISessionRepository,
   ) {}
 
@@ -29,9 +30,11 @@ export class LoginWithAccessCodeTotemUseCase {
       type: 'totem',
     });
 
+    const tokenHash = await this.passwordHasher.hash(token.slice(-16));
+
     await this.sessionRepository.createTotemSession({
       totemId: totem.id,
-      tokenHash: token.slice(-16),
+      tokenHash,
       ipAddress: meta.ipAddress,
       userAgent: meta.userAgent,
       expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days for devices

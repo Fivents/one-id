@@ -7,12 +7,14 @@ import { LoginWithAccessCodeTotemUseCase } from '@/core/application/use-cases/au
  * Creates a configured instance with injected dependencies:
  * - totemRepository (singleton)
  * - tokenProvider (singleton)
+ * - passwordHasher (singleton)
  * - sessionRepository (singleton)
  */
 export function makeLoginWithAccessCodeTotemUseCase(): LoginWithAccessCodeTotemUseCase {
   return new LoginWithAccessCodeTotemUseCase(
     containerService.getTotemRepository(),
     containerService.getTokenProvider(),
+    containerService.getPasswordHasher(),
     containerService.getSessionRepository(),
   );
 }

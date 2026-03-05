@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
 
-import { getGoogleOAuthProvider } from '@/core/infrastructure/factories';
+import { containerService } from '@/core/application/services';
 
 export async function GET() {
   try {
     const state = crypto.randomUUID();
-    const provider = getGoogleOAuthProvider();
+    const provider = containerService.getGoogleOAuthProvider();
     const authUrl = provider.getAuthorizationUrl(state);
 
     const response = NextResponse.redirect(authUrl);
@@ -15,7 +15,7 @@ export async function GET() {
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       path: '/',
-      maxAge: 60 * 10, // 10 minutes
+      maxAge: 60 * 10,
     });
 
     return response;

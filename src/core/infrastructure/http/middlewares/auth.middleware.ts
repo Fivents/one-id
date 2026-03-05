@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+import { containerService } from '@/core/application/services';
 import { getPermissionsForRole } from '@/core/domain/value-objects/permission';
-import { serviceContainer } from '@/core/infrastructure/database/service-container';
 
 import type { RouteContext, RouteHandler, TotemAuthContext, UserAuthContext } from '../types';
 import { setAuthContext } from '../types';
@@ -24,7 +24,7 @@ export function withAuth(handler: RouteHandler): RouteHandler {
       return NextResponse.json({ error: 'Authentication required.' }, { status: 401 });
     }
 
-    const tokenProvider = serviceContainer.getTokenProvider();
+    const tokenProvider = containerService.getTokenProvider();
 
     // Try user token first, then totem token
     try {

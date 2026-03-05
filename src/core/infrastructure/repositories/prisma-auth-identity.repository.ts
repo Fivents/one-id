@@ -26,11 +26,8 @@ export class PrismaAuthIdentityRepository implements IAuthIdentityRepository {
   }
 
   async findByProviderAndProviderId(provider: string, providerId: string): Promise<AuthIdentityEntity | null> {
-    const identity = await this.db.authIdentity.findUnique({
-      where: {
-        provider_providerId: { provider, providerId },
-        deletedAt: null,
-      },
+    const identity = await this.db.authIdentity.findFirst({
+      where: { provider, providerId, deletedAt: null },
     });
 
     if (!identity) return null;
