@@ -17,6 +17,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { authClient } from '@/core/application/client-services';
+import { useAuth, useTotem } from '@/core/application/contexts';
+import { AppError } from '@/core/errors';
 import { useI18n } from '@/i18n';
 
 import {
@@ -48,6 +50,8 @@ export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { t } = useI18n();
+  const { login } = useAuth();
+  const { authenticateTotem } = useTotem();
   const urlError = searchParams.get('error');
   const urlErrorKey = getUrlErrorKey(urlError);
 
@@ -81,7 +85,7 @@ export function LoginForm() {
     }
 
     if (result.data.status === 'needs_setup') {
-      router.push(`/set-password?token=${result.data.setupToken}`);
+      router.push(`/auth/set-password?token=${result.data.setupToken}`);
       return;
     }
 
@@ -92,27 +96,27 @@ export function LoginForm() {
   async function handlePasswordSubmit(data: PasswordStepData) {
     setApiError('');
 
-    const result = await authClient.loginWithEmail({ email, password: data.password });
-
-    if (!result.success) {
-      setApiError(result.error.message);
-      return;
+    try {
+      await login({ email, password: data.password });
+      router.push('/dashboard');
+    } catch (error) {
+      if (error instanceof AppError) {
+        setApiError(error.message);
+      }
     }
-
-    router.push('/dashboard');
   }
 
   async function handleTotemSubmit(data: TotemAccessCodeData) {
     setApiError('');
 
-    const result = await authClient.tokenLogin({ accessCode: data.accessCode });
-
-    if (!result.success) {
-      setApiError(result.error.message);
-      return;
+    try {
+      await authenticateTotem({ accessCode: data.accessCode });
+      router.push('/dashboard');
+    } catch (error) {
+      if (error instanceof AppError) {
+        setApiError(error.message);
+      }
     }
-
-    router.push('/dashboard');
   }
 
   function handleBackToEmail() {

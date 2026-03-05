@@ -1,3 +1,5 @@
+'use client';
+
 import { useState } from 'react';
 
 import Image from 'next/image';
@@ -7,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { authClient } from '@/core/application/client-services';
 import { useI18n } from '@/i18n';
 
 export function SetPasswordForm() {
@@ -51,16 +54,10 @@ export function SetPasswordForm() {
     }
 
     try {
-      const res = await fetch('/api/auth/setup-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, password, confirmPassword }),
-      });
+      const result = await authClient.setupPassword({ token: token!, password, confirmPassword });
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        setError(data.error || t('auth.setPassword.invalidToken'));
+      if (!result.success) {
+        setError(result.error.message || t('auth.setPassword.invalidToken'));
         return;
       }
 

@@ -2,11 +2,12 @@
 
 import { ComponentType } from 'react';
 
+import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 
-import { ChevronUp, LayoutDashboard, Link, LogOut, ScanFace, Settings, Shield } from 'lucide-react';
+import { ChevronUp, LayoutDashboard, LogOut, ScanFace, Settings, Shield } from 'lucide-react';
 
-import { authClient } from '@/core/application/client-services';
+import { useAuth, useOrganization, usePermissions } from '@/core/application/contexts';
 import { Role } from '@/core/domain/value-objects';
 import { getNameInitials } from '@/core/utils/get-name-initials';
 import { useI18n } from '@/i18n';
@@ -51,27 +52,22 @@ const navItems: NavItem[] = [
   },
 ];
 
-interface AppSidebarProps {
-  user: {
-    name: string;
-    email: string;
-    avatarUrl?: string | null;
-    organizationName?: string;
-    role: Role;
-  };
-}
-
-export function AppSidebar({ user }: AppSidebarProps) {
+export function AppSidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const { t } = useI18n();
+  const { user, logout } = useAuth();
+  const { activeOrganization } = useOrganization();
+  const { role } = usePermissions();
 
-  const filteredNavItems = navItems.filter((item) => item.roles.includes(user.role));
+  const filteredNavItems = navItems.filter((item) => role && item.roles.includes(role));
 
   async function handleLogout() {
-    await authClient.logout();
+    await logout();
     router.push('/login');
   }
+
+  if (!user || !role) return null;
 
   return (
     <Sidebar>
@@ -112,7 +108,7 @@ export function AppSidebar({ user }: AppSidebarProps) {
           <div className="flex items-center gap-1.5">
             <Shield className="text-muted-foreground h-3 w-3" />
             <Badge variant="outline" className="text-[10px] font-normal">
-              {t(`nav.roleLabels.${user.role}`)}
+              {t(`nav.roleLabels.${role}`)}
             </Badge>
           </div>
           <ThemeToggle />
@@ -127,7 +123,7 @@ export function AppSidebar({ user }: AppSidebarProps) {
                   </Avatar>
                   <div className="flex flex-1 flex-col text-left text-xs">
                     <span className="font-medium">{user.name}</span>
-                    <span className="text-muted-foreground">{user.organizationName ?? user.email}</span>
+                    <span className="text-muted-foreground">{activeOrganization?.name ?? user.email}</span>
                   </div>
                   <ChevronUp className="ml-auto h-4 w-4" />
                 </SidebarMenuButton>
