@@ -14,8 +14,6 @@ export function makeCreateClientUserUseCase(): CreateClientUserUseCase {
     containerService.getUserRepository(),
     containerService.getOrganizationRepository(),
     containerService.getMembershipRepository(),
-    containerService.getAuthIdentityRepository(),
-    containerService.getPasswordHasher(),
   );
 }
 
@@ -31,6 +29,5 @@ export function makeResetUserPasswordUseCase(): ResetUserPasswordUseCase {
   return new ResetUserPasswordUseCase(
     containerService.getUserRepository(),
     containerService.getAuthIdentityRepository(),
-    containerService.getPasswordHasher(),
   );
 }

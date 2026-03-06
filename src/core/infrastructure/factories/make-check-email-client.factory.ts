@@ -14,5 +14,6 @@ export function makeCheckEmailClientUseCase(): CheckEmailClientUseCase {
     containerService.getUserRepository(),
     containerService.getAuthIdentityRepository(),
     containerService.getTokenProvider(),
+    containerService.getMembershipRepository(),
   );
 }

@@ -36,10 +36,10 @@ export function DeleteUserModal({ user, open, onOpenChange }: DeleteUserModalPro
 
     try {
       await deleteUser(user.id);
-      toast.success('User removed successfully.');
+      toast.success(t('users.messages.deleteSuccess'));
       onOpenChange(false);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to delete user.';
+      const message = error instanceof Error ? error.message : t('users.messages.deleteError');
       toast.error(message);
     } finally {
       setIsSubmitting(false);
@@ -55,8 +55,7 @@ export function DeleteUserModal({ user, open, onOpenChange }: DeleteUserModalPro
           </div>
           <DialogTitle className="text-center">{t('common.actions.delete')}</DialogTitle>
           <DialogDescription className="text-center">
-            Are you sure you want to remove <strong>{user?.name}</strong>? This action can be undone by an
-            administrator.
+            {t('users.messages.deleteConfirmDescription', { name: user?.name ?? '' })}
           </DialogDescription>
         </DialogHeader>
 

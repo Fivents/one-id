@@ -1,6 +1,6 @@
 'use client';
 
-import { Edit, KeyRound, MoreHorizontal, Trash2 } from 'lucide-react';
+import { Building2, Edit, KeyRound, MoreHorizontal, Trash2 } from 'lucide-react';
 
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -23,9 +23,10 @@ interface UsersTableProps {
   onEdit: (user: AdminUserResponse) => void;
   onDelete: (user: AdminUserResponse) => void;
   onResetPassword: (user: AdminUserResponse) => void;
+  onManageMemberships: (user: AdminUserResponse) => void;
 }
 
-export function UsersTable({ onEdit, onDelete, onResetPassword }: UsersTableProps) {
+export function UsersTable({ onEdit, onDelete, onResetPassword, onManageMemberships }: UsersTableProps) {
   const { t } = useI18n();
   const { filteredUsers, isLoading } = useAdminUsers();
 
@@ -51,12 +52,19 @@ export function UsersTable({ onEdit, onDelete, onResetPassword }: UsersTableProp
             <TableHead>{t('common.labels.organization')}</TableHead>
             <TableHead>{t('common.labels.status')}</TableHead>
             <TableHead>{t('common.labels.createdAt')}</TableHead>
-            <TableHead className="w-[70px]">{t('common.labels.actions')}</TableHead>
+            <TableHead className="w-17.5">{t('common.labels.actions')}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {filteredUsers.map((user) => (
-            <UserRow key={user.id} user={user} onEdit={onEdit} onDelete={onDelete} onResetPassword={onResetPassword} />
+            <UserRow
+              key={user.id}
+              user={user}
+              onEdit={onEdit}
+              onDelete={onDelete}
+              onResetPassword={onResetPassword}
+              onManageMemberships={onManageMemberships}
+            />
           ))}
         </TableBody>
       </Table>
@@ -69,11 +77,13 @@ function UserRow({
   onEdit,
   onDelete,
   onResetPassword,
+  onManageMemberships,
 }: {
   user: AdminUserResponse;
   onEdit: (user: AdminUserResponse) => void;
   onDelete: (user: AdminUserResponse) => void;
   onResetPassword: (user: AdminUserResponse) => void;
+  onManageMemberships: (user: AdminUserResponse) => void;
 }) {
   const { t } = useI18n();
 
@@ -97,7 +107,7 @@ function UserRow({
       </TableCell>
       <TableCell>
         {user.isSuperAdmin ? (
-          <Badge variant="default">Super Admin</Badge>
+          <Badge variant="default">{t('users.labels.superAdmin')}</Badge>
         ) : (
           <Badge variant="outline">{t('common.status.active')}</Badge>
         )}
@@ -116,9 +126,13 @@ function UserRow({
                 <Edit className="mr-2 h-4 w-4" />
                 {t('common.actions.edit')}
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onManageMemberships(user)}>
+                <Building2 className="mr-2 h-4 w-4" />
+                {t('users.memberships.manage')}
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => onResetPassword(user)}>
                 <KeyRound className="mr-2 h-4 w-4" />
-                Reset Password
+                {t('users.labels.resetPassword')}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => onDelete(user)} className="text-destructive focus:text-destructive">

@@ -1,23 +1,40 @@
 import { CheckEmailResponse } from '@/core/communication/responses/auth/auth.response';
-import { IAuthIdentityRepository, ITokenProvider, IUserRepository } from '@/core/domain/contracts';
+import {
+  IAuthIdentityRepository,
+  IMembershipRepository,
+  ITokenProvider,
+  IUserRepository,
+} from '@/core/domain/contracts';
 import { isClientRole } from '@/core/domain/value-objects';
-import { AccessDisabledError, LoginMethodUnavailableError, UserNotFoundError } from '@/core/errors';
+import {
+  AccessDisabledError,
+  LoginMethodUnavailableError,
+  MemberNotFoundError,
+  UserNotFoundError,
+} from '@/core/errors';
 
 export class CheckEmailClientUseCase {
   constructor(
     private readonly userRepository: IUserRepository,
     private readonly authIdentityRepository: IAuthIdentityRepository,
     private readonly tokenProvider: ITokenProvider,
+    private readonly membershipRepository: IMembershipRepository,
   ) {}
 
   async execute(email: string): Promise<CheckEmailResponse> {
-    const user = await this.userRepository.findByEmailWithMembership(email);
+    const user = await this.userRepository.findByEmail(email);
 
     if (!user) {
       throw new UserNotFoundError();
     }
 
-    if (!isClientRole(user.role)) {
+    const memberships = await this.membershipRepository.findByUser(user.id);
+
+    if (memberships.length === 0) {
+      throw new MemberNotFoundError();
+    }
+
+    if (!isClientRole(memberships[0].role)) {
       throw new LoginMethodUnavailableError({ email });
     }
 

@@ -35,7 +35,7 @@ export function UserFilters() {
       </div>
 
       <Select value={filterOrganization} onValueChange={setFilterOrganization}>
-        <SelectTrigger className="w-full sm:w-[200px]">
+        <SelectTrigger className="w-full sm:w-50">
           <SelectValue placeholder={t('common.labels.organization')} />
         </SelectTrigger>
         <SelectContent>
@@ -49,13 +49,13 @@ export function UserFilters() {
       </Select>
 
       <Select value={filterStatus} onValueChange={setFilterStatus}>
-        <SelectTrigger className="w-full sm:w-[180px]">
+        <SelectTrigger className="w-full sm:w-45">
           <SelectValue placeholder={t('common.labels.status')} />
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="all">{t('common.labels.all')}</SelectItem>
-          <SelectItem value="client">Clients</SelectItem>
-          <SelectItem value="super_admin">Super Admin</SelectItem>
+          <SelectItem value="client">{t('users.labels.clients')}</SelectItem>
+          <SelectItem value="super_admin">{t('users.labels.superAdmin')}</SelectItem>
         </SelectContent>
       </Select>
     </div>

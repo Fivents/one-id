@@ -10,6 +10,7 @@ import {
   CreateUserModal,
   DeleteUserModal,
   EditUserModal,
+  ManageMembershipsModal,
   ResetPasswordModal,
   UserFilters,
   UsersTable,
@@ -17,6 +18,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { AdminUsersProvider, useAdminUsers, useApp, useAuth, usePermissions } from '@/core/application/contexts';
 import type { AdminUserResponse } from '@/core/communication/responses/admin';
+import { useI18n } from '@/i18n';
 
 function AdminUsersPageContent() {
   const router = useRouter();
@@ -29,6 +31,9 @@ function AdminUsersPageContent() {
   const [editUser, setEditUser] = useState<AdminUserResponse | null>(null);
   const [deleteUser, setDeleteUser] = useState<AdminUserResponse | null>(null);
   const [resetPasswordUser, setResetPasswordUser] = useState<AdminUserResponse | null>(null);
+  const [manageMembershipsUser, setManageMembershipsUser] = useState<AdminUserResponse | null>(null);
+
+  const { t } = useI18n();
 
   const isLoading = isAppLoading || isAuthLoading;
 
@@ -56,6 +61,10 @@ function AdminUsersPageContent() {
     setResetPasswordUser(user);
   }, []);
 
+  const handleManageMemberships = useCallback((user: AdminUserResponse) => {
+    setManageMembershipsUser(user);
+  }, []);
+
   if (isLoading || !isAuthenticated || !isSuperAdmin()) {
     return null;
   }
@@ -68,19 +77,24 @@ function AdminUsersPageContent() {
             <Users className="text-primary h-5 w-5" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">Users</h1>
-            <p className="text-muted-foreground text-sm">Manage platform users and organizations.</p>
+            <h1 className="text-2xl font-bold tracking-tight">{t('users.list.title')}</h1>
+            <p className="text-muted-foreground text-sm">{t('users.list.description')}</p>
           </div>
         </div>
         <Button onClick={() => setCreateModalOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />
-          New Client
+          {t('users.list.newUser')}
         </Button>
       </div>
 
       <UserFilters />
 
-      <UsersTable onEdit={handleEdit} onDelete={handleDelete} onResetPassword={handleResetPassword} />
+      <UsersTable
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+        onResetPassword={handleResetPassword}
+        onManageMemberships={handleManageMemberships}
+      />
 
       <CreateUserModal open={createModalOpen} onOpenChange={setCreateModalOpen} />
 
@@ -105,6 +119,14 @@ function AdminUsersPageContent() {
         open={!!resetPasswordUser}
         onOpenChange={(open) => {
           if (!open) setResetPasswordUser(null);
+        }}
+      />
+
+      <ManageMembershipsModal
+        user={manageMembershipsUser}
+        open={!!manageMembershipsUser}
+        onOpenChange={(open) => {
+          if (!open) setManageMembershipsUser(null);
         }}
       />
     </div>

@@ -73,7 +73,7 @@ export class PrismaAuthIdentityRepository implements IAuthIdentityRepository {
     });
   }
 
-  async updatePasswordHash(id: string, passwordHash: string): Promise<void> {
+  async updatePasswordHash(id: string, passwordHash: string | null): Promise<void> {
     await this.db.authIdentity.update({
       where: { id },
       data: { passwordHash },

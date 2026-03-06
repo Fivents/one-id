@@ -20,10 +20,10 @@ interface AdminUsersState {
 
 interface AdminUsersContextValue extends AdminUsersState {
   fetchUsers: () => Promise<void>;
-  createUser: (data: CreateClientUserRequest) => Promise<{ user: AdminUserResponse; temporaryPassword: string }>;
+  createUser: (data: CreateClientUserRequest) => Promise<{ user: AdminUserResponse }>;
   updateUser: (userId: string, data: UpdateClientUserRequest) => Promise<AdminUserResponse>;
   deleteUser: (userId: string) => Promise<void>;
-  resetPassword: (userId: string) => Promise<string>;
+  resetPassword: (userId: string) => Promise<void>;
   setSearchQuery: (query: string) => void;
   setFilterOrganization: (org: string) => void;
   setFilterStatus: (status: string) => void;
@@ -47,8 +47,8 @@ const initialState: AdminUsersState = {
   users: [],
   isLoading: false,
   searchQuery: '',
-  filterOrganization: '',
-  filterStatus: '',
+  filterOrganization: 'all',
+  filterStatus: 'all',
 };
 
 function adminUsersReducer(state: AdminUsersState, action: AdminUsersAction): AdminUsersState {
@@ -161,8 +161,6 @@ export function AdminUsersProvider({ children }: { children: React.ReactNode }) 
         level: 'warning',
       });
     }
-
-    return response.data.temporaryPassword;
   }, []);
 
   const setSearchQuery = useCallback((query: string) => {
@@ -187,7 +185,7 @@ export function AdminUsersProvider({ children }: { children: React.ReactNode }) 
       );
     }
 
-    if (state.filterOrganization) {
+    if (state.filterOrganization && state.filterOrganization !== 'all') {
       result = result.filter((user) => user.organizationId === state.filterOrganization);
     }
 

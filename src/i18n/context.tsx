@@ -20,7 +20,7 @@ export const supportedLocales: { value: Locale; label: string }[] = [
 type I18nContextValue = {
   locale: Locale;
   setLocale: (locale: Locale) => void;
-  t: (key: string) => string;
+  t: (key: string, params?: Record<string, string>) => string;
 };
 
 const I18nContext = createContext<I18nContextValue | null>(null);
@@ -75,8 +75,14 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const t = useCallback(
-    (key: string): string => {
-      return getNestedValue(translations[locale] as unknown as Record<string, unknown>, key);
+    (key: string, params?: Record<string, string>): string => {
+      let value = getNestedValue(translations[locale] as unknown as Record<string, unknown>, key);
+      if (params) {
+        for (const [k, v] of Object.entries(params)) {
+          value = value.replace(`{${k}}`, v);
+        }
+      }
+      return value;
     },
     [locale],
   );

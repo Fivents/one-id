@@ -17,5 +17,5 @@ export interface AdminUserListResponse {
 }
 
 export interface ResetPasswordResponse {
-  temporaryPassword: string;
+  success: true;
 }

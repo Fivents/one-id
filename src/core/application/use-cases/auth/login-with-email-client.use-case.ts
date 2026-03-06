@@ -2,6 +2,7 @@ import { LoginEmailRequest } from '@/core/communication/requests/auth/login-emai
 import { AuthTokenResponse } from '@/core/communication/responses/auth/auth.response';
 import {
   IAuthIdentityRepository,
+  IMembershipRepository,
   IPasswordHasher,
   ISessionRepository,
   ITokenProvider,
@@ -12,6 +13,7 @@ import {
   AccessDisabledError,
   InvalidCredentialsError,
   LoginMethodUnavailableError,
+  MemberNotFoundError,
   PasswordNotConfiguredError,
 } from '@/core/errors';
 
@@ -22,19 +24,28 @@ export class LoginWithEmailClientUseCase {
     private readonly passwordHasher: IPasswordHasher,
     private readonly tokenProvider: ITokenProvider,
     private readonly sessionRepository: ISessionRepository,
+    private readonly membershipRepository: IMembershipRepository,
   ) {}
 
   async execute(
     request: LoginEmailRequest,
     meta: { ipAddress: string; userAgent: string; deviceId: string },
   ): Promise<AuthTokenResponse> {
-    const user = await this.userRepository.findByEmailWithMembership(request.email);
+    const user = await this.userRepository.findByEmail(request.email);
 
     if (!user) {
       throw new InvalidCredentialsError();
     }
 
-    if (!isClientRole(user.role)) {
+    const memberships = await this.membershipRepository.findByUser(user.id);
+
+    if (memberships.length === 0) {
+      throw new MemberNotFoundError();
+    }
+
+    const membership = memberships[0];
+
+    if (!isClientRole(membership.role)) {
       throw new LoginMethodUnavailableError({ email: request.email });
     }
 
@@ -60,9 +71,9 @@ export class LoginWithEmailClientUseCase {
       sub: user.id,
       name: user.name,
       email: user.email,
-      role: user.role,
+      role: membership.role,
       type: userType,
-      organizationId: user.organizationId,
+      organizationId: membership.organizationId,
     });
 
     const tokenHash = await this.passwordHasher.hash(token.slice(-16));
@@ -82,9 +93,9 @@ export class LoginWithEmailClientUseCase {
         id: user.id,
         name: user.name,
         email: user.email,
-        role: user.role,
+        role: membership.role,
         type: userType,
-        organizationId: user.organizationId,
+        organizationId: membership.organizationId,
       },
     };
   }

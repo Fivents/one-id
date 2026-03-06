@@ -9,5 +9,5 @@ export interface IAuthIdentityRepository {
     passwordHash?: string;
     userId: string;
   }): Promise<AuthIdentityEntity>;
-  updatePasswordHash(id: string, passwordHash: string): Promise<void>;
+  updatePasswordHash(id: string, passwordHash: string | null): Promise<void>;
 }

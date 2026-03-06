@@ -42,6 +42,24 @@ export class PrismaUserRepository implements IUserRepository {
     });
   }
 
+  async findByEmailIncludingDeleted(email: string): Promise<UserEntity | null> {
+    const user = await this.db.user.findUnique({
+      where: { email },
+    });
+
+    if (!user) return null;
+
+    return UserEntity.create({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      avatarUrl: user.avatarUrl,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+      deletedAt: user.deletedAt,
+    });
+  }
+
   async findByEmailWithMembership(email: string): Promise<UserWithMembership | null> {
     const user = await this.db.user.findUnique({
       where: { email, deletedAt: null },
@@ -168,6 +186,23 @@ export class PrismaUserRepository implements IUserRepository {
     await this.db.user.update({
       where: { id },
       data: { deletedAt: new Date() },
+    });
+  }
+
+  async restore(id: string, data: { name: string }): Promise<UserEntity> {
+    const user = await this.db.user.update({
+      where: { id },
+      data: { name: data.name, deletedAt: null },
+    });
+
+    return UserEntity.create({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      avatarUrl: user.avatarUrl,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+      deletedAt: user.deletedAt,
     });
   }
 

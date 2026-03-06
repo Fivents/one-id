@@ -48,10 +48,10 @@ export function EditUserModal({ user, open, onOpenChange }: EditUserModalProps) 
 
     try {
       await updateUser(user.id, { name, email });
-      toast.success('User updated successfully.');
+      toast.success(t('users.messages.updateSuccess'));
       onOpenChange(false);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to update user.';
+      const message = error instanceof Error ? error.message : t('users.messages.updateError');
       toast.error(message);
     } finally {
       setIsSubmitting(false);
@@ -62,8 +62,8 @@ export function EditUserModal({ user, open, onOpenChange }: EditUserModalProps) 
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{t('common.actions.edit')}</DialogTitle>
-          <DialogDescription>Update client user information.</DialogDescription>
+          <DialogTitle>{t('users.form.editTitle')}</DialogTitle>
+          <DialogDescription>{t('users.form.editDescription')}</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">

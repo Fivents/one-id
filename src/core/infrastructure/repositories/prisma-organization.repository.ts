@@ -27,7 +27,7 @@ export class PrismaOrganizationRepository implements IOrganizationRepository {
   }
 
   async findBySlug(slug: string): Promise<OrganizationEntity | null> {
-    const org = await this.db.organization.findUnique({
+    const org = await this.db.organization.findFirst({
       where: { slug, deletedAt: null },
     });
 

@@ -30,22 +30,28 @@ export function CreateUserModal({ open, onOpenChange }: CreateUserModalProps) {
   const { createUser } = useAdminUsers();
   const { organizations } = useOrganization();
 
+  const clientOrganizations = organizations.filter((org) => org.slug !== 'fivents');
+
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [role, setRole] = useState('ORG_OWNER');
   const [organizationId, setOrganizationId] = useState('');
   const [newOrgName, setNewOrgName] = useState('');
   const [isCreatingOrg, setIsCreatingOrg] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const hasOrganizations = organizations.length > 0;
+  const hasOrganizations = clientOrganizations.length > 0;
 
   function resetForm() {
     setName('');
     setEmail('');
+    setRole('ORG_OWNER');
     setOrganizationId('');
     setNewOrgName('');
     setIsCreatingOrg(false);
   }
+
+  const isOrgValid = isCreatingOrg || !hasOrganizations ? !!newOrgName.trim() : !!organizationId;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -55,18 +61,17 @@ export function CreateUserModal({ open, onOpenChange }: CreateUserModalProps) {
       const result = await createUser({
         name,
         email,
+        role: role as 'ORG_OWNER' | 'EVENT_MANAGER',
         organizationId: isCreatingOrg || !hasOrganizations ? undefined : organizationId || undefined,
         organizationName: isCreatingOrg || !hasOrganizations ? newOrgName || undefined : undefined,
       });
 
-      toast.success(`User created. Temporary password: ${result.temporaryPassword}`, {
-        duration: 15000,
-      });
+      toast.success(t('users.messages.createSuccess', { name: result.user.name }));
 
       resetForm();
       onOpenChange(false);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to create user.';
+      const message = error instanceof Error ? error.message : t('users.messages.createError');
       toast.error(message);
     } finally {
       setIsSubmitting(false);
@@ -83,8 +88,8 @@ export function CreateUserModal({ open, onOpenChange }: CreateUserModalProps) {
     >
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>New Client</DialogTitle>
-          <DialogDescription>Create a new client user with organization access.</DialogDescription>
+          <DialogTitle>{t('users.form.createTitle')}</DialogTitle>
+          <DialogDescription>{t('users.form.createDescription')}</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
@@ -104,15 +109,28 @@ export function CreateUserModal({ open, onOpenChange }: CreateUserModalProps) {
             />
           </div>
 
+          <div className="space-y-2">
+            <Label>{t('users.form.role')}</Label>
+            <Select value={role} onValueChange={setRole}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ORG_OWNER">{t('nav.roleLabels.ORG_OWNER')}</SelectItem>
+                <SelectItem value="EVENT_MANAGER">{t('nav.roleLabels.EVENT_MANAGER')}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           {hasOrganizations && !isCreatingOrg ? (
             <div className="space-y-2">
               <Label>{t('common.labels.organization')}</Label>
               <Select value={organizationId} onValueChange={setOrganizationId}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select organization" />
+                  <SelectValue placeholder={t('users.form.selectOrganization')} />
                 </SelectTrigger>
                 <SelectContent>
-                  {organizations.map((org) => (
+                  {clientOrganizations.map((org) => (
                     <SelectItem key={org.id} value={org.id}>
                       {org.name}
                     </SelectItem>
@@ -125,17 +143,18 @@ export function CreateUserModal({ open, onOpenChange }: CreateUserModalProps) {
                 className="h-auto p-0 text-xs"
                 onClick={() => setIsCreatingOrg(true)}
               >
-                + Create new organization
+                {t('users.form.createNewOrg')}
               </Button>
             </div>
           ) : (
             <div className="space-y-2">
-              <Label htmlFor="orgName">Organization Name</Label>
+              <Label htmlFor="orgName">{t('users.form.organizationName')}</Label>
               <Input
                 id="orgName"
                 value={newOrgName}
                 onChange={(e) => setNewOrgName(e.target.value)}
                 placeholder="Acme Corp"
+                required
               />
               {hasOrganizations && (
                 <Button
@@ -144,7 +163,7 @@ export function CreateUserModal({ open, onOpenChange }: CreateUserModalProps) {
                   className="h-auto p-0 text-xs"
                   onClick={() => setIsCreatingOrg(false)}
                 >
-                  Select existing organization
+                  {t('users.form.selectExistingOrg')}
                 </Button>
               )}
             </div>
@@ -154,7 +173,7 @@ export function CreateUserModal({ open, onOpenChange }: CreateUserModalProps) {
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               {t('common.actions.cancel')}
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
+            <Button type="submit" disabled={isSubmitting || !isOrgValid}>
               {isSubmitting ? t('common.actions.loading') : t('common.actions.create')}
             </Button>
           </DialogFooter>

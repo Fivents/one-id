@@ -85,7 +85,7 @@ export function LoginForm() {
     }
 
     if (result.data.status === 'needs_setup') {
-      router.push(`/auth/set-password?token=${result.data.setupToken}`);
+      router.push(`/set-password?token=${result.data.setupToken}`);
       return;
     }
 

@@ -314,6 +314,10 @@ export type TranslationSchema = {
       email: string;
       role: string;
       organization: string;
+      organizationName: string;
+      selectOrganization: string;
+      createNewOrg: string;
+      selectExistingOrg: string;
     };
     labels: {
       resetPassword: string;
@@ -321,6 +325,34 @@ export type TranslationSchema = {
       activate: string;
       deactivate: string;
       setupPending: string;
+      superAdmin: string;
+      clients: string;
+    };
+    memberships: {
+      title: string;
+      description: string;
+      manage: string;
+      selectOrg: string;
+      addSuccess: string;
+      addError: string;
+      removeSuccess: string;
+      removeError: string;
+      cannotRemoveLast: string;
+      loadError: string;
+      roleUpdateSuccess: string;
+      roleUpdateError: string;
+    };
+    messages: {
+      createSuccess: string;
+      updateSuccess: string;
+      deleteSuccess: string;
+      resetPasswordSuccess: string;
+      createError: string;
+      updateError: string;
+      deleteError: string;
+      resetPasswordError: string;
+      deleteConfirmDescription: string;
+      resetPasswordDescription: string;
     };
   };
   billing: {

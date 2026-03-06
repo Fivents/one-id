@@ -18,5 +18,6 @@ export function makeLoginWithEmailClientUseCase(): LoginWithEmailClientUseCase {
     containerService.getPasswordHasher(),
     containerService.getTokenProvider(),
     containerService.getSessionRepository(),
+    containerService.getMembershipRepository(),
   );
 }
