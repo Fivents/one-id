@@ -17,10 +17,15 @@ export { getGoogleOAuthProvider } from './get-google-oauth-provider.factory';
 
 // Admin
 export {
+  makeBulkHardDeleteUsersUseCase,
+  makeBulkSoftDeleteUsersUseCase,
   makeCreateClientUserUseCase,
   makeDeleteClientUserUseCase,
+  makeHardDeleteClientUserUseCase,
   makeListAdminUsersUseCase,
+  makeListDeletedUsersUseCase,
   makeResetUserPasswordUseCase,
+  makeRestoreClientUserUseCase,
   makeUpdateClientUserUseCase,
 } from './make-admin.factory';
 export { makeCheckEmailClientUseCase } from './make-check-email-client.factory';

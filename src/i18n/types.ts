@@ -354,6 +354,35 @@ export type TranslationSchema = {
       deleteConfirmDescription: string;
       resetPasswordDescription: string;
     };
+    tabs: {
+      active: string;
+      deleted: string;
+    };
+    bulk: {
+      selected: string;
+      deleteSelected: string;
+      permanentDeleteSelected: string;
+      selectAll: string;
+      selectUser: string;
+      deleteTitle: string;
+      deleteDescription: string;
+      permanentDeleteTitle: string;
+      permanentDeleteDescription: string;
+      error: string;
+    };
+    deleted: {
+      noUsers: string;
+      deletedAt: string;
+      restore: string;
+      permanentDelete: string;
+    };
+    restore: {
+      title: string;
+      description: string;
+      success: string;
+      error: string;
+      confirm: string;
+    };
   };
   billing: {
     title: string;

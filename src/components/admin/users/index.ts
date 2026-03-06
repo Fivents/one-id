@@ -1,7 +1,10 @@
+export { BulkDeleteConfirmModal } from './bulk-delete-confirm-modal';
 export { CreateUserModal } from './create-user-modal';
 export { DeleteUserModal } from './delete-user-modal';
+export { DeletedUsersTable } from './deleted-users-table';
 export { EditUserModal } from './edit-user-modal';
 export { ManageMembershipsModal } from './manage-memberships-modal';
 export { ResetPasswordModal } from './reset-password-modal';
+export { RestoreUserModal } from './restore-user-modal';
 export { UserFilters } from './user-filters';
 export { UsersTable } from './users-table';

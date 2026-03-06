@@ -1,7 +1,7 @@
 import type { CreateClientUserRequest } from '@/core/communication/requests/admin';
 import type { AdminUserResponse } from '@/core/communication/responses/admin';
 import type { IMembershipRepository, IOrganizationRepository, IUserRepository } from '@/core/domain/contracts';
-import { OrganizationAlreadyExistsError, UserAlreadyExistsError } from '@/core/errors';
+import { OrganizationAlreadyExistsError, UserAlreadyExistsError, UserSoftDeletedError } from '@/core/errors';
 import { Logger } from '@/core/utils/logger';
 
 export class CreateClientUserUseCase {
@@ -17,8 +17,15 @@ export class CreateClientUserUseCase {
       throw new UserAlreadyExistsError(request.email);
     }
 
-    // Check if there's a soft-deleted user with the same email (unique constraint)
+    // Check if there's a soft-deleted user with the same email
     const softDeletedUser = await this.userRepository.findByEmailIncludingDeleted(request.email);
+    if (softDeletedUser) {
+      throw new UserSoftDeletedError({
+        id: softDeletedUser.id,
+        name: softDeletedUser.name,
+        email: softDeletedUser.email,
+      });
+    }
 
     const role = request.role ?? 'ORG_OWNER';
     let organizationId = request.organizationId;
@@ -67,17 +74,10 @@ export class CreateClientUserUseCase {
 
     let user;
     try {
-      if (softDeletedUser) {
-        // Restore the soft-deleted user instead of creating a new one
-        user = await this.userRepository.restore(softDeletedUser.id, {
-          name: request.name,
-        });
-      } else {
-        user = await this.userRepository.create({
-          name: request.name,
-          email: request.email,
-        });
-      }
+      user = await this.userRepository.create({
+        name: request.name,
+        email: request.email,
+      });
     } catch (error) {
       // Cleanup: soft-delete the org we just created to avoid orphan
       if (createdOrgId) {

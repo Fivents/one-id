@@ -9,6 +9,7 @@ export interface AdminUserResponse {
   isSuperAdmin: boolean;
   createdAt: Date;
   updatedAt: Date;
+  deletedAt?: Date | null;
 }
 
 export interface AdminUserListResponse {

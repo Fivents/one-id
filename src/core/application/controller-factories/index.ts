@@ -1,9 +1,14 @@
 // Admin
 export {
+  makeBulkHardDeleteUsersController,
+  makeBulkSoftDeleteUsersController,
   makeCreateClientUserController,
   makeDeleteClientUserController,
+  makeHardDeleteClientUserController,
   makeListAdminUsersController,
+  makeListDeletedUsersController,
   makeResetUserPasswordController,
+  makeRestoreClientUserController,
   makeUpdateClientUserController,
 } from './make-admin-controllers.factory';
 

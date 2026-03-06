@@ -7,16 +7,21 @@ import { useRouter } from 'next/navigation';
 import { Plus, Users } from 'lucide-react';
 
 import {
+  BulkDeleteConfirmModal,
   CreateUserModal,
+  DeletedUsersTable,
   DeleteUserModal,
   EditUserModal,
   ManageMembershipsModal,
   ResetPasswordModal,
+  RestoreUserModal,
   UserFilters,
   UsersTable,
 } from '@/components/admin/users';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AdminUsersProvider, useAdminUsers, useApp, useAuth, usePermissions } from '@/core/application/contexts';
+import type { SoftDeletedUserInfo } from '@/core/application/contexts/admin-users-context';
 import type { AdminUserResponse } from '@/core/communication/responses/admin';
 import { useI18n } from '@/i18n';
 
@@ -25,13 +30,28 @@ function AdminUsersPageContent() {
   const { isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const { isAppLoading } = useApp();
   const { isSuperAdmin } = usePermissions();
-  const { fetchUsers } = useAdminUsers();
+  const {
+    fetchUsers,
+    fetchDeletedUsers,
+    bulkSoftDelete,
+    bulkHardDelete,
+    hardDeleteUser,
+    clearUserSelection,
+    clearDeletedUserSelection,
+  } = useAdminUsers();
 
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [editUser, setEditUser] = useState<AdminUserResponse | null>(null);
   const [deleteUser, setDeleteUser] = useState<AdminUserResponse | null>(null);
   const [resetPasswordUser, setResetPasswordUser] = useState<AdminUserResponse | null>(null);
   const [manageMembershipsUser, setManageMembershipsUser] = useState<AdminUserResponse | null>(null);
+  const [restoreUser, setRestoreUser] = useState<AdminUserResponse | null>(null);
+  const [hardDeleteTarget, setHardDeleteTarget] = useState<AdminUserResponse | null>(null);
+
+  // Bulk delete state
+  const [bulkDeleteIds, setBulkDeleteIds] = useState<string[]>([]);
+  const [bulkDeleteVariant, setBulkDeleteVariant] = useState<'soft' | 'hard'>('soft');
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
 
   const { t } = useI18n();
 
@@ -46,8 +66,9 @@ function AdminUsersPageContent() {
   useEffect(() => {
     if (isAuthenticated && isSuperAdmin()) {
       fetchUsers();
+      fetchDeletedUsers();
     }
-  }, [isAuthenticated, isSuperAdmin, fetchUsers]);
+  }, [isAuthenticated, isSuperAdmin, fetchUsers, fetchDeletedUsers]);
 
   const handleEdit = useCallback((user: AdminUserResponse) => {
     setEditUser(user);
@@ -64,6 +85,67 @@ function AdminUsersPageContent() {
   const handleManageMemberships = useCallback((user: AdminUserResponse) => {
     setManageMembershipsUser(user);
   }, []);
+
+  const handleBulkDelete = useCallback((userIds: string[]) => {
+    setBulkDeleteIds(userIds);
+    setBulkDeleteVariant('soft');
+    setBulkDeleteOpen(true);
+  }, []);
+
+  const handleBulkHardDelete = useCallback((userIds: string[]) => {
+    setBulkDeleteIds(userIds);
+    setBulkDeleteVariant('hard');
+    setBulkDeleteOpen(true);
+  }, []);
+
+  const handleRestore = useCallback((user: AdminUserResponse) => {
+    setRestoreUser(user);
+  }, []);
+
+  const handleHardDelete = useCallback((user: AdminUserResponse) => {
+    setHardDeleteTarget(user);
+  }, []);
+
+  const handleSoftDeletedDetected = useCallback((info: SoftDeletedUserInfo) => {
+    setRestoreUser({
+      id: info.id,
+      name: info.name,
+      email: info.email,
+      avatarUrl: null,
+      organizationId: null,
+      organizationName: null,
+      role: null,
+      isSuperAdmin: false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      deletedAt: new Date(),
+    });
+  }, []);
+
+  const handleBulkConfirm = useCallback(async () => {
+    if (bulkDeleteVariant === 'soft') {
+      await bulkSoftDelete(bulkDeleteIds);
+      clearUserSelection();
+      fetchDeletedUsers();
+    } else {
+      await bulkHardDelete(bulkDeleteIds);
+      clearDeletedUserSelection();
+    }
+  }, [
+    bulkDeleteVariant,
+    bulkDeleteIds,
+    bulkSoftDelete,
+    bulkHardDelete,
+    clearUserSelection,
+    clearDeletedUserSelection,
+    fetchDeletedUsers,
+  ]);
+
+  const handleHardDeleteConfirm = useCallback(async () => {
+    if (!hardDeleteTarget) return;
+    await hardDeleteUser(hardDeleteTarget.id);
+    setHardDeleteTarget(null);
+  }, [hardDeleteTarget, hardDeleteUser]);
 
   if (isLoading || !isAuthenticated || !isSuperAdmin()) {
     return null;
@@ -87,16 +169,37 @@ function AdminUsersPageContent() {
         </Button>
       </div>
 
-      <UserFilters />
+      <Tabs defaultValue="active">
+        <TabsList>
+          <TabsTrigger value="active">{t('users.tabs.active')}</TabsTrigger>
+          <TabsTrigger value="deleted">{t('users.tabs.deleted')}</TabsTrigger>
+        </TabsList>
 
-      <UsersTable
-        onEdit={handleEdit}
-        onDelete={handleDelete}
-        onResetPassword={handleResetPassword}
-        onManageMemberships={handleManageMemberships}
+        <TabsContent value="active" className="space-y-4">
+          <UserFilters />
+          <UsersTable
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+            onResetPassword={handleResetPassword}
+            onManageMemberships={handleManageMemberships}
+            onBulkDelete={handleBulkDelete}
+          />
+        </TabsContent>
+
+        <TabsContent value="deleted">
+          <DeletedUsersTable
+            onRestore={handleRestore}
+            onHardDelete={handleHardDelete}
+            onBulkHardDelete={handleBulkHardDelete}
+          />
+        </TabsContent>
+      </Tabs>
+
+      <CreateUserModal
+        open={createModalOpen}
+        onOpenChange={setCreateModalOpen}
+        onSoftDeletedDetected={handleSoftDeletedDetected}
       />
-
-      <CreateUserModal open={createModalOpen} onOpenChange={setCreateModalOpen} />
 
       <EditUserModal
         user={editUser}
@@ -111,6 +214,7 @@ function AdminUsersPageContent() {
         open={!!deleteUser}
         onOpenChange={(open) => {
           if (!open) setDeleteUser(null);
+          else fetchDeletedUsers();
         }}
       />
 
@@ -128,6 +232,33 @@ function AdminUsersPageContent() {
         onOpenChange={(open) => {
           if (!open) setManageMembershipsUser(null);
         }}
+      />
+
+      <RestoreUserModal
+        user={restoreUser}
+        open={!!restoreUser}
+        onOpenChange={(open) => {
+          if (!open) setRestoreUser(null);
+        }}
+      />
+
+      <BulkDeleteConfirmModal
+        open={bulkDeleteOpen}
+        onOpenChange={setBulkDeleteOpen}
+        count={bulkDeleteIds.length}
+        variant={bulkDeleteVariant}
+        onConfirm={handleBulkConfirm}
+      />
+
+      {/* Hard delete single user confirmation - reuse BulkDeleteConfirmModal with count=1 */}
+      <BulkDeleteConfirmModal
+        open={!!hardDeleteTarget}
+        onOpenChange={(open) => {
+          if (!open) setHardDeleteTarget(null);
+        }}
+        count={1}
+        variant="hard"
+        onConfirm={handleHardDeleteConfirm}
       />
     </div>
   );

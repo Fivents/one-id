@@ -1,6 +1,6 @@
 import type { CreateClientUserRequest } from '@/core/communication/requests/admin';
 import type { AdminUserResponse } from '@/core/communication/responses/admin';
-import { AppError } from '@/core/errors';
+import { AppError, UserSoftDeletedError } from '@/core/errors';
 import { Logger } from '@/core/utils/logger';
 
 import { CreateClientUserUseCase } from '../../use-cases/admin';
@@ -15,6 +15,17 @@ export class CreateClientUserController {
 
       return created(result);
     } catch (error) {
+      if (error instanceof UserSoftDeletedError) {
+        return {
+          statusCode: 409,
+          body: {
+            error: error.message,
+            code: 'USER_SOFT_DELETED',
+            softDeletedUser: error.softDeletedUser,
+          },
+        };
+      }
+
       if (error instanceof AppError) {
         return { statusCode: error.httpStatus, body: { error: error.message } };
       }

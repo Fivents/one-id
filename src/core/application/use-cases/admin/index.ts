@@ -1,5 +1,10 @@
+export { BulkHardDeleteUsersUseCase } from './bulk-hard-delete-users.use-case';
+export { BulkSoftDeleteUsersUseCase } from './bulk-soft-delete-users.use-case';
 export { CreateClientUserUseCase } from './create-client-user.use-case';
 export { DeleteClientUserUseCase } from './delete-client-user.use-case';
+export { HardDeleteClientUserUseCase } from './hard-delete-client-user.use-case';
 export { ListAdminUsersUseCase } from './list-admin-users.use-case';
+export { ListDeletedUsersUseCase } from './list-deleted-users.use-case';
 export { ResetUserPasswordUseCase } from './reset-user-password.use-case';
+export { RestoreClientUserUseCase } from './restore-client-user.use-case';
 export { UpdateClientUserUseCase } from './update-client-user.use-case';

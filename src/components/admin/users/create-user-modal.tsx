@@ -16,16 +16,18 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useAdminUsers } from '@/core/application/contexts';
+import { useAdminUsers, UserSoftDeletedClientError } from '@/core/application/contexts';
 import { useOrganization } from '@/core/application/contexts';
+import type { SoftDeletedUserInfo } from '@/core/application/contexts/admin-users-context';
 import { useI18n } from '@/i18n';
 
 interface CreateUserModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onSoftDeletedDetected?: (user: SoftDeletedUserInfo) => void;
 }
 
-export function CreateUserModal({ open, onOpenChange }: CreateUserModalProps) {
+export function CreateUserModal({ open, onOpenChange, onSoftDeletedDetected }: CreateUserModalProps) {
   const { t } = useI18n();
   const { createUser } = useAdminUsers();
   const { organizations } = useOrganization();
@@ -71,6 +73,12 @@ export function CreateUserModal({ open, onOpenChange }: CreateUserModalProps) {
       resetForm();
       onOpenChange(false);
     } catch (error) {
+      if (error instanceof UserSoftDeletedClientError && onSoftDeletedDetected) {
+        onSoftDeletedDetected(error.softDeletedUser);
+        onOpenChange(false);
+        return;
+      }
+
       const message = error instanceof Error ? error.message : t('users.messages.createError');
       toast.error(message);
     } finally {

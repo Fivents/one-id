@@ -1,4 +1,9 @@
-import type { CreateClientUserRequest, UpdateClientUserRequest } from '@/core/communication/requests/admin';
+import type {
+  BulkDeleteUsersRequest,
+  CreateClientUserRequest,
+  RestoreClientUserRequest,
+  UpdateClientUserRequest,
+} from '@/core/communication/requests/admin';
 import type { AdminUserListResponse, AdminUserResponse } from '@/core/communication/responses/admin';
 
 import type { ApiResponse } from './base/api-response';
@@ -7,6 +12,10 @@ import { BaseClient } from './base/base-client';
 class AdminUsersClientService extends BaseClient {
   async listUsers(): Promise<ApiResponse<AdminUserListResponse>> {
     return this.get('/admin/users');
+  }
+
+  async listDeletedUsers(): Promise<ApiResponse<AdminUserListResponse>> {
+    return this.get('/admin/users/deleted');
   }
 
   async createUser(data: CreateClientUserRequest): Promise<ApiResponse<{ user: AdminUserResponse }>> {
@@ -19,6 +28,22 @@ class AdminUsersClientService extends BaseClient {
 
   async deleteUser(userId: string): Promise<ApiResponse<void>> {
     return this.delete(`/admin/users/${encodeURIComponent(userId)}`);
+  }
+
+  async hardDeleteUser(userId: string): Promise<ApiResponse<void>> {
+    return this.delete(`/admin/users/${encodeURIComponent(userId)}/hard-delete`);
+  }
+
+  async restoreUser(data: RestoreClientUserRequest): Promise<ApiResponse<{ user: AdminUserResponse }>> {
+    return this.post('/admin/users/restore', data);
+  }
+
+  async bulkSoftDelete(data: BulkDeleteUsersRequest): Promise<ApiResponse<void>> {
+    return this.post('/admin/users/bulk-delete', data);
+  }
+
+  async bulkHardDelete(data: BulkDeleteUsersRequest): Promise<ApiResponse<void>> {
+    return this.post('/admin/users/bulk-hard-delete', data);
   }
 
   async resetPassword(userId: string): Promise<ApiResponse<{ success: true }>> {

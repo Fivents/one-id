@@ -42,6 +42,27 @@ export class PrismaMembershipRepository implements IMembershipRepository {
     });
   }
 
+  async findByUserAndOrganizationIncludingDeleted(
+    userId: string,
+    organizationId: string,
+  ): Promise<MembershipEntity | null> {
+    const membership = await this.db.membership.findFirst({
+      where: { userId, organizationId },
+    });
+
+    if (!membership) return null;
+
+    return MembershipEntity.create({
+      id: membership.id,
+      role: membership.role as Role,
+      userId: membership.userId,
+      organizationId: membership.organizationId,
+      createdAt: membership.createdAt,
+      updatedAt: membership.updatedAt,
+      deletedAt: membership.deletedAt,
+    });
+  }
+
   async findByOrganization(organizationId: string): Promise<MembershipEntity[]> {
     const memberships = await this.db.membership.findMany({
       where: { organizationId, deletedAt: null },
@@ -98,6 +119,31 @@ export class PrismaMembershipRepository implements IMembershipRepository {
     });
   }
 
+  async createOrRestore(data: CreateMembershipData): Promise<MembershipEntity> {
+    const existing = await this.db.membership.findFirst({
+      where: { userId: data.userId, organizationId: data.organizationId },
+    });
+
+    if (existing) {
+      const membership = await this.db.membership.update({
+        where: { id: existing.id },
+        data: { role: data.role, deletedAt: null },
+      });
+
+      return MembershipEntity.create({
+        id: membership.id,
+        role: membership.role as Role,
+        userId: membership.userId,
+        organizationId: membership.organizationId,
+        createdAt: membership.createdAt,
+        updatedAt: membership.updatedAt,
+        deletedAt: membership.deletedAt,
+      });
+    }
+
+    return this.create(data);
+  }
+
   async updateRole(id: string, role: Role): Promise<MembershipEntity> {
     const membership = await this.db.membership.update({
       where: { id },
@@ -115,10 +161,40 @@ export class PrismaMembershipRepository implements IMembershipRepository {
     });
   }
 
+  async restore(id: string, role: Role): Promise<MembershipEntity> {
+    const membership = await this.db.membership.update({
+      where: { id },
+      data: { role, deletedAt: null },
+    });
+
+    return MembershipEntity.create({
+      id: membership.id,
+      role: membership.role as Role,
+      userId: membership.userId,
+      organizationId: membership.organizationId,
+      createdAt: membership.createdAt,
+      updatedAt: membership.updatedAt,
+      deletedAt: membership.deletedAt,
+    });
+  }
+
   async softDelete(id: string): Promise<void> {
     await this.db.membership.update({
       where: { id },
       data: { deletedAt: new Date() },
+    });
+  }
+
+  async softDeleteByUserId(userId: string): Promise<void> {
+    await this.db.membership.updateMany({
+      where: { userId, deletedAt: null },
+      data: { deletedAt: new Date() },
+    });
+  }
+
+  async hardDeleteByUserId(userId: string): Promise<void> {
+    await this.db.membership.deleteMany({
+      where: { userId },
     });
   }
 }

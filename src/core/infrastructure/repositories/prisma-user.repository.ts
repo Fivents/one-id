@@ -24,6 +24,24 @@ export class PrismaUserRepository implements IUserRepository {
     });
   }
 
+  async findByIdIncludingDeleted(id: string): Promise<UserEntity | null> {
+    const user = await this.db.user.findUnique({
+      where: { id },
+    });
+
+    if (!user) return null;
+
+    return UserEntity.create({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      avatarUrl: user.avatarUrl,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+      deletedAt: user.deletedAt,
+    });
+  }
+
   async findByEmail(email: string): Promise<UserEntity | null> {
     const user = await this.db.user.findUnique({
       where: { email, deletedAt: null },
@@ -161,6 +179,39 @@ export class PrismaUserRepository implements IUserRepository {
     });
   }
 
+  async findAllDeletedWithOrganization(): Promise<UserWithOrganization[]> {
+    const users = await this.db.user.findMany({
+      where: { deletedAt: { not: null } },
+      orderBy: { deletedAt: 'desc' },
+      include: {
+        memberships: {
+          take: 1,
+          include: {
+            organization: {
+              select: { id: true, name: true },
+            },
+          },
+        },
+      },
+    });
+
+    return users.map((user) => {
+      const membership = user.memberships[0] ?? null;
+      return {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        avatarUrl: user.avatarUrl,
+        organizationId: membership?.organizationId ?? null,
+        organizationName: membership?.organization?.name ?? null,
+        role: (membership?.role as Role) ?? null,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+        deletedAt: user.deletedAt,
+      };
+    });
+  }
+
   async update(id: string, data: { name?: string; email?: string; avatarUrl?: string }): Promise<UserEntity> {
     const user = await this.db.user.update({
       where: { id },
@@ -186,6 +237,25 @@ export class PrismaUserRepository implements IUserRepository {
     await this.db.user.update({
       where: { id },
       data: { deletedAt: new Date() },
+    });
+  }
+
+  async softDeleteMany(ids: string[]): Promise<void> {
+    await this.db.user.updateMany({
+      where: { id: { in: ids }, deletedAt: null },
+      data: { deletedAt: new Date() },
+    });
+  }
+
+  async hardDelete(id: string): Promise<void> {
+    await this.db.user.delete({
+      where: { id },
+    });
+  }
+
+  async hardDeleteMany(ids: string[]): Promise<void> {
+    await this.db.user.deleteMany({
+      where: { id: { in: ids } },
     });
   }
 

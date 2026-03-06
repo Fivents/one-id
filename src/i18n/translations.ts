@@ -359,6 +359,37 @@ export const translations: Translations = {
           'Tem certeza que deseja remover {name}? Esta ação pode ser desfeita por um administrador.',
         resetPasswordDescription: 'Redefinir a senha de {name}? Ele precisará definir uma nova senha no próximo login.',
       },
+      tabs: {
+        active: 'Ativos',
+        deleted: 'Excluídos',
+      },
+      bulk: {
+        selected: '{count} selecionado(s)',
+        deleteSelected: 'Excluir Selecionados',
+        permanentDeleteSelected: 'Excluir Permanentemente',
+        selectAll: 'Selecionar todos',
+        selectUser: 'Selecionar {name}',
+        deleteTitle: 'Excluir Usuários',
+        deleteDescription:
+          'Tem certeza que deseja excluir {count} usuário(s)? Esta ação pode ser desfeita por um administrador.',
+        permanentDeleteTitle: 'Excluir Permanentemente',
+        permanentDeleteDescription:
+          'Tem certeza que deseja excluir permanentemente {count} usuário(s)? Esta ação NÃO pode ser desfeita.',
+        error: 'Erro ao excluir usuários.',
+      },
+      deleted: {
+        noUsers: 'Nenhum usuário excluído encontrado.',
+        deletedAt: 'Excluído em',
+        restore: 'Restaurar',
+        permanentDelete: 'Excluir Permanentemente',
+      },
+      restore: {
+        title: 'Restaurar Usuário',
+        description: 'Restaurar {name} ({email}) para a plataforma. Selecione a organização e função.',
+        success: '{name} restaurado com sucesso.',
+        error: 'Erro ao restaurar usuário.',
+        confirm: 'Restaurar',
+      },
     },
     billing: {
       title: 'Faturamento',
@@ -957,6 +988,37 @@ export const translations: Translations = {
           'Are you sure you want to remove {name}? This action can be undone by an administrator.',
         resetPasswordDescription:
           'Reset the password for {name}? They will be asked to set a new password on their next login.',
+      },
+      tabs: {
+        active: 'Active',
+        deleted: 'Deleted',
+      },
+      bulk: {
+        selected: '{count} selected',
+        deleteSelected: 'Delete Selected',
+        permanentDeleteSelected: 'Permanently Delete',
+        selectAll: 'Select all',
+        selectUser: 'Select {name}',
+        deleteTitle: 'Delete Users',
+        deleteDescription:
+          'Are you sure you want to delete {count} user(s)? This action can be undone by an administrator.',
+        permanentDeleteTitle: 'Permanently Delete',
+        permanentDeleteDescription:
+          'Are you sure you want to permanently delete {count} user(s)? This action CANNOT be undone.',
+        error: 'Failed to delete users.',
+      },
+      deleted: {
+        noUsers: 'No deleted users found.',
+        deletedAt: 'Deleted at',
+        restore: 'Restore',
+        permanentDelete: 'Permanently Delete',
+      },
+      restore: {
+        title: 'Restore User',
+        description: 'Restore {name} ({email}) to the platform. Select the organization and role.',
+        success: '{name} restored successfully.',
+        error: 'Failed to restore user.',
+        confirm: 'Restore',
       },
     },
     billing: {
@@ -1560,6 +1622,37 @@ export const translations: Translations = {
         resetPasswordDescription:
           'Réinitialiser le mot de passe de {name} ? Il devra définir un nouveau mot de passe lors de sa prochaine connexion.',
       },
+      tabs: {
+        active: 'Actifs',
+        deleted: 'Supprimés',
+      },
+      bulk: {
+        selected: '{count} sélectionné(s)',
+        deleteSelected: 'Supprimer la sélection',
+        permanentDeleteSelected: 'Supprimer définitivement',
+        selectAll: 'Tout sélectionner',
+        selectUser: 'Sélectionner {name}',
+        deleteTitle: 'Supprimer les utilisateurs',
+        deleteDescription:
+          'Êtes-vous sûr de vouloir supprimer {count} utilisateur(s) ? Cette action peut être annulée par un administrateur.',
+        permanentDeleteTitle: 'Suppression définitive',
+        permanentDeleteDescription:
+          'Êtes-vous sûr de vouloir supprimer définitivement {count} utilisateur(s) ? Cette action est IRRÉVERSIBLE.',
+        error: 'Erreur lors de la suppression des utilisateurs.',
+      },
+      deleted: {
+        noUsers: 'Aucun utilisateur supprimé trouvé.',
+        deletedAt: 'Supprimé le',
+        restore: 'Restaurer',
+        permanentDelete: 'Supprimer définitivement',
+      },
+      restore: {
+        title: "Restaurer l'utilisateur",
+        description: "Restaurer {name} ({email}) sur la plateforme. Sélectionnez l'organisation et le rôle.",
+        success: '{name} restauré avec succès.',
+        error: "Erreur lors de la restauration de l'utilisateur.",
+        confirm: 'Restaurer',
+      },
     },
     billing: {
       title: 'Facturation',
@@ -2160,6 +2253,37 @@ export const translations: Translations = {
         resetPasswordDescription:
           '¿Restablecer la contraseña de {name}? Deberá definir una nueva contraseña en su próximo inicio de sesión.',
       },
+      tabs: {
+        active: 'Activos',
+        deleted: 'Eliminados',
+      },
+      bulk: {
+        selected: '{count} seleccionado(s)',
+        deleteSelected: 'Eliminar Seleccionados',
+        permanentDeleteSelected: 'Eliminar Permanentemente',
+        selectAll: 'Seleccionar todos',
+        selectUser: 'Seleccionar {name}',
+        deleteTitle: 'Eliminar Usuarios',
+        deleteDescription:
+          '¿Está seguro de que desea eliminar {count} usuario(s)? Esta acción puede ser deshecha por un administrador.',
+        permanentDeleteTitle: 'Eliminar Permanentemente',
+        permanentDeleteDescription:
+          '¿Está seguro de que desea eliminar permanentemente {count} usuario(s)? Esta acción NO puede ser deshecha.',
+        error: 'Error al eliminar usuarios.',
+      },
+      deleted: {
+        noUsers: 'No se encontraron usuarios eliminados.',
+        deletedAt: 'Eliminado el',
+        restore: 'Restaurar',
+        permanentDelete: 'Eliminar Permanentemente',
+      },
+      restore: {
+        title: 'Restaurar Usuario',
+        description: 'Restaurar {name} ({email}) en la plataforma. Seleccione la organización y el rol.',
+        success: '{name} restaurado con éxito.',
+        error: 'Error al restaurar usuario.',
+        confirm: 'Restaurar',
+      },
     },
     billing: {
       title: 'Facturación',
@@ -2755,6 +2879,35 @@ export const translations: Translations = {
         resetPasswordError: '重置密码失败。',
         deleteConfirmDescription: '确定要删除 {name} 吗？此操作可由管理员撤销。',
         resetPasswordDescription: '重置 {name} 的密码？他们将在下次登录时被要求设置新密码。',
+      },
+      tabs: {
+        active: '活跃',
+        deleted: '已删除',
+      },
+      bulk: {
+        selected: '已选择 {count} 项',
+        deleteSelected: '删除所选',
+        permanentDeleteSelected: '永久删除',
+        selectAll: '全选',
+        selectUser: '选择 {name}',
+        deleteTitle: '删除用户',
+        deleteDescription: '确定要删除 {count} 个用户吗？此操作可由管理员撤销。',
+        permanentDeleteTitle: '永久删除',
+        permanentDeleteDescription: '确定要永久删除 {count} 个用户吗？此操作无法撤销。',
+        error: '删除用户失败。',
+      },
+      deleted: {
+        noUsers: '未找到已删除的用户。',
+        deletedAt: '删除时间',
+        restore: '恢复',
+        permanentDelete: '永久删除',
+      },
+      restore: {
+        title: '恢复用户',
+        description: '将 {name}（{email}）恢复到平台。请选择组织和角色。',
+        success: '{name} 恢复成功。',
+        error: '恢复用户失败。',
+        confirm: '恢复',
       },
     },
     billing: {

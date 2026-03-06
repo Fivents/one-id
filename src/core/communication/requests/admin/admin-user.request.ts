@@ -27,3 +27,18 @@ export const resetUserPasswordRequestSchema = z.object({
 });
 
 export type ResetUserPasswordRequest = z.infer<typeof resetUserPasswordRequestSchema>;
+
+export const restoreClientUserRequestSchema = z.object({
+  userId: z.string().min(1, 'User ID is required.'),
+  name: z.string().min(1, 'Name is required.').optional(),
+  role: z.enum(['ORG_OWNER', 'EVENT_MANAGER']).default('ORG_OWNER'),
+  organizationId: z.string().min(1, 'Organization is required.'),
+});
+
+export type RestoreClientUserRequest = z.infer<typeof restoreClientUserRequestSchema>;
+
+export const bulkDeleteUsersRequestSchema = z.object({
+  userIds: z.array(z.string().min(1)).min(1, 'At least one user ID is required.'),
+});
+
+export type BulkDeleteUsersRequest = z.infer<typeof bulkDeleteUsersRequestSchema>;

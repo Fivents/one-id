@@ -1,5 +1,10 @@
+export { BulkHardDeleteUsersController } from './bulk-hard-delete-users.controller';
+export { BulkSoftDeleteUsersController } from './bulk-soft-delete-users.controller';
 export { CreateClientUserController } from './create-client-user.controller';
 export { DeleteClientUserController } from './delete-client-user.controller';
+export { HardDeleteClientUserController } from './hard-delete-client-user.controller';
 export { ListAdminUsersController } from './list-admin-users.controller';
+export { ListDeletedUsersController } from './list-deleted-users.controller';
 export { ResetUserPasswordController } from './reset-user-password.controller';
+export { RestoreClientUserController } from './restore-client-user.controller';
 export { UpdateClientUserController } from './update-client-user.controller';

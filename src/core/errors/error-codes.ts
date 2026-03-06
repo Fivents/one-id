@@ -15,6 +15,7 @@ export enum ErrorCode {
   // ── Users ───────────────────────────────────────────────────────
   USER_NOT_FOUND = 'USER_NOT_FOUND',
   USER_ALREADY_EXISTS = 'USER_ALREADY_EXISTS',
+  USER_SOFT_DELETED = 'USER_SOFT_DELETED',
   INSUFFICIENT_PERMISSIONS = 'INSUFFICIENT_PERMISSIONS',
 
   // ── Organizations ───────────────────────────────────────────────

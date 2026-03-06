@@ -52,8 +52,18 @@ export function mapResponseErrorBody(body: unknown): ApiFailure {
   const code = parsed?.code ?? 'UNKNOWN_ERROR';
   const message = parsed?.message ?? parsed?.error ?? 'An unexpected error occurred.';
 
+  // Preserve extra fields as meta for special error handling
+  const meta: Record<string, unknown> = {};
+  if (body && typeof body === 'object') {
+    for (const [key, value] of Object.entries(body)) {
+      if (key !== 'code' && key !== 'message' && key !== 'error') {
+        meta[key] = value;
+      }
+    }
+  }
+
   return {
     success: false,
-    error: { code, message },
+    error: { code, message, ...(Object.keys(meta).length > 0 ? { meta } : {}) },
   };
 }
