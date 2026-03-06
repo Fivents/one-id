@@ -1,3 +1,4 @@
+export { AdminTotemsProvider, useAdminTotems } from './admin-totems-context';
 export { AdminUsersProvider, useAdminUsers, UserSoftDeletedClientError } from './admin-users-context';
 export { AppProvider, useApp } from './app-context';
 export { AppProviders } from './app-providers';

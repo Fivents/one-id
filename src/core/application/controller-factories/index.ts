@@ -12,6 +12,20 @@ export {
   makeUpdateClientUserController,
 } from './make-admin-controllers.factory';
 
+// Admin Totems
+export {
+  makeBulkCreateAdminTotemsController,
+  makeCreateAdminTotemController,
+  makeDeleteAdminTotemController,
+  makeGenerateTotemAccessTokenController,
+  makeHardDeleteAdminTotemController,
+  makeListAdminTotemsController,
+  makeListDeletedTotemsController,
+  makeRestoreAdminTotemController,
+  makeRevokeTotemAccessTokenController,
+  makeUpdateAdminTotemController,
+} from './make-admin-totem-controllers.factory';
+
 // Auth
 export {
   makeCheckEmailController,

@@ -28,6 +28,20 @@ export {
   makeRestoreClientUserUseCase,
   makeUpdateClientUserUseCase,
 } from './make-admin.factory';
+
+// Admin Totems
+export {
+  makeBulkCreateAdminTotemsUseCase,
+  makeCreateAdminTotemUseCase,
+  makeDeleteAdminTotemUseCase,
+  makeGenerateTotemAccessTokenUseCase,
+  makeHardDeleteAdminTotemUseCase,
+  makeListAdminTotemsUseCase,
+  makeListDeletedTotemsUseCase,
+  makeRestoreAdminTotemUseCase,
+  makeRevokeTotemAccessTokenUseCase,
+  makeUpdateAdminTotemUseCase,
+} from './make-admin-totem.factory';
 export { makeCheckEmailClientUseCase } from './make-check-email-client.factory';
 export { makeLoginWithAccessCodeTotemUseCase } from './make-login-with-access-code-totem.factory';
 export { makeLoginWithEmailClientUseCase } from './make-login-with-email-client.factory';

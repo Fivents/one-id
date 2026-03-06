@@ -9,6 +9,7 @@ export class PrismaTotemRepository implements ITotemRepository {
     id: string;
     name: string;
     accessCode: string;
+    accessToken: string | null;
     status: string;
     price: number;
     discount: number;
@@ -21,6 +22,7 @@ export class PrismaTotemRepository implements ITotemRepository {
       id: totem.id,
       name: totem.name,
       accessCode: totem.accessCode,
+      accessToken: totem.accessToken,
       status: totem.status as TotemProps['status'],
       price: totem.price,
       discount: totem.discount,
@@ -51,10 +53,29 @@ export class PrismaTotemRepository implements ITotemRepository {
     return this.toEntity(totem);
   }
 
+  async findByIdIncludeDeleted(id: string): Promise<TotemEntity | null> {
+    const totem = await this.db.totem.findUnique({
+      where: { id },
+    });
+
+    if (!totem) return null;
+
+    return this.toEntity(totem);
+  }
+
   async findAll(): Promise<TotemEntity[]> {
     const totems = await this.db.totem.findMany({
       where: { deletedAt: null },
       orderBy: { createdAt: 'desc' },
+    });
+
+    return totems.map((t) => this.toEntity(t));
+  }
+
+  async findAllDeleted(): Promise<TotemEntity[]> {
+    const totems = await this.db.totem.findMany({
+      where: { deletedAt: { not: null } },
+      orderBy: { deletedAt: 'desc' },
     });
 
     return totems.map((t) => this.toEntity(t));
@@ -90,10 +111,34 @@ export class PrismaTotemRepository implements ITotemRepository {
     return this.toEntity(totem);
   }
 
+  async updateAccessToken(id: string, accessToken: string | null): Promise<TotemEntity> {
+    const totem = await this.db.totem.update({
+      where: { id },
+      data: { accessToken },
+    });
+
+    return this.toEntity(totem);
+  }
+
   async softDelete(id: string): Promise<void> {
     await this.db.totem.update({
       where: { id },
       data: { deletedAt: new Date() },
+    });
+  }
+
+  async restore(id: string): Promise<TotemEntity> {
+    const totem = await this.db.totem.update({
+      where: { id },
+      data: { deletedAt: null },
+    });
+
+    return this.toEntity(totem);
+  }
+
+  async hardDelete(id: string): Promise<void> {
+    await this.db.totem.delete({
+      where: { id },
     });
   }
 }

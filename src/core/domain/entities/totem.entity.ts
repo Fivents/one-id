@@ -6,6 +6,7 @@ export interface TotemProps {
   id: string;
   name: string;
   accessCode: string;
+  accessToken?: string | null;
   status: TotemStatus;
   price: number;
   discount: number;
@@ -32,6 +33,10 @@ export class TotemEntity extends BaseEntity {
 
   get accessCode(): string {
     return this.props.accessCode;
+  }
+
+  get accessToken(): string | null | undefined {
+    return this.props.accessToken;
   }
 
   get status(): TotemStatus {
@@ -78,6 +83,10 @@ export class TotemEntity extends BaseEntity {
     return this.isActive() && !this.isDeleted();
   }
 
+  hasAccessToken(): boolean {
+    return !!this.props.accessToken;
+  }
+
   isOnline(now: Date = new Date(), thresholdMs: number = HEARTBEAT_TIMEOUT_MS): boolean {
     if (!this.props.lastHeartbeat) return false;
     return now.getTime() - this.props.lastHeartbeat.getTime() <= thresholdMs;
@@ -96,6 +105,7 @@ export class TotemEntity extends BaseEntity {
       id: this.id,
       name: this.props.name,
       accessCode: this.props.accessCode,
+      accessToken: this.props.accessToken,
       status: this.props.status,
       price: this.props.price,
       discount: this.props.discount,

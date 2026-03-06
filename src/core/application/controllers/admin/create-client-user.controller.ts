@@ -18,11 +18,7 @@ export class CreateClientUserController {
       if (error instanceof UserSoftDeletedError) {
         return {
           statusCode: 409,
-          body: {
-            error: error.message,
-            code: 'USER_SOFT_DELETED',
-            softDeletedUser: error.softDeletedUser,
-          },
+          body: { error: error.message },
         };
       }
 

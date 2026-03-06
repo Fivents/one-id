@@ -621,6 +621,86 @@ export type TranslationSchema = {
       dateTime: string;
     };
   };
+  adminTotems: {
+    list: {
+      title: string;
+      description: string;
+      newTotem: string;
+    };
+    form: {
+      createTitle: string;
+      editTitle: string;
+      createDescription: string;
+      editDescription: string;
+      namePlaceholder: string;
+      singleTab: string;
+      bulkTab: string;
+      namePrefix: string;
+      namePrefixPlaceholder: string;
+      namePrefixHint: string;
+      count: string;
+      countHint: string;
+      createBulk: string;
+    };
+    columns: {
+      price: string;
+      discount: string;
+      discountPercent: string;
+      accessToken: string;
+      hasToken: string;
+      subscription: string;
+      available: string;
+      inUseBy: string;
+      online: string;
+      offline: string;
+    };
+    hasToken: string;
+    status: {
+      maintenance: string;
+    };
+    tabs: {
+      active: string;
+      deleted: string;
+    };
+    actions: {
+      generateToken: string;
+      revokeToken: string;
+      selectAll: string;
+      clearSelection: string;
+      bulkDelete: string;
+      selected: string;
+    };
+    messages: {
+      createSuccess: string;
+      bulkCreateSuccess: string;
+      updateSuccess: string;
+      deleteSuccess: string;
+      hardDeleteSuccess: string;
+      restoreSuccess: string;
+      generateTokenSuccess: string;
+      revokeTokenSuccess: string;
+      createError: string;
+      updateError: string;
+      deleteError: string;
+      hardDeleteError: string;
+      restoreError: string;
+      generateTokenError: string;
+      revokeTokenError: string;
+      deleteConfirmDescription: string;
+      hardDeleteDescription: string;
+      restoreDescription: string;
+      generateTokenDescription: string;
+      revokeTokenDescription: string;
+      tokenGeneratedWarning: string;
+      tokenCopied: string;
+    };
+    deleted: {
+      noTotems: string;
+      deletedAt: string;
+      restore: string;
+      permanentDelete: string;
+    };
+  };
 };
 
 export type Translations = Record<Locale, TranslationSchema>;
