@@ -1,3 +1,4 @@
+export { AdminUsersProvider, useAdminUsers } from './admin-users-context';
 export { AppProvider, useApp } from './app-context';
 export { AppProviders } from './app-providers';
 export { AuthProvider, useAuth } from './auth-context';

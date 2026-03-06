@@ -64,9 +64,7 @@ export default function DashboardPage() {
         <div className="space-y-4">
           <div className="flex items-center gap-3">
             <h2 className="text-lg font-semibold">{t('dashboard.orgAdmin.orgOverview')}</h2>
-            {activeOrganization && (
-              <Badge variant="outline">{activeOrganization.name}</Badge>
-            )}
+            {activeOrganization && <Badge variant="outline">{activeOrganization.name}</Badge>}
           </div>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <StatCard
@@ -108,9 +106,7 @@ export default function DashboardPage() {
           <CardHeader>
             <CardTitle className="text-base">{t('dashboard.recentCheckIns')}</CardTitle>
             <CardDescription>
-              {isSuperAdmin()
-                ? t('dashboard.recentCheckInsPlatform')
-                : t('dashboard.recentCheckInsOrg')}
+              {isSuperAdmin() ? t('dashboard.recentCheckInsPlatform') : t('dashboard.recentCheckInsOrg')}
             </CardDescription>
           </CardHeader>
           <CardContent>

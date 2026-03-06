@@ -14,6 +14,15 @@
  */
 
 export { getGoogleOAuthProvider } from './get-google-oauth-provider.factory';
+
+// Admin
+export {
+  makeCreateClientUserUseCase,
+  makeDeleteClientUserUseCase,
+  makeListAdminUsersUseCase,
+  makeResetUserPasswordUseCase,
+  makeUpdateClientUserUseCase,
+} from './make-admin.factory';
 export { makeCheckEmailClientUseCase } from './make-check-email-client.factory';
 export { makeLoginWithAccessCodeTotemUseCase } from './make-login-with-access-code-totem.factory';
 export { makeLoginWithEmailClientUseCase } from './make-login-with-email-client.factory';

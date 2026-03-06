@@ -1,3 +1,4 @@
+export { adminUsersClient } from './admin-users-client.service';
 export { authClient } from './auth-client.service';
 export type { ApiFailure, ApiResponse, ApiSuccess } from './base';
 export { type CheckInResponse, checkinsClient } from './checkins-client.service';

@@ -44,4 +44,4 @@ export type {
   CreateTotemOrganizationSubscriptionData,
   ITotemOrganizationSubscriptionRepository,
 } from './totem-organization-subscription.repository';
-export type { IUserRepository } from './user.repository';
+export type { IUserRepository, UserWithOrganization } from './user.repository';

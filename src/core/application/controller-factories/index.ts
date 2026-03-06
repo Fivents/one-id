@@ -1,3 +1,12 @@
+// Admin
+export {
+  makeCreateClientUserController,
+  makeDeleteClientUserController,
+  makeListAdminUsersController,
+  makeResetUserPasswordController,
+  makeUpdateClientUserController,
+} from './make-admin-controllers.factory';
+
 // Auth
 export {
   makeCheckEmailController,

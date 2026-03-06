@@ -1,4 +1,4 @@
-import { IUserRepository } from '@/core/domain/contracts';
+import { IUserRepository, UserWithOrganization } from '@/core/domain/contracts';
 import { UserEntity, UserWithMembership } from '@/core/domain/entities';
 import { Role } from '@/core/domain/value-objects';
 import type { PrismaClient } from '@/generated/prisma/client';
@@ -107,6 +107,40 @@ export class PrismaUserRepository implements IUserRepository {
         deletedAt: user.deletedAt,
       }),
     );
+  }
+
+  async findAllWithOrganization(): Promise<UserWithOrganization[]> {
+    const users = await this.db.user.findMany({
+      where: { deletedAt: null },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        memberships: {
+          where: { deletedAt: null },
+          take: 1,
+          include: {
+            organization: {
+              select: { id: true, name: true },
+            },
+          },
+        },
+      },
+    });
+
+    return users.map((user) => {
+      const membership = user.memberships[0] ?? null;
+      return {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        avatarUrl: user.avatarUrl,
+        organizationId: membership?.organizationId ?? null,
+        organizationName: membership?.organization?.name ?? null,
+        role: (membership?.role as Role) ?? null,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+        deletedAt: user.deletedAt,
+      };
+    });
   }
 
   async update(id: string, data: { name?: string; email?: string; avatarUrl?: string }): Promise<UserEntity> {

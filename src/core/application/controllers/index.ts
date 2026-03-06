@@ -1,3 +1,4 @@
+export * from './admin';
 export * from './audit-log';
 export * from './auth';
 export * from './check-in';

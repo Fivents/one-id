@@ -5,7 +5,7 @@ import { ComponentType } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 
-import { ChevronUp, LayoutDashboard, LogOut, ScanFace, Settings, Shield } from 'lucide-react';
+import { ChevronUp, LayoutDashboard, LogOut, ScanFace, Settings, Shield, Users } from 'lucide-react';
 
 import { useAuth, useOrganization, usePermissions } from '@/core/application/contexts';
 import { Role } from '@/core/domain/value-objects';
@@ -60,6 +60,8 @@ export function AppSidebar() {
   const { activeOrganization } = useOrganization();
   const { role } = usePermissions();
 
+  const { isSuperAdmin } = usePermissions();
+
   const filteredNavItems = navItems.filter((item) => role && item.roles.includes(role));
 
   async function handleLogout() {
@@ -101,6 +103,24 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {isSuperAdmin() && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Admin</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={pathname.startsWith('/admin/users')}>
+                    <Link href="/admin/users">
+                      <Users className="h-4 w-4" />
+                      <span>{t('nav.sidebar.users')}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
       </SidebarContent>
 
       <SidebarFooter className="border-sidebar-border border-t">

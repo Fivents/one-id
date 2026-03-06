@@ -1,11 +1,25 @@
 import type { UserEntity, UserWithMembership } from '../entities/user.entity';
 import { Role } from '../value-objects/role';
 
+export interface UserWithOrganization {
+  id: string;
+  name: string;
+  email: string;
+  avatarUrl: string | null;
+  organizationId: string | null;
+  organizationName: string | null;
+  role: Role | null;
+  createdAt: Date;
+  updatedAt: Date;
+  deletedAt: Date | null;
+}
+
 export interface IUserRepository {
   findById(id: string): Promise<UserEntity | null>;
   findByEmail(email: string): Promise<UserEntity | null>;
   findByEmailWithMembership(email: string): Promise<UserWithMembership | null>;
   findAll(): Promise<UserEntity[]>;
+  findAllWithOrganization(): Promise<UserWithOrganization[]>;
   create(data: { name: string; email: string; avatarUrl?: string }): Promise<UserEntity>;
   update(id: string, data: { name?: string; email?: string; avatarUrl?: string }): Promise<UserEntity>;
   softDelete(id: string): Promise<void>;
