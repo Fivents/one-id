@@ -1,6 +1,11 @@
 import type { ITotemRepository } from '@/core/domain/contracts';
 import type { TotemEntity, TotemStatus } from '@/core/domain/entities';
-import { TotemAlreadyActiveError, TotemAlreadyInMaintenanceError, TotemAlreadyInactiveError, TotemNotFoundError } from '@/core/errors';
+import {
+  TotemAlreadyActiveError,
+  TotemAlreadyInMaintenanceError,
+  TotemAlreadyInactiveError,
+  TotemNotFoundError,
+} from '@/core/errors';
 
 export class ChangeTotemStatusUseCase {
   constructor(private readonly totemRepository: ITotemRepository) {}
