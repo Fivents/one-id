@@ -15,14 +15,17 @@ export {
 // Admin Totems
 export {
   makeBulkCreateAdminTotemsController,
+  makeBulkHardDeleteTotemsController,
+  makeBulkSoftDeleteTotemsController,
+  makeChangeTotemStatusController,
   makeCreateAdminTotemController,
   makeDeleteAdminTotemController,
-  makeGenerateTotemAccessTokenController,
+  makeGenerateTotemAccessCodeController,
   makeHardDeleteAdminTotemController,
   makeListAdminTotemsController,
   makeListDeletedTotemsController,
   makeRestoreAdminTotemController,
-  makeRevokeTotemAccessTokenController,
+  makeRevokeTotemAccessCodeController,
   makeUpdateAdminTotemController,
 } from './make-admin-totem-controllers.factory';
 

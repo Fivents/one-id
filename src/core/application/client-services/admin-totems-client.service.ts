@@ -1,5 +1,7 @@
 import type {
   BulkCreateTotemsRequest,
+  BulkDeleteTotemsRequest,
+  ChangeTotemStatusRequest,
   CreateAdminTotemRequest,
   UpdateAdminTotemRequest,
 } from '@/core/communication/requests/admin-totems';
@@ -33,20 +35,32 @@ class AdminTotemsClientService extends BaseClient {
     return this.delete(`/admin/totems/${encodeURIComponent(totemId)}`);
   }
 
+  async bulkSoftDelete(data: BulkDeleteTotemsRequest): Promise<ApiResponse<void>> {
+    return this.post('/admin/totems/bulk-delete', data);
+  }
+
   async hardDeleteTotem(totemId: string): Promise<ApiResponse<void>> {
     return this.delete(`/admin/totems/${encodeURIComponent(totemId)}/hard-delete`);
+  }
+
+  async bulkHardDelete(data: BulkDeleteTotemsRequest): Promise<ApiResponse<void>> {
+    return this.post('/admin/totems/bulk-hard-delete', data);
   }
 
   async restoreTotem(totemId: string): Promise<ApiResponse<AdminTotemResponse>> {
     return this.post(`/admin/totems/${encodeURIComponent(totemId)}/restore`);
   }
 
-  async generateAccessToken(totemId: string): Promise<ApiResponse<AdminTotemResponse>> {
-    return this.post(`/admin/totems/${encodeURIComponent(totemId)}/generate-token`);
+  async generateAccessCode(totemId: string): Promise<ApiResponse<AdminTotemResponse>> {
+    return this.post(`/admin/totems/${encodeURIComponent(totemId)}/generate-code`);
   }
 
-  async revokeAccessToken(totemId: string): Promise<ApiResponse<AdminTotemResponse>> {
-    return this.post(`/admin/totems/${encodeURIComponent(totemId)}/revoke-token`);
+  async revokeAccessCode(totemId: string): Promise<ApiResponse<AdminTotemResponse>> {
+    return this.post(`/admin/totems/${encodeURIComponent(totemId)}/revoke-code`);
+  }
+
+  async changeStatus(totemId: string, data: ChangeTotemStatusRequest): Promise<ApiResponse<AdminTotemResponse>> {
+    return this.patch(`/admin/totems/${encodeURIComponent(totemId)}/status`, data);
   }
 }
 

@@ -1,26 +1,32 @@
 import {
   makeBulkCreateAdminTotemsUseCase,
+  makeBulkHardDeleteTotemsUseCase,
+  makeBulkSoftDeleteTotemsUseCase,
+  makeChangeTotemStatusUseCase,
   makeCreateAdminTotemUseCase,
   makeDeleteAdminTotemUseCase,
-  makeGenerateTotemAccessTokenUseCase,
+  makeGenerateTotemAccessCodeUseCase,
   makeHardDeleteAdminTotemUseCase,
   makeListAdminTotemsUseCase,
   makeListDeletedTotemsUseCase,
   makeRestoreAdminTotemUseCase,
-  makeRevokeTotemAccessTokenUseCase,
+  makeRevokeTotemAccessCodeUseCase,
   makeUpdateAdminTotemUseCase,
 } from '@/core/infrastructure/factories';
 
 import {
   BulkCreateAdminTotemsController,
+  BulkHardDeleteTotemsController,
+  BulkSoftDeleteTotemsController,
+  ChangeTotemStatusController,
   CreateAdminTotemController,
   DeleteAdminTotemController,
-  GenerateTotemAccessTokenController,
+  GenerateTotemAccessCodeController,
   HardDeleteAdminTotemController,
   ListAdminTotemsController,
   ListDeletedTotemsController,
   RestoreAdminTotemController,
-  RevokeTotemAccessTokenController,
+  RevokeTotemAccessCodeController,
   UpdateAdminTotemController,
 } from '../controllers/admin-totems';
 
@@ -56,10 +62,22 @@ export function makeRestoreAdminTotemController(): RestoreAdminTotemController {
   return new RestoreAdminTotemController(makeRestoreAdminTotemUseCase());
 }
 
-export function makeGenerateTotemAccessTokenController(): GenerateTotemAccessTokenController {
-  return new GenerateTotemAccessTokenController(makeGenerateTotemAccessTokenUseCase());
+export function makeBulkSoftDeleteTotemsController(): BulkSoftDeleteTotemsController {
+  return new BulkSoftDeleteTotemsController(makeBulkSoftDeleteTotemsUseCase());
 }
 
-export function makeRevokeTotemAccessTokenController(): RevokeTotemAccessTokenController {
-  return new RevokeTotemAccessTokenController(makeRevokeTotemAccessTokenUseCase());
+export function makeBulkHardDeleteTotemsController(): BulkHardDeleteTotemsController {
+  return new BulkHardDeleteTotemsController(makeBulkHardDeleteTotemsUseCase());
+}
+
+export function makeGenerateTotemAccessCodeController(): GenerateTotemAccessCodeController {
+  return new GenerateTotemAccessCodeController(makeGenerateTotemAccessCodeUseCase());
+}
+
+export function makeRevokeTotemAccessCodeController(): RevokeTotemAccessCodeController {
+  return new RevokeTotemAccessCodeController(makeRevokeTotemAccessCodeUseCase());
+}
+
+export function makeChangeTotemStatusController(): ChangeTotemStatusController {
+  return new ChangeTotemStatusController(makeChangeTotemStatusUseCase());
 }

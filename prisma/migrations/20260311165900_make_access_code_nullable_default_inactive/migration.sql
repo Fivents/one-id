@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "totems" ALTER COLUMN "access_code" DROP NOT NULL,
+ALTER COLUMN "status" SET DEFAULT 'INACTIVE';

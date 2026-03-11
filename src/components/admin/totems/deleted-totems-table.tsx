@@ -4,6 +4,7 @@ import { MoreHorizontal, RotateCcw, Trash2 } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,11 +20,13 @@ import { useI18n } from '@/i18n';
 interface DeletedTotemsTableProps {
   onRestore: (totem: AdminTotemResponse) => void;
   onHardDelete: (totem: AdminTotemResponse) => void;
+  onBulkHardDelete: (totemIds: string[]) => void;
 }
 
-export function DeletedTotemsTable({ onRestore, onHardDelete }: DeletedTotemsTableProps) {
+export function DeletedTotemsTable({ onRestore, onHardDelete, onBulkHardDelete }: DeletedTotemsTableProps) {
   const { t } = useI18n();
-  const { deletedTotems, isLoadingDeleted } = useAdminTotems();
+  const { deletedTotems, isLoadingDeleted, selectedDeletedIds, toggleDeletedSelection, toggleAllDeleted } =
+    useAdminTotems();
 
   if (isLoadingDeleted) {
     return <DeletedTotemsTableSkeleton />;
@@ -37,33 +40,66 @@ export function DeletedTotemsTable({ onRestore, onHardDelete }: DeletedTotemsTab
     );
   }
 
+  const allSelected = deletedTotems.length > 0 && deletedTotems.every((t) => selectedDeletedIds.has(t.id));
+
   return (
-    <div className="rounded-lg border">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>{t('common.labels.name')}</TableHead>
-            <TableHead>{t('adminTotems.columns.price')}</TableHead>
-            <TableHead>{t('adminTotems.deleted.deletedAt')}</TableHead>
-            <TableHead className="w-17.5">{t('common.labels.actions')}</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {deletedTotems.map((totem) => (
-            <DeletedTotemRow key={totem.id} totem={totem} onRestore={onRestore} onHardDelete={onHardDelete} />
-          ))}
-        </TableBody>
-      </Table>
+    <div className="space-y-3">
+      {selectedDeletedIds.size > 0 && (
+        <div className="bg-muted/50 flex items-center justify-between rounded-lg border px-4 py-2">
+          <span className="text-muted-foreground text-sm">
+            {t('adminTotems.actions.selected', { count: String(selectedDeletedIds.size) })}
+          </span>
+          <Button variant="destructive" size="sm" onClick={() => onBulkHardDelete([...selectedDeletedIds])}>
+            <Trash2 className="mr-2 h-4 w-4" />
+            {t('adminTotems.deleted.bulkPermanentDelete')}
+          </Button>
+        </div>
+      )}
+      <div className="rounded-lg border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-12">
+                <Checkbox
+                  checked={allSelected}
+                  onCheckedChange={toggleAllDeleted}
+                  aria-label={t('adminTotems.actions.selectAll')}
+                />
+              </TableHead>
+              <TableHead>{t('common.labels.name')}</TableHead>
+              <TableHead>{t('adminTotems.columns.price')}</TableHead>
+              <TableHead>{t('adminTotems.deleted.deletedAt')}</TableHead>
+              <TableHead className="w-17.5">{t('common.labels.actions')}</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {deletedTotems.map((totem) => (
+              <DeletedTotemRow
+                key={totem.id}
+                totem={totem}
+                selected={selectedDeletedIds.has(totem.id)}
+                onToggleSelection={() => toggleDeletedSelection(totem.id)}
+                onRestore={onRestore}
+                onHardDelete={onHardDelete}
+              />
+            ))}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 }
 
 function DeletedTotemRow({
   totem,
+  selected,
+  onToggleSelection,
   onRestore,
   onHardDelete,
 }: {
   totem: AdminTotemResponse;
+  selected: boolean;
+  onToggleSelection: () => void;
   onRestore: (totem: AdminTotemResponse) => void;
   onHardDelete: (totem: AdminTotemResponse) => void;
 }) {
@@ -71,6 +107,9 @@ function DeletedTotemRow({
 
   return (
     <TableRow className="opacity-70">
+      <TableCell>
+        <Checkbox checked={selected} onCheckedChange={onToggleSelection} />
+      </TableCell>
       <TableCell className="font-medium">{totem.name}</TableCell>
       <TableCell className="text-muted-foreground">
         {totem.price.toLocaleString(undefined, { style: 'currency', currency: 'BRL' })}
@@ -110,6 +149,9 @@ function DeletedTotemsTableSkeleton() {
         <TableHeader>
           <TableRow>
             <TableHead>
+              <Skeleton className="h-4 w-4" />
+            </TableHead>
+            <TableHead>
               <Skeleton className="h-4 w-16" />
             </TableHead>
             <TableHead>
@@ -126,6 +168,9 @@ function DeletedTotemsTableSkeleton() {
         <TableBody>
           {Array.from({ length: 3 }).map((_, i) => (
             <TableRow key={i}>
+              <TableCell>
+                <Skeleton className="h-4 w-4" />
+              </TableCell>
               <TableCell>
                 <Skeleton className="h-4 w-24" />
               </TableCell>

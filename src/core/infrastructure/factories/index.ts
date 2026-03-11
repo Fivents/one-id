@@ -32,14 +32,17 @@ export {
 // Admin Totems
 export {
   makeBulkCreateAdminTotemsUseCase,
+  makeBulkHardDeleteTotemsUseCase,
+  makeBulkSoftDeleteTotemsUseCase,
+  makeChangeTotemStatusUseCase,
   makeCreateAdminTotemUseCase,
   makeDeleteAdminTotemUseCase,
-  makeGenerateTotemAccessTokenUseCase,
+  makeGenerateTotemAccessCodeUseCase,
   makeHardDeleteAdminTotemUseCase,
   makeListAdminTotemsUseCase,
   makeListDeletedTotemsUseCase,
   makeRestoreAdminTotemUseCase,
-  makeRevokeTotemAccessTokenUseCase,
+  makeRevokeTotemAccessCodeUseCase,
   makeUpdateAdminTotemUseCase,
 } from './make-admin-totem.factory';
 export { makeCheckEmailClientUseCase } from './make-check-email-client.factory';

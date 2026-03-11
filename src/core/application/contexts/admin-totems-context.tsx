@@ -7,6 +7,7 @@ import type {
   CreateAdminTotemRequest,
   UpdateAdminTotemRequest,
 } from '@/core/communication/requests/admin-totems';
+import type { TotemStatus } from '@/core/domain/entities';
 import type { AdminTotemResponse } from '@/core/communication/responses/admin-totems';
 import { AppError, ErrorCode } from '@/core/errors';
 
@@ -18,6 +19,7 @@ interface AdminTotemsState {
   totems: AdminTotemResponse[];
   deletedTotems: AdminTotemResponse[];
   selectedIds: Set<string>;
+  selectedDeletedIds: Set<string>;
   isLoading: boolean;
   isLoadingDeleted: boolean;
   searchQuery: string;
@@ -31,15 +33,21 @@ interface AdminTotemsContextValue extends AdminTotemsState {
   bulkCreateTotems: (data: BulkCreateTotemsRequest) => Promise<AdminTotemResponse[]>;
   updateTotem: (totemId: string, data: UpdateAdminTotemRequest) => Promise<AdminTotemResponse>;
   deleteTotem: (totemId: string) => Promise<void>;
+  bulkSoftDelete: (totemIds: string[]) => Promise<void>;
   hardDeleteTotem: (totemId: string) => Promise<void>;
+  bulkHardDelete: (totemIds: string[]) => Promise<void>;
   restoreTotem: (totemId: string) => Promise<AdminTotemResponse>;
-  generateAccessToken: (totemId: string) => Promise<AdminTotemResponse>;
-  revokeAccessToken: (totemId: string) => Promise<AdminTotemResponse>;
+  generateAccessCode: (totemId: string) => Promise<AdminTotemResponse>;
+  revokeAccessCode: (totemId: string) => Promise<AdminTotemResponse>;
+  changeStatus: (totemId: string, status: TotemStatus) => Promise<AdminTotemResponse>;
   setSearchQuery: (query: string) => void;
   setFilterStatus: (status: string) => void;
   toggleSelection: (totemId: string) => void;
   selectAll: () => void;
   clearSelection: () => void;
+  toggleDeletedSelection: (totemId: string) => void;
+  toggleAllDeleted: () => void;
+  clearDeletedSelection: () => void;
   filteredTotems: AdminTotemResponse[];
 }
 
@@ -56,18 +64,24 @@ type AdminTotemsAction =
   | { type: 'TOTEMS_BULK_CREATED'; totems: AdminTotemResponse[] }
   | { type: 'TOTEM_UPDATED'; totem: AdminTotemResponse }
   | { type: 'TOTEM_DELETED'; totemId: string }
+  | { type: 'TOTEMS_BULK_DELETED'; totemIds: string[] }
   | { type: 'TOTEM_HARD_DELETED'; totemId: string }
+  | { type: 'TOTEMS_BULK_HARD_DELETED'; totemIds: string[] }
   | { type: 'TOTEM_RESTORED'; totem: AdminTotemResponse; totemId: string }
   | { type: 'SET_SEARCH_QUERY'; query: string }
   | { type: 'SET_FILTER_STATUS'; status: string }
   | { type: 'TOGGLE_SELECTION'; totemId: string }
   | { type: 'SELECT_ALL'; totemIds: string[] }
-  | { type: 'CLEAR_SELECTION' };
+  | { type: 'CLEAR_SELECTION' }
+  | { type: 'TOGGLE_DELETED_SELECTION'; totemId: string }
+  | { type: 'TOGGLE_ALL_DELETED' }
+  | { type: 'CLEAR_DELETED_SELECTION' };
 
 const initialState: AdminTotemsState = {
   totems: [],
   deletedTotems: [],
   selectedIds: new Set(),
+  selectedDeletedIds: new Set(),
   isLoading: false,
   isLoadingDeleted: false,
   searchQuery: '',
@@ -85,7 +99,7 @@ function adminTotemsReducer(state: AdminTotemsState, action: AdminTotemsAction):
     case 'DELETED_TOTEMS_LOADING':
       return { ...state, isLoadingDeleted: true };
     case 'DELETED_TOTEMS_LOADED':
-      return { ...state, deletedTotems: action.totems, isLoadingDeleted: false };
+      return { ...state, deletedTotems: action.totems, isLoadingDeleted: false, selectedDeletedIds: new Set() };
     case 'DELETED_TOTEMS_FAILURE':
       return { ...state, isLoadingDeleted: false };
     case 'TOTEM_CREATED':
@@ -103,11 +117,28 @@ function adminTotemsReducer(state: AdminTotemsState, action: AdminTotemsAction):
         totems: state.totems.filter((t) => t.id !== action.totemId),
         selectedIds: new Set([...state.selectedIds].filter((id) => id !== action.totemId)),
       };
+    case 'TOTEMS_BULK_DELETED': {
+      const deletedSet = new Set(action.totemIds);
+      return {
+        ...state,
+        totems: state.totems.filter((t) => !deletedSet.has(t.id)),
+        selectedIds: new Set([...state.selectedIds].filter((id) => !deletedSet.has(id))),
+      };
+    }
     case 'TOTEM_HARD_DELETED':
       return {
         ...state,
         deletedTotems: state.deletedTotems.filter((t) => t.id !== action.totemId),
+        selectedDeletedIds: new Set([...state.selectedDeletedIds].filter((id) => id !== action.totemId)),
       };
+    case 'TOTEMS_BULK_HARD_DELETED': {
+      const hardDeletedSet = new Set(action.totemIds);
+      return {
+        ...state,
+        deletedTotems: state.deletedTotems.filter((t) => !hardDeletedSet.has(t.id)),
+        selectedDeletedIds: new Set([...state.selectedDeletedIds].filter((id) => !hardDeletedSet.has(id))),
+      };
+    }
     case 'TOTEM_RESTORED':
       return {
         ...state,
@@ -131,6 +162,24 @@ function adminTotemsReducer(state: AdminTotemsState, action: AdminTotemsAction):
       return { ...state, selectedIds: new Set(action.totemIds) };
     case 'CLEAR_SELECTION':
       return { ...state, selectedIds: new Set() };
+    case 'TOGGLE_DELETED_SELECTION': {
+      const next = new Set(state.selectedDeletedIds);
+      if (next.has(action.totemId)) {
+        next.delete(action.totemId);
+      } else {
+        next.add(action.totemId);
+      }
+      return { ...state, selectedDeletedIds: next };
+    }
+    case 'TOGGLE_ALL_DELETED': {
+      const allSelected = state.deletedTotems.every((t) => state.selectedDeletedIds.has(t.id));
+      return {
+        ...state,
+        selectedDeletedIds: allSelected ? new Set() : new Set(state.deletedTotems.map((t) => t.id)),
+      };
+    }
+    case 'CLEAR_DELETED_SELECTION':
+      return { ...state, selectedDeletedIds: new Set() };
     default:
       return state;
   }
@@ -232,6 +281,21 @@ export function AdminTotemsProvider({ children }: { children: React.ReactNode })
     dispatch({ type: 'TOTEM_DELETED', totemId });
   }, []);
 
+  const bulkSoftDelete = useCallback(async (totemIds: string[]) => {
+    const response = await adminTotemsClient.bulkSoftDelete({ totemIds });
+
+    if (!response.success) {
+      throw new AppError({
+        code: ErrorCode.INTERNAL_SERVER_ERROR,
+        message: response.error.message,
+        httpStatus: 400,
+        level: 'warning',
+      });
+    }
+
+    dispatch({ type: 'TOTEMS_BULK_DELETED', totemIds });
+  }, []);
+
   const hardDeleteTotem = useCallback(async (totemId: string) => {
     const response = await adminTotemsClient.hardDeleteTotem(totemId);
 
@@ -245,6 +309,21 @@ export function AdminTotemsProvider({ children }: { children: React.ReactNode })
     }
 
     dispatch({ type: 'TOTEM_HARD_DELETED', totemId });
+  }, []);
+
+  const bulkHardDelete = useCallback(async (totemIds: string[]) => {
+    const response = await adminTotemsClient.bulkHardDelete({ totemIds });
+
+    if (!response.success) {
+      throw new AppError({
+        code: ErrorCode.INTERNAL_SERVER_ERROR,
+        message: response.error.message,
+        httpStatus: 400,
+        level: 'warning',
+      });
+    }
+
+    dispatch({ type: 'TOTEMS_BULK_HARD_DELETED', totemIds });
   }, []);
 
   const restoreTotem = useCallback(async (totemId: string) => {
@@ -263,8 +342,8 @@ export function AdminTotemsProvider({ children }: { children: React.ReactNode })
     return response.data;
   }, []);
 
-  const generateAccessToken = useCallback(async (totemId: string) => {
-    const response = await adminTotemsClient.generateAccessToken(totemId);
+  const generateAccessCode = useCallback(async (totemId: string) => {
+    const response = await adminTotemsClient.generateAccessCode(totemId);
 
     if (!response.success) {
       throw new AppError({
@@ -279,8 +358,24 @@ export function AdminTotemsProvider({ children }: { children: React.ReactNode })
     return response.data;
   }, []);
 
-  const revokeAccessToken = useCallback(async (totemId: string) => {
-    const response = await adminTotemsClient.revokeAccessToken(totemId);
+  const revokeAccessCode = useCallback(async (totemId: string) => {
+    const response = await adminTotemsClient.revokeAccessCode(totemId);
+
+    if (!response.success) {
+      throw new AppError({
+        code: ErrorCode.INTERNAL_SERVER_ERROR,
+        message: response.error.message,
+        httpStatus: 400,
+        level: 'warning',
+      });
+    }
+
+    dispatch({ type: 'TOTEM_UPDATED', totem: response.data });
+    return response.data;
+  }, []);
+
+  const changeStatus = useCallback(async (totemId: string, status: TotemStatus) => {
+    const response = await adminTotemsClient.changeStatus(totemId, { status });
 
     if (!response.success) {
       throw new AppError({
@@ -316,6 +411,18 @@ export function AdminTotemsProvider({ children }: { children: React.ReactNode })
     dispatch({ type: 'CLEAR_SELECTION' });
   }, []);
 
+  const toggleDeletedSelection = useCallback((totemId: string) => {
+    dispatch({ type: 'TOGGLE_DELETED_SELECTION', totemId });
+  }, []);
+
+  const toggleAllDeleted = useCallback(() => {
+    dispatch({ type: 'TOGGLE_ALL_DELETED' });
+  }, []);
+
+  const clearDeletedSelection = useCallback(() => {
+    dispatch({ type: 'CLEAR_DELETED_SELECTION' });
+  }, []);
+
   const filteredTotems = useMemo(() => {
     let result = state.totems;
 
@@ -340,15 +447,21 @@ export function AdminTotemsProvider({ children }: { children: React.ReactNode })
       bulkCreateTotems,
       updateTotem,
       deleteTotem,
+      bulkSoftDelete,
       hardDeleteTotem,
+      bulkHardDelete,
       restoreTotem,
-      generateAccessToken,
-      revokeAccessToken,
+      generateAccessCode,
+      revokeAccessCode,
+      changeStatus,
       setSearchQuery,
       setFilterStatus,
       toggleSelection,
       selectAll,
       clearSelection,
+      toggleDeletedSelection,
+      toggleAllDeleted,
+      clearDeletedSelection,
       filteredTotems,
     }),
     [
@@ -359,15 +472,21 @@ export function AdminTotemsProvider({ children }: { children: React.ReactNode })
       bulkCreateTotems,
       updateTotem,
       deleteTotem,
+      bulkSoftDelete,
       hardDeleteTotem,
+      bulkHardDelete,
       restoreTotem,
-      generateAccessToken,
-      revokeAccessToken,
+      generateAccessCode,
+      revokeAccessCode,
+      changeStatus,
       setSearchQuery,
       setFilterStatus,
       toggleSelection,
       selectAll,
       clearSelection,
+      toggleDeletedSelection,
+      toggleAllDeleted,
+      clearDeletedSelection,
       filteredTotems,
     ],
   );

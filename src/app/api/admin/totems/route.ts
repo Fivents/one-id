@@ -67,8 +67,7 @@ export const GET = withAuth(
     const enrichedTotems: AdminTotemResponse[] = totems.map((t) => ({
       id: t.id as string,
       name: t.name as string,
-      accessCode: t.accessCode as string,
-      accessToken: t.accessToken as string | null,
+      accessCode: (t.accessCode as string | null) ?? null,
       status: t.status as AdminTotemResponse['status'],
       price: t.price as number,
       discount: t.discount as number,

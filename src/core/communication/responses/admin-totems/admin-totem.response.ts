@@ -11,8 +11,7 @@ export interface TotemSubscriptionInfo {
 export interface AdminTotemResponse {
   id: string;
   name: string;
-  accessCode: string;
-  accessToken: string | null;
+  accessCode: string | null;
   status: TotemStatus;
   price: number;
   discount: number;

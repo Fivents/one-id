@@ -24,3 +24,15 @@ export const updateAdminTotemRequestSchema = z.object({
 });
 
 export type UpdateAdminTotemRequest = z.infer<typeof updateAdminTotemRequestSchema>;
+
+export const bulkDeleteTotemsRequestSchema = z.object({
+  totemIds: z.array(z.string().min(1)).min(1, 'At least one totem ID is required.'),
+});
+
+export type BulkDeleteTotemsRequest = z.infer<typeof bulkDeleteTotemsRequestSchema>;
+
+export const changeTotemStatusRequestSchema = z.object({
+  status: z.enum(['ACTIVE', 'INACTIVE', 'MAINTENANCE']),
+});
+
+export type ChangeTotemStatusRequest = z.infer<typeof changeTotemStatusRequestSchema>;

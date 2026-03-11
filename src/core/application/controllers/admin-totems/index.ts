@@ -1,10 +1,13 @@
 export { BulkCreateAdminTotemsController } from './bulk-create-admin-totems.controller';
+export { BulkHardDeleteTotemsController } from './bulk-hard-delete-totems.controller';
+export { BulkSoftDeleteTotemsController } from './bulk-soft-delete-totems.controller';
+export { ChangeTotemStatusController } from './change-totem-status.controller';
 export { CreateAdminTotemController } from './create-admin-totem.controller';
 export { DeleteAdminTotemController } from './delete-admin-totem.controller';
-export { GenerateTotemAccessTokenController } from './generate-totem-access-token.controller';
+export { GenerateTotemAccessCodeController } from './generate-totem-access-code.controller';
 export { HardDeleteAdminTotemController } from './hard-delete-admin-totem.controller';
 export { ListAdminTotemsController } from './list-admin-totems.controller';
 export { ListDeletedTotemsController } from './list-deleted-totems.controller';
 export { RestoreAdminTotemController } from './restore-admin-totem.controller';
-export { RevokeTotemAccessTokenController } from './revoke-totem-access-token.controller';
+export { RevokeTotemAccessCodeController } from './revoke-totem-access-code.controller';
 export { UpdateAdminTotemController } from './update-admin-totem.controller';

@@ -5,8 +5,7 @@ export type TotemStatus = 'ACTIVE' | 'INACTIVE' | 'MAINTENANCE';
 export interface TotemProps {
   id: string;
   name: string;
-  accessCode: string;
-  accessToken?: string | null;
+  accessCode: string | null;
   status: TotemStatus;
   price: number;
   discount: number;
@@ -31,12 +30,12 @@ export class TotemEntity extends BaseEntity {
     return this.props.name;
   }
 
-  get accessCode(): string {
+  get accessCode(): string | null {
     return this.props.accessCode;
   }
 
-  get accessToken(): string | null | undefined {
-    return this.props.accessToken;
+  hasAccessCode(): boolean {
+    return !!this.props.accessCode;
   }
 
   get status(): TotemStatus {
@@ -80,11 +79,7 @@ export class TotemEntity extends BaseEntity {
   }
 
   canAuthenticate(): boolean {
-    return this.isActive() && !this.isDeleted();
-  }
-
-  hasAccessToken(): boolean {
-    return !!this.props.accessToken;
+    return this.hasAccessCode() && !this.isInMaintenance() && !this.isDeleted();
   }
 
   isOnline(now: Date = new Date(), thresholdMs: number = HEARTBEAT_TIMEOUT_MS): boolean {
@@ -105,7 +100,6 @@ export class TotemEntity extends BaseEntity {
       id: this.id,
       name: this.props.name,
       accessCode: this.props.accessCode,
-      accessToken: this.props.accessToken,
       status: this.props.status,
       price: this.props.price,
       discount: this.props.discount,

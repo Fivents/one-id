@@ -8,8 +8,7 @@ export class PrismaTotemRepository implements ITotemRepository {
   private toEntity(totem: {
     id: string;
     name: string;
-    accessCode: string;
-    accessToken: string | null;
+    accessCode: string | null;
     status: string;
     price: number;
     discount: number;
@@ -22,7 +21,6 @@ export class PrismaTotemRepository implements ITotemRepository {
       id: totem.id,
       name: totem.name,
       accessCode: totem.accessCode,
-      accessToken: totem.accessToken,
       status: totem.status as TotemProps['status'],
       price: totem.price,
       discount: totem.discount,
@@ -85,7 +83,7 @@ export class PrismaTotemRepository implements ITotemRepository {
     const totem = await this.db.totem.create({
       data: {
         name: data.name,
-        accessCode: data.accessCode,
+        accessCode: data.accessCode ?? null,
         status: data.status,
         price: data.price,
         discount: data.discount,
@@ -111,18 +109,16 @@ export class PrismaTotemRepository implements ITotemRepository {
     return this.toEntity(totem);
   }
 
-  async updateAccessToken(id: string, accessToken: string | null): Promise<TotemEntity> {
-    const totem = await this.db.totem.update({
-      where: { id },
-      data: { accessToken },
-    });
-
-    return this.toEntity(totem);
-  }
-
   async softDelete(id: string): Promise<void> {
     await this.db.totem.update({
       where: { id },
+      data: { deletedAt: new Date() },
+    });
+  }
+
+  async softDeleteMany(ids: string[]): Promise<void> {
+    await this.db.totem.updateMany({
+      where: { id: { in: ids }, deletedAt: null },
       data: { deletedAt: new Date() },
     });
   }
@@ -139,6 +135,12 @@ export class PrismaTotemRepository implements ITotemRepository {
   async hardDelete(id: string): Promise<void> {
     await this.db.totem.delete({
       where: { id },
+    });
+  }
+
+  async hardDeleteMany(ids: string[]): Promise<void> {
+    await this.db.totem.deleteMany({
+      where: { id: { in: ids } },
     });
   }
 }

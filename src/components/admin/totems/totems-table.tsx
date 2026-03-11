@@ -1,6 +1,6 @@
 'use client';
 
-import { Edit, Key, KeyRound, MoreHorizontal, Trash2 } from 'lucide-react';
+import { Edit, Key, KeyRound, MoreHorizontal, Settings, Trash2 } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -10,22 +10,27 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useAdminTotems } from '@/core/application/contexts/admin-totems-context';
 import type { AdminTotemResponse } from '@/core/communication/responses/admin-totems';
+import type { TotemStatus } from '@/core/domain/entities';
 import { useI18n } from '@/i18n';
 
 interface TotemsTableProps {
   onEdit: (totem: AdminTotemResponse) => void;
   onDelete: (totem: AdminTotemResponse) => void;
-  onGenerateToken: (totem: AdminTotemResponse) => void;
-  onRevokeToken: (totem: AdminTotemResponse) => void;
+  onGenerateCode: (totem: AdminTotemResponse) => void;
+  onRevokeCode: (totem: AdminTotemResponse) => void;
+  onChangeStatus: (totem: AdminTotemResponse, status: TotemStatus) => void;
 }
 
-export function TotemsTable({ onEdit, onDelete, onGenerateToken, onRevokeToken }: TotemsTableProps) {
+export function TotemsTable({ onEdit, onDelete, onGenerateCode, onRevokeCode, onChangeStatus }: TotemsTableProps) {
   const { t } = useI18n();
   const { filteredTotems, isLoading, selectedIds, toggleSelection, selectAll, clearSelection } = useAdminTotems();
 
@@ -65,11 +70,11 @@ export function TotemsTable({ onEdit, onDelete, onGenerateToken, onRevokeToken }
               />
             </TableHead>
             <TableHead>{t('common.labels.name')}</TableHead>
+            <TableHead>{t('adminTotems.columns.accessCode')}</TableHead>
             <TableHead>{t('common.labels.status')}</TableHead>
             <TableHead>{t('adminTotems.columns.subscription')}</TableHead>
             <TableHead>{t('adminTotems.columns.price')}</TableHead>
             <TableHead>{t('adminTotems.columns.discount')}</TableHead>
-            <TableHead>{t('adminTotems.columns.accessToken')}</TableHead>
             <TableHead>{t('common.labels.createdAt')}</TableHead>
             <TableHead className="w-17.5">{t('common.labels.actions')}</TableHead>
           </TableRow>
@@ -83,8 +88,9 @@ export function TotemsTable({ onEdit, onDelete, onGenerateToken, onRevokeToken }
               onToggleSelection={() => toggleSelection(totem.id)}
               onEdit={onEdit}
               onDelete={onDelete}
-              onGenerateToken={onGenerateToken}
-              onRevokeToken={onRevokeToken}
+              onGenerateCode={onGenerateCode}
+              onRevokeCode={onRevokeCode}
+              onChangeStatus={onChangeStatus}
             />
           ))}
         </TableBody>
@@ -99,16 +105,18 @@ function TotemRow({
   onToggleSelection,
   onEdit,
   onDelete,
-  onGenerateToken,
-  onRevokeToken,
+  onGenerateCode,
+  onRevokeCode,
+  onChangeStatus,
 }: {
   totem: AdminTotemResponse;
   selected: boolean;
   onToggleSelection: () => void;
   onEdit: (totem: AdminTotemResponse) => void;
   onDelete: (totem: AdminTotemResponse) => void;
-  onGenerateToken: (totem: AdminTotemResponse) => void;
-  onRevokeToken: (totem: AdminTotemResponse) => void;
+  onGenerateCode: (totem: AdminTotemResponse) => void;
+  onRevokeCode: (totem: AdminTotemResponse) => void;
+  onChangeStatus: (totem: AdminTotemResponse, status: TotemStatus) => void;
 }) {
   const { t } = useI18n();
 
@@ -133,6 +141,13 @@ function TotemRow({
       </TableCell>
       <TableCell className="font-medium">{totem.name}</TableCell>
       <TableCell>
+        {totem.accessCode ? (
+          <code className="bg-muted rounded px-1.5 py-0.5 font-mono text-xs">{totem.accessCode}</code>
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        )}
+      </TableCell>
+      <TableCell>
         <Badge variant="outline" className={statusVariant}>
           {statusLabel}
         </Badge>
@@ -152,16 +167,6 @@ function TotemRow({
         {totem.price.toLocaleString(undefined, { style: 'currency', currency: 'BRL' })}
       </TableCell>
       <TableCell className="text-muted-foreground">{totem.discount}%</TableCell>
-      <TableCell>
-        {totem.accessToken ? (
-          <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600">
-            <Key className="mr-1 h-3 w-3" />
-            {t('adminTotems.columns.hasToken')}
-          </Badge>
-        ) : (
-          <span className="text-muted-foreground">—</span>
-        )}
-      </TableCell>
       <TableCell className="text-muted-foreground">{new Date(totem.createdAt).toLocaleDateString()}</TableCell>
       <TableCell>
         <DropdownMenu>
@@ -175,17 +180,36 @@ function TotemRow({
               <Edit className="mr-2 h-4 w-4" />
               {t('common.actions.edit')}
             </DropdownMenuItem>
-            {totem.accessToken ? (
-              <DropdownMenuItem onClick={() => onRevokeToken(totem)}>
+            <DropdownMenuSeparator />
+            {totem.accessCode ? (
+              <DropdownMenuItem onClick={() => onRevokeCode(totem)}>
                 <KeyRound className="mr-2 h-4 w-4" />
-                {t('adminTotems.actions.revokeToken')}
+                {t('adminTotems.actions.revokeCode')}
               </DropdownMenuItem>
             ) : (
-              <DropdownMenuItem onClick={() => onGenerateToken(totem)}>
-                <KeyRound className="mr-2 h-4 w-4" />
-                {t('adminTotems.actions.generateToken')}
+              <DropdownMenuItem onClick={() => onGenerateCode(totem)}>
+                <Key className="mr-2 h-4 w-4" />
+                {t('adminTotems.actions.generateCode')}
               </DropdownMenuItem>
             )}
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>
+                <Settings className="mr-2 h-4 w-4" />
+                {t('adminTotems.actions.changeStatus')}
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent>
+                {totem.status !== 'INACTIVE' && (
+                  <DropdownMenuItem onClick={() => onChangeStatus(totem, 'INACTIVE')}>
+                    {t('common.status.inactive')}
+                  </DropdownMenuItem>
+                )}
+                {totem.status !== 'MAINTENANCE' && (
+                  <DropdownMenuItem onClick={() => onChangeStatus(totem, 'MAINTENANCE')}>
+                    {t('adminTotems.status.maintenance')}
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => onDelete(totem)} className="text-destructive focus:text-destructive">
               <Trash2 className="mr-2 h-4 w-4" />

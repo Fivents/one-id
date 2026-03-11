@@ -40,6 +40,9 @@ export class LoginWithAccessCodeTotemUseCase {
       expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days for devices
     });
 
+    // Set totem status to ACTIVE upon successful login
+    await this.totemRepository.update(totem.id, { status: 'ACTIVE' });
+
     return {
       token,
       totem: {

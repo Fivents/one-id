@@ -2,7 +2,7 @@ import type { TotemEntity, TotemStatus } from '../entities/totem.entity';
 
 export interface CreateTotemData {
   name: string;
-  accessCode: string;
+  accessCode?: string | null;
   status: TotemStatus;
   price: number;
   discount: number;
@@ -10,7 +10,7 @@ export interface CreateTotemData {
 
 export interface UpdateTotemData {
   name?: string;
-  accessCode?: string;
+  accessCode?: string | null;
   status?: TotemStatus;
   price?: number;
   discount?: number;
@@ -25,8 +25,9 @@ export interface ITotemRepository {
   findAllDeleted(): Promise<TotemEntity[]>;
   create(data: CreateTotemData): Promise<TotemEntity>;
   update(id: string, data: UpdateTotemData): Promise<TotemEntity>;
-  updateAccessToken(id: string, accessToken: string | null): Promise<TotemEntity>;
   softDelete(id: string): Promise<void>;
+  softDeleteMany(ids: string[]): Promise<void>;
   restore(id: string): Promise<TotemEntity>;
   hardDelete(id: string): Promise<void>;
+  hardDeleteMany(ids: string[]): Promise<void>;
 }

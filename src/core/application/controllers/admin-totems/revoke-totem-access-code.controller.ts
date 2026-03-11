@@ -1,14 +1,14 @@
 import { AppError } from '@/core/errors';
 
-import { GenerateTotemAccessTokenUseCase } from '../../use-cases/admin-totems';
+import { RevokeTotemAccessCodeUseCase } from '../../use-cases/admin-totems';
 import { type ControllerResponse, ok, serverError } from '../controller-response';
 
-export class GenerateTotemAccessTokenController {
-  constructor(private readonly generateTotemAccessTokenUseCase: GenerateTotemAccessTokenUseCase) {}
+export class RevokeTotemAccessCodeController {
+  constructor(private readonly revokeTotemAccessCodeUseCase: RevokeTotemAccessCodeUseCase) {}
 
   async handle(id: string): Promise<ControllerResponse<Record<string, unknown>>> {
     try {
-      const totem = await this.generateTotemAccessTokenUseCase.execute(id);
+      const totem = await this.revokeTotemAccessCodeUseCase.execute(id);
 
       return ok(totem.toJSON());
     } catch (error) {

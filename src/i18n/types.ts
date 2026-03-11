@@ -646,15 +646,13 @@ export type TranslationSchema = {
       price: string;
       discount: string;
       discountPercent: string;
-      accessToken: string;
-      hasToken: string;
       subscription: string;
       available: string;
       inUseBy: string;
       online: string;
       offline: string;
+      accessCode: string;
     };
-    hasToken: string;
     status: {
       maintenance: string;
     };
@@ -663,12 +661,13 @@ export type TranslationSchema = {
       deleted: string;
     };
     actions: {
-      generateToken: string;
-      revokeToken: string;
       selectAll: string;
       clearSelection: string;
       bulkDelete: string;
       selected: string;
+      generateCode: string;
+      revokeCode: string;
+      changeStatus: string;
     };
     messages: {
       createSuccess: string;
@@ -677,29 +676,44 @@ export type TranslationSchema = {
       deleteSuccess: string;
       hardDeleteSuccess: string;
       restoreSuccess: string;
-      generateTokenSuccess: string;
-      revokeTokenSuccess: string;
+      bulkDeleteSuccess: string;
+      bulkHardDeleteSuccess: string;
+      bulkDeleteConfirm: string;
+      bulkHardDeleteConfirm: string;
       createError: string;
       updateError: string;
       deleteError: string;
       hardDeleteError: string;
       restoreError: string;
-      generateTokenError: string;
-      revokeTokenError: string;
       deleteConfirmDescription: string;
       hardDeleteDescription: string;
       restoreDescription: string;
-      generateTokenDescription: string;
-      revokeTokenDescription: string;
-      tokenGeneratedWarning: string;
-      tokenCopied: string;
+      generateCodeSuccess: string;
+      generateCodeError: string;
+      revokeCodeSuccess: string;
+      revokeCodeError: string;
+      revokeCodeConfirm: string;
+      changeStatusSuccess: string;
+      changeStatusError: string;
     };
     deleted: {
       noTotems: string;
       deletedAt: string;
       restore: string;
       permanentDelete: string;
+      bulkPermanentDelete: string;
     };
+  };
+  totem: {
+    loginTitle: string;
+    loginDescription: string;
+    accessCodePlaceholder: string;
+    loginButton: string;
+    loginSuccess: string;
+    loginError: string;
+    credentialingPlaceholder: string;
+    credentialingComingSoon: string;
+    logout: string;
   };
 };
 

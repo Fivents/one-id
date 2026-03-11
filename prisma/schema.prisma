@@ -275,10 +275,9 @@ model Event {
 model Totem {
   id String @id @default(uuid())
 
-  name        String
-  accessCode  String      @unique @map("access_code")
-  accessToken String?     @unique @map("access_token")
-  status      TotemStatus @default(ACTIVE)
+  name       String
+  accessCode String?     @unique @map("access_code")
+  status     TotemStatus @default(INACTIVE)
 
   price    Float
   discount Float

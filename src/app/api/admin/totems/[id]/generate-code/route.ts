@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-import { makeRevokeTotemAccessTokenController } from '@/core/application/controller-factories';
+import { makeGenerateTotemAccessCodeController } from '@/core/application/controller-factories';
 import { AppError } from '@/core/errors';
 import { withAuth } from '@/core/infrastructure/http/middlewares/auth.middleware';
 import { withSuperAdmin } from '@/core/infrastructure/http/middlewares/super-admin.middleware';
@@ -12,7 +12,7 @@ export const POST = withAuth(
     try {
       const { id } = await context.params;
 
-      const controller = makeRevokeTotemAccessTokenController();
+      const controller = makeGenerateTotemAccessCodeController();
       const result = await controller.handle(id);
 
       return toNextResponse(result);

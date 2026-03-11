@@ -1,10 +1,8 @@
-import { randomBytes } from 'crypto';
-
 import type { ITotemRepository } from '@/core/domain/contracts';
 import type { TotemEntity } from '@/core/domain/entities';
 import { TotemNotFoundError } from '@/core/errors';
 
-export class GenerateTotemAccessTokenUseCase {
+export class RevokeTotemAccessCodeUseCase {
   constructor(private readonly totemRepository: ITotemRepository) {}
 
   async execute(id: string): Promise<TotemEntity> {
@@ -13,8 +11,6 @@ export class GenerateTotemAccessTokenUseCase {
       throw new TotemNotFoundError(id);
     }
 
-    const accessToken = randomBytes(32).toString('hex');
-
-    return this.totemRepository.updateAccessToken(id, accessToken);
+    return this.totemRepository.update(id, { accessCode: null, status: 'INACTIVE' });
   }
 }

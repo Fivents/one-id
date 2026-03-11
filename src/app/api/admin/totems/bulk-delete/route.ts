@@ -1,19 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-import { makeGenerateTotemAccessTokenController } from '@/core/application/controller-factories';
+import { makeBulkSoftDeleteTotemsController } from '@/core/application/controller-factories';
+import { bulkDeleteTotemsRequestSchema } from '@/core/communication/requests/admin-totems';
 import { AppError } from '@/core/errors';
 import { withAuth } from '@/core/infrastructure/http/middlewares/auth.middleware';
 import { withSuperAdmin } from '@/core/infrastructure/http/middlewares/super-admin.middleware';
 import { toNextResponse } from '@/core/infrastructure/http/to-next-response';
-import type { RouteContext } from '@/core/infrastructure/http/types';
+import { parseWithZod } from '@/core/utils/parse-with-zod';
 
 export const POST = withAuth(
-  withSuperAdmin(async (_req: NextRequest, context: RouteContext) => {
+  withSuperAdmin(async (req: NextRequest) => {
     try {
-      const { id } = await context.params;
+      const body = await req.json();
+      const data = parseWithZod(bulkDeleteTotemsRequestSchema, body);
 
-      const controller = makeGenerateTotemAccessTokenController();
-      const result = await controller.handle(id);
+      const controller = makeBulkSoftDeleteTotemsController();
+      const result = await controller.handle(data.totemIds);
 
       return toNextResponse(result);
     } catch (error) {
