@@ -2,8 +2,8 @@ import type { ITotemRepository } from '@/core/domain/contracts';
 import type { TotemEntity, TotemStatus } from '@/core/domain/entities';
 import {
   TotemAlreadyActiveError,
-  TotemAlreadyInMaintenanceError,
   TotemAlreadyInactiveError,
+  TotemAlreadyInMaintenanceError,
   TotemNotFoundError,
 } from '@/core/errors';
 

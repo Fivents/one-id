@@ -276,9 +276,11 @@ export type TranslationSchema = {
       plan: string;
       events: string;
       info: string;
+      membersDescription: string;
     };
     form: {
       createTitle: string;
+      editTitle: string;
       name: string;
       email: string;
       document: string;
@@ -296,6 +298,20 @@ export type TranslationSchema = {
       editDescription: string;
       createDescription: string;
       planRequired: string;
+    };
+    messages: {
+      createSuccess: string;
+      updateSuccess: string;
+      updateError: string;
+      deleteSuccess: string;
+      deleteError: string;
+      deleteConfirmDescription: string;
+      activateSuccess: string;
+      deactivateSuccess: string;
+      statusError: string;
+      activateConfirm: string;
+      deactivateConfirm: string;
+      inactiveWarning: string;
     };
   };
   users: {

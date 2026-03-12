@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 import {
+  makeDeleteOrganizationController,
   makeGetOrganizationController,
   makeUpdateOrganizationController,
 } from '@/core/application/controller-factories';
@@ -31,6 +32,25 @@ export const PATCH = withAuth(
 
       const controller = makeUpdateOrganizationController();
       const result = await controller.handle(organizationId, data);
+
+      return toNextResponse(result);
+    } catch (error) {
+      if (error instanceof AppError) {
+        return NextResponse.json({ error: error.message }, { status: error.httpStatus });
+      }
+
+      return NextResponse.json({ error: 'Internal server error.' }, { status: 500 });
+    }
+  }),
+);
+
+export const DELETE = withAuth(
+  withRBAC(['ORGANIZATION_DELETE'], async (_req: NextRequest, context: RouteContext) => {
+    try {
+      const { organizationId } = await context.params;
+
+      const controller = makeDeleteOrganizationController();
+      const result = await controller.handle(organizationId);
 
       return toNextResponse(result);
     } catch (error) {

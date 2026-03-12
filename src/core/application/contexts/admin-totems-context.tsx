@@ -7,8 +7,8 @@ import type {
   CreateAdminTotemRequest,
   UpdateAdminTotemRequest,
 } from '@/core/communication/requests/admin-totems';
-import type { TotemStatus } from '@/core/domain/entities';
 import type { AdminTotemResponse } from '@/core/communication/responses/admin-totems';
+import type { TotemStatus } from '@/core/domain/entities';
 import { AppError, ErrorCode } from '@/core/errors';
 
 import { adminTotemsClient } from '../client-services/admin-totems-client.service';

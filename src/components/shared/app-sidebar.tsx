@@ -5,7 +5,17 @@ import { ComponentType } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 
-import { ChevronUp, LayoutDashboard, LogOut, Monitor, ScanFace, Settings, Shield, Users } from 'lucide-react';
+import {
+  Building2,
+  ChevronUp,
+  LayoutDashboard,
+  LogOut,
+  Monitor,
+  ScanFace,
+  Settings,
+  Shield,
+  Users,
+} from 'lucide-react';
 
 import { useAuth, useOrganization, usePermissions } from '@/core/application/contexts';
 import { Role } from '@/core/domain/value-objects';
@@ -109,6 +119,14 @@ export function AppSidebar() {
             <SidebarGroupLabel>Admin</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={pathname.startsWith('/admin/organizations')}>
+                    <Link href="/admin/organizations">
+                      <Building2 className="h-4 w-4" />
+                      <span>{t('nav.sidebar.organizations')}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild isActive={pathname.startsWith('/admin/users')}>
                     <Link href="/admin/users">
