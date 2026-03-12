@@ -1,1 +1,5 @@
-export type { AdminOrganizationDetailResponse, AdminOrganizationResponse } from './admin-organization.response';
+export type {
+  AdminOrganizationDetailResponse,
+  AdminOrganizationResponse,
+  AdminOrganizationSubscriptionResponse,
+} from './admin-organization.response';

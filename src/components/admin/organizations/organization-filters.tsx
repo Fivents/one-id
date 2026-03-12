@@ -24,7 +24,7 @@ export function OrganizationFilters() {
       </div>
 
       <Select value={filterStatus} onValueChange={setFilterStatus}>
-        <SelectTrigger className="w-[160px]">
+        <SelectTrigger className="w-40">
           <SelectValue placeholder={t('common.labels.status')} />
         </SelectTrigger>
         <SelectContent>

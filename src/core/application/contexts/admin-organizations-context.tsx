@@ -2,13 +2,16 @@
 
 import { createContext, useCallback, useContext, useMemo, useReducer } from 'react';
 
+import type { PlanResponse } from '@/core/application/client-services/plans-client.service';
 import type { CreateOrganizationRequest, UpdateOrganizationRequest } from '@/core/communication/requests/organization';
 import type {
   AdminOrganizationDetailResponse,
   AdminOrganizationResponse,
+  AdminOrganizationSubscriptionResponse,
 } from '@/core/communication/responses/admin-organizations';
 import { AppError, ErrorCode } from '@/core/errors';
 
+import type { AddMemberRequest } from '../client-services/admin-organizations-client.service';
 import { adminOrganizationsClient } from '../client-services/admin-organizations-client.service';
 
 // ── Types ─────────────────────────────────────────────────────────
@@ -16,8 +19,10 @@ import { adminOrganizationsClient } from '../client-services/admin-organizations
 interface AdminOrganizationsState {
   organizations: AdminOrganizationResponse[];
   selectedOrganization: AdminOrganizationDetailResponse | null;
+  availablePlans: PlanResponse[];
   isLoading: boolean;
   isLoadingDetail: boolean;
+  isLoadingPlans: boolean;
   searchQuery: string;
   filterStatus: string;
 }
@@ -29,6 +34,12 @@ interface AdminOrganizationsContextValue extends AdminOrganizationsState {
   updateOrganization: (id: string, data: UpdateOrganizationRequest) => Promise<AdminOrganizationResponse>;
   toggleStatus: (id: string, isActive: boolean) => Promise<AdminOrganizationResponse>;
   deleteOrganization: (id: string) => Promise<void>;
+  assignSubscription: (
+    id: string,
+    data: { planId: string; startedAt: string; expiresAt: string },
+  ) => Promise<AdminOrganizationSubscriptionResponse>;
+  addMember: (id: string, data: AddMemberRequest) => Promise<void>;
+  fetchAvailablePlans: () => Promise<void>;
   setSearchQuery: (query: string) => void;
   setFilterStatus: (status: string) => void;
   filteredOrganizations: AdminOrganizationResponse[];
@@ -46,14 +57,21 @@ type AdminOrganizationsAction =
   | { type: 'ORG_CREATED'; organization: AdminOrganizationResponse }
   | { type: 'ORG_UPDATED'; organization: AdminOrganizationResponse }
   | { type: 'ORG_DELETED'; organizationId: string }
+  | { type: 'ORG_SUBSCRIPTION_UPDATED'; subscription: AdminOrganizationSubscriptionResponse }
+  | { type: 'ORG_MEMBER_ADDED' }
+  | { type: 'PLANS_LOADING' }
+  | { type: 'PLANS_LOADED'; plans: PlanResponse[] }
+  | { type: 'PLANS_FAILURE' }
   | { type: 'SET_SEARCH_QUERY'; query: string }
   | { type: 'SET_FILTER_STATUS'; status: string };
 
 const initialState: AdminOrganizationsState = {
   organizations: [],
   selectedOrganization: null,
+  availablePlans: [],
   isLoading: false,
   isLoadingDetail: false,
+  isLoadingPlans: false,
   searchQuery: '',
   filterStatus: 'all',
 };
@@ -87,6 +105,21 @@ function adminOrganizationsReducer(
         ...state,
         organizations: state.organizations.filter((o) => o.id !== action.organizationId),
       };
+    case 'ORG_SUBSCRIPTION_UPDATED':
+      return {
+        ...state,
+        selectedOrganization: state.selectedOrganization
+          ? { ...state.selectedOrganization, subscription: action.subscription }
+          : null,
+      };
+    case 'ORG_MEMBER_ADDED':
+      return state;
+    case 'PLANS_LOADING':
+      return { ...state, isLoadingPlans: true };
+    case 'PLANS_LOADED':
+      return { ...state, availablePlans: action.plans, isLoadingPlans: false };
+    case 'PLANS_FAILURE':
+      return { ...state, isLoadingPlans: false };
     case 'SET_SEARCH_QUERY':
       return { ...state, searchQuery: action.query };
     case 'SET_FILTER_STATUS':
@@ -192,6 +225,57 @@ export function AdminOrganizationsProvider({ children }: { children: React.React
     dispatch({ type: 'ORG_DELETED', organizationId: id });
   }, []);
 
+  const assignSubscription = useCallback(
+    async (id: string, data: { planId: string; startedAt: string; expiresAt: string }) => {
+      const response = await adminOrganizationsClient.assignSubscription(id, data);
+
+      if (!response.success) {
+        throw new AppError({
+          code: ErrorCode.INTERNAL_SERVER_ERROR,
+          message: response.error.message,
+          httpStatus: 400,
+          level: 'warning',
+        });
+      }
+
+      dispatch({ type: 'ORG_SUBSCRIPTION_UPDATED', subscription: response.data });
+      return response.data;
+    },
+    [],
+  );
+
+  const addMember = useCallback(
+    async (id: string, data: AddMemberRequest) => {
+      const response = await adminOrganizationsClient.addMember(id, data);
+
+      if (!response.success) {
+        throw new AppError({
+          code: ErrorCode.INTERNAL_SERVER_ERROR,
+          message: response.error.message,
+          httpStatus: 400,
+          level: 'warning',
+        });
+      }
+
+      dispatch({ type: 'ORG_MEMBER_ADDED' });
+      // Refetch org detail to get updated members list
+      await fetchOrganization(id);
+    },
+    [fetchOrganization],
+  );
+
+  const fetchAvailablePlans = useCallback(async () => {
+    dispatch({ type: 'PLANS_LOADING' });
+    const response = await adminOrganizationsClient.getAvailablePlans();
+
+    if (!response.success) {
+      dispatch({ type: 'PLANS_FAILURE' });
+      return;
+    }
+
+    dispatch({ type: 'PLANS_LOADED', plans: response.data });
+  }, []);
+
   const setSearchQuery = useCallback((query: string) => {
     dispatch({ type: 'SET_SEARCH_QUERY', query });
   }, []);
@@ -230,6 +314,9 @@ export function AdminOrganizationsProvider({ children }: { children: React.React
       updateOrganization,
       toggleStatus,
       deleteOrganization,
+      assignSubscription,
+      addMember,
+      fetchAvailablePlans,
       setSearchQuery,
       setFilterStatus,
       filteredOrganizations,
@@ -242,6 +329,9 @@ export function AdminOrganizationsProvider({ children }: { children: React.React
       updateOrganization,
       toggleStatus,
       deleteOrganization,
+      assignSubscription,
+      addMember,
+      fetchAvailablePlans,
       setSearchQuery,
       setFilterStatus,
       filteredOrganizations,

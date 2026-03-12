@@ -277,6 +277,17 @@ export type TranslationSchema = {
       events: string;
       info: string;
       membersDescription: string;
+      currentPlan: string;
+      startedAt: string;
+      expiresAt: string;
+      noSubscription: string;
+      assignSubscription: string;
+      assignSubscriptionDescription: string;
+      noPlansAvailable: string;
+      createPlan: string;
+      addMember: string;
+      addMemberDescription: string;
+      noMembers: string;
     };
     form: {
       createTitle: string;
@@ -312,6 +323,10 @@ export type TranslationSchema = {
       activateConfirm: string;
       deactivateConfirm: string;
       inactiveWarning: string;
+      subscriptionSuccess: string;
+      subscriptionError: string;
+      memberAddSuccess: string;
+      memberAddError: string;
     };
   };
   users: {

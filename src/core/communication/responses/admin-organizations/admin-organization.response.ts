@@ -37,3 +37,11 @@ export interface AdminOrganizationDetailResponse extends AdminOrganizationRespon
     totems: number;
   };
 }
+
+export interface AdminOrganizationSubscriptionResponse {
+  id: string;
+  planId: string;
+  planName: string;
+  startedAt: Date;
+  expiresAt: Date;
+}
