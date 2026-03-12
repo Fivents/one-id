@@ -94,6 +94,7 @@ export type TranslationSchema = {
       dashboard: string;
       events: string;
       organizations: string;
+      plans: string;
       billing: string;
       users: string;
       settings: string;
@@ -733,6 +734,112 @@ export type TranslationSchema = {
       restore: string;
       permanentDelete: string;
       bulkPermanentDelete: string;
+    };
+  };
+  adminPlans: {
+    title: string;
+    description: string;
+    tabs: {
+      plans: string;
+      categories: string;
+      features: string;
+      usage: string;
+    };
+    fields: {
+      name: string;
+      description: string;
+      price: string;
+      discount: string;
+      category: string;
+      noCategory: string;
+      sortOrder: string;
+      active: string;
+      custom: string;
+      features: string;
+      subscribers: string;
+      code: string;
+      type: string;
+      color: string;
+      plansCount: string;
+      usedInPlans: string;
+    };
+    filters: {
+      search: string;
+      allCategories: string;
+    };
+    actions: {
+      newPlan: string;
+      manageFeatures: string;
+      activate: string;
+      deactivate: string;
+    };
+    form: {
+      createTitle: string;
+      editTitle: string;
+      createDescription: string;
+      editDescription: string;
+    };
+    messages: {
+      noPlans: string;
+      planCreated: string;
+      planUpdated: string;
+      planSaveError: string;
+      planDeleted: string;
+      planDeleteError: string;
+      planActivated: string;
+      planDeactivated: string;
+      planToggleError: string;
+      deleteTitle: string;
+      deleteDescription: string;
+      featuresUpdated: string;
+      featuresUpdateError: string;
+      categoryCreated: string;
+      categoryUpdated: string;
+      categorySaveError: string;
+      categoryDeleted: string;
+      categoryDeleteError: string;
+      featureCreated: string;
+      featureUpdated: string;
+      featureSaveError: string;
+      featureDeleted: string;
+      featureDeleteError: string;
+    };
+    categories: {
+      description: string;
+      newCategory: string;
+      noCategories: string;
+      createTitle: string;
+      editTitle: string;
+      createDescription: string;
+      editDescription: string;
+      deleteTitle: string;
+      deleteDescription: string;
+    };
+    features: {
+      description: string;
+      newFeature: string;
+      noFeatures: string;
+      createTitle: string;
+      editTitle: string;
+      createDescription: string;
+      editDescription: string;
+      deleteTitle: string;
+      deleteDescription: string;
+      namePlaceholder: string;
+      manageTitle: string;
+      manageDescription: string;
+    };
+    usage: {
+      description: string;
+      totalPlans: string;
+      totalSubscriptions: string;
+      totalFeatures: string;
+      averagePrice: string;
+      activeOrganizations: string;
+      assignments: string;
+      categories: string;
+      planBreakdown: string;
+      subscribers: string;
     };
   };
   totem: {

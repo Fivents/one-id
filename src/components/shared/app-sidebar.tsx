@@ -8,6 +8,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import {
   Building2,
   ChevronUp,
+  CreditCard,
   LayoutDashboard,
   LogOut,
   Monitor,
@@ -124,6 +125,14 @@ export function AppSidebar() {
                     <Link href="/admin/organizations">
                       <Building2 className="h-4 w-4" />
                       <span>{t('nav.sidebar.organizations')}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={pathname.startsWith('/admin/plans')}>
+                    <Link href="/admin/plans">
+                      <CreditCard className="h-4 w-4" />
+                      <span>{t('nav.sidebar.plans')}</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

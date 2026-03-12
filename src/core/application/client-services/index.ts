@@ -1,4 +1,5 @@
 export { adminOrganizationsClient } from './admin-organizations-client.service';
+export { adminPlansClient } from './admin-plans-client.service';
 export { adminTotemsClient } from './admin-totems-client.service';
 export { adminUsersClient } from './admin-users-client.service';
 export { authClient } from './auth-client.service';

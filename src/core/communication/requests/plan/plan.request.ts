@@ -8,6 +8,7 @@ export const createPlanRequestSchema = z.object({
   isCustom: z.boolean().default(false),
   isActive: z.boolean().default(true),
   sortOrder: z.number().int().default(0),
+  categoryId: z.string().uuid().nullable().optional(),
 });
 
 export type CreatePlanRequest = z.infer<typeof createPlanRequestSchema>;
@@ -20,6 +21,7 @@ export const updatePlanRequestSchema = z.object({
   isCustom: z.boolean().optional(),
   isActive: z.boolean().optional(),
   sortOrder: z.number().int().optional(),
+  categoryId: z.string().uuid().nullable().optional(),
 });
 
 export type UpdatePlanRequest = z.infer<typeof updatePlanRequestSchema>;
