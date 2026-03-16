@@ -14,7 +14,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import type { AdminPlanResponse } from '@/core/application/client-services/admin-plans-client.service';
 import { useAdminPlans } from '@/core/application/contexts';
@@ -63,16 +62,43 @@ export function PlanFeaturesManager({ plan, open, onOpenChange }: PlanFeaturesMa
 
   useEffect(() => {
     setFeatureValues(
-      features.map((f) => ({
-        featureId: f.id,
-        value: existingFeatures[f.id] ?? (f.type === 'boolean' ? 'false' : ''),
-        enabled: f.id in existingFeatures,
-      })),
+      features.map((f) => {
+        let defaultValue = '';
+        if (f.type === 'boolean') {
+          defaultValue = 'false';
+        } else if (f.type === 'number') {
+          defaultValue = '0';
+        }
+
+        return {
+          featureId: f.id,
+          value: existingFeatures[f.id] ?? defaultValue,
+          enabled: f.id in existingFeatures,
+        };
+      }),
     );
   }, [features, existingFeatures]);
 
   const handleSave = useCallback(async () => {
     if (!plan) return;
+
+    // Validate that enabled features have values
+    const invalidFeatures = featureValues.filter((fv) => {
+      if (!fv.enabled) return false;
+      const feature = features.find((f) => f.id === fv.featureId);
+      if (!feature) return false;
+
+      if (feature.type === 'number') {
+        return fv.value === '' || isNaN(Number(fv.value));
+      }
+      return fv.value === '';
+    });
+
+    if (invalidFeatures.length > 0) {
+      toast.error(t('adminPlans.messages.featuresValidationError') || 'Please fill in all enabled feature values');
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const enabledFeatures = featureValues
@@ -87,7 +113,7 @@ export function PlanFeaturesManager({ plan, open, onOpenChange }: PlanFeaturesMa
     } finally {
       setIsSubmitting(false);
     }
-  }, [plan, featureValues, updatePlanFeatures, fetchPlans, onOpenChange, t]);
+  }, [plan, featureValues, updatePlanFeatures, fetchPlans, onOpenChange, t, features]);
 
   const toggleFeature = useCallback((featureId: string) => {
     setFeatureValues((prev) => prev.map((fv) => (fv.featureId === featureId ? { ...fv, enabled: !fv.enabled } : fv)));
@@ -134,6 +160,7 @@ export function PlanFeaturesManager({ plan, open, onOpenChange }: PlanFeaturesMa
                           value={fv.value}
                           onChange={(e) => setValue(fv.featureId, e.target.value)}
                           type={feature.type === 'number' ? 'number' : 'text'}
+                          placeholder={feature.type === 'number' ? '0' : 'Value'}
                           className="h-8"
                         />
                       )}

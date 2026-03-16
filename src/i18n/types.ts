@@ -793,6 +793,7 @@ export type TranslationSchema = {
       deleteDescription: string;
       featuresUpdated: string;
       featuresUpdateError: string;
+      featuresValidationError: string;
       categoryCreated: string;
       categoryUpdated: string;
       categorySaveError: string;

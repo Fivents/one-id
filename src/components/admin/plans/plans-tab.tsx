@@ -66,7 +66,7 @@ export function PlansTab() {
     isCustom: false,
     isActive: true,
     sortOrder: 0,
-    categoryId: '' as string | null,
+    categoryId: null as string | null,
   });
 
   const resetForm = useCallback(() => {
@@ -352,14 +352,14 @@ export function PlansTab() {
               <div className="grid gap-2">
                 <Label>{t('adminPlans.fields.category')}</Label>
                 <Select
-                  value={form.categoryId ?? ''}
-                  onValueChange={(v) => setForm((f) => ({ ...f, categoryId: v || null }))}
+                  value={form.categoryId ?? 'none'}
+                  onValueChange={(v) => setForm((f) => ({ ...f, categoryId: v === 'none' ? null : v }))}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder={t('adminPlans.fields.noCategory')} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">{t('adminPlans.fields.noCategory')}</SelectItem>
+                    <SelectItem value="none">{t('adminPlans.fields.noCategory')}</SelectItem>
                     {categories.map((cat) => (
                       <SelectItem key={cat.id} value={cat.id}>
                         {cat.name}
