@@ -1,5 +1,6 @@
 export { ActivateEventUseCase } from './activate-event.use-case';
 export { CancelEventUseCase } from './cancel-event.use-case';
+export { CompleteEventUseCase } from './complete-event.use-case';
 export { CreateEventUseCase } from './create-event.use-case';
 export { DeleteEventUseCase } from './delete-event.use-case';
 export { DuplicateEventUseCase } from './duplicate-event.use-case';

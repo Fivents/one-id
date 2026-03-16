@@ -1,0 +1,193 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+
+import { toast } from 'sonner';
+
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { useEvents } from '@/core/application/contexts';
+
+interface CreateEventModalProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  organizationId: string;
+}
+
+function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+export function CreateEventModal({ open, onOpenChange, organizationId }: CreateEventModalProps) {
+  const { createEvent } = useEvents();
+
+  const [name, setName] = useState('');
+  const [slug, setSlug] = useState('');
+  const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
+  const [description, setDescription] = useState('');
+  const [timezone, setTimezone] = useState('America/Sao_Paulo');
+  const [address, setAddress] = useState('');
+  const [startsAt, setStartsAt] = useState('');
+  const [endsAt, setEndsAt] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!slugManuallyEdited) {
+      setSlug(slugify(name));
+    }
+  }, [name, slugManuallyEdited]);
+
+  function resetForm() {
+    setName('');
+    setSlug('');
+    setSlugManuallyEdited(false);
+    setDescription('');
+    setTimezone('America/Sao_Paulo');
+    setAddress('');
+    setStartsAt('');
+    setEndsAt('');
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+
+    if (!name.trim() || !slug.trim() || !timezone.trim() || !startsAt || !endsAt) return;
+
+    const startDate = new Date(startsAt);
+    const endDate = new Date(endsAt);
+
+    if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
+      toast.error('Invalid start or end date.');
+      return;
+    }
+
+    if (startDate >= endDate) {
+      toast.error('Start date must be before end date.');
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      await createEvent({
+        name: name.trim(),
+        slug: slug.trim(),
+        description: description.trim() || null,
+        timezone: timezone.trim(),
+        address: address.trim() || null,
+        startsAt: startDate,
+        endsAt: endDate,
+        organizationId,
+        status: 'DRAFT',
+        printConfigId: null,
+      });
+
+      toast.success('Event created successfully.');
+      resetForm();
+      onOpenChange(false);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to create event.';
+      toast.error(message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Create Event</DialogTitle>
+          <DialogDescription>Create a new event for this organization.</DialogDescription>
+        </DialogHeader>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="event-name">Name *</Label>
+            <Input id="event-name" value={name} onChange={(e) => setName(e.target.value)} required />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="event-slug">Slug *</Label>
+            <Input
+              id="event-slug"
+              value={slug}
+              onChange={(e) => {
+                setSlug(e.target.value);
+                setSlugManuallyEdited(true);
+              }}
+              required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="event-description">Description</Label>
+            <Textarea
+              id="event-description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={3}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="event-timezone">Timezone *</Label>
+            <Input id="event-timezone" value={timezone} onChange={(e) => setTimezone(e.target.value)} required />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="event-address">Address</Label>
+            <Input id="event-address" value={address} onChange={(e) => setAddress(e.target.value)} />
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="event-start">Start Date *</Label>
+              <Input
+                id="event-start"
+                type="datetime-local"
+                value={startsAt}
+                onChange={(e) => setStartsAt(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="event-end">End Date *</Label>
+              <Input
+                id="event-end"
+                type="datetime-local"
+                value={endsAt}
+                onChange={(e) => setEndsAt(e.target.value)}
+                required
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? 'Creating...' : 'Create Event'}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}

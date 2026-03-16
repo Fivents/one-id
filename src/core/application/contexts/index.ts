@@ -5,6 +5,7 @@ export { AdminUsersProvider, useAdminUsers, UserSoftDeletedClientError } from '.
 export { AppProvider, useApp } from './app-context';
 export { AppProviders } from './app-providers';
 export { AuthProvider, useAuth } from './auth-context';
+export { EventsProvider, useEvents } from './events-context';
 export { NotificationsProvider, useNotifications } from './notifications-context';
 export { OrganizationProvider, useOrganization } from './organization-context';
 export { PermissionsProvider, usePermissions } from './permissions-context';

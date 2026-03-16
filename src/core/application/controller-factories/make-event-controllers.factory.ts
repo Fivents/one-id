@@ -1,6 +1,7 @@
 import {
   makeActivateEventUseCase,
   makeCancelEventUseCase,
+  makeCompleteEventUseCase,
   makeCreateEventUseCase,
   makeDeleteEventUseCase,
   makeDuplicateEventUseCase,
@@ -13,6 +14,7 @@ import {
 import {
   ActivateEventController,
   CancelEventController,
+  CompleteEventController,
   CreateEventController,
   DeleteEventController,
   DuplicateEventController,
@@ -52,6 +54,10 @@ export function makeActivateEventController(): ActivateEventController {
 
 export function makeCancelEventController(): CancelEventController {
   return new CancelEventController(makeCancelEventUseCase());
+}
+
+export function makeCompleteEventController(): CompleteEventController {
+  return new CompleteEventController(makeCompleteEventUseCase());
 }
 
 export function makeDuplicateEventController(): DuplicateEventController {

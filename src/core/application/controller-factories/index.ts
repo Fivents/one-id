@@ -77,6 +77,7 @@ export {
 export {
   makeActivateEventController,
   makeCancelEventController,
+  makeCompleteEventController,
   makeCreateEventController,
   makeDeleteEventController,
   makeDuplicateEventController,

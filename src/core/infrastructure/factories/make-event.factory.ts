@@ -1,6 +1,7 @@
 import { containerService } from '@/core/application/services';
 import { ActivateEventUseCase } from '@/core/application/use-cases/event/activate-event.use-case';
 import { CancelEventUseCase } from '@/core/application/use-cases/event/cancel-event.use-case';
+import { CompleteEventUseCase } from '@/core/application/use-cases/event/complete-event.use-case';
 import { CreateEventUseCase } from '@/core/application/use-cases/event/create-event.use-case';
 import { DeleteEventUseCase } from '@/core/application/use-cases/event/delete-event.use-case';
 import { DuplicateEventUseCase } from '@/core/application/use-cases/event/duplicate-event.use-case';
@@ -27,6 +28,10 @@ export function makeActivateEventUseCase(): ActivateEventUseCase {
 
 export function makeCancelEventUseCase(): CancelEventUseCase {
   return new CancelEventUseCase(containerService.getEventRepository());
+}
+
+export function makeCompleteEventUseCase(): CompleteEventUseCase {
+  return new CompleteEventUseCase(containerService.getEventRepository());
 }
 
 export function makeDeleteEventUseCase(): DeleteEventUseCase {

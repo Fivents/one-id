@@ -1,5 +1,6 @@
 export { ActivateEventController } from './activate-event.controller';
 export { CancelEventController } from './cancel-event.controller';
+export { CompleteEventController } from './complete-event.controller';
 export { CreateEventController } from './create-event.controller';
 export { DeleteEventController } from './delete-event.controller';
 export { DuplicateEventController } from './duplicate-event.controller';

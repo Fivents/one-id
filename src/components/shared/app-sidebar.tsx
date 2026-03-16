@@ -7,6 +7,7 @@ import { usePathname, useRouter } from 'next/navigation';
 
 import {
   Building2,
+  Calendar,
   ChevronUp,
   CreditCard,
   LayoutDashboard,
@@ -73,6 +74,9 @@ export function AppSidebar() {
 
   const { isSuperAdmin } = usePermissions();
 
+  const organizationEventsHref = activeOrganization ? `/organizations/${activeOrganization.id}/events` : null;
+  const organizationPeopleHref = activeOrganization ? `/organizations/${activeOrganization.id}/people` : null;
+
   const filteredNavItems = navItems.filter((item) => role && item.roles.includes(role));
 
   async function handleLogout() {
@@ -111,6 +115,44 @@ export function AppSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel>Organization</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                {organizationPeopleHref ? (
+                  <SidebarMenuButton asChild isActive={pathname.startsWith(organizationPeopleHref)}>
+                    <Link href={organizationPeopleHref}>
+                      <Users className="h-4 w-4" />
+                      <span>People</span>
+                    </Link>
+                  </SidebarMenuButton>
+                ) : (
+                  <SidebarMenuButton disabled aria-disabled>
+                    <Users className="h-4 w-4" />
+                    <span>People</span>
+                  </SidebarMenuButton>
+                )}
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                {organizationEventsHref ? (
+                  <SidebarMenuButton asChild isActive={pathname.startsWith(organizationEventsHref)}>
+                    <Link href={organizationEventsHref}>
+                      <Calendar className="h-4 w-4" />
+                      <span>Events</span>
+                    </Link>
+                  </SidebarMenuButton>
+                ) : (
+                  <SidebarMenuButton disabled aria-disabled>
+                    <Calendar className="h-4 w-4" />
+                    <span>Events</span>
+                  </SidebarMenuButton>
+                )}
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

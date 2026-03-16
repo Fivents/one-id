@@ -94,6 +94,7 @@ export {
 export {
   makeActivateEventUseCase,
   makeCancelEventUseCase,
+  makeCompleteEventUseCase,
   makeCreateEventUseCase,
   makeDeleteEventUseCase,
   makeDuplicateEventUseCase,
