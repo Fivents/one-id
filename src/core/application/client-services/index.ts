@@ -4,6 +4,7 @@ export { adminTotemsClient } from './admin-totems-client.service';
 export { adminUsersClient } from './admin-users-client.service';
 export { authClient } from './auth-client.service';
 export type { ApiFailure, ApiResponse, ApiSuccess } from './base';
+export { eventCheckinsClient } from './checkins/checkins-client.service';
 export { type CheckInResponse, checkinsClient } from './checkins-client.service';
 export { eventsClient } from './events/events-client.service';
 export { type NotificationResponse, notificationsClient } from './notifications-client.service';

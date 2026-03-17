@@ -5,7 +5,7 @@ export interface CreateCheckInData {
   confidence?: number | null;
   checkedInAt: Date;
   eventParticipantId: string;
-  totemEventSubscriptionId: string;
+  totemEventSubscriptionId?: string | null;
 }
 
 export interface ICheckInRepository {

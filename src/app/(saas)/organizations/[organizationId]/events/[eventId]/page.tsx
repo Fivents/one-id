@@ -38,7 +38,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
-import { eventsClient, participantsClient } from '@/core/application/client-services';
+import { eventCheckinsClient, eventsClient, participantsClient } from '@/core/application/client-services';
 import type {
   EventCheckInDetailResponse,
   EventParticipantDetailResponse,
@@ -107,6 +107,10 @@ export default function EventDetailPage() {
   const [totems, setTotems] = useState<EventTotemSubscriptionResponse[]>([]);
   const [availableTotems, setAvailableTotems] = useState<EventTotemAvailableResponse[]>([]);
   const [checkIns, setCheckIns] = useState<EventCheckInDetailResponse[]>([]);
+  const [manualCheckInOpen, setManualCheckInOpen] = useState(false);
+  const [manualParticipantId, setManualParticipantId] = useState('');
+  const [isSubmittingManualCheckIn, setIsSubmittingManualCheckIn] = useState(false);
+  const [invalidatingCheckInId, setInvalidatingCheckInId] = useState<string | null>(null);
   const [printConfigs, setPrintConfigs] = useState<PrintConfigSummaryResponse[]>([]);
 
   const [isLoading, setIsLoading] = useState(true);
@@ -166,6 +170,11 @@ export default function EventDetailPage() {
       checkInRate: calculateCheckInRate(totalParticipants, checkedIn),
     };
   }, [participantsMeta.total, checkIns.length, totems.length]);
+
+  const manualCheckInParticipants = useMemo(
+    () => participants.filter((participant) => !participant.hasCheckIn),
+    [participants],
+  );
 
   const loadEvent = useCallback(async () => {
     setIsLoading(true);
@@ -364,6 +373,60 @@ export default function EventDetailPage() {
       setIsLoadingCheckIns(false);
     }
   }, [eventId]);
+
+  async function handleManualCheckInSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!manualParticipantId) {
+      toast.error('Select a participant.');
+      return;
+    }
+
+    setIsSubmittingManualCheckIn(true);
+    try {
+      const response = await eventCheckinsClient.registerAppCheckIn(eventId, {
+        eventParticipantId: manualParticipantId,
+        method: 'MANUAL',
+      });
+
+      if (!response.success) {
+        throw new Error(response.error.message);
+      }
+
+      toast.success('Manual app check-in created.');
+      setManualCheckInOpen(false);
+      setManualParticipantId('');
+      await Promise.all([loadCheckIns(), loadParticipants()]);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to create manual app check-in.';
+      toast.error(message);
+    } finally {
+      setIsSubmittingManualCheckIn(false);
+    }
+  }
+
+  async function handleInvalidateCheckIn(checkInId: string, participantName: string) {
+    const accepted = await confirm.confirm({
+      title: 'Invalidate check-in',
+      description: `Invalidate check-in for ${participantName}?`,
+      confirmLabel: 'Invalidate',
+      variant: 'destructive',
+    });
+
+    if (!accepted) return;
+
+    setInvalidatingCheckInId(checkInId);
+    try {
+      const response = await eventCheckinsClient.invalidateCheckIn(eventId, checkInId);
+      if (!response.success) throw new Error(response.error.message);
+      toast.success('Check-in invalidated.');
+      await Promise.all([loadCheckIns(), loadParticipants()]);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to invalidate check-in.';
+      toast.error(message);
+    } finally {
+      setInvalidatingCheckInId(null);
+    }
+  }
 
   const loadPrintConfigs = useCallback(async () => {
     const response = await eventsClient.listPrintConfigs();
@@ -961,8 +1024,16 @@ export default function EventDetailPage() {
         <TabsContent value="checkins" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Check-ins</CardTitle>
-              <CardDescription>{checkIns.length} completed check-ins.</CardDescription>
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <CardTitle>Check-ins</CardTitle>
+                  <CardDescription>{checkIns.length} completed check-ins.</CardDescription>
+                </div>
+                <Button size="sm" onClick={() => setManualCheckInOpen(true)}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Manual App Check-in
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               {isLoadingCheckIns ? (
@@ -979,6 +1050,7 @@ export default function EventDetailPage() {
                         <TableHead>Confidence</TableHead>
                         <TableHead>Totem Location</TableHead>
                         <TableHead>Time</TableHead>
+                        <TableHead>Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -989,8 +1061,18 @@ export default function EventDetailPage() {
                           <TableCell className="text-muted-foreground">
                             {checkIn.confidence ? `${Math.round(checkIn.confidence * 100)}%` : '—'}
                           </TableCell>
-                          <TableCell className="text-muted-foreground">{checkIn.totemLocation}</TableCell>
+                          <TableCell className="text-muted-foreground">{checkIn.totemLocation || 'APP'}</TableCell>
                           <TableCell className="text-muted-foreground">{formatDateTime(checkIn.checkedInAt)}</TableCell>
+                          <TableCell>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              disabled={invalidatingCheckInId === checkIn.id}
+                              onClick={() => handleInvalidateCheckIn(checkIn.id, checkIn.participantName)}
+                            >
+                              {invalidatingCheckInId === checkIn.id ? 'Invalidating...' : 'Invalidate'}
+                            </Button>
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -1192,6 +1274,59 @@ export default function EventDetailPage() {
               </Button>
               <Button type="submit" disabled={isAssigningTotem}>
                 {isAssigningTotem ? 'Assigning...' : 'Assign Totem'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={manualCheckInOpen}
+        onOpenChange={(open) => {
+          setManualCheckInOpen(open);
+          if (!open) {
+            setManualParticipantId('');
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Manual App Check-in</DialogTitle>
+            <DialogDescription>Create a check-in directly from the dashboard.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleManualCheckInSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label>Participant *</Label>
+              <Select value={manualParticipantId} onValueChange={setManualParticipantId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select participant" />
+                </SelectTrigger>
+                <SelectContent>
+                  {manualCheckInParticipants.length > 0
+                    ? manualCheckInParticipants.map((participant) => (
+                        <SelectItem key={participant.id} value={participant.id}>
+                          {participant.name} ({participant.email})
+                        </SelectItem>
+                      ))
+                    : null}
+                </SelectContent>
+              </Select>
+              {manualCheckInParticipants.length === 0 ? (
+                <p className="text-muted-foreground text-xs">
+                  All participants on this page already have a check-in. Invalidate a check-in to allow manual check-in again.
+                </p>
+              ) : null}
+            </div>
+
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setManualCheckInOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={isSubmittingManualCheckIn || !manualParticipantId || manualCheckInParticipants.length === 0}
+              >
+                {isSubmittingManualCheckIn ? 'Saving...' : 'Create Check-in'}
               </Button>
             </DialogFooter>
           </form>

@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { makeCreateEventController, makeListEventsController } from '@/core/application/controller-factories';
 import { createEventRequestSchema } from '@/core/communication/requests/event';
-import type { EventResponse } from '@/core/communication/responses/event';
 import { AppError } from '@/core/errors';
 import { withAuth, withRBAC } from '@/core/infrastructure/http/middlewares';
 import { toNextResponse } from '@/core/infrastructure/http/to-next-response';
@@ -34,8 +33,14 @@ export const GET = withAuth(
       return toNextResponse(result);
     }
 
-    const events = result.body as EventResponse[];
-    const eventIds = events.map((event) => event.id);
+    if (!Array.isArray(result.body)) {
+      return toNextResponse(result);
+    }
+
+    const events = result.body;
+    const eventIds = events
+      .map((event) => event.id)
+      .filter((id): id is string => typeof id === 'string');
 
     if (eventIds.length === 0) {
       return NextResponse.json([], { status: 200 });
@@ -67,12 +72,16 @@ export const GET = withAuth(
       checkInsMap.set(eventId, (checkInsMap.get(eventId) ?? 0) + 1);
     });
 
-    const enriched = events.map((event) => ({
-      ...event,
-      participantsCount: participantsMap.get(event.id) ?? 0,
-      checkInsCount: checkInsMap.get(event.id) ?? 0,
-      totemsCount: totemsMap.get(event.id) ?? 0,
-    }));
+    const enriched = events.map((event) => {
+      const eventId = typeof event.id === 'string' ? event.id : '';
+
+      return {
+        ...event,
+        participantsCount: participantsMap.get(eventId) ?? 0,
+        checkInsCount: checkInsMap.get(eventId) ?? 0,
+        totemsCount: totemsMap.get(eventId) ?? 0,
+      };
+    });
 
     return NextResponse.json(enriched, { status: 200 });
   }),

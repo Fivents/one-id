@@ -60,9 +60,30 @@ export interface EventCheckInDetailResponse {
   eventParticipantId: string;
   participantName: string;
   participantEmail: string;
-  totemEventSubscriptionId: string;
-  totemLocation: string;
+  totemEventSubscriptionId: string | null;
+  totemLocation: string | null;
 }
+
+type EventCheckInsPaginatedResponse = {
+  items: Array<{
+    id: string;
+    participant: {
+      id: string;
+      name: string;
+      email: string;
+    };
+    method: string;
+    confidence: number | null;
+    locationName: string | null;
+    checkedInAt: Date;
+    rawMetadata?: {
+      checkIn?: {
+        eventParticipantId?: string;
+        totemEventSubscriptionId?: string | null;
+      };
+    };
+  }>;
+};
 
 export interface PrintConfigSummaryResponse {
   id: string;
@@ -144,7 +165,41 @@ class EventsClientService extends BaseClient {
   }
 
   async listEventCheckIns(eventId: string): Promise<ApiResponse<EventCheckInDetailResponse[]>> {
-    return this.get(`/events/${encodeURIComponent(eventId)}/checkins`);
+    const response = await this.get<EventCheckInDetailResponse[] | EventCheckInsPaginatedResponse>(
+      `/events/${encodeURIComponent(eventId)}/checkins`,
+    );
+
+    if (!response.success) {
+      return response;
+    }
+
+    if (Array.isArray(response.data)) {
+      return { success: true, data: response.data };
+    }
+
+    if (response.data && Array.isArray(response.data.items)) {
+      const normalized: EventCheckInDetailResponse[] = response.data.items.map((item) => ({
+        id: item.id,
+        method: item.method,
+        confidence: item.confidence,
+        checkedInAt: item.checkedInAt,
+        eventParticipantId: item.rawMetadata?.checkIn?.eventParticipantId ?? '',
+        participantName: item.participant.name,
+        participantEmail: item.participant.email,
+        totemEventSubscriptionId: item.rawMetadata?.checkIn?.totemEventSubscriptionId ?? null,
+        totemLocation: item.locationName,
+      }));
+
+      return { success: true, data: normalized };
+    }
+
+    return {
+      success: false,
+      error: {
+        code: 'INVALID_RESPONSE',
+        message: 'Invalid check-ins response format.',
+      },
+    };
   }
 
   async listPrintConfigs(): Promise<ApiResponse<PrintConfigSummaryResponse[]>> {

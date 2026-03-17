@@ -12,7 +12,7 @@ export interface CheckInProps {
   confidence?: number | null;
   checkedInAt: Date;
   eventParticipantId: string;
-  totemEventSubscriptionId: string;
+  totemEventSubscriptionId: string | null;
 }
 
 export class CheckInEntity extends BaseEntity {
@@ -48,7 +48,7 @@ export class CheckInEntity extends BaseEntity {
     return this.props.eventParticipantId;
   }
 
-  get totemEventSubscriptionId(): string {
+  get totemEventSubscriptionId(): string | null {
     return this.props.totemEventSubscriptionId;
   }
 

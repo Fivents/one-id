@@ -32,7 +32,7 @@ export class PrismaCheckInRepository implements ICheckInRepository {
         confidence: data.confidence,
         checkedInAt: data.checkedInAt,
         eventParticipantId: data.eventParticipantId,
-        totemEventSubscriptionId: data.totemEventSubscriptionId,
+        totemEventSubscriptionId: data.totemEventSubscriptionId ?? null,
       },
     });
 

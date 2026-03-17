@@ -420,12 +420,14 @@ model CheckIn {
   checkedInAt DateTime      @map("checked_in_at")
 
   eventParticipantId       String @map("event_participant_id")
-  totemEventSubscriptionId String @map("totem_event_subscription_id")
+  totemEventSubscriptionId String? @map("totem_event_subscription_id")
 
   eventParticipant       EventParticipant       @relation(fields: [eventParticipantId], references: [id], onDelete: Cascade)
-  totemEventSubscription TotemEventSubscription @relation(fields: [totemEventSubscriptionId], references: [id], onDelete: Cascade)
+  totemEventSubscription TotemEventSubscription? @relation(fields: [totemEventSubscriptionId], references: [id], onDelete: SetNull)
 
   @@index([eventParticipantId])
+  @@index([checkedInAt])
+  @@index([eventParticipantId, checkedInAt])
   @@index([totemEventSubscriptionId])
   @@map("check_ins")
 }
