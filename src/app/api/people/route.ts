@@ -62,6 +62,12 @@ export const GET = withAuth(
       prisma.person.findMany({
         where,
         include: {
+          faces: {
+            where: { deletedAt: null, isActive: true },
+            select: { id: true, imageUrl: true },
+            orderBy: { createdAt: 'desc' },
+            take: 1,
+          },
           _count: {
             select: {
               eventParticipants: {
@@ -96,6 +102,8 @@ export const GET = withAuth(
           deletedAt: person.deletedAt,
           eventsCount: person._count.eventParticipants,
           facesCount: person._count.faces,
+          faceId: person.faces[0]?.id ?? null,
+          faceImageUrl: person.faces[0]?.imageUrl ?? null,
         })),
         page,
         pageSize,

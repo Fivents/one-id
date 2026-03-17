@@ -18,6 +18,8 @@ export interface EventParticipantDetailResponse {
   eventId: string;
   registeredAt: Date;
   hasCheckIn: boolean;
+  faceId: string | null;
+  faceImageUrl: string | null;
 }
 
 export interface PaginatedEventParticipantsResponse {

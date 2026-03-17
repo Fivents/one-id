@@ -8,15 +8,18 @@ import { withAuth, withRBAC } from '@/core/infrastructure/http/middlewares';
 import { toNextResponse } from '@/core/infrastructure/http/to-next-response';
 import type { RouteContext } from '@/core/infrastructure/http/types';
 import { prisma } from '@/core/infrastructure/prisma-client';
+import { generateFaceImageFeatures } from '@/core/utils/face-image-features';
 import { parseWithZod } from '@/core/utils/parse-with-zod';
 
 import { assertOrganizationAccess } from '../../people/_lib/access';
 
 const updateFaceSchema = z.object({
-  embedding: z.string().min(1).optional(),
-  imageHash: z.string().min(1).optional(),
   imageUrl: z.string().url().optional(),
+  imageDataUrl: z.string().min(1).optional(),
   isActive: z.boolean().optional(),
+}).refine((data) => !(data.imageUrl && data.imageDataUrl), {
+  message: 'Provide only one source: imageUrl or imageDataUrl.',
+  path: ['imageDataUrl'],
 });
 
 export const PATCH = withAuth(
@@ -41,13 +44,20 @@ export const PATCH = withAuth(
       const body = await req.json();
       const data = parseWithZod(updateFaceSchema, body);
 
+      const faceFeatures = data.imageUrl || data.imageDataUrl
+        ? await generateFaceImageFeatures({
+            imageUrl: data.imageUrl,
+            imageDataUrl: data.imageDataUrl,
+          })
+        : null;
+
       const updated = await prisma.personFace.update({
         where: { id: faceId },
         data: {
-          imageHash: data.imageHash,
-          imageUrl: data.imageUrl,
+          imageHash: faceFeatures?.imageHash,
+          imageUrl: faceFeatures?.storedImageUrl,
           isActive: data.isActive,
-          ...(data.embedding ? { embedding: new Uint8Array(Buffer.from(data.embedding, 'base64')) } : {}),
+          ...(faceFeatures ? { embedding: new Uint8Array(faceFeatures.embedding) } : {}),
         },
       });
 

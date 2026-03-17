@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { useParams, useRouter } from 'next/navigation';
 
@@ -98,7 +98,12 @@ export default function EventDetailPage() {
   const [participantPhone, setParticipantPhone] = useState('');
   const [participantCompany, setParticipantCompany] = useState('');
   const [participantJobTitle, setParticipantJobTitle] = useState('');
+  const [participantFaceImageUrl, setParticipantFaceImageUrl] = useState('');
+  const [participantFaceImageDataUrl, setParticipantFaceImageDataUrl] = useState('');
+  const [isCreateFaceCameraOpen, setIsCreateFaceCameraOpen] = useState(false);
   const [isCreatingParticipant, setIsCreatingParticipant] = useState(false);
+  const createFaceVideoRef = useRef<HTMLVideoElement | null>(null);
+  const createFaceCameraStreamRef = useRef<MediaStream | null>(null);
   const [totems, setTotems] = useState<EventTotemSubscriptionResponse[]>([]);
   const [availableTotems, setAvailableTotems] = useState<EventTotemAvailableResponse[]>([]);
   const [checkIns, setCheckIns] = useState<EventCheckInDetailResponse[]>([]);
@@ -124,10 +129,12 @@ export default function EventDetailPage() {
   const [editJobTitle, setEditJobTitle] = useState('');
   const [isSavingParticipant, setIsSavingParticipant] = useState(false);
 
-  const [faceEmbedding, setFaceEmbedding] = useState('');
-  const [faceImageHash, setFaceImageHash] = useState('');
   const [faceImageUrl, setFaceImageUrl] = useState('');
+  const [faceImageDataUrl, setFaceImageDataUrl] = useState('');
+  const [isFaceCameraOpen, setIsFaceCameraOpen] = useState(false);
   const [isRegisteringFace, setIsRegisteringFace] = useState(false);
+  const faceVideoRef = useRef<HTMLVideoElement | null>(null);
+  const faceCameraStreamRef = useRef<MediaStream | null>(null);
 
   const [changeLocationSub, setChangeLocationSub] = useState<EventTotemSubscriptionResponse | null>(null);
   const [newLocation, setNewLocation] = useState('');
@@ -211,6 +218,76 @@ export default function EventDetailPage() {
     setParticipantPhone('');
     setParticipantCompany('');
     setParticipantJobTitle('');
+    setParticipantFaceImageUrl('');
+    setParticipantFaceImageDataUrl('');
+    stopCreateFaceCamera();
+  }
+
+  const stopCreateFaceCamera = useCallback(() => {
+    const stream = createFaceCameraStreamRef.current;
+    if (stream) {
+      stream.getTracks().forEach((track) => track.stop());
+      createFaceCameraStreamRef.current = null;
+    }
+
+    setIsCreateFaceCameraOpen(false);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      stopCreateFaceCamera();
+    };
+  }, [stopCreateFaceCamera]);
+
+  useEffect(() => {
+    if (!isCreateFaceCameraOpen || !createFaceVideoRef.current || !createFaceCameraStreamRef.current) {
+      return;
+    }
+
+    const video = createFaceVideoRef.current;
+    video.srcObject = createFaceCameraStreamRef.current;
+    void video.play().catch(() => null);
+  }, [isCreateFaceCameraOpen]);
+
+  async function openCreateFaceCamera() {
+    try {
+      stopCreateFaceCamera();
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'user' },
+        audio: false,
+      });
+
+      createFaceCameraStreamRef.current = stream;
+      setIsCreateFaceCameraOpen(true);
+      setParticipantFaceImageUrl('');
+    } catch {
+      toast.error('Could not access webcam. Check browser permissions.');
+    }
+  }
+
+  function captureCreateFacePhoto() {
+    const video = createFaceVideoRef.current;
+    if (!video || video.videoWidth === 0 || video.videoHeight === 0) {
+      toast.error('Camera is not ready yet.');
+      return;
+    }
+
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    const context = canvas.getContext('2d');
+    if (!context) {
+      toast.error('Unable to capture photo from camera.');
+      return;
+    }
+
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const captured = canvas.toDataURL('image/jpeg', 0.9);
+    setParticipantFaceImageDataUrl(captured);
+    setParticipantFaceImageUrl('');
+    stopCreateFaceCamera();
   }
 
   async function handleCreateParticipant(e: React.FormEvent) {
@@ -231,6 +308,20 @@ export default function EventDetailPage() {
 
       if (!response.success) {
         throw new Error(response.error.message);
+      }
+
+      const normalizedFaceImageUrl = participantFaceImageUrl.trim();
+      const normalizedFaceImageDataUrl = participantFaceImageDataUrl.trim();
+      if (normalizedFaceImageUrl || normalizedFaceImageDataUrl) {
+        const faceResponse = await participantsClient.registerFace({
+          personId: response.data.personId,
+          imageUrl: normalizedFaceImageUrl || undefined,
+          imageDataUrl: normalizedFaceImageDataUrl || undefined,
+        });
+
+        if (!faceResponse.success) {
+          throw new Error(faceResponse.error.message);
+        }
       }
 
       toast.success('Participant added successfully.');
@@ -309,6 +400,73 @@ export default function EventDetailPage() {
       setNewLocation(changeLocationSub.locationName);
     }
   }, [changeLocationSub]);
+
+  const stopFaceCamera = useCallback(() => {
+    const stream = faceCameraStreamRef.current;
+    if (stream) {
+      stream.getTracks().forEach((track) => track.stop());
+      faceCameraStreamRef.current = null;
+    }
+
+    setIsFaceCameraOpen(false);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      stopFaceCamera();
+    };
+  }, [stopFaceCamera]);
+
+  useEffect(() => {
+    if (!isFaceCameraOpen || !faceVideoRef.current || !faceCameraStreamRef.current) {
+      return;
+    }
+
+    const video = faceVideoRef.current;
+    video.srcObject = faceCameraStreamRef.current;
+    void video.play().catch(() => null);
+  }, [isFaceCameraOpen]);
+
+  async function openFaceCamera() {
+    try {
+      stopFaceCamera();
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'user' },
+        audio: false,
+      });
+
+      faceCameraStreamRef.current = stream;
+      setIsFaceCameraOpen(true);
+      setFaceImageUrl('');
+    } catch {
+      toast.error('Could not access webcam. Check browser permissions.');
+    }
+  }
+
+  function captureFacePhoto() {
+    const video = faceVideoRef.current;
+    if (!video || video.videoWidth === 0 || video.videoHeight === 0) {
+      toast.error('Camera is not ready yet.');
+      return;
+    }
+
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    const context = canvas.getContext('2d');
+    if (!context) {
+      toast.error('Unable to capture photo from camera.');
+      return;
+    }
+
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const captured = canvas.toDataURL('image/jpeg', 0.9);
+    setFaceImageDataUrl(captured);
+    setFaceImageUrl('');
+    stopFaceCamera();
+  }
 
   async function handleAssignTotem(e: React.FormEvent) {
     e.preventDefault();
@@ -430,19 +588,36 @@ export default function EventDetailPage() {
     e.preventDefault();
     if (!registerFaceParticipant) return;
 
+    const normalizedImageUrl = faceImageUrl.trim();
+    const normalizedImageDataUrl = faceImageDataUrl.trim();
+
+    if (!normalizedImageUrl && !normalizedImageDataUrl) {
+      toast.error('Provide an image URL or capture a webcam photo.');
+      return;
+    }
+
     setIsRegisteringFace(true);
     try {
-      await participantsClient.registerFace({
-        personId: registerFaceParticipant.personId,
-        embedding: faceEmbedding.trim(),
-        imageHash: faceImageHash.trim(),
-        imageUrl: faceImageUrl.trim(),
-      });
-      toast.success('Face registered.');
+      if (registerFaceParticipant.faceId) {
+        await participantsClient.replaceFaceImage(registerFaceParticipant.faceId, {
+          imageUrl: normalizedImageUrl || undefined,
+          imageDataUrl: normalizedImageDataUrl || undefined,
+          isActive: true,
+        });
+      } else {
+        await participantsClient.registerFace({
+          personId: registerFaceParticipant.personId,
+          imageUrl: normalizedImageUrl || undefined,
+          imageDataUrl: normalizedImageDataUrl || undefined,
+        });
+      }
+
+      toast.success(registerFaceParticipant.faceId ? 'Face image updated.' : 'Face registered.');
       setRegisterFaceParticipant(null);
-      setFaceEmbedding('');
-      setFaceImageHash('');
       setFaceImageUrl('');
+      setFaceImageDataUrl('');
+      stopFaceCamera();
+      loadParticipants();
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to register face.';
       toast.error(message);
@@ -626,6 +801,7 @@ export default function EventDetailPage() {
                         <TableHead>Company</TableHead>
                         <TableHead>Job Title</TableHead>
                         <TableHead>Registered At</TableHead>
+                        <TableHead>Face</TableHead>
                         <TableHead>Check-in Status</TableHead>
                         <TableHead className="w-24">Actions</TableHead>
                       </TableRow>
@@ -639,6 +815,18 @@ export default function EventDetailPage() {
                           <TableCell className="text-muted-foreground">{participant.jobTitle ?? '—'}</TableCell>
                           <TableCell className="text-muted-foreground">
                             {formatDate(participant.registeredAt)}
+                          </TableCell>
+                          <TableCell>
+                            <Badge
+                              variant="outline"
+                              className={
+                                participant.faceId
+                                  ? 'bg-emerald-500/10 text-emerald-600'
+                                  : 'bg-gray-400/10 text-gray-500'
+                              }
+                            >
+                              {participant.faceId ? 'With image' : 'No image'}
+                            </Badge>
                           </TableCell>
                           <TableCell>
                             <Badge
@@ -1106,6 +1294,59 @@ export default function EventDetailPage() {
               />
             </div>
 
+            <div className="space-y-2">
+              <Label htmlFor="participant-face-url">Face Image URL (optional)</Label>
+              <Input
+                id="participant-face-url"
+                type="url"
+                value={participantFaceImageUrl}
+                onChange={(e) => {
+                  setParticipantFaceImageUrl(e.target.value);
+                  if (e.target.value.trim()) {
+                    setParticipantFaceImageDataUrl('');
+                    stopCreateFaceCamera();
+                  }
+                }}
+                placeholder="https://..."
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Face Webcam (optional)</Label>
+              <div className="flex gap-2">
+                {!isCreateFaceCameraOpen ? (
+                  <Button type="button" variant="outline" onClick={openCreateFaceCamera}>
+                    Open camera
+                  </Button>
+                ) : (
+                  <>
+                    <Button type="button" variant="outline" onClick={captureCreateFacePhoto}>
+                      Capture photo
+                    </Button>
+                    <Button type="button" variant="ghost" onClick={stopCreateFaceCamera}>
+                      Close camera
+                    </Button>
+                  </>
+                )}
+              </div>
+
+              {isCreateFaceCameraOpen && (
+                <video ref={createFaceVideoRef} className="w-full rounded-md border" autoPlay playsInline muted />
+              )}
+            </div>
+
+            {(participantFaceImageDataUrl || participantFaceImageUrl.trim()) && (
+              <div className="space-y-2">
+                <Label>Face Preview</Label>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={participantFaceImageDataUrl || participantFaceImageUrl.trim()}
+                  alt="Participant face preview"
+                  className="h-40 w-full rounded-md border object-cover"
+                />
+              </div>
+            )}
+
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setCreateParticipantOpen(false)}>
                 Cancel
@@ -1187,43 +1428,93 @@ export default function EventDetailPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={!!registerFaceParticipant} onOpenChange={(open) => !open && setRegisterFaceParticipant(null)}>
+      <Dialog
+        open={!!registerFaceParticipant}
+        onOpenChange={(open) => {
+          if (!open) {
+            setRegisterFaceParticipant(null);
+            setFaceImageUrl('');
+            setFaceImageDataUrl('');
+            stopFaceCamera();
+          }
+        }}
+      >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Register Face</DialogTitle>
-            <DialogDescription>Attach a face to this participant.</DialogDescription>
+            <DialogTitle>{registerFaceParticipant?.faceId ? 'Update Face Image' : 'Register Face'}</DialogTitle>
+            <DialogDescription>
+              Provide an image URL or capture from webcam. Embedding and hash are generated internally.
+            </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleRegisterFace} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="face-embedding">Embedding *</Label>
-              <Textarea
-                id="face-embedding"
-                value={faceEmbedding}
-                onChange={(e) => setFaceEmbedding(e.target.value)}
-                rows={3}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="face-hash">Image Hash *</Label>
-              <Input id="face-hash" value={faceImageHash} onChange={(e) => setFaceImageHash(e.target.value)} required />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="face-url">Image URL *</Label>
+              <Label htmlFor="face-url">Image URL</Label>
               <Input
                 id="face-url"
                 type="url"
                 value={faceImageUrl}
-                onChange={(e) => setFaceImageUrl(e.target.value)}
-                required
+                onChange={(e) => {
+                  setFaceImageUrl(e.target.value);
+                  if (e.target.value.trim()) {
+                    setFaceImageDataUrl('');
+                    stopFaceCamera();
+                  }
+                }}
+                placeholder="https://..."
               />
             </div>
+
+            <div className="space-y-2">
+              <Label>Webcam</Label>
+              <div className="flex gap-2">
+                {!isFaceCameraOpen ? (
+                  <Button type="button" variant="outline" onClick={openFaceCamera}>
+                    Open camera
+                  </Button>
+                ) : (
+                  <>
+                    <Button type="button" variant="outline" onClick={captureFacePhoto}>
+                      Capture photo
+                    </Button>
+                    <Button type="button" variant="ghost" onClick={stopFaceCamera}>
+                      Close camera
+                    </Button>
+                  </>
+                )}
+              </div>
+
+              {isFaceCameraOpen && (
+                <video ref={faceVideoRef} className="w-full rounded-md border" autoPlay playsInline muted />
+              )}
+            </div>
+
+            {(faceImageDataUrl || faceImageUrl.trim()) && (
+              <div className="space-y-2">
+                <Label>Preview</Label>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={faceImageDataUrl || faceImageUrl.trim()}
+                  alt="Face preview"
+                  className="h-48 w-full rounded-md border object-cover"
+                />
+              </div>
+            )}
+
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setRegisterFaceParticipant(null)}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setRegisterFaceParticipant(null);
+                  setFaceImageUrl('');
+                  setFaceImageDataUrl('');
+                  stopFaceCamera();
+                }}
+              >
                 Cancel
               </Button>
               <Button type="submit" disabled={isRegisteringFace}>
-                {isRegisteringFace ? 'Saving...' : 'Register Face'}
+                {isRegisteringFace ? 'Saving...' : registerFaceParticipant?.faceId ? 'Update Face' : 'Register Face'}
               </Button>
             </DialogFooter>
           </form>

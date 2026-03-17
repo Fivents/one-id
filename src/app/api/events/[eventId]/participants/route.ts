@@ -45,7 +45,19 @@ export const GET = withAuth(
       prisma.eventParticipant.findMany({
         where,
         include: {
-          person: { select: { id: true, name: true, email: true } },
+          person: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              faces: {
+                where: { deletedAt: null, isActive: true },
+                select: { id: true, imageUrl: true },
+                orderBy: { createdAt: 'desc' },
+                take: 1,
+              },
+            },
+          },
           checkIns: { select: { id: true } },
         },
         orderBy: { createdAt: 'desc' },
@@ -66,6 +78,8 @@ export const GET = withAuth(
       eventId: participant.eventId,
       registeredAt: participant.createdAt,
       hasCheckIn: participant.checkIns.length > 0,
+      faceId: participant.person.faces[0]?.id ?? null,
+      faceImageUrl: participant.person.faces[0]?.imageUrl ?? null,
     }));
 
     return NextResponse.json({ items: result, page, pageSize, total, totalPages }, { status: 200 });

@@ -16,6 +16,8 @@ export interface PersonSummaryResponse {
   deletedAt: Date | null;
   eventsCount: number;
   facesCount: number;
+  faceId: string | null;
+  faceImageUrl: string | null;
 }
 
 export interface PaginatedPeopleResponse {

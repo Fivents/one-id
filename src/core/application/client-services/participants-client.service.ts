@@ -4,6 +4,12 @@ import type {
 } from '@/core/communication/requests/event-participant';
 import type { RegisterFaceRequest } from '@/core/communication/requests/person-face';
 
+type UpdateFaceRequest = {
+  imageUrl?: string;
+  imageDataUrl?: string;
+  isActive?: boolean;
+};
+
 import type { ApiResponse } from './base/api-response';
 import { BaseClient } from './base/base-client';
 
@@ -46,6 +52,10 @@ class ParticipantsClientService extends BaseClient {
   }
 
   async updateFace(faceId: string, data: Partial<RegisterFaceRequest>): Promise<ApiResponse<{ id: string }>> {
+    return this.patch(`/person-faces/${encodeURIComponent(faceId)}`, data);
+  }
+
+  async replaceFaceImage(faceId: string, data: UpdateFaceRequest): Promise<ApiResponse<{ id: string }>> {
     return this.patch(`/person-faces/${encodeURIComponent(faceId)}`, data);
   }
 

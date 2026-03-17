@@ -1,10 +1,10 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { useParams, useRouter } from 'next/navigation';
 
-import { Edit, Search, Trash2, UserPlus, Users } from 'lucide-react';
+import { Edit, ScanFace, Search, Trash2, UserPlus, Users } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { useConfirm } from '@/components/shared/confirm-dialog';
@@ -24,7 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { peopleClient } from '@/core/application/client-services';
+import { participantsClient, peopleClient } from '@/core/application/client-services';
 import type {
   PaginatedPeopleResponse,
   PersonEventLinkResponse,
@@ -118,6 +118,7 @@ export default function OrganizationPeoplePage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editPerson, setEditPerson] = useState<PersonSummaryResponse | null>(null);
   const [manageEventsPerson, setManageEventsPerson] = useState<PersonSummaryResponse | null>(null);
+  const [manageFacePerson, setManageFacePerson] = useState<PersonSummaryResponse | null>(null);
   const [personEvents, setPersonEvents] = useState<PersonEventLinkResponse[]>([]);
   const [isLoadingPersonEvents, setIsLoadingPersonEvents] = useState(false);
 
@@ -126,7 +127,18 @@ export default function OrganizationPeoplePage() {
   const [formDocument, setFormDocument] = useState('');
   const [formDocumentType, setFormDocumentType] = useState<DocumentType | ''>('');
   const [formPhone, setFormPhone] = useState('');
+  const [createFaceImageUrl, setCreateFaceImageUrl] = useState('');
+  const [createFaceImageDataUrl, setCreateFaceImageDataUrl] = useState('');
+  const [isCreateFaceCameraOpen, setIsCreateFaceCameraOpen] = useState(false);
   const [isSubmittingForm, setIsSubmittingForm] = useState(false);
+  const createFaceVideoRef = useRef<HTMLVideoElement | null>(null);
+  const createFaceCameraStreamRef = useRef<MediaStream | null>(null);
+  const [faceImageUrl, setFaceImageUrl] = useState('');
+  const [faceImageDataUrl, setFaceImageDataUrl] = useState('');
+  const [isFaceCameraOpen, setIsFaceCameraOpen] = useState(false);
+  const [isSavingFace, setIsSavingFace] = useState(false);
+  const faceVideoRef = useRef<HTMLVideoElement | null>(null);
+  const faceCameraStreamRef = useRef<MediaStream | null>(null);
 
   const allActiveSelected = useMemo(() => {
     return activePeople.items.length > 0 && activePeople.items.every((person) => selectedActiveIds.has(person.id));
@@ -220,13 +232,82 @@ export default function OrganizationPeoplePage() {
     [organizations, router, setActiveOrganization],
   );
 
+  const stopCreateFaceCamera = useCallback(() => {
+    const stream = createFaceCameraStreamRef.current;
+    if (stream) {
+      stream.getTracks().forEach((track) => track.stop());
+      createFaceCameraStreamRef.current = null;
+    }
+    setIsCreateFaceCameraOpen(false);
+  }, []);
+
   const resetForm = useCallback(() => {
     setFormName('');
     setFormEmail('');
     setFormDocument('');
     setFormDocumentType('');
     setFormPhone('');
-  }, []);
+    setCreateFaceImageUrl('');
+    setCreateFaceImageDataUrl('');
+    stopCreateFaceCamera();
+  }, [stopCreateFaceCamera]);
+
+  useEffect(() => {
+    return () => {
+      stopCreateFaceCamera();
+    };
+  }, [stopCreateFaceCamera]);
+
+  useEffect(() => {
+    if (!isCreateFaceCameraOpen || !createFaceVideoRef.current || !createFaceCameraStreamRef.current) {
+      return;
+    }
+
+    const video = createFaceVideoRef.current;
+    video.srcObject = createFaceCameraStreamRef.current;
+    void video.play().catch(() => null);
+  }, [isCreateFaceCameraOpen]);
+
+  const openCreateFaceCamera = useCallback(async () => {
+    try {
+      stopCreateFaceCamera();
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'user' },
+        audio: false,
+      });
+
+      createFaceCameraStreamRef.current = stream;
+      setIsCreateFaceCameraOpen(true);
+      setCreateFaceImageUrl('');
+    } catch {
+      toast.error('Could not access webcam. Check browser permissions.');
+    }
+  }, [stopCreateFaceCamera]);
+
+  const captureCreateFacePhoto = useCallback(() => {
+    const video = createFaceVideoRef.current;
+    if (!video || video.videoWidth === 0 || video.videoHeight === 0) {
+      toast.error('Camera is not ready yet.');
+      return;
+    }
+
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    const context = canvas.getContext('2d');
+    if (!context) {
+      toast.error('Unable to capture photo from camera.');
+      return;
+    }
+
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const captured = canvas.toDataURL('image/jpeg', 0.9);
+    setCreateFaceImageDataUrl(captured);
+    setCreateFaceImageUrl('');
+    stopCreateFaceCamera();
+  }, [stopCreateFaceCamera]);
 
   const openEditModal = useCallback((person: PersonSummaryResponse) => {
     setEditPerson(person);
@@ -266,6 +347,19 @@ export default function OrganizationPeoplePage() {
           });
 
           if (!response.success) throw new Error(response.error.message);
+
+          const normalizedFaceImageUrl = createFaceImageUrl.trim();
+          const normalizedFaceImageDataUrl = createFaceImageDataUrl.trim();
+          if (normalizedFaceImageUrl || normalizedFaceImageDataUrl) {
+            const faceResponse = await participantsClient.registerFace({
+              personId: response.data.id,
+              imageUrl: normalizedFaceImageUrl || undefined,
+              imageDataUrl: normalizedFaceImageDataUrl || undefined,
+            });
+
+            if (!faceResponse.success) throw new Error(faceResponse.error.message);
+          }
+
           toast.success('Person created successfully.');
           setCreateOpen(false);
         }
@@ -287,6 +381,8 @@ export default function OrganizationPeoplePage() {
       formDocument,
       formDocumentType,
       formPhone,
+      createFaceImageUrl,
+      createFaceImageDataUrl,
       organizationId,
       resetForm,
       loadPeople,
@@ -410,6 +506,118 @@ export default function OrganizationPeoplePage() {
     [manageEventsPerson, canManage, loadPeople],
   );
 
+  const stopFaceCamera = useCallback(() => {
+    const stream = faceCameraStreamRef.current;
+    if (stream) {
+      stream.getTracks().forEach((track) => track.stop());
+      faceCameraStreamRef.current = null;
+    }
+    setIsFaceCameraOpen(false);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      stopFaceCamera();
+    };
+  }, [stopFaceCamera]);
+
+  const openFaceCamera = useCallback(async () => {
+    try {
+      stopFaceCamera();
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'user' },
+        audio: false,
+      });
+
+      faceCameraStreamRef.current = stream;
+      setIsFaceCameraOpen(true);
+      setFaceImageUrl('');
+
+    } catch {
+      toast.error('Could not access webcam. Check browser permissions.');
+    }
+  }, [stopFaceCamera]);
+
+  useEffect(() => {
+    if (!isFaceCameraOpen || !faceVideoRef.current || !faceCameraStreamRef.current) {
+      return;
+    }
+
+    const video = faceVideoRef.current;
+    video.srcObject = faceCameraStreamRef.current;
+    void video.play().catch(() => null);
+  }, [isFaceCameraOpen]);
+
+  const captureFacePhoto = useCallback(() => {
+    const video = faceVideoRef.current;
+    if (!video || video.videoWidth === 0 || video.videoHeight === 0) {
+      toast.error('Camera is not ready yet.');
+      return;
+    }
+
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    const context = canvas.getContext('2d');
+    if (!context) {
+      toast.error('Unable to capture photo from camera.');
+      return;
+    }
+
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const captured = canvas.toDataURL('image/jpeg', 0.9);
+    setFaceImageDataUrl(captured);
+    setFaceImageUrl('');
+    stopFaceCamera();
+  }, [stopFaceCamera]);
+
+  const handleSaveFace = useCallback(async () => {
+    if (!manageFacePerson) return;
+
+    const normalizedImageUrl = faceImageUrl.trim();
+    const normalizedImageDataUrl = faceImageDataUrl.trim();
+
+    if (!normalizedImageUrl && !normalizedImageDataUrl) {
+      toast.error('Provide an image URL or capture a webcam photo.');
+      return;
+    }
+
+    setIsSavingFace(true);
+    try {
+      if (manageFacePerson.faceId) {
+        const response = await participantsClient.replaceFaceImage(manageFacePerson.faceId, {
+          imageUrl: normalizedImageUrl || undefined,
+          imageDataUrl: normalizedImageDataUrl || undefined,
+          isActive: true,
+        });
+
+        if (!response.success) throw new Error(response.error.message);
+      } else {
+        const response = await participantsClient.registerFace({
+          personId: manageFacePerson.id,
+          imageUrl: normalizedImageUrl || undefined,
+          imageDataUrl: normalizedImageDataUrl || undefined,
+        });
+
+        if (!response.success) throw new Error(response.error.message);
+      }
+
+      toast.success(manageFacePerson.faceId ? 'Face image updated.' : 'Face registered.');
+      setManageFacePerson(null);
+      setFaceImageUrl('');
+      setFaceImageDataUrl('');
+      stopFaceCamera();
+      await loadPeople('active');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to save face image.';
+      toast.error(message);
+    } finally {
+      setIsSavingFace(false);
+    }
+  }, [manageFacePerson, faceImageUrl, faceImageDataUrl, stopFaceCamera, loadPeople]);
+
   if (isLoadingPage || !isAuthenticated || !canView) {
     return null;
   }
@@ -516,19 +724,20 @@ export default function OrganizationPeoplePage() {
                   <TableHead>Document</TableHead>
                   <TableHead>Phone</TableHead>
                   <TableHead>Events</TableHead>
+                  <TableHead>Face</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-muted-foreground py-8 text-center">
+                    <TableCell colSpan={8} className="text-muted-foreground py-8 text-center">
                       Loading...
                     </TableCell>
                   </TableRow>
                 ) : activePeople.items.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-muted-foreground py-8 text-center">
+                    <TableCell colSpan={8} className="text-muted-foreground py-8 text-center">
                       No people found.
                     </TableCell>
                   </TableRow>
@@ -557,6 +766,16 @@ export default function OrganizationPeoplePage() {
                       <TableCell>
                         <Badge variant="outline">{person.eventsCount}</Badge>
                       </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="outline"
+                          className={
+                            person.faceId ? 'bg-emerald-500/10 text-emerald-600' : 'bg-gray-400/10 text-gray-500'
+                          }
+                        >
+                          {person.faceId ? 'With image' : 'No image'}
+                        </Badge>
+                      </TableCell>
                       <TableCell className="flex gap-2">
                         {canManage && (
                           <>
@@ -573,6 +792,18 @@ export default function OrganizationPeoplePage() {
                               }}
                             >
                               Events
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setManageFacePerson(person);
+                                setFaceImageUrl('');
+                                setFaceImageDataUrl('');
+                              }}
+                            >
+                              <ScanFace className="mr-1 h-3.5 w-3.5" />
+                              Face
                             </Button>
                             <Button variant="destructive" size="sm" onClick={() => handleSoftDelete(person)}>
                               Delete
@@ -727,6 +958,57 @@ export default function OrganizationPeoplePage() {
               <Label>Phone</Label>
               <Input value={formPhone} onChange={(event) => setFormPhone(event.target.value)} />
             </div>
+
+            <div className="space-y-1">
+              <Label>Face Image URL (optional)</Label>
+              <Input
+                type="url"
+                placeholder="https://..."
+                value={createFaceImageUrl}
+                onChange={(event) => {
+                  setCreateFaceImageUrl(event.target.value);
+                  if (event.target.value.trim()) {
+                    setCreateFaceImageDataUrl('');
+                    stopCreateFaceCamera();
+                  }
+                }}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Face Webcam (optional)</Label>
+              <div className="flex gap-2">
+                {!isCreateFaceCameraOpen ? (
+                  <Button type="button" variant="outline" onClick={openCreateFaceCamera}>
+                    Open camera
+                  </Button>
+                ) : (
+                  <>
+                    <Button type="button" variant="outline" onClick={captureCreateFacePhoto}>
+                      Capture photo
+                    </Button>
+                    <Button type="button" variant="ghost" onClick={stopCreateFaceCamera}>
+                      Close camera
+                    </Button>
+                  </>
+                )}
+              </div>
+              {isCreateFaceCameraOpen && (
+                <video ref={createFaceVideoRef} className="w-full rounded-md border" autoPlay playsInline muted />
+              )}
+            </div>
+
+            {(createFaceImageDataUrl || createFaceImageUrl.trim()) && (
+              <div className="space-y-2">
+                <Label>Face Preview</Label>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={createFaceImageDataUrl || createFaceImageUrl.trim()}
+                  alt="Person face preview"
+                  className="h-40 w-full rounded-md border object-cover"
+                />
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)}>
@@ -840,6 +1122,99 @@ export default function OrganizationPeoplePage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setManageEventsPerson(null)}>
               Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={!!manageFacePerson}
+        onOpenChange={(open) => {
+          if (!open) {
+            setManageFacePerson(null);
+            setFaceImageUrl('');
+            setFaceImageDataUrl('');
+            stopFaceCamera();
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{manageFacePerson?.faceId ? 'Update Face Image' : 'Register Face'}</DialogTitle>
+            <DialogDescription>
+              Provide an image URL or capture from webcam. Embedding and hash are generated internally.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-1">
+              <Label htmlFor="person-face-url">Image URL</Label>
+              <Input
+                id="person-face-url"
+                type="url"
+                placeholder="https://..."
+                value={faceImageUrl}
+                onChange={(event) => {
+                  setFaceImageUrl(event.target.value);
+                  if (event.target.value.trim()) {
+                    setFaceImageDataUrl('');
+                    stopFaceCamera();
+                  }
+                }}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Webcam</Label>
+              <div className="flex gap-2">
+                {!isFaceCameraOpen ? (
+                  <Button type="button" variant="outline" onClick={openFaceCamera}>
+                    Open camera
+                  </Button>
+                ) : (
+                  <>
+                    <Button type="button" variant="outline" onClick={captureFacePhoto}>
+                      Capture photo
+                    </Button>
+                    <Button type="button" variant="ghost" onClick={stopFaceCamera}>
+                      Close camera
+                    </Button>
+                  </>
+                )}
+              </div>
+
+              {isFaceCameraOpen && (
+                <video ref={faceVideoRef} className="w-full rounded-md border" autoPlay playsInline muted />
+              )}
+            </div>
+
+            {(faceImageDataUrl || faceImageUrl.trim()) && (
+              <div className="space-y-2">
+                <Label>Preview</Label>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={faceImageDataUrl || faceImageUrl.trim()}
+                  alt="Face preview"
+                  className="h-48 w-full rounded-md border object-cover"
+                />
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setManageFacePerson(null);
+                setFaceImageUrl('');
+                setFaceImageDataUrl('');
+                stopFaceCamera();
+              }}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleSaveFace} disabled={isSavingFace}>
+              {isSavingFace ? 'Saving...' : manageFacePerson?.faceId ? 'Update Face' : 'Register Face'}
             </Button>
           </DialogFooter>
         </DialogContent>
