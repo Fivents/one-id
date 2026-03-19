@@ -11,7 +11,7 @@ import type { AdminTotemResponse } from '@/core/communication/responses/admin-to
 import type { TotemStatus } from '@/core/domain/entities';
 import { AppError, ErrorCode } from '@/core/errors';
 
-import { adminTotemsClient } from '../client-services/admin-totems-client.service';
+import { adminTotemsClient, type TotemAssignmentHistory } from '../client-services/admin-totems-client.service';
 
 // ── Types ─────────────────────────────────────────────────────────
 
@@ -32,7 +32,7 @@ interface AdminTotemsContextValue extends AdminTotemsState {
   createTotem: (data: CreateAdminTotemRequest) => Promise<AdminTotemResponse>;
   bulkCreateTotems: (data: BulkCreateTotemsRequest) => Promise<AdminTotemResponse[]>;
   updateTotem: (totemId: string, data: UpdateAdminTotemRequest) => Promise<AdminTotemResponse>;
-  deleteTotem: (totemId: string) => Promise<void>;
+  deleteTotem: (totemId: string, options?: { force?: boolean }) => Promise<void>;
   bulkSoftDelete: (totemIds: string[]) => Promise<void>;
   hardDeleteTotem: (totemId: string) => Promise<void>;
   bulkHardDelete: (totemIds: string[]) => Promise<void>;
@@ -40,6 +40,12 @@ interface AdminTotemsContextValue extends AdminTotemsState {
   generateAccessCode: (totemId: string) => Promise<AdminTotemResponse>;
   revokeAccessCode: (totemId: string) => Promise<AdminTotemResponse>;
   changeStatus: (totemId: string, status: TotemStatus) => Promise<AdminTotemResponse>;
+  assignTotemToOrganization: (
+    totemId: string,
+    data: { organizationId: string; startsAt: Date; endsAt: Date },
+  ) => Promise<void>;
+  unassignTotemFromOrganization: (totemId: string) => Promise<void>;
+  getTotemAssignments: (totemId: string) => Promise<TotemAssignmentHistory[]>;
   setSearchQuery: (query: string) => void;
   setFilterStatus: (status: string) => void;
   toggleSelection: (totemId: string) => void;
@@ -266,8 +272,8 @@ export function AdminTotemsProvider({ children }: { children: React.ReactNode })
     return response.data;
   }, []);
 
-  const deleteTotem = useCallback(async (totemId: string) => {
-    const response = await adminTotemsClient.deleteTotem(totemId);
+  const deleteTotem = useCallback(async (totemId: string, options?: { force?: boolean }) => {
+    const response = await adminTotemsClient.deleteTotem(totemId, options);
 
     if (!response.success) {
       throw new AppError({
@@ -279,6 +285,57 @@ export function AdminTotemsProvider({ children }: { children: React.ReactNode })
     }
 
     dispatch({ type: 'TOTEM_DELETED', totemId });
+  }, []);
+
+  const assignTotemToOrganization = useCallback(
+    async (totemId: string, data: { organizationId: string; startsAt: Date; endsAt: Date }) => {
+      const response = await adminTotemsClient.assignTotemToOrganization(totemId, data);
+
+      if (!response.success) {
+        throw new AppError({
+          code: ErrorCode.INTERNAL_SERVER_ERROR,
+          message: response.error.message,
+          httpStatus: 400,
+          level: 'warning',
+        });
+      }
+
+      await fetchTotems();
+    },
+    [fetchTotems],
+  );
+
+  const unassignTotemFromOrganization = useCallback(
+    async (totemId: string) => {
+      const response = await adminTotemsClient.unassignTotemFromOrganization(totemId);
+
+      if (!response.success) {
+        throw new AppError({
+          code: ErrorCode.INTERNAL_SERVER_ERROR,
+          message: response.error.message,
+          httpStatus: 400,
+          level: 'warning',
+        });
+      }
+
+      await fetchTotems();
+    },
+    [fetchTotems],
+  );
+
+  const getTotemAssignments = useCallback(async (totemId: string) => {
+    const response = await adminTotemsClient.getTotemAssignments(totemId);
+
+    if (!response.success) {
+      throw new AppError({
+        code: ErrorCode.INTERNAL_SERVER_ERROR,
+        message: response.error.message,
+        httpStatus: 400,
+        level: 'warning',
+      });
+    }
+
+    return response.data;
   }, []);
 
   const bulkSoftDelete = useCallback(async (totemIds: string[]) => {
@@ -454,6 +511,9 @@ export function AdminTotemsProvider({ children }: { children: React.ReactNode })
       generateAccessCode,
       revokeAccessCode,
       changeStatus,
+      assignTotemToOrganization,
+      unassignTotemFromOrganization,
+      getTotemAssignments,
       setSearchQuery,
       setFilterStatus,
       toggleSelection,
@@ -479,6 +539,9 @@ export function AdminTotemsProvider({ children }: { children: React.ReactNode })
       generateAccessCode,
       revokeAccessCode,
       changeStatus,
+      assignTotemToOrganization,
+      unassignTotemFromOrganization,
+      getTotemAssignments,
       setSearchQuery,
       setFilterStatus,
       toggleSelection,

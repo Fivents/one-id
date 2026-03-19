@@ -6,6 +6,7 @@ import { AppError } from '@/core/errors';
 import { withAuth } from '@/core/infrastructure/http/middlewares/auth.middleware';
 import { withSuperAdmin } from '@/core/infrastructure/http/middlewares/super-admin.middleware';
 import { toNextResponse } from '@/core/infrastructure/http/to-next-response';
+import { prisma } from '@/core/infrastructure/prisma-client';
 import { parseWithZod } from '@/core/utils/parse-with-zod';
 
 export const POST = withAuth(
@@ -13,6 +14,48 @@ export const POST = withAuth(
     try {
       const body = await req.json();
       const data = parseWithZod(bulkDeleteTotemsRequestSchema, body);
+
+      const now = new Date();
+
+      const activeOrganizationSubscriptions = await prisma.totemOrganizationSubscription.findMany({
+        where: {
+          totemId: { in: data.totemIds },
+          startsAt: { lte: now },
+          endsAt: { gte: now },
+        },
+        select: { id: true },
+      });
+
+      if (activeOrganizationSubscriptions.length > 0) {
+        const activeOrganizationSubscriptionIds = activeOrganizationSubscriptions.map(
+          (subscription) => subscription.id,
+        );
+
+        await prisma.$transaction([
+          prisma.totemEventSubscription.updateMany({
+            where: {
+              totemOrganizationSubscriptionId: { in: activeOrganizationSubscriptionIds },
+              startsAt: { lte: now },
+              endsAt: { gte: now },
+            },
+            data: {
+              endsAt: now,
+              revokedAt: now,
+              revokedReason: 'TOTEM_DELETED',
+            },
+          }),
+          prisma.totemOrganizationSubscription.updateMany({
+            where: {
+              id: { in: activeOrganizationSubscriptionIds },
+            },
+            data: {
+              endsAt: now,
+              revokedAt: now,
+              revokedReason: 'TOTEM_DELETED',
+            },
+          }),
+        ]);
+      }
 
       const controller = makeBulkSoftDeleteTotemsController();
       const result = await controller.handle(data.totemIds);

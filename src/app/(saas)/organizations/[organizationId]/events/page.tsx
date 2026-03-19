@@ -20,6 +20,7 @@ import {
   usePermissions,
 } from '@/core/application/contexts';
 import type { EventSummaryResponse } from '@/core/communication/responses/event';
+import { useI18n } from '@/i18n';
 
 function EventsPageContent() {
   const router = useRouter();
@@ -39,6 +40,7 @@ function EventsPageContent() {
     useEvents();
 
   const confirm = useConfirm();
+  const { t } = useI18n();
 
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [editEvent, setEditEvent] = useState<EventSummaryResponse | null>(null);
@@ -94,9 +96,9 @@ function EventsPageContent() {
   const handleDelete = useCallback(
     async (event: EventSummaryResponse) => {
       const accepted = await confirm.confirm({
-        title: 'Delete event',
-        description: `This will permanently remove ${event.name}.`,
-        confirmLabel: 'Delete',
+        title: t('pages.organizationEvents.deleteEventTitle'),
+        description: t('pages.organizationEvents.deleteEventDescription').replace('{name}', event.name),
+        confirmLabel: t('pages.organizationEvents.deleteEventConfirm'),
         variant: 'destructive',
         requireText: event.slug,
       });
@@ -105,27 +107,29 @@ function EventsPageContent() {
 
       try {
         await deleteEvent(event.id);
-        toast.success('Event deleted successfully.');
+        toast.success(t('pages.organizationEvents.deleteEventSuccess'));
       } catch (error) {
-        const message = error instanceof Error ? error.message : 'Failed to delete event.';
+        const message = error instanceof Error ? error.message : t('pages.organizationEvents.deleteEventError');
         toast.error(message);
       }
     },
-    [confirm, deleteEvent],
+    [confirm, deleteEvent, t],
   );
 
   const handleStatusChange = useCallback(
     async (event: EventSummaryResponse, action: 'publish' | 'activate' | 'complete' | 'cancel') => {
       const labels = {
-        publish: 'Publish Event',
-        activate: 'Activate Event',
-        complete: 'Complete Event',
-        cancel: 'Cancel Event',
+        publish: t('pages.organizationEvents.publishEvent'),
+        activate: t('pages.organizationEvents.activateEvent'),
+        complete: t('pages.organizationEvents.completeEvent'),
+        cancel: t('pages.organizationEvents.cancelEvent'),
       };
 
       const accepted = await confirm.confirm({
         title: labels[action],
-        description: `Do you want to ${action} ${event.name}?`,
+        description: t('pages.organizationEvents.statusChangeDescription')
+          .replace('{action}', labels[action])
+          .replace('{name}', event.name),
         confirmLabel: labels[action],
         variant: action === 'cancel' ? 'destructive' : 'default',
       });
@@ -138,13 +142,13 @@ function EventsPageContent() {
         if (action === 'complete') await completeEvent(event.id);
         if (action === 'cancel') await cancelEvent(event.id);
 
-        toast.success('Event status updated.');
+        toast.success(t('pages.organizationEvents.statusChangeSuccess'));
       } catch (error) {
-        const message = error instanceof Error ? error.message : 'Failed to update event status.';
+        const message = error instanceof Error ? error.message : t('pages.organizationEvents.statusChangeError');
         toast.error(message);
       }
     },
-    [confirm, publishEvent, activateEvent, completeEvent, cancelEvent],
+    [confirm, publishEvent, activateEvent, completeEvent, cancelEvent, t],
   );
 
   if (isLoadingPage || !isAuthenticated || (!isSuperAdmin() && !hasPermission('EVENT_VIEW'))) {
@@ -159,9 +163,10 @@ function EventsPageContent() {
             <Calendar className="text-primary h-5 w-5" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">Events</h1>
+            <h1 className="text-2xl font-bold tracking-tight">{t('pages.organizationEvents.title')}</h1>
             <p className="text-muted-foreground text-sm">
-              Manage events for {activeOrganization?.name ?? 'the selected organization'}
+              {t('pages.organizationEvents.subtitlePrefix')}{' '}
+              {activeOrganization?.name ?? t('pages.organizationEvents.subtitleFallback')}
             </p>
           </div>
         </div>
@@ -169,7 +174,7 @@ function EventsPageContent() {
           {organizations.length > 0 && (
             <Select value={organizationId} onValueChange={handleOrganizationChange}>
               <SelectTrigger className="w-64">
-                <SelectValue placeholder="Select organization" />
+                <SelectValue placeholder={t('pages.organizationEvents.selectOrganization')} />
               </SelectTrigger>
               <SelectContent>
                 {organizations.map((organization) => (
@@ -184,7 +189,7 @@ function EventsPageContent() {
           {(role === 'ORG_OWNER' || role === 'EVENT_MANAGER' || isSuperAdmin()) && (
             <Button onClick={() => setCreateModalOpen(true)}>
               <Plus className="mr-2 h-4 w-4" />
-              Create Event
+              {t('pages.organizationEvents.createEvent')}
             </Button>
           )}
         </div>

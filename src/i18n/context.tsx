@@ -77,6 +77,12 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   const t = useCallback(
     (key: string, params?: Record<string, string>): string => {
       let value = getNestedValue(translations[locale] as unknown as Record<string, unknown>, key);
+      if (value === key) {
+        value = getNestedValue(translations.en as unknown as Record<string, unknown>, key);
+      }
+      if (value === key) {
+        value = getNestedValue(translations.pt as unknown as Record<string, unknown>, key);
+      }
       if (params) {
         for (const [k, v] of Object.entries(params)) {
           value = value.replace(`{${k}}`, v);

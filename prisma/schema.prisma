@@ -262,6 +262,7 @@ model Event {
 
   organization            Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   printConfig             PrintConfig?             @relation(fields: [printConfigId], references: [id], onDelete: SetNull)
+  aiConfig                EventAIConfig?
   participants            EventParticipant[]
   totemEventSubscriptions TotemEventSubscription[]
   auditLogs               AuditLog[]
@@ -270,6 +271,25 @@ model Event {
   @@index([organizationId])
   @@index([printConfigId])
   @@map("events")
+}
+
+model EventAIConfig {
+  id String @id @default(uuid())
+
+  eventId String @unique @map("event_id")
+
+  confidenceThreshold Float   @default(0.75) @map("confidence_threshold")
+  detectionIntervalMs Int     @default(500) @map("detection_interval_ms")
+  maxFaces            Int     @default(1) @map("max_faces")
+  livenessDetection   Boolean @default(false) @map("liveness_detection")
+  minFaceSize         Int     @default(80) @map("min_face_size")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@map("event_ai_configs")
 }
 
 model Totem {
@@ -318,6 +338,8 @@ model TotemOrganizationSubscription {
 
   startsAt DateTime @map("starts_at")
   endsAt   DateTime @map("ends_at")
+  revokedAt DateTime? @map("revoked_at")
+  revokedReason String? @map("revoked_reason")
 
   totem              Totem                    @relation(fields: [totemId], references: [id], onDelete: Cascade)
   organization       Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -337,6 +359,8 @@ model TotemEventSubscription {
 
   startsAt DateTime @map("starts_at")
   endsAt   DateTime @map("ends_at")
+  revokedAt DateTime? @map("revoked_at")
+  revokedReason String? @map("revoked_reason")
 
   totemOrganizationSubscription TotemOrganizationSubscription @relation(fields: [totemOrganizationSubscriptionId], references: [id], onDelete: Cascade)
   event                         Event                         @relation(fields: [eventId], references: [id], onDelete: Cascade)

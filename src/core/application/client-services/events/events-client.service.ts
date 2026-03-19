@@ -91,6 +91,24 @@ export interface PrintConfigSummaryResponse {
   updatedAt: Date;
 }
 
+export interface EventAIConfigResponse {
+  confidenceThreshold: number;
+  detectionIntervalMs: number;
+  maxFaces: number;
+  livenessDetection: boolean;
+  minFaceSize: number;
+  recommendedEmbeddingModel: string;
+  recommendedDetectorModel: string;
+}
+
+export interface UpdateEventAIConfigRequest {
+  confidenceThreshold: number;
+  detectionIntervalMs: number;
+  maxFaces: number;
+  livenessDetection: boolean;
+  minFaceSize: number;
+}
+
 class EventsClientService extends BaseClient {
   async getEventsByOrganization(organizationId: string): Promise<ApiResponse<EventSummaryResponse[]>> {
     return this.get(`/events?organizationId=${encodeURIComponent(organizationId)}`);
@@ -208,6 +226,17 @@ class EventsClientService extends BaseClient {
 
   async createDefaultPrintConfig(): Promise<ApiResponse<PrintConfigSummaryResponse>> {
     return this.post('/print-configs', {});
+  }
+
+  async getEventAIConfig(eventId: string): Promise<ApiResponse<EventAIConfigResponse>> {
+    return this.get(`/events/${encodeURIComponent(eventId)}/ai-config`);
+  }
+
+  async updateEventAIConfig(
+    eventId: string,
+    data: UpdateEventAIConfigRequest,
+  ): Promise<ApiResponse<EventAIConfigResponse>> {
+    return this.patch(`/events/${encodeURIComponent(eventId)}/ai-config`, data);
   }
 }
 

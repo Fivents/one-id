@@ -30,7 +30,9 @@ import type {
   PersonEventLinkResponse,
   PersonSummaryResponse,
 } from '@/core/application/client-services/people-client.service';
+import { extractFaceEmbedding } from '@/core/application/client-services/totem/face-embedding.client';
 import { useApp, useAuth, useOrganization, usePermissions } from '@/core/application/contexts';
+import { useI18n } from '@/i18n';
 
 const PAGE_SIZE = 20;
 
@@ -49,18 +51,24 @@ function Pagination({
   total: number;
   onPageChange: (page: number) => void;
 }) {
+  const { t, locale } = useI18n();
+
   return (
     <div className="flex items-center justify-between pt-2">
-      <p className="text-muted-foreground text-sm">{total} results</p>
+      <p className="text-muted-foreground text-sm">
+        {t('pages.organizationPeople.results').replace('{count}', String(total))}
+      </p>
       <div className="flex items-center gap-2">
         <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => onPageChange(page - 1)}>
-          Previous
+          {t('pages.organizationPeople.previous')}
         </Button>
         <span className="text-sm">
-          Page {page} of {totalPages}
+          {t('pages.organizationPeople.pageOf')
+            .replace('{page}', String(page))
+            .replace('{totalPages}', String(totalPages))}
         </span>
         <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => onPageChange(page + 1)}>
-          Next
+          {t('pages.organizationPeople.next')}
         </Button>
       </div>
     </div>
@@ -81,6 +89,7 @@ export default function OrganizationPeoplePage() {
     isLoading: isOrganizationsLoading,
   } = useOrganization();
   const { hasPermission, isSuperAdmin } = usePermissions();
+  const { t, locale } = useI18n();
 
   const canView = isSuperAdmin() || hasPermission('PARTICIPANT_VIEW');
   const canManage = isSuperAdmin() || hasPermission('PARTICIPANT_MANAGE');
@@ -179,28 +188,31 @@ export default function OrganizationPeoplePage() {
           setSelectedDeletedIds(new Set());
         }
       } catch (error) {
-        const message = error instanceof Error ? error.message : 'Failed to load people.';
+        const message = error instanceof Error ? error.message : t('pages.organizationPeople.loadPeopleError');
         toast.error(message);
       } finally {
         setIsLoading(false);
       }
     },
-    [organizationId, activePage, deletedPage, search],
+    [organizationId, activePage, deletedPage, search, t('pages.organizationPeople.loadPeopleError')],
   );
 
-  const loadPersonEvents = useCallback(async (personId: string) => {
-    setIsLoadingPersonEvents(true);
-    try {
-      const response = await peopleClient.listPersonEvents(personId);
-      if (!response.success) throw new Error(response.error.message);
-      setPersonEvents(response.data);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to load person events.';
-      toast.error(message);
-    } finally {
-      setIsLoadingPersonEvents(false);
-    }
-  }, []);
+  const loadPersonEvents = useCallback(
+    async (personId: string) => {
+      setIsLoadingPersonEvents(true);
+      try {
+        const response = await peopleClient.listPersonEvents(personId);
+        if (!response.success) throw new Error(response.error.message);
+        setPersonEvents(response.data);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : t('pages.organizationPeople.loadPersonEventsError');
+        toast.error(message);
+      } finally {
+        setIsLoadingPersonEvents(false);
+      }
+    },
+    [t('pages.organizationPeople.loadPersonEventsError')],
+  );
 
   useEffect(() => {
     if (!isLoadingPage && (!isAuthenticated || !canView)) {
@@ -281,14 +293,14 @@ export default function OrganizationPeoplePage() {
       setIsCreateFaceCameraOpen(true);
       setCreateFaceImageUrl('');
     } catch {
-      toast.error('Could not access webcam. Check browser permissions.');
+      toast.error(t('pages.organizationPeople.webcamAccessError'));
     }
-  }, [stopCreateFaceCamera]);
+  }, [stopCreateFaceCamera, t('pages.organizationPeople.webcamAccessError')]);
 
   const captureCreateFacePhoto = useCallback(() => {
     const video = createFaceVideoRef.current;
     if (!video || video.videoWidth === 0 || video.videoHeight === 0) {
-      toast.error('Camera is not ready yet.');
+      toast.error(t('pages.organizationPeople.cameraNotReady'));
       return;
     }
 
@@ -298,7 +310,7 @@ export default function OrganizationPeoplePage() {
 
     const context = canvas.getContext('2d');
     if (!context) {
-      toast.error('Unable to capture photo from camera.');
+      toast.error(t('pages.organizationPeople.capturePhotoError'));
       return;
     }
 
@@ -307,7 +319,11 @@ export default function OrganizationPeoplePage() {
     setCreateFaceImageDataUrl(captured);
     setCreateFaceImageUrl('');
     stopCreateFaceCamera();
-  }, [stopCreateFaceCamera]);
+  }, [
+    stopCreateFaceCamera,
+    t('pages.organizationPeople.cameraNotReady'),
+    t('pages.organizationPeople.capturePhotoError'),
+  ]);
 
   const openEditModal = useCallback((person: PersonSummaryResponse) => {
     setEditPerson(person);
@@ -334,7 +350,7 @@ export default function OrganizationPeoplePage() {
           });
 
           if (!response.success) throw new Error(response.error.message);
-          toast.success('Person updated successfully.');
+          toast.success(t('pages.organizationPeople.personUpdatedSuccess'));
           setEditPerson(null);
         } else {
           const response = await peopleClient.createPerson({
@@ -351,23 +367,34 @@ export default function OrganizationPeoplePage() {
           const normalizedFaceImageUrl = createFaceImageUrl.trim();
           const normalizedFaceImageDataUrl = createFaceImageDataUrl.trim();
           if (normalizedFaceImageUrl || normalizedFaceImageDataUrl) {
+            const embedding = await extractFaceEmbedding({
+              imageDataUrl: normalizedFaceImageDataUrl || undefined,
+              imageUrl: normalizedFaceImageUrl || undefined,
+            });
+
+            if (!embedding) {
+              throw new Error(t('pages.organizationPeople.embeddingError'));
+            }
+
             const faceResponse = await participantsClient.registerFace({
               personId: response.data.id,
               imageUrl: normalizedFaceImageUrl || undefined,
               imageDataUrl: normalizedFaceImageDataUrl || undefined,
+              embedding,
+              embeddingModel: 'Human v3.3.6 face description (SFace/ArcFace compatible)',
             });
 
             if (!faceResponse.success) throw new Error(faceResponse.error.message);
           }
 
-          toast.success('Person created successfully.');
+          toast.success(t('pages.organizationPeople.personCreatedSuccess'));
           setCreateOpen(false);
         }
 
         resetForm();
         await loadPeople(tab);
       } catch (error) {
-        const message = error instanceof Error ? error.message : 'Failed to save person.';
+        const message = error instanceof Error ? error.message : t('pages.organizationPeople.savePersonError');
         toast.error(message);
       } finally {
         setIsSubmittingForm(false);
@@ -387,6 +414,10 @@ export default function OrganizationPeoplePage() {
       resetForm,
       loadPeople,
       tab,
+      t('pages.organizationPeople.embeddingError'),
+      t('pages.organizationPeople.personCreatedSuccess'),
+      t('pages.organizationPeople.personUpdatedSuccess'),
+      t('pages.organizationPeople.savePersonError'),
     ],
   );
 
@@ -395,9 +426,9 @@ export default function OrganizationPeoplePage() {
       if (!canManage) return;
 
       const accepted = await confirm.confirm({
-        title: 'Delete person',
-        description: `Move ${person.name} to deleted list?`,
-        confirmLabel: 'Delete',
+        title: t('pages.organizationPeople.deletePersonTitle'),
+        description: t('pages.organizationPeople.deletePersonDescription').replace('{name}', person.name),
+        confirmLabel: t('pages.organizationPeople.deletePersonConfirm'),
         variant: 'destructive',
       });
 
@@ -409,11 +440,19 @@ export default function OrganizationPeoplePage() {
         return;
       }
 
-      toast.success('Person deleted successfully.');
+      toast.success(t('pages.organizationPeople.personDeletedSuccess'));
       await loadPeople('active');
       await loadPeople('deleted');
     },
-    [canManage, confirm, loadPeople],
+    [
+      canManage,
+      confirm,
+      loadPeople,
+      t('pages.organizationPeople.deletePersonConfirm'),
+      t('pages.organizationPeople.deletePersonDescription'),
+      t('pages.organizationPeople.deletePersonTitle'),
+      t('pages.organizationPeople.personDeletedSuccess'),
+    ],
   );
 
   const handleHardDelete = useCallback(
@@ -421,9 +460,9 @@ export default function OrganizationPeoplePage() {
       if (!canManage) return;
 
       const accepted = await confirm.confirm({
-        title: 'Hard delete person',
-        description: `This will permanently remove ${person.name} and related records.`,
-        confirmLabel: 'Hard delete',
+        title: t('pages.organizationPeople.hardDeletePersonTitle'),
+        description: t('pages.organizationPeople.hardDeletePersonDescription').replace('{name}', person.name),
+        confirmLabel: t('pages.organizationPeople.hardDeletePersonConfirm'),
         variant: 'destructive',
       });
 
@@ -435,19 +474,30 @@ export default function OrganizationPeoplePage() {
         return;
       }
 
-      toast.success('Person permanently removed.');
+      toast.success(t('pages.organizationPeople.personHardDeletedSuccess'));
       await loadPeople('deleted');
     },
-    [canManage, confirm, loadPeople],
+    [
+      canManage,
+      confirm,
+      loadPeople,
+      t('pages.organizationPeople.hardDeletePersonConfirm'),
+      t('pages.organizationPeople.hardDeletePersonDescription'),
+      t('pages.organizationPeople.hardDeletePersonTitle'),
+      t('pages.organizationPeople.personHardDeletedSuccess'),
+    ],
   );
 
   const handleBulkSoftDelete = useCallback(async () => {
     if (!canManage || selectedActiveIds.size === 0) return;
 
     const accepted = await confirm.confirm({
-      title: 'Delete selected people',
-      description: `Delete ${selectedActiveIds.size} selected people?`,
-      confirmLabel: 'Delete selected',
+      title: t('pages.organizationPeople.deleteSelectedTitle'),
+      description: t('pages.organizationPeople.deleteSelectedDescription').replace(
+        '{count}',
+        String(selectedActiveIds.size),
+      ),
+      confirmLabel: t('pages.organizationPeople.deleteSelectedConfirm'),
       variant: 'destructive',
     });
 
@@ -459,18 +509,31 @@ export default function OrganizationPeoplePage() {
       return;
     }
 
-    toast.success('Selected people deleted.');
+    toast.success(t('pages.organizationPeople.deleteSelectedSuccess'));
     await loadPeople('active');
     await loadPeople('deleted');
-  }, [canManage, confirm, selectedActiveIds, organizationId, loadPeople]);
+  }, [
+    canManage,
+    confirm,
+    selectedActiveIds,
+    organizationId,
+    loadPeople,
+    t('pages.organizationPeople.deleteSelectedConfirm'),
+    t('pages.organizationPeople.deleteSelectedDescription'),
+    t('pages.organizationPeople.deleteSelectedSuccess'),
+    t('pages.organizationPeople.deleteSelectedTitle'),
+  ]);
 
   const handleBulkHardDelete = useCallback(async () => {
     if (!canManage || selectedDeletedIds.size === 0) return;
 
     const accepted = await confirm.confirm({
-      title: 'Hard delete selected people',
-      description: `Permanently delete ${selectedDeletedIds.size} selected people?`,
-      confirmLabel: 'Hard delete selected',
+      title: t('pages.organizationPeople.hardDeleteSelectedTitle'),
+      description: t('pages.organizationPeople.hardDeleteSelectedDescription').replace(
+        '{count}',
+        String(selectedDeletedIds.size),
+      ),
+      confirmLabel: t('pages.organizationPeople.hardDeleteSelectedConfirm'),
       variant: 'destructive',
     });
 
@@ -482,9 +545,19 @@ export default function OrganizationPeoplePage() {
       return;
     }
 
-    toast.success('Selected people permanently removed.');
+    toast.success(t('pages.organizationPeople.hardDeleteSelectedSuccess'));
     await loadPeople('deleted');
-  }, [canManage, confirm, selectedDeletedIds, organizationId, loadPeople]);
+  }, [
+    canManage,
+    confirm,
+    selectedDeletedIds,
+    organizationId,
+    loadPeople,
+    t('pages.organizationPeople.hardDeleteSelectedConfirm'),
+    t('pages.organizationPeople.hardDeleteSelectedDescription'),
+    t('pages.organizationPeople.hardDeleteSelectedSuccess'),
+    t('pages.organizationPeople.hardDeleteSelectedTitle'),
+  ]);
 
   const togglePersonEventLink = useCallback(
     async (event: PersonEventLinkResponse, linked: boolean) => {
@@ -500,10 +573,18 @@ export default function OrganizationPeoplePage() {
       }
 
       setPersonEvents((prev) => prev.map((item) => (item.id === event.id ? { ...item, linked: !linked } : item)));
-      toast.success(linked ? 'Unlinked from event.' : 'Linked to event.');
+      toast.success(
+        linked ? t('pages.organizationPeople.unlinkedFromEvent') : t('pages.organizationPeople.linkedToEvent'),
+      );
       await loadPeople('active');
     },
-    [manageEventsPerson, canManage, loadPeople],
+    [
+      manageEventsPerson,
+      canManage,
+      loadPeople,
+      t('pages.organizationPeople.linkedToEvent'),
+      t('pages.organizationPeople.unlinkedFromEvent'),
+    ],
   );
 
   const stopFaceCamera = useCallback(() => {
@@ -533,11 +614,10 @@ export default function OrganizationPeoplePage() {
       faceCameraStreamRef.current = stream;
       setIsFaceCameraOpen(true);
       setFaceImageUrl('');
-
     } catch {
-      toast.error('Could not access webcam. Check browser permissions.');
+      toast.error(t('pages.organizationPeople.webcamAccessError'));
     }
-  }, [stopFaceCamera]);
+  }, [stopFaceCamera, t('pages.organizationPeople.webcamAccessError')]);
 
   useEffect(() => {
     if (!isFaceCameraOpen || !faceVideoRef.current || !faceCameraStreamRef.current) {
@@ -552,7 +632,7 @@ export default function OrganizationPeoplePage() {
   const captureFacePhoto = useCallback(() => {
     const video = faceVideoRef.current;
     if (!video || video.videoWidth === 0 || video.videoHeight === 0) {
-      toast.error('Camera is not ready yet.');
+      toast.error(t('pages.organizationPeople.cameraNotReady'));
       return;
     }
 
@@ -562,7 +642,7 @@ export default function OrganizationPeoplePage() {
 
     const context = canvas.getContext('2d');
     if (!context) {
-      toast.error('Unable to capture photo from camera.');
+      toast.error(t('pages.organizationPeople.capturePhotoError'));
       return;
     }
 
@@ -571,7 +651,7 @@ export default function OrganizationPeoplePage() {
     setFaceImageDataUrl(captured);
     setFaceImageUrl('');
     stopFaceCamera();
-  }, [stopFaceCamera]);
+  }, [stopFaceCamera, t('pages.organizationPeople.cameraNotReady'), t('pages.organizationPeople.capturePhotoError')]);
 
   const handleSaveFace = useCallback(async () => {
     if (!manageFacePerson) return;
@@ -580,16 +660,27 @@ export default function OrganizationPeoplePage() {
     const normalizedImageDataUrl = faceImageDataUrl.trim();
 
     if (!normalizedImageUrl && !normalizedImageDataUrl) {
-      toast.error('Provide an image URL or capture a webcam photo.');
+      toast.error(t('pages.organizationPeople.provideImageSource'));
       return;
     }
 
     setIsSavingFace(true);
     try {
+      const embedding = await extractFaceEmbedding({
+        imageDataUrl: normalizedImageDataUrl || undefined,
+        imageUrl: normalizedImageUrl || undefined,
+      });
+
+      if (!embedding) {
+        throw new Error(t('pages.organizationPeople.embeddingError'));
+      }
+
       if (manageFacePerson.faceId) {
         const response = await participantsClient.replaceFaceImage(manageFacePerson.faceId, {
           imageUrl: normalizedImageUrl || undefined,
           imageDataUrl: normalizedImageDataUrl || undefined,
+          embedding,
+          embeddingModel: 'Human v3.3.6 face description (SFace/ArcFace compatible)',
           isActive: true,
         });
 
@@ -599,24 +690,41 @@ export default function OrganizationPeoplePage() {
           personId: manageFacePerson.id,
           imageUrl: normalizedImageUrl || undefined,
           imageDataUrl: normalizedImageDataUrl || undefined,
+          embedding,
+          embeddingModel: 'Human v3.3.6 face description (SFace/ArcFace compatible)',
         });
 
         if (!response.success) throw new Error(response.error.message);
       }
 
-      toast.success(manageFacePerson.faceId ? 'Face image updated.' : 'Face registered.');
+      toast.success(
+        manageFacePerson.faceId
+          ? t('pages.organizationPeople.faceImageUpdated')
+          : t('pages.organizationPeople.faceRegistered'),
+      );
       setManageFacePerson(null);
       setFaceImageUrl('');
       setFaceImageDataUrl('');
       stopFaceCamera();
       await loadPeople('active');
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to save face image.';
+      const message = error instanceof Error ? error.message : t('pages.organizationPeople.saveFaceError');
       toast.error(message);
     } finally {
       setIsSavingFace(false);
     }
-  }, [manageFacePerson, faceImageUrl, faceImageDataUrl, stopFaceCamera, loadPeople]);
+  }, [
+    manageFacePerson,
+    faceImageUrl,
+    faceImageDataUrl,
+    stopFaceCamera,
+    loadPeople,
+    t('pages.organizationPeople.embeddingError'),
+    t('pages.organizationPeople.faceImageUpdated'),
+    t('pages.organizationPeople.faceRegistered'),
+    t('pages.organizationPeople.provideImageSource'),
+    t('pages.organizationPeople.saveFaceError'),
+  ]);
 
   if (isLoadingPage || !isAuthenticated || !canView) {
     return null;
@@ -630,9 +738,10 @@ export default function OrganizationPeoplePage() {
             <Users className="text-primary h-5 w-5" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">People</h1>
+            <h1 className="text-2xl font-bold tracking-tight">{t('pages.organizationPeople.title')}</h1>
             <p className="text-muted-foreground text-sm">
-              Manage people for {activeOrganization?.name ?? 'the selected organization'}
+              {t('pages.organizationPeople.subtitlePrefix')}{' '}
+              {activeOrganization?.name ?? t('pages.organizationPeople.subtitleFallback')}
             </p>
           </div>
         </div>
@@ -640,7 +749,7 @@ export default function OrganizationPeoplePage() {
         <div className="flex items-center gap-2">
           <Select value={organizationId} onValueChange={handleOrganizationChange}>
             <SelectTrigger className="w-64">
-              <SelectValue placeholder="Select organization" />
+              <SelectValue placeholder={t('pages.organizationPeople.selectOrganization')} />
             </SelectTrigger>
             <SelectContent>
               {organizations.map((organization) => (
@@ -659,7 +768,7 @@ export default function OrganizationPeoplePage() {
               }}
             >
               <UserPlus className="mr-2 h-4 w-4" />
-              New Person
+              {t('pages.organizationPeople.newPerson')}
             </Button>
           )}
         </div>
@@ -674,7 +783,7 @@ export default function OrganizationPeoplePage() {
             setActivePage(1);
             setDeletedPage(1);
           }}
-          placeholder="Search by name, email, document or phone"
+          placeholder={t('pages.organizationPeople.searchPlaceholder')}
           className="pl-9"
         />
       </div>
@@ -686,17 +795,19 @@ export default function OrganizationPeoplePage() {
         }}
       >
         <TabsList>
-          <TabsTrigger value="active">Active</TabsTrigger>
-          <TabsTrigger value="deleted">Deleted</TabsTrigger>
+          <TabsTrigger value="active">{t('pages.organizationPeople.tabActive')}</TabsTrigger>
+          <TabsTrigger value="deleted">{t('pages.organizationPeople.tabDeleted')}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="active" className="space-y-3">
           {selectedActiveIds.size > 0 && canManage && (
             <div className="bg-muted/40 flex items-center justify-between rounded-lg border px-4 py-2">
-              <span className="text-muted-foreground text-sm">{selectedActiveIds.size} selected</span>
+              <span className="text-muted-foreground text-sm">
+                {t('pages.organizationPeople.selectedCount').replace('{count}', String(selectedActiveIds.size))}
+              </span>
               <Button size="sm" variant="destructive" onClick={handleBulkSoftDelete}>
                 <Trash2 className="mr-2 h-4 w-4" />
-                Delete selected
+                {t('pages.organizationPeople.deleteSelectedButton')}
               </Button>
             </div>
           )}
@@ -719,26 +830,26 @@ export default function OrganizationPeoplePage() {
                       className="h-4 w-4"
                     />
                   </TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Document</TableHead>
-                  <TableHead>Phone</TableHead>
-                  <TableHead>Events</TableHead>
-                  <TableHead>Face</TableHead>
-                  <TableHead>Actions</TableHead>
+                  <TableHead>{t('pages.organizationPeople.thName')}</TableHead>
+                  <TableHead>{t('pages.organizationPeople.thEmail')}</TableHead>
+                  <TableHead>{t('pages.organizationPeople.thDocument')}</TableHead>
+                  <TableHead>{t('pages.organizationPeople.thPhone')}</TableHead>
+                  <TableHead>{t('pages.organizationPeople.thEvents')}</TableHead>
+                  <TableHead>{t('pages.organizationPeople.thFace')}</TableHead>
+                  <TableHead>{t('pages.organizationPeople.thActions')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading ? (
                   <TableRow>
                     <TableCell colSpan={8} className="text-muted-foreground py-8 text-center">
-                      Loading...
+                      {t('pages.organizationPeople.loading')}
                     </TableCell>
                   </TableRow>
                 ) : activePeople.items.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={8} className="text-muted-foreground py-8 text-center">
-                      No people found.
+                      {t('pages.organizationPeople.noPeopleFound')}
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -773,7 +884,9 @@ export default function OrganizationPeoplePage() {
                             person.faceId ? 'bg-emerald-500/10 text-emerald-600' : 'bg-gray-400/10 text-gray-500'
                           }
                         >
-                          {person.faceId ? 'With image' : 'No image'}
+                          {person.faceId
+                            ? t('pages.organizationPeople.withImage')
+                            : t('pages.organizationPeople.noImage')}
                         </Badge>
                       </TableCell>
                       <TableCell className="flex gap-2">
@@ -781,7 +894,7 @@ export default function OrganizationPeoplePage() {
                           <>
                             <Button variant="outline" size="sm" onClick={() => openEditModal(person)}>
                               <Edit className="mr-1 h-3.5 w-3.5" />
-                              Edit
+                              {t('pages.organizationPeople.edit')}
                             </Button>
                             <Button
                               variant="outline"
@@ -791,7 +904,7 @@ export default function OrganizationPeoplePage() {
                                 loadPersonEvents(person.id);
                               }}
                             >
-                              Events
+                              {t('pages.organizationPeople.events')}
                             </Button>
                             <Button
                               variant="outline"
@@ -803,10 +916,10 @@ export default function OrganizationPeoplePage() {
                               }}
                             >
                               <ScanFace className="mr-1 h-3.5 w-3.5" />
-                              Face
+                              {t('pages.organizationPeople.face')}
                             </Button>
                             <Button variant="destructive" size="sm" onClick={() => handleSoftDelete(person)}>
-                              Delete
+                              {t('pages.organizationPeople.delete')}
                             </Button>
                           </>
                         )}
@@ -829,10 +942,12 @@ export default function OrganizationPeoplePage() {
         <TabsContent value="deleted" className="space-y-3">
           {selectedDeletedIds.size > 0 && canManage && (
             <div className="bg-muted/40 flex items-center justify-between rounded-lg border px-4 py-2">
-              <span className="text-muted-foreground text-sm">{selectedDeletedIds.size} selected</span>
+              <span className="text-muted-foreground text-sm">
+                {t('pages.organizationPeople.selectedCount').replace('{count}', String(selectedDeletedIds.size))}
+              </span>
               <Button size="sm" variant="destructive" onClick={handleBulkHardDelete}>
                 <Trash2 className="mr-2 h-4 w-4" />
-                Hard delete selected
+                {t('pages.organizationPeople.hardDeleteSelectedButton')}
               </Button>
             </div>
           )}
@@ -855,23 +970,23 @@ export default function OrganizationPeoplePage() {
                       className="h-4 w-4"
                     />
                   </TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Deleted At</TableHead>
-                  <TableHead>Actions</TableHead>
+                  <TableHead>{t('pages.organizationPeople.thName')}</TableHead>
+                  <TableHead>{t('pages.organizationPeople.thEmail')}</TableHead>
+                  <TableHead>{t('pages.organizationPeople.thDeletedAt')}</TableHead>
+                  <TableHead>{t('pages.organizationPeople.thActions')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading ? (
                   <TableRow>
                     <TableCell colSpan={5} className="text-muted-foreground py-8 text-center">
-                      Loading...
+                      {t('pages.organizationPeople.loading')}
                     </TableCell>
                   </TableRow>
                 ) : deletedPeople.items.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={5} className="text-muted-foreground py-8 text-center">
-                      No deleted people.
+                      {t('pages.organizationPeople.noDeletedPeople')}
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -894,11 +1009,17 @@ export default function OrganizationPeoplePage() {
                       </TableCell>
                       <TableCell className="font-medium">{person.name}</TableCell>
                       <TableCell>{person.email}</TableCell>
-                      <TableCell>{person.deletedAt ? new Date(person.deletedAt).toLocaleString() : '—'}</TableCell>
+                      <TableCell>
+                        {person.deletedAt
+                          ? new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(
+                              new Date(person.deletedAt),
+                            )
+                          : '—'}
+                      </TableCell>
                       <TableCell>
                         {canManage && (
                           <Button variant="destructive" size="sm" onClick={() => handleHardDelete(person)}>
-                            Hard delete
+                            {t('pages.organizationPeople.hardDelete')}
                           </Button>
                         )}
                       </TableCell>
@@ -921,46 +1042,46 @@ export default function OrganizationPeoplePage() {
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Create Person</DialogTitle>
-            <DialogDescription>Add a person to this organization.</DialogDescription>
+            <DialogTitle>{t('pages.organizationPeople.createPersonTitle')}</DialogTitle>
+            <DialogDescription>{t('pages.organizationPeople.createPersonDescription')}</DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1">
-              <Label>Name</Label>
+              <Label>{t('pages.organizationPeople.labelName')}</Label>
               <Input value={formName} onChange={(event) => setFormName(event.target.value)} />
             </div>
             <div className="space-y-1">
-              <Label>Email</Label>
+              <Label>{t('pages.organizationPeople.labelEmail')}</Label>
               <Input type="email" value={formEmail} onChange={(event) => setFormEmail(event.target.value)} />
             </div>
             <div className="space-y-1">
-              <Label>Document</Label>
+              <Label>{t('pages.organizationPeople.labelDocument')}</Label>
               <Input value={formDocument} onChange={(event) => setFormDocument(event.target.value)} />
             </div>
             <div className="space-y-1">
-              <Label>Document Type</Label>
+              <Label>{t('pages.organizationPeople.labelDocumentType')}</Label>
               <Select
                 value={formDocumentType}
                 onValueChange={(value) => setFormDocumentType(value as DocumentType | '')}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select document type" />
+                  <SelectValue placeholder={t('pages.organizationPeople.selectDocumentType')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="PASSPORT">Passport</SelectItem>
-                  <SelectItem value="ID_CARD">ID card</SelectItem>
-                  <SelectItem value="DRIVER_LICENSE">Driver license</SelectItem>
-                  <SelectItem value="OTHER">Other</SelectItem>
+                  <SelectItem value="PASSPORT">{t('pages.organizationPeople.passport')}</SelectItem>
+                  <SelectItem value="ID_CARD">{t('pages.organizationPeople.idCard')}</SelectItem>
+                  <SelectItem value="DRIVER_LICENSE">{t('pages.organizationPeople.driverLicense')}</SelectItem>
+                  <SelectItem value="OTHER">{t('pages.organizationPeople.other')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-1">
-              <Label>Phone</Label>
+              <Label>{t('pages.organizationPeople.labelPhone')}</Label>
               <Input value={formPhone} onChange={(event) => setFormPhone(event.target.value)} />
             </div>
 
             <div className="space-y-1">
-              <Label>Face Image URL (optional)</Label>
+              <Label>{t('pages.organizationPeople.faceImageUrlOptional')}</Label>
               <Input
                 type="url"
                 placeholder="https://..."
@@ -976,19 +1097,19 @@ export default function OrganizationPeoplePage() {
             </div>
 
             <div className="space-y-2">
-              <Label>Face Webcam (optional)</Label>
+              <Label>{t('pages.organizationPeople.faceWebcamOptional')}</Label>
               <div className="flex gap-2">
                 {!isCreateFaceCameraOpen ? (
                   <Button type="button" variant="outline" onClick={openCreateFaceCamera}>
-                    Open camera
+                    {t('pages.organizationPeople.openCamera')}
                   </Button>
                 ) : (
                   <>
                     <Button type="button" variant="outline" onClick={captureCreateFacePhoto}>
-                      Capture photo
+                      {t('pages.organizationPeople.capturePhoto')}
                     </Button>
                     <Button type="button" variant="ghost" onClick={stopCreateFaceCamera}>
-                      Close camera
+                      {t('pages.organizationPeople.closeCamera')}
                     </Button>
                   </>
                 )}
@@ -1000,7 +1121,7 @@ export default function OrganizationPeoplePage() {
 
             {(createFaceImageDataUrl || createFaceImageUrl.trim()) && (
               <div className="space-y-2">
-                <Label>Face Preview</Label>
+                <Label>{t('pages.organizationPeople.facePreview')}</Label>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={createFaceImageDataUrl || createFaceImageUrl.trim()}
@@ -1012,10 +1133,10 @@ export default function OrganizationPeoplePage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)}>
-              Cancel
+              {t('pages.organizationPeople.cancel')}
             </Button>
             <Button disabled={isSubmittingForm || !formName || !formEmail} onClick={() => handleCreateOrUpdate(false)}>
-              {isSubmittingForm ? 'Saving...' : 'Create'}
+              {isSubmittingForm ? t('pages.organizationPeople.saving') : t('pages.organizationPeople.create')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1032,41 +1153,41 @@ export default function OrganizationPeoplePage() {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Edit Person</DialogTitle>
-            <DialogDescription>Update person details.</DialogDescription>
+            <DialogTitle>{t('pages.organizationPeople.editPersonTitle')}</DialogTitle>
+            <DialogDescription>{t('pages.organizationPeople.editPersonDescription')}</DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1">
-              <Label>Name</Label>
+              <Label>{t('pages.organizationPeople.labelName')}</Label>
               <Input value={formName} onChange={(event) => setFormName(event.target.value)} />
             </div>
             <div className="space-y-1">
-              <Label>Email</Label>
+              <Label>{t('pages.organizationPeople.labelEmail')}</Label>
               <Input type="email" value={formEmail} onChange={(event) => setFormEmail(event.target.value)} />
             </div>
             <div className="space-y-1">
-              <Label>Document</Label>
+              <Label>{t('pages.organizationPeople.labelDocument')}</Label>
               <Input value={formDocument} onChange={(event) => setFormDocument(event.target.value)} />
             </div>
             <div className="space-y-1">
-              <Label>Document Type</Label>
+              <Label>{t('pages.organizationPeople.labelDocumentType')}</Label>
               <Select
                 value={formDocumentType}
                 onValueChange={(value) => setFormDocumentType(value as DocumentType | '')}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select document type" />
+                  <SelectValue placeholder={t('pages.organizationPeople.selectDocumentType')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="PASSPORT">Passport</SelectItem>
-                  <SelectItem value="ID_CARD">ID card</SelectItem>
-                  <SelectItem value="DRIVER_LICENSE">Driver license</SelectItem>
-                  <SelectItem value="OTHER">Other</SelectItem>
+                  <SelectItem value="PASSPORT">{t('pages.organizationPeople.passport')}</SelectItem>
+                  <SelectItem value="ID_CARD">{t('pages.organizationPeople.idCard')}</SelectItem>
+                  <SelectItem value="DRIVER_LICENSE">{t('pages.organizationPeople.driverLicense')}</SelectItem>
+                  <SelectItem value="OTHER">{t('pages.organizationPeople.other')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-1">
-              <Label>Phone</Label>
+              <Label>{t('pages.organizationPeople.labelPhone')}</Label>
               <Input value={formPhone} onChange={(event) => setFormPhone(event.target.value)} />
             </div>
           </div>
@@ -1078,10 +1199,10 @@ export default function OrganizationPeoplePage() {
                 resetForm();
               }}
             >
-              Cancel
+              {t('pages.organizationPeople.cancel')}
             </Button>
             <Button disabled={isSubmittingForm || !formName || !formEmail} onClick={() => handleCreateOrUpdate(true)}>
-              {isSubmittingForm ? 'Saving...' : 'Save'}
+              {isSubmittingForm ? t('pages.organizationPeople.saving') : t('pages.organizationPeople.save')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1090,14 +1211,19 @@ export default function OrganizationPeoplePage() {
       <Dialog open={!!manageEventsPerson} onOpenChange={(open) => !open && setManageEventsPerson(null)}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Manage Events</DialogTitle>
+            <DialogTitle>{t('pages.organizationPeople.manageEventsTitle')}</DialogTitle>
             <DialogDescription>
-              {manageEventsPerson ? `Link or unlink events for ${manageEventsPerson.name}.` : 'Manage event links.'}
+              {manageEventsPerson
+                ? t('pages.organizationPeople.manageEventsDescriptionWithName').replace(
+                    '{name}',
+                    manageEventsPerson.name,
+                  )
+                : t('pages.organizationPeople.manageEventsDescriptionFallback')}
             </DialogDescription>
           </DialogHeader>
 
           {isLoadingPersonEvents ? (
-            <p className="text-muted-foreground text-sm">Loading events...</p>
+            <p className="text-muted-foreground text-sm">{t('pages.organizationPeople.loadingEvents')}</p>
           ) : (
             <div className="max-h-[420px] space-y-3 overflow-y-auto pr-1">
               {personEvents.map((event) => (
@@ -1105,7 +1231,13 @@ export default function OrganizationPeoplePage() {
                   <div>
                     <p className="font-medium">{event.name}</p>
                     <p className="text-muted-foreground text-xs">
-                      {new Date(event.startsAt).toLocaleString()} - {new Date(event.endsAt).toLocaleString()}
+                      {new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(
+                        new Date(event.startsAt),
+                      )}{' '}
+                      -{' '}
+                      {new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(
+                        new Date(event.endsAt),
+                      )}
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
@@ -1115,13 +1247,15 @@ export default function OrganizationPeoplePage() {
                 </div>
               ))}
 
-              {personEvents.length === 0 && <p className="text-muted-foreground text-sm">No events found.</p>}
+              {personEvents.length === 0 && (
+                <p className="text-muted-foreground text-sm">{t('pages.organizationPeople.noEventsFound')}</p>
+              )}
             </div>
           )}
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setManageEventsPerson(null)}>
-              Close
+              {t('pages.organizationPeople.close')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1140,15 +1274,17 @@ export default function OrganizationPeoplePage() {
       >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{manageFacePerson?.faceId ? 'Update Face Image' : 'Register Face'}</DialogTitle>
-            <DialogDescription>
-              Provide an image URL or capture from webcam. Embedding and hash are generated internally.
-            </DialogDescription>
+            <DialogTitle>
+              {manageFacePerson?.faceId
+                ? t('pages.organizationPeople.updateFaceImageTitle')
+                : t('pages.organizationPeople.registerFaceTitle')}
+            </DialogTitle>
+            <DialogDescription>{t('pages.organizationPeople.manageFaceDescription')}</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
             <div className="space-y-1">
-              <Label htmlFor="person-face-url">Image URL</Label>
+              <Label htmlFor="person-face-url">{t('pages.organizationPeople.imageUrl')}</Label>
               <Input
                 id="person-face-url"
                 type="url"
@@ -1165,19 +1301,19 @@ export default function OrganizationPeoplePage() {
             </div>
 
             <div className="space-y-2">
-              <Label>Webcam</Label>
+              <Label>{t('pages.organizationPeople.webcam')}</Label>
               <div className="flex gap-2">
                 {!isFaceCameraOpen ? (
                   <Button type="button" variant="outline" onClick={openFaceCamera}>
-                    Open camera
+                    {t('pages.organizationPeople.openCamera')}
                   </Button>
                 ) : (
                   <>
                     <Button type="button" variant="outline" onClick={captureFacePhoto}>
-                      Capture photo
+                      {t('pages.organizationPeople.capturePhoto')}
                     </Button>
                     <Button type="button" variant="ghost" onClick={stopFaceCamera}>
-                      Close camera
+                      {t('pages.organizationPeople.closeCamera')}
                     </Button>
                   </>
                 )}
@@ -1190,7 +1326,7 @@ export default function OrganizationPeoplePage() {
 
             {(faceImageDataUrl || faceImageUrl.trim()) && (
               <div className="space-y-2">
-                <Label>Preview</Label>
+                <Label>{t('pages.organizationPeople.preview')}</Label>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={faceImageDataUrl || faceImageUrl.trim()}
@@ -1211,10 +1347,14 @@ export default function OrganizationPeoplePage() {
                 stopFaceCamera();
               }}
             >
-              Cancel
+              {t('pages.organizationPeople.cancel')}
             </Button>
             <Button onClick={handleSaveFace} disabled={isSavingFace}>
-              {isSavingFace ? 'Saving...' : manageFacePerson?.faceId ? 'Update Face' : 'Register Face'}
+              {isSavingFace
+                ? t('pages.organizationPeople.saving')
+                : manageFacePerson?.faceId
+                  ? t('pages.organizationPeople.updateFace')
+                  : t('pages.organizationPeople.registerFace')}
             </Button>
           </DialogFooter>
         </DialogContent>

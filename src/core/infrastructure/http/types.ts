@@ -16,7 +16,7 @@ export interface UserAuthContext {
 
 export interface TotemAuthContext {
   type: 'totem';
-  totemSessionId: string;
+  totemId: string;
   totemName: string;
 }
 

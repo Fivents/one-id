@@ -17,6 +17,7 @@ export function makeRenewTotemSessionUseCase(): RenewTotemSessionUseCase {
     containerService.getTotemRepository(),
     containerService.getTokenProvider(),
     containerService.getSessionRepository(),
+    containerService.getPasswordHasher(),
   );
 }
 

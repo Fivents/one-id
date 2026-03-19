@@ -8,19 +8,26 @@ import { withAuth, withRBAC } from '@/core/infrastructure/http/middlewares';
 import { toNextResponse } from '@/core/infrastructure/http/to-next-response';
 import type { RouteContext } from '@/core/infrastructure/http/types';
 import { prisma } from '@/core/infrastructure/prisma-client';
-import { generateFaceImageFeatures } from '@/core/utils/face-image-features';
 import { parseWithZod } from '@/core/utils/parse-with-zod';
 
 import { assertOrganizationAccess } from '../../people/_lib/access';
 
-const updateFaceSchema = z.object({
-  imageUrl: z.string().url().optional(),
-  imageDataUrl: z.string().min(1).optional(),
-  isActive: z.boolean().optional(),
-}).refine((data) => !(data.imageUrl && data.imageDataUrl), {
-  message: 'Provide only one source: imageUrl or imageDataUrl.',
-  path: ['imageDataUrl'],
-});
+const FACE_EMBEDDING_DIMENSION = 512;
+
+const updateFaceSchema = z
+  .object({
+    imageUrl: z.string().url().optional(),
+    imageDataUrl: z.string().min(1).optional(),
+    embedding: z
+      .array(z.number().finite())
+      .length(FACE_EMBEDDING_DIMENSION, `Embedding must contain ${FACE_EMBEDDING_DIMENSION} dimensions.`),
+    embeddingModel: z.string().min(1).max(120).optional(),
+    isActive: z.boolean().optional(),
+  })
+  .refine((data) => !(data.imageUrl && data.imageDataUrl), {
+    message: 'Provide only one source: imageUrl or imageDataUrl.',
+    path: ['imageDataUrl'],
+  });
 
 export const PATCH = withAuth(
   withRBAC(['PARTICIPANT_MANAGE'], async (req: NextRequest, context: RouteContext) => {
@@ -44,20 +51,20 @@ export const PATCH = withAuth(
       const body = await req.json();
       const data = parseWithZod(updateFaceSchema, body);
 
-      const faceFeatures = data.imageUrl || data.imageDataUrl
-        ? await generateFaceImageFeatures({
-            imageUrl: data.imageUrl,
-            imageDataUrl: data.imageDataUrl,
-          })
-        : null;
+      const storedImageUrl = data.imageUrl ?? (data.imageDataUrl ? 'captured://runtime-embedding' : face.imageUrl);
+      const faceFeatures = {
+        imageHash: `runtime-embedding-${Date.now()}`,
+        storedImageUrl,
+        embedding: Buffer.from(new Float32Array(data.embedding).buffer),
+      };
 
       const updated = await prisma.personFace.update({
         where: { id: faceId },
         data: {
-          imageHash: faceFeatures?.imageHash,
-          imageUrl: faceFeatures?.storedImageUrl,
+          imageHash: faceFeatures.imageHash,
+          imageUrl: faceFeatures.storedImageUrl,
           isActive: data.isActive,
-          ...(faceFeatures ? { embedding: new Uint8Array(faceFeatures.embedding) } : {}),
+          embedding: new Uint8Array(faceFeatures.embedding),
         },
       });
 

@@ -9,6 +9,7 @@ import { LoginWithAccessCodeTotemUseCase } from '@/core/application/use-cases/au
  * - tokenProvider (singleton)
  * - passwordHasher (singleton)
  * - sessionRepository (singleton)
+ * - auditLogRepository (singleton)
  */
 export function makeLoginWithAccessCodeTotemUseCase(): LoginWithAccessCodeTotemUseCase {
   return new LoginWithAccessCodeTotemUseCase(
@@ -16,5 +17,6 @@ export function makeLoginWithAccessCodeTotemUseCase(): LoginWithAccessCodeTotemU
     containerService.getTokenProvider(),
     containerService.getPasswordHasher(),
     containerService.getSessionRepository(),
+    containerService.getAuditLogRepository(),
   );
 }

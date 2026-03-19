@@ -77,7 +77,9 @@ class EventCheckinsClientService extends BaseClient {
   async registerAppCheckIn(
     eventId: string,
     data: { eventParticipantId: string; method?: CheckInMethod; confidence?: number | null },
-  ): Promise<ApiResponse<{ id: string; method: CheckInMethod; confidence: number | null; checkedInAt: Date; source: 'APP' }>> {
+  ): Promise<
+    ApiResponse<{ id: string; method: CheckInMethod; confidence: number | null; checkedInAt: Date; source: 'APP' }>
+  > {
     return this.post(`/events/${encodeURIComponent(eventId)}/checkins`, data);
   }
 

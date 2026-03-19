@@ -63,7 +63,10 @@ function OrganizationDetailContent() {
     addMember,
     fetchAvailablePlans,
   } = useAdminOrganizations();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
+
+  const formatDate = (value: Date | string) =>
+    new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(new Date(value));
 
   const isLoading = isAppLoading || isAuthLoading;
 
@@ -271,12 +274,12 @@ function OrganizationDetailContent() {
           icon={<Users className="text-muted-foreground h-4 w-4" />}
         />
         <StatCard
-          title="Participants"
+          title={t('dashboard.superAdmin.participants')}
           value={org._count.participants}
           icon={<Users className="text-muted-foreground h-4 w-4" />}
         />
         <StatCard
-          title="Totems"
+          title={t('nav.sidebar.totems')}
           value={org._count.totems}
           icon={<MonitorSmartphone className="text-muted-foreground h-4 w-4" />}
         />
@@ -320,7 +323,7 @@ function OrganizationDetailContent() {
                   label={t('common.labels.status')}
                   value={org.isActive ? t('common.status.active') : t('common.status.inactive')}
                 />
-                <InfoRow label={t('common.labels.createdAt')} value={new Date(org.createdAt).toLocaleDateString()} />
+                <InfoRow label={t('common.labels.createdAt')} value={formatDate(org.createdAt)} />
                 <div className="flex justify-end gap-2 pt-2">
                   <Button variant="outline" size="sm" onClick={handleCancelEdit} disabled={isSavingInfo}>
                     {t('common.actions.cancel')}
@@ -340,7 +343,7 @@ function OrganizationDetailContent() {
                   label={t('common.labels.status')}
                   value={org.isActive ? t('common.status.active') : t('common.status.inactive')}
                 />
-                <InfoRow label={t('common.labels.createdAt')} value={new Date(org.createdAt).toLocaleDateString()} />
+                <InfoRow label={t('common.labels.createdAt')} value={formatDate(org.createdAt)} />
               </>
             )}
           </CardContent>
@@ -363,14 +366,8 @@ function OrganizationDetailContent() {
             {org.subscription ? (
               <div className="space-y-3">
                 <InfoRow label={t('organizations.detail.currentPlan')} value={org.subscription.planName} />
-                <InfoRow
-                  label={t('organizations.detail.startedAt')}
-                  value={new Date(org.subscription.startedAt).toLocaleDateString()}
-                />
-                <InfoRow
-                  label={t('organizations.detail.expiresAt')}
-                  value={new Date(org.subscription.expiresAt).toLocaleDateString()}
-                />
+                <InfoRow label={t('organizations.detail.startedAt')} value={formatDate(org.subscription.startedAt)} />
+                <InfoRow label={t('organizations.detail.expiresAt')} value={formatDate(org.subscription.expiresAt)} />
               </div>
             ) : (
               <p className="text-muted-foreground text-sm">{t('organizations.detail.noSubscription')}</p>
@@ -418,9 +415,7 @@ function OrganizationDetailContent() {
                         <TableCell>
                           <Badge variant="outline">{member.role}</Badge>
                         </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {new Date(member.createdAt).toLocaleDateString()}
-                        </TableCell>
+                        <TableCell className="text-muted-foreground">{formatDate(member.createdAt)}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>

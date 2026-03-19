@@ -8,6 +8,15 @@ export interface TotemSubscriptionInfo {
   endsAt: Date;
 }
 
+export interface TotemEventAssignmentInfo {
+  id: string;
+  eventId: string;
+  eventName: string;
+  locationName: string;
+  startsAt: Date;
+  endsAt: Date;
+}
+
 export interface AdminTotemResponse {
   id: string;
   name: string;
@@ -20,6 +29,7 @@ export interface AdminTotemResponse {
   updatedAt: Date;
   deletedAt: Date | null;
   currentSubscription: TotemSubscriptionInfo | null;
+  currentEvent: TotemEventAssignmentInfo | null;
   isAvailable: boolean;
   hasActiveSession: boolean;
 }

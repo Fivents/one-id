@@ -2,7 +2,7 @@ import type { RegisterParticipantRequest } from '@/core/communication/requests/e
 import { AppError } from '@/core/errors';
 
 import { RegisterParticipantUseCase } from '../../use-cases/event-participant';
-import { badRequest, type ControllerResponse,created, serverError } from '../controller-response';
+import { badRequest, type ControllerResponse, created, serverError } from '../controller-response';
 
 export class RegisterParticipantController {
   constructor(private readonly registerParticipantUseCase: RegisterParticipantUseCase) {}

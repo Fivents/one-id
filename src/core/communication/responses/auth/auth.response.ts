@@ -19,10 +19,28 @@ export interface CheckEmailResponse {
   setupToken?: string;
 }
 
+export interface TotemAIConfig {
+  confidenceThreshold: number;
+  detectionIntervalMs: number;
+  maxFaces: number;
+  livenessDetection: boolean;
+  minFaceSize: number;
+  recommendedEmbeddingModel: string;
+  recommendedDetectorModel: string;
+}
+
 export interface TotemAuthResponse {
   token: string;
   totem: {
     id: string;
     name: string;
   };
+  activeEvent?: {
+    id: string;
+    name: string;
+    startsAt: string;
+    endsAt: string;
+  };
+  totemEventSubscriptionId?: string;
+  aiConfig?: TotemAIConfig;
 }

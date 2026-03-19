@@ -79,34 +79,35 @@ export const GET = withAuth(
 
       const hasMore = rows.length > filters.pageSize;
       const pagedRows = hasMore ? rows.slice(0, filters.pageSize) : rows;
-      const nextCursor = hasMore ? pagedRows[pagedRows.length - 1]?.id ?? null : null;
+      const nextCursor = hasMore ? (pagedRows[pagedRows.length - 1]?.id ?? null) : null;
 
       const minCheckedAt = pagedRows[pagedRows.length - 1]?.checkedInAt;
       const maxCheckedAt = pagedRows[0]?.checkedInAt;
 
-      const auditLogs = minCheckedAt && maxCheckedAt
-        ? await prisma.auditLog.findMany({
-            where: {
-              eventId,
-              action: 'CHECK_IN',
-              createdAt: {
-                gte: new Date(minCheckedAt.getTime() - 5 * 60 * 1000),
-                lte: new Date(maxCheckedAt.getTime() + 5 * 60 * 1000),
-              },
-            },
-            select: {
-              id: true,
-              metadata: true,
-              sessionId: true,
-              user: {
-                select: {
-                  name: true,
+      const auditLogs =
+        minCheckedAt && maxCheckedAt
+          ? await prisma.auditLog.findMany({
+              where: {
+                eventId,
+                action: 'CHECK_IN',
+                createdAt: {
+                  gte: new Date(minCheckedAt.getTime() - 5 * 60 * 1000),
+                  lte: new Date(maxCheckedAt.getTime() + 5 * 60 * 1000),
                 },
               },
-            },
-            orderBy: { createdAt: 'desc' },
-          })
-        : [];
+              select: {
+                id: true,
+                metadata: true,
+                sessionId: true,
+                user: {
+                  select: {
+                    name: true,
+                  },
+                },
+              },
+              orderBy: { createdAt: 'desc' },
+            })
+          : [];
 
       const items = pagedRows.map((checkIn) => {
         const source = checkIn.totemEventSubscriptionId ? 'TOTEM' : 'APP';

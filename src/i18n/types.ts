@@ -843,6 +843,16 @@ export type TranslationSchema = {
       subscribers: string;
     };
   };
+  pages: {
+    organizationEvents: Record<string, string>;
+    organizationPeople: Record<string, string>;
+    eventDetail: Record<string, string>;
+    adminTotemsPage: Record<string, string>;
+    organizationTotems: Record<string, string>;
+    adminTotemsTable: Record<string, string>;
+    totemLogin: Record<string, string>;
+    totemCredentialing: Record<string, string>;
+  };
   totem: {
     loginTitle: string;
     loginDescription: string;

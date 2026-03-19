@@ -38,9 +38,7 @@ export const GET = withAuth(
     }
 
     const events = result.body;
-    const eventIds = events
-      .map((event) => event.id)
-      .filter((id): id is string => typeof id === 'string');
+    const eventIds = events.map((event) => event.id).filter((id): id is string => typeof id === 'string');
 
     if (eventIds.length === 0) {
       return NextResponse.json([], { status: 200 });

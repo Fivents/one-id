@@ -40,6 +40,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { eventCheckinsClient, eventsClient, participantsClient } from '@/core/application/client-services';
 import type {
+  EventAIConfigResponse,
   EventCheckInDetailResponse,
   EventParticipantDetailResponse,
   EventTotemAvailableResponse,
@@ -47,15 +48,17 @@ import type {
   PaginatedEventParticipantsResponse,
   PrintConfigSummaryResponse,
 } from '@/core/application/client-services/events/events-client.service';
+import { extractFaceEmbedding } from '@/core/application/client-services/totem/face-embedding.client';
 import { useApp, useAuth, usePermissions } from '@/core/application/contexts';
 import type { EventResponse } from '@/core/communication/responses/event';
+import { useI18n } from '@/i18n';
 
-function formatDateTime(value: Date | string) {
-  return new Date(value).toLocaleString();
+function formatDateTime(value: Date | string, locale: string) {
+  return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
 }
 
-function formatDate(value: Date | string) {
-  return new Date(value).toLocaleDateString();
+function formatDate(value: Date | string, locale: string) {
+  return new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(new Date(value));
 }
 
 function calculateCheckInRate(total: number, checkedIn: number) {
@@ -74,6 +77,7 @@ export default function EventDetailPage() {
   const { isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const { isAppLoading } = useApp();
   const { hasPermission, isSuperAdmin } = usePermissions();
+  const { locale, t } = useI18n();
 
   const confirm = useConfirm();
 
@@ -154,6 +158,16 @@ export default function EventDetailPage() {
   const [settingsPrintConfigId, setSettingsPrintConfigId] = useState<string>(NONE_PRINT_CONFIG);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [isCreatingPrintConfig, setIsCreatingPrintConfig] = useState(false);
+  const [aiConfig, setAiConfig] = useState<EventAIConfigResponse>({
+    confidenceThreshold: 0.75,
+    detectionIntervalMs: 500,
+    maxFaces: 1,
+    livenessDetection: false,
+    minFaceSize: 80,
+    recommendedEmbeddingModel: 'InsightFace Buffalo_L (ArcFace, 512d)',
+    recommendedDetectorModel: 'SCRFD 10G (2026 production baseline)',
+  });
+  const [isSavingAIConfig, setIsSavingAIConfig] = useState(false);
 
   const isLoadingPage = isAppLoading || isAuthLoading;
 
@@ -193,12 +207,12 @@ export default function EventDetailPage() {
       setSettingsStatus(response.data.status);
       setSettingsPrintConfigId(response.data.printConfigId ?? NONE_PRINT_CONFIG);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to load event.';
+      const message = error instanceof Error ? error.message : t('pages.eventDetail.loadEventError');
       toast.error(message);
     } finally {
       setIsLoading(false);
     }
-  }, [eventId]);
+  }, [eventId, t('pages.eventDetail.loadEventError')]);
 
   const loadParticipants = useCallback(async () => {
     setIsLoadingParticipants(true);
@@ -212,12 +226,12 @@ export default function EventDetailPage() {
       setParticipants(response.data.items);
       setParticipantsMeta(response.data);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to load participants.';
+      const message = error instanceof Error ? error.message : t('pages.eventDetail.loadParticipantsError');
       toast.error(message);
     } finally {
       setIsLoadingParticipants(false);
     }
-  }, [eventId, participantsPage, participantsSearch]);
+  }, [eventId, participantsPage, participantsSearch, t('pages.eventDetail.loadParticipantsError')]);
 
   function resetCreateParticipantForm() {
     setParticipantName('');
@@ -271,14 +285,14 @@ export default function EventDetailPage() {
       setIsCreateFaceCameraOpen(true);
       setParticipantFaceImageUrl('');
     } catch {
-      toast.error('Could not access webcam. Check browser permissions.');
+      toast.error(t('pages.eventDetail.webcamAccessError'));
     }
   }
 
   function captureCreateFacePhoto() {
     const video = createFaceVideoRef.current;
     if (!video || video.videoWidth === 0 || video.videoHeight === 0) {
-      toast.error('Camera is not ready yet.');
+      toast.error(t('pages.eventDetail.cameraNotReady'));
       return;
     }
 
@@ -288,7 +302,7 @@ export default function EventDetailPage() {
 
     const context = canvas.getContext('2d');
     if (!context) {
-      toast.error('Unable to capture photo from camera.');
+      toast.error(t('pages.eventDetail.capturePhotoError'));
       return;
     }
 
@@ -322,10 +336,21 @@ export default function EventDetailPage() {
       const normalizedFaceImageUrl = participantFaceImageUrl.trim();
       const normalizedFaceImageDataUrl = participantFaceImageDataUrl.trim();
       if (normalizedFaceImageUrl || normalizedFaceImageDataUrl) {
+        const embedding = await extractFaceEmbedding({
+          imageDataUrl: normalizedFaceImageDataUrl || undefined,
+          imageUrl: normalizedFaceImageUrl || undefined,
+        });
+
+        if (!embedding) {
+          throw new Error(t('pages.eventDetail.embeddingError'));
+        }
+
         const faceResponse = await participantsClient.registerFace({
           personId: response.data.personId,
           imageUrl: normalizedFaceImageUrl || undefined,
           imageDataUrl: normalizedFaceImageDataUrl || undefined,
+          embedding: embedding ?? undefined,
+          embeddingModel: embedding ? 'Human v3.3.6 face description (SFace/ArcFace compatible)' : undefined,
         });
 
         if (!faceResponse.success) {
@@ -333,12 +358,12 @@ export default function EventDetailPage() {
         }
       }
 
-      toast.success('Participant added successfully.');
+      toast.success(t('pages.eventDetail.participantAddedSuccess'));
       setCreateParticipantOpen(false);
       resetCreateParticipantForm();
       loadParticipants();
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to add participant.';
+      const message = error instanceof Error ? error.message : t('pages.eventDetail.addParticipantError');
       toast.error(message);
     } finally {
       setIsCreatingParticipant(false);
@@ -353,12 +378,12 @@ export default function EventDetailPage() {
       setTotems(response.data.assigned);
       setAvailableTotems(response.data.available);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to load totems.';
+      const message = error instanceof Error ? error.message : t('pages.eventDetail.loadTotemsError');
       toast.error(message);
     } finally {
       setIsLoadingTotems(false);
     }
-  }, [eventId]);
+  }, [eventId, t('pages.eventDetail.loadTotemsError')]);
 
   const loadCheckIns = useCallback(async () => {
     setIsLoadingCheckIns(true);
@@ -367,17 +392,17 @@ export default function EventDetailPage() {
       if (!response.success) throw new Error(response.error.message);
       setCheckIns(response.data);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to load check-ins.';
+      const message = error instanceof Error ? error.message : t('pages.eventDetail.loadCheckinsError');
       toast.error(message);
     } finally {
       setIsLoadingCheckIns(false);
     }
-  }, [eventId]);
+  }, [eventId, t('pages.eventDetail.loadCheckinsError')]);
 
   async function handleManualCheckInSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!manualParticipantId) {
-      toast.error('Select a participant.');
+      toast.error(t('pages.eventDetail.selectParticipantError'));
       return;
     }
 
@@ -392,12 +417,12 @@ export default function EventDetailPage() {
         throw new Error(response.error.message);
       }
 
-      toast.success('Manual app check-in created.');
+      toast.success(t('pages.eventDetail.manualCheckinSuccess'));
       setManualCheckInOpen(false);
       setManualParticipantId('');
       await Promise.all([loadCheckIns(), loadParticipants()]);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to create manual app check-in.';
+      const message = error instanceof Error ? error.message : t('pages.eventDetail.manualCheckinError');
       toast.error(message);
     } finally {
       setIsSubmittingManualCheckIn(false);
@@ -406,9 +431,9 @@ export default function EventDetailPage() {
 
   async function handleInvalidateCheckIn(checkInId: string, participantName: string) {
     const accepted = await confirm.confirm({
-      title: 'Invalidate check-in',
-      description: `Invalidate check-in for ${participantName}?`,
-      confirmLabel: 'Invalidate',
+      title: t('pages.eventDetail.invalidateCheckinTitle'),
+      description: t('pages.eventDetail.invalidateCheckinDescription').replace('{name}', participantName),
+      confirmLabel: t('pages.eventDetail.invalidateCheckinConfirm'),
       variant: 'destructive',
     });
 
@@ -418,10 +443,10 @@ export default function EventDetailPage() {
     try {
       const response = await eventCheckinsClient.invalidateCheckIn(eventId, checkInId);
       if (!response.success) throw new Error(response.error.message);
-      toast.success('Check-in invalidated.');
+      toast.success(t('pages.eventDetail.invalidateCheckinSuccess'));
       await Promise.all([loadCheckIns(), loadParticipants()]);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to invalidate check-in.';
+      const message = error instanceof Error ? error.message : t('pages.eventDetail.invalidateCheckinError');
       toast.error(message);
     } finally {
       setInvalidatingCheckInId(null);
@@ -434,6 +459,13 @@ export default function EventDetailPage() {
       setPrintConfigs(response.data);
     }
   }, []);
+
+  const loadAIConfig = useCallback(async () => {
+    const response = await eventsClient.getEventAIConfig(eventId);
+    if (response.success) {
+      setAiConfig(response.data);
+    }
+  }, [eventId]);
 
   useEffect(() => {
     if (!isLoadingPage && (!isAuthenticated || !canView)) {
@@ -448,8 +480,9 @@ export default function EventDetailPage() {
       loadTotems();
       loadCheckIns();
       loadPrintConfigs();
+      loadAIConfig();
     }
-  }, [isAuthenticated, canView, loadEvent, loadParticipants, loadTotems, loadCheckIns, loadPrintConfigs]);
+  }, [isAuthenticated, canView, loadEvent, loadParticipants, loadTotems, loadCheckIns, loadPrintConfigs, loadAIConfig]);
 
   useEffect(() => {
     if (editParticipant) {
@@ -503,14 +536,14 @@ export default function EventDetailPage() {
       setIsFaceCameraOpen(true);
       setFaceImageUrl('');
     } catch {
-      toast.error('Could not access webcam. Check browser permissions.');
+      toast.error(t('pages.eventDetail.webcamAccessError'));
     }
   }
 
   function captureFacePhoto() {
     const video = faceVideoRef.current;
     if (!video || video.videoWidth === 0 || video.videoHeight === 0) {
-      toast.error('Camera is not ready yet.');
+      toast.error(t('pages.eventDetail.cameraNotReady'));
       return;
     }
 
@@ -520,7 +553,7 @@ export default function EventDetailPage() {
 
     const context = canvas.getContext('2d');
     if (!context) {
-      toast.error('Unable to capture photo from camera.');
+      toast.error(t('pages.eventDetail.capturePhotoError'));
       return;
     }
 
@@ -540,7 +573,7 @@ export default function EventDetailPage() {
     const endDate = new Date(assignEndsAt);
 
     if (startDate >= endDate) {
-      toast.error('Start date must be before end date.');
+      toast.error(t('pages.eventDetail.dateRangeError'));
       return;
     }
 
@@ -553,7 +586,7 @@ export default function EventDetailPage() {
         startsAt: startDate,
         endsAt: endDate,
       });
-      toast.success('Totem assigned successfully.');
+      toast.success(t('pages.eventDetail.assignTotemSuccess'));
       setAssignTotemOpen(false);
       setAssignTotemId('');
       setAssignLocation('');
@@ -561,7 +594,7 @@ export default function EventDetailPage() {
       setAssignEndsAt('');
       loadTotems();
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to assign totem.';
+      const message = error instanceof Error ? error.message : t('pages.eventDetail.assignTotemError');
       toast.error(message);
     } finally {
       setIsAssigningTotem(false);
@@ -570,9 +603,9 @@ export default function EventDetailPage() {
 
   async function handleRemoveTotem(sub: EventTotemSubscriptionResponse) {
     const accepted = await confirm.confirm({
-      title: 'Remove totem',
-      description: `Remove ${sub.totemName} from this event?`,
-      confirmLabel: 'Remove',
+      title: t('pages.eventDetail.removeTotemTitle'),
+      description: t('pages.eventDetail.removeTotemDescription').replace('{name}', sub.totemName),
+      confirmLabel: t('pages.eventDetail.removeTotemConfirm'),
       variant: 'destructive',
     });
 
@@ -580,10 +613,10 @@ export default function EventDetailPage() {
 
     try {
       await eventsClient.removeTotemFromEvent(eventId, sub.id);
-      toast.success('Totem removed.');
+      toast.success(t('pages.eventDetail.removeTotemSuccess'));
       loadTotems();
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to remove totem.';
+      const message = error instanceof Error ? error.message : t('pages.eventDetail.removeTotemError');
       toast.error(message);
     }
   }
@@ -595,11 +628,11 @@ export default function EventDetailPage() {
     setIsUpdatingLocation(true);
     try {
       await eventsClient.updateTotemLocation(eventId, changeLocationSub.id, { locationName: newLocation.trim() });
-      toast.success('Totem location updated.');
+      toast.success(t('pages.eventDetail.updateLocationSuccess'));
       setChangeLocationSub(null);
       loadTotems();
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to update location.';
+      const message = error instanceof Error ? error.message : t('pages.eventDetail.updateLocationError');
       toast.error(message);
     } finally {
       setIsUpdatingLocation(false);
@@ -616,11 +649,11 @@ export default function EventDetailPage() {
         company: editCompany.trim() || null,
         jobTitle: editJobTitle.trim() || null,
       });
-      toast.success('Participant updated.');
+      toast.success(t('pages.eventDetail.participantUpdatedSuccess'));
       setEditParticipant(null);
       loadParticipants();
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to update participant.';
+      const message = error instanceof Error ? error.message : t('pages.eventDetail.updateParticipantError');
       toast.error(message);
     } finally {
       setIsSavingParticipant(false);
@@ -629,9 +662,9 @@ export default function EventDetailPage() {
 
   async function handleDeleteParticipant(participant: EventParticipantDetailResponse) {
     const accepted = await confirm.confirm({
-      title: 'Delete participant',
-      description: `Remove ${participant.name} from this event?`,
-      confirmLabel: 'Delete',
+      title: t('pages.eventDetail.deleteParticipantTitle'),
+      description: t('pages.eventDetail.deleteParticipantDescription').replace('{name}', participant.name),
+      confirmLabel: t('pages.eventDetail.deleteParticipantConfirm'),
       variant: 'destructive',
     });
 
@@ -639,10 +672,10 @@ export default function EventDetailPage() {
 
     try {
       await participantsClient.deleteParticipant(participant.id);
-      toast.success('Participant removed.');
+      toast.success(t('pages.eventDetail.deleteParticipantSuccess'));
       loadParticipants();
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to remove participant.';
+      const message = error instanceof Error ? error.message : t('pages.eventDetail.deleteParticipantError');
       toast.error(message);
     }
   }
@@ -655,16 +688,27 @@ export default function EventDetailPage() {
     const normalizedImageDataUrl = faceImageDataUrl.trim();
 
     if (!normalizedImageUrl && !normalizedImageDataUrl) {
-      toast.error('Provide an image URL or capture a webcam photo.');
+      toast.error(t('pages.eventDetail.provideImageSource'));
       return;
     }
 
     setIsRegisteringFace(true);
     try {
+      const embedding = await extractFaceEmbedding({
+        imageDataUrl: normalizedImageDataUrl || undefined,
+        imageUrl: normalizedImageUrl || undefined,
+      });
+
+      if (!embedding) {
+        throw new Error(t('pages.eventDetail.embeddingError'));
+      }
+
       if (registerFaceParticipant.faceId) {
         await participantsClient.replaceFaceImage(registerFaceParticipant.faceId, {
           imageUrl: normalizedImageUrl || undefined,
           imageDataUrl: normalizedImageDataUrl || undefined,
+          embedding: embedding ?? undefined,
+          embeddingModel: embedding ? 'Human v3.3.6 face description (SFace/ArcFace compatible)' : undefined,
           isActive: true,
         });
       } else {
@@ -672,17 +716,21 @@ export default function EventDetailPage() {
           personId: registerFaceParticipant.personId,
           imageUrl: normalizedImageUrl || undefined,
           imageDataUrl: normalizedImageDataUrl || undefined,
+          embedding: embedding ?? undefined,
+          embeddingModel: embedding ? 'Human v3.3.6 face description (SFace/ArcFace compatible)' : undefined,
         });
       }
 
-      toast.success(registerFaceParticipant.faceId ? 'Face image updated.' : 'Face registered.');
+      toast.success(
+        registerFaceParticipant.faceId ? t('pages.eventDetail.faceUpdated') : t('pages.eventDetail.faceRegistered'),
+      );
       setRegisterFaceParticipant(null);
       setFaceImageUrl('');
       setFaceImageDataUrl('');
       stopFaceCamera();
       loadParticipants();
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to register face.';
+      const message = error instanceof Error ? error.message : t('pages.eventDetail.registerFaceError');
       toast.error(message);
     } finally {
       setIsRegisteringFace(false);
@@ -698,7 +746,7 @@ export default function EventDetailPage() {
     const endDate = new Date(settingsEndsAt);
 
     if (startDate >= endDate) {
-      toast.error('Start date must be before end date.');
+      toast.error(t('pages.eventDetail.dateRangeError'));
       return;
     }
 
@@ -728,15 +776,15 @@ export default function EventDetailPage() {
         ) {
           await eventsClient.cancelEvent(event.id);
         } else {
-          toast.error('Invalid status transition.');
+          toast.error(t('pages.eventDetail.invalidStatusTransition'));
           return;
         }
       }
 
-      toast.success('Event updated.');
+      toast.success(t('pages.eventDetail.eventUpdated'));
       loadEvent();
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to update event.';
+      const message = error instanceof Error ? error.message : t('pages.eventDetail.updateEventError');
       toast.error(message);
     } finally {
       setIsSavingSettings(false);
@@ -750,12 +798,39 @@ export default function EventDetailPage() {
       if (!response.success) throw new Error(response.error.message);
       setPrintConfigs((prev) => [response.data, ...prev]);
       setSettingsPrintConfigId(response.data.id);
-      toast.success('Print config created.');
+      toast.success(t('pages.eventDetail.printConfigCreated'));
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to create print config.';
+      const message = error instanceof Error ? error.message : t('pages.eventDetail.printConfigError');
       toast.error(message);
     } finally {
       setIsCreatingPrintConfig(false);
+    }
+  }
+
+  async function handleSaveAIConfig(e: React.FormEvent) {
+    e.preventDefault();
+
+    setIsSavingAIConfig(true);
+    try {
+      const response = await eventsClient.updateEventAIConfig(eventId, {
+        confidenceThreshold: aiConfig.confidenceThreshold,
+        detectionIntervalMs: aiConfig.detectionIntervalMs,
+        maxFaces: aiConfig.maxFaces,
+        livenessDetection: aiConfig.livenessDetection,
+        minFaceSize: aiConfig.minFaceSize,
+      });
+
+      if (!response.success) {
+        throw new Error(response.error.message);
+      }
+
+      setAiConfig(response.data);
+      toast.success(t('pages.eventDetail.aiUpdated'));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : t('pages.eventDetail.aiUpdateError');
+      toast.error(message);
+    } finally {
+      setIsSavingAIConfig(false);
     }
   }
 
@@ -781,43 +856,64 @@ export default function EventDetailPage() {
 
       <Tabs defaultValue="overview">
         <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="participants">Participants</TabsTrigger>
-          <TabsTrigger value="totems">Totems</TabsTrigger>
-          <TabsTrigger value="checkins">Check-ins</TabsTrigger>
-          <TabsTrigger value="settings">Settings</TabsTrigger>
+          <TabsTrigger value="overview">{t('pages.eventDetail.tabOverview')}</TabsTrigger>
+          <TabsTrigger value="participants">{t('pages.eventDetail.tabParticipants')}</TabsTrigger>
+          <TabsTrigger value="totems">{t('pages.eventDetail.tabTotems')}</TabsTrigger>
+          <TabsTrigger value="checkins">{t('pages.eventDetail.tabCheckins')}</TabsTrigger>
+          <TabsTrigger value="ai">{t('pages.eventDetail.tabAi')}</TabsTrigger>
+          <TabsTrigger value="settings">{t('pages.eventDetail.tabSettings')}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
           <div className="grid gap-4 md:grid-cols-4">
             <StatCard
-              title="Participants Registered"
+              title={t('pages.eventDetail.statParticipants')}
               value={stats.totalParticipants}
               icon={<User className="h-4 w-4" />}
             />
-            <StatCard title="Check-ins Completed" value={stats.checkedIn} icon={<CheckCircle2 className="h-4 w-4" />} />
             <StatCard
-              title="Totems Assigned"
+              title={t('pages.eventDetail.statCheckins')}
+              value={stats.checkedIn}
+              icon={<CheckCircle2 className="h-4 w-4" />}
+            />
+            <StatCard
+              title={t('pages.eventDetail.statTotems')}
               value={stats.totalTotems}
               icon={<MonitorSmartphone className="h-4 w-4" />}
             />
-            <StatCard title="Check-in Rate" value={stats.checkInRate} icon={<ScanFace className="h-4 w-4" />} />
+            <StatCard
+              title={t('pages.eventDetail.statRate')}
+              value={stats.checkInRate}
+              icon={<ScanFace className="h-4 w-4" />}
+            />
           </div>
 
           <Card>
             <CardHeader>
-              <CardTitle>Event Details</CardTitle>
-              <CardDescription>Key information about this event.</CardDescription>
+              <CardTitle>{t('pages.eventDetail.eventDetailsTitle')}</CardTitle>
+              <CardDescription>{t('pages.eventDetail.eventDetailsDescription')}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               <InfoRow
-                label="Start date"
-                value={formatDateTime(event.startsAt)}
+                label={t('pages.eventDetail.startDate')}
+                value={formatDateTime(event.startsAt, locale)}
                 icon={<Calendar className="h-4 w-4" />}
               />
-              <InfoRow label="End date" value={formatDateTime(event.endsAt)} icon={<Calendar className="h-4 w-4" />} />
-              <InfoRow label="Timezone" value={event.timezone} icon={<Calendar className="h-4 w-4" />} />
-              <InfoRow label="Location" value={event.address ?? '—'} icon={<MapPin className="h-4 w-4" />} />
+              <InfoRow
+                label={t('pages.eventDetail.endDate')}
+                value={formatDateTime(event.endsAt, locale)}
+                icon={<Calendar className="h-4 w-4" />}
+              />
+              <InfoRow
+                label={t('pages.eventDetail.timezone')}
+                value={event.timezone}
+                icon={<Calendar className="h-4 w-4" />}
+              />
+              <InfoRow
+                label={t('pages.eventDetail.location')}
+                value={event.address ?? '—'}
+                icon={<MapPin className="h-4 w-4" />}
+              />
             </CardContent>
           </Card>
         </TabsContent>
@@ -827,12 +923,14 @@ export default function EventDetailPage() {
             <CardHeader>
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <CardTitle>Participants</CardTitle>
-                  <CardDescription>{participantsMeta.total} registered participants.</CardDescription>
+                  <CardTitle>{t('pages.eventDetail.participantsTitle')}</CardTitle>
+                  <CardDescription>
+                    {t('pages.eventDetail.participantsDescription').replace('{count}', String(participantsMeta.total))}
+                  </CardDescription>
                 </div>
                 <Button size="sm" onClick={() => setCreateParticipantOpen(true)}>
                   <Plus className="mr-2 h-4 w-4" />
-                  Add Participant
+                  {t('pages.eventDetail.addParticipant')}
                 </Button>
               </div>
             </CardHeader>
@@ -845,7 +943,7 @@ export default function EventDetailPage() {
                     setParticipantsSearch(e.target.value);
                     setParticipantsPage(1);
                   }}
-                  placeholder="Search participants"
+                  placeholder={t('pages.eventDetail.searchParticipants')}
                   className="pl-9"
                 />
               </div>
@@ -853,20 +951,22 @@ export default function EventDetailPage() {
               {isLoadingParticipants ? (
                 <Skeleton className="h-40" />
               ) : participants.length === 0 ? (
-                <p className="text-muted-foreground py-8 text-center text-sm">No participants registered yet.</p>
+                <p className="text-muted-foreground py-8 text-center text-sm">
+                  {t('pages.eventDetail.noParticipants')}
+                </p>
               ) : (
                 <div className="rounded-lg border">
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Email</TableHead>
-                        <TableHead>Company</TableHead>
-                        <TableHead>Job Title</TableHead>
-                        <TableHead>Registered At</TableHead>
-                        <TableHead>Face</TableHead>
-                        <TableHead>Check-in Status</TableHead>
-                        <TableHead className="w-24">Actions</TableHead>
+                        <TableHead>{t('pages.eventDetail.participant')}</TableHead>
+                        <TableHead>{t('pages.eventDetail.emailRequired').replace(' *', '')}</TableHead>
+                        <TableHead>{t('pages.eventDetail.company')}</TableHead>
+                        <TableHead>{t('pages.eventDetail.jobTitle')}</TableHead>
+                        <TableHead>{t('pages.eventDetail.registeredAt')}</TableHead>
+                        <TableHead>{t('pages.eventDetail.face')}</TableHead>
+                        <TableHead>{t('pages.eventDetail.checkinStatus')}</TableHead>
+                        <TableHead className="w-24">{t('pages.eventDetail.actions')}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -877,7 +977,7 @@ export default function EventDetailPage() {
                           <TableCell className="text-muted-foreground">{participant.company ?? '—'}</TableCell>
                           <TableCell className="text-muted-foreground">{participant.jobTitle ?? '—'}</TableCell>
                           <TableCell className="text-muted-foreground">
-                            {formatDate(participant.registeredAt)}
+                            {formatDate(participant.registeredAt, locale)}
                           </TableCell>
                           <TableCell>
                             <Badge
@@ -888,7 +988,7 @@ export default function EventDetailPage() {
                                   : 'bg-gray-400/10 text-gray-500'
                               }
                             >
-                              {participant.faceId ? 'With image' : 'No image'}
+                              {participant.faceId ? t('pages.eventDetail.withImage') : t('pages.eventDetail.noImage')}
                             </Badge>
                           </TableCell>
                           <TableCell>
@@ -900,7 +1000,9 @@ export default function EventDetailPage() {
                                   : 'bg-gray-400/10 text-gray-500'
                               }
                             >
-                              {participant.hasCheckIn ? 'Checked-in' : 'Pending'}
+                              {participant.hasCheckIn
+                                ? t('pages.eventDetail.checkedIn')
+                                : t('pages.eventDetail.pending')}
                             </Badge>
                           </TableCell>
                           <TableCell className="flex gap-2">
@@ -925,7 +1027,9 @@ export default function EventDetailPage() {
               )}
 
               <div className="mt-4 flex items-center justify-between">
-                <p className="text-muted-foreground text-sm">{participantsMeta.total} results</p>
+                <p className="text-muted-foreground text-sm">
+                  {t('pages.eventDetail.results').replace('{count}', String(participantsMeta.total))}
+                </p>
                 <div className="flex items-center gap-2">
                   <Button
                     variant="outline"
@@ -933,10 +1037,12 @@ export default function EventDetailPage() {
                     disabled={participantsMeta.page <= 1}
                     onClick={() => setParticipantsPage((current) => Math.max(current - 1, 1))}
                   >
-                    Previous
+                    {t('pages.eventDetail.previous')}
                   </Button>
                   <span className="text-sm">
-                    Page {participantsMeta.page} of {participantsMeta.totalPages}
+                    {t('pages.eventDetail.pageOf')
+                      .replace('{page}', String(participantsMeta.page))
+                      .replace('{total}', String(participantsMeta.totalPages))}
                   </span>
                   <Button
                     variant="outline"
@@ -944,7 +1050,7 @@ export default function EventDetailPage() {
                     disabled={participantsMeta.page >= participantsMeta.totalPages}
                     onClick={() => setParticipantsPage((current) => current + 1)}
                   >
-                    Next
+                    {t('pages.eventDetail.next')}
                   </Button>
                 </div>
               </div>
@@ -957,12 +1063,14 @@ export default function EventDetailPage() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle>Totems</CardTitle>
-                  <CardDescription>{totems.length} totems assigned to this event.</CardDescription>
+                  <CardTitle>{t('pages.eventDetail.totemsTitle')}</CardTitle>
+                  <CardDescription>
+                    {t('pages.eventDetail.totemsDescription').replace('{count}', String(totems.length))}
+                  </CardDescription>
                 </div>
                 <Button size="sm" onClick={() => setAssignTotemOpen(true)}>
                   <Plus className="mr-2 h-4 w-4" />
-                  Assign Totem
+                  {t('pages.eventDetail.assignTotem')}
                 </Button>
               </div>
             </CardHeader>
@@ -970,17 +1078,17 @@ export default function EventDetailPage() {
               {isLoadingTotems ? (
                 <Skeleton className="h-40" />
               ) : totems.length === 0 ? (
-                <p className="text-muted-foreground py-8 text-center text-sm">No totems assigned yet.</p>
+                <p className="text-muted-foreground py-8 text-center text-sm">{t('pages.eventDetail.noTotems')}</p>
               ) : (
                 <div className="rounded-lg border">
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Totem Name</TableHead>
-                        <TableHead>Location</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Last Heartbeat</TableHead>
-                        <TableHead className="w-24">Actions</TableHead>
+                        <TableHead>{t('pages.eventDetail.totemName')}</TableHead>
+                        <TableHead>{t('pages.eventDetail.location')}</TableHead>
+                        <TableHead>{t('pages.eventDetail.status')}</TableHead>
+                        <TableHead>{t('pages.eventDetail.lastHeartbeat')}</TableHead>
+                        <TableHead className="w-24">{t('pages.eventDetail.actions')}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -1001,7 +1109,7 @@ export default function EventDetailPage() {
                             </Badge>
                           </TableCell>
                           <TableCell className="text-muted-foreground">
-                            {totem.lastHeartbeat ? formatDateTime(totem.lastHeartbeat) : '—'}
+                            {totem.lastHeartbeat ? formatDateTime(totem.lastHeartbeat, locale) : '—'}
                           </TableCell>
                           <TableCell className="flex gap-2">
                             <Button variant="ghost" size="icon" onClick={() => setChangeLocationSub(totem)}>
@@ -1026,12 +1134,14 @@ export default function EventDetailPage() {
             <CardHeader>
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <CardTitle>Check-ins</CardTitle>
-                  <CardDescription>{checkIns.length} completed check-ins.</CardDescription>
+                  <CardTitle>{t('pages.eventDetail.checkinsTitle')}</CardTitle>
+                  <CardDescription>
+                    {t('pages.eventDetail.checkinsDescription').replace('{count}', String(checkIns.length))}
+                  </CardDescription>
                 </div>
                 <Button size="sm" onClick={() => setManualCheckInOpen(true)}>
                   <Plus className="mr-2 h-4 w-4" />
-                  Manual App Check-in
+                  {t('pages.eventDetail.manualAppCheckin')}
                 </Button>
               </div>
             </CardHeader>
@@ -1039,18 +1149,18 @@ export default function EventDetailPage() {
               {isLoadingCheckIns ? (
                 <Skeleton className="h-40" />
               ) : checkIns.length === 0 ? (
-                <p className="text-muted-foreground py-8 text-center text-sm">No check-ins yet.</p>
+                <p className="text-muted-foreground py-8 text-center text-sm">{t('pages.eventDetail.noCheckins')}</p>
               ) : (
                 <div className="rounded-lg border">
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Participant</TableHead>
-                        <TableHead>Method</TableHead>
-                        <TableHead>Confidence</TableHead>
-                        <TableHead>Totem Location</TableHead>
-                        <TableHead>Time</TableHead>
-                        <TableHead>Actions</TableHead>
+                        <TableHead>{t('pages.eventDetail.participant')}</TableHead>
+                        <TableHead>{t('pages.eventDetail.method')}</TableHead>
+                        <TableHead>{t('pages.eventDetail.confidence')}</TableHead>
+                        <TableHead>{t('pages.eventDetail.totemLocation')}</TableHead>
+                        <TableHead>{t('pages.eventDetail.time')}</TableHead>
+                        <TableHead>{t('pages.eventDetail.actions')}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -1062,7 +1172,9 @@ export default function EventDetailPage() {
                             {checkIn.confidence ? `${Math.round(checkIn.confidence * 100)}%` : '—'}
                           </TableCell>
                           <TableCell className="text-muted-foreground">{checkIn.totemLocation || 'APP'}</TableCell>
-                          <TableCell className="text-muted-foreground">{formatDateTime(checkIn.checkedInAt)}</TableCell>
+                          <TableCell className="text-muted-foreground">
+                            {formatDateTime(checkIn.checkedInAt, locale)}
+                          </TableCell>
                           <TableCell>
                             <Button
                               variant="ghost"
@@ -1070,7 +1182,9 @@ export default function EventDetailPage() {
                               disabled={invalidatingCheckInId === checkIn.id}
                               onClick={() => handleInvalidateCheckIn(checkIn.id, checkIn.participantName)}
                             >
-                              {invalidatingCheckInId === checkIn.id ? 'Invalidating...' : 'Invalidate'}
+                              {invalidatingCheckInId === checkIn.id
+                                ? t('pages.eventDetail.invalidating')
+                                : t('pages.eventDetail.invalidate')}
                             </Button>
                           </TableCell>
                         </TableRow>
@@ -1086,14 +1200,14 @@ export default function EventDetailPage() {
         <TabsContent value="settings" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Settings</CardTitle>
-              <CardDescription>Update event configuration and print settings.</CardDescription>
+              <CardTitle>{t('pages.eventDetail.settingsTitle')}</CardTitle>
+              <CardDescription>{t('pages.eventDetail.settingsDescription')}</CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSaveSettings} className="space-y-4">
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
-                    <Label htmlFor="settings-name">Name *</Label>
+                    <Label htmlFor="settings-name">{t('pages.eventDetail.nameRequired')}</Label>
                     <Input
                       id="settings-name"
                       value={settingsName}
@@ -1102,13 +1216,13 @@ export default function EventDetailPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="settings-status">Status</Label>
+                    <Label htmlFor="settings-status">{t('pages.eventDetail.statusSelect')}</Label>
                     <Select
                       value={settingsStatus}
                       onValueChange={(value) => setSettingsStatus(value as EventResponse['status'])}
                     >
                       <SelectTrigger id="settings-status">
-                        <SelectValue placeholder="Select status" />
+                        <SelectValue placeholder={t('pages.eventDetail.selectStatus')} />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="DRAFT">DRAFT</SelectItem>
@@ -1122,7 +1236,7 @@ export default function EventDetailPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="settings-description">Description</Label>
+                  <Label htmlFor="settings-description">{t('pages.eventDetail.description')}</Label>
                   <Textarea
                     id="settings-description"
                     value={settingsDescription}
@@ -1133,7 +1247,7 @@ export default function EventDetailPage() {
 
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
-                    <Label htmlFor="settings-timezone">Timezone *</Label>
+                    <Label htmlFor="settings-timezone">{t('pages.eventDetail.timezone')} *</Label>
                     <Input
                       id="settings-timezone"
                       value={settingsTimezone}
@@ -1142,7 +1256,7 @@ export default function EventDetailPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="settings-address">Address</Label>
+                    <Label htmlFor="settings-address">{t('pages.eventDetail.address')}</Label>
                     <Input
                       id="settings-address"
                       value={settingsAddress}
@@ -1153,7 +1267,7 @@ export default function EventDetailPage() {
 
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
-                    <Label htmlFor="settings-start">Start Date *</Label>
+                    <Label htmlFor="settings-start">{t('pages.eventDetail.startDate')} *</Label>
                     <Input
                       id="settings-start"
                       type="datetime-local"
@@ -1163,7 +1277,7 @@ export default function EventDetailPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="settings-end">End Date *</Label>
+                    <Label htmlFor="settings-end">{t('pages.eventDetail.endDate')} *</Label>
                     <Input
                       id="settings-end"
                       type="datetime-local"
@@ -1175,14 +1289,14 @@ export default function EventDetailPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Print Config</Label>
+                  <Label>{t('pages.eventDetail.printConfig')}</Label>
                   <div className="flex gap-2">
                     <Select value={settingsPrintConfigId} onValueChange={setSettingsPrintConfigId}>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select print config" />
+                        <SelectValue placeholder={t('pages.eventDetail.selectPrintConfig')} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value={NONE_PRINT_CONFIG}>None</SelectItem>
+                        <SelectItem value={NONE_PRINT_CONFIG}>{t('pages.eventDetail.none')}</SelectItem>
                         {printConfigs.map((config) => (
                           <SelectItem key={config.id} value={config.id}>
                             {config.id}
@@ -1196,14 +1310,131 @@ export default function EventDetailPage() {
                       onClick={handleCreatePrintConfig}
                       disabled={isCreatingPrintConfig}
                     >
-                      {isCreatingPrintConfig ? 'Creating...' : 'Create new'}
+                      {isCreatingPrintConfig ? t('pages.eventDetail.creating') : t('pages.eventDetail.createNew')}
                     </Button>
                   </div>
                 </div>
 
                 <div className="flex justify-end">
                   <Button type="submit" disabled={isSavingSettings}>
-                    {isSavingSettings ? 'Saving...' : 'Save Settings'}
+                    {isSavingSettings ? t('pages.eventDetail.saving') : t('pages.eventDetail.saveSettings')}
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="ai" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>{t('pages.eventDetail.aiTitle')}</CardTitle>
+              <CardDescription>{t('pages.eventDetail.aiDescription')}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleSaveAIConfig} className="space-y-4">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="ai-threshold">{t('pages.eventDetail.confidenceThreshold')}</Label>
+                    <Input
+                      id="ai-threshold"
+                      type="number"
+                      min={0.3}
+                      max={0.99}
+                      step={0.01}
+                      value={aiConfig.confidenceThreshold}
+                      onChange={(e) =>
+                        setAiConfig((current) => ({
+                          ...current,
+                          confidenceThreshold: Number(e.target.value),
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="ai-interval">{t('pages.eventDetail.detectionInterval')}</Label>
+                    <Input
+                      id="ai-interval"
+                      type="number"
+                      min={100}
+                      max={5000}
+                      step={50}
+                      value={aiConfig.detectionIntervalMs}
+                      onChange={(e) =>
+                        setAiConfig((current) => ({
+                          ...current,
+                          detectionIntervalMs: Number(e.target.value),
+                        }))
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="ai-max-faces">{t('pages.eventDetail.maxFaces')}</Label>
+                    <Input
+                      id="ai-max-faces"
+                      type="number"
+                      min={1}
+                      max={5}
+                      step={1}
+                      value={aiConfig.maxFaces}
+                      onChange={(e) =>
+                        setAiConfig((current) => ({
+                          ...current,
+                          maxFaces: Number(e.target.value),
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="ai-min-face-size">{t('pages.eventDetail.minFaceSize')}</Label>
+                    <Input
+                      id="ai-min-face-size"
+                      type="number"
+                      min={32}
+                      max={600}
+                      step={1}
+                      value={aiConfig.minFaceSize}
+                      onChange={(e) =>
+                        setAiConfig((current) => ({
+                          ...current,
+                          minFaceSize: Number(e.target.value),
+                        }))
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 rounded-lg border p-3">
+                  <input
+                    id="ai-liveness"
+                    type="checkbox"
+                    checked={aiConfig.livenessDetection}
+                    onChange={(e) =>
+                      setAiConfig((current) => ({
+                        ...current,
+                        livenessDetection: e.target.checked,
+                      }))
+                    }
+                  />
+                  <Label htmlFor="ai-liveness">{t('pages.eventDetail.enableLiveness')}</Label>
+                </div>
+
+                <div className="bg-muted/30 rounded-lg border p-3 text-sm">
+                  <p className="font-medium">{t('pages.eventDetail.recommendedStack')}</p>
+                  <p className="text-muted-foreground mt-1">
+                    {t('pages.eventDetail.detector')}: {aiConfig.recommendedDetectorModel}
+                  </p>
+                  <p className="text-muted-foreground">
+                    {t('pages.eventDetail.embedding')}: {aiConfig.recommendedEmbeddingModel}
+                  </p>
+                </div>
+
+                <div className="flex justify-end">
+                  <Button type="submit" disabled={isSavingAIConfig}>
+                    {isSavingAIConfig ? t('pages.eventDetail.saving') : t('pages.eventDetail.saveAiSettings')}
                   </Button>
                 </div>
               </form>
@@ -1215,15 +1446,15 @@ export default function EventDetailPage() {
       <Dialog open={assignTotemOpen} onOpenChange={setAssignTotemOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Assign Totem</DialogTitle>
-            <DialogDescription>Assign an available totem to this event.</DialogDescription>
+            <DialogTitle>{t('pages.eventDetail.assignTotemTitle')}</DialogTitle>
+            <DialogDescription>{t('pages.eventDetail.assignTotemDescription')}</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleAssignTotem} className="space-y-4">
             <div className="space-y-2">
-              <Label>Totem</Label>
+              <Label>{t('pages.eventDetail.totem')}</Label>
               <Select value={assignTotemId} onValueChange={setAssignTotemId}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select totem" />
+                  <SelectValue placeholder={t('pages.eventDetail.selectTotem')} />
                 </SelectTrigger>
                 <SelectContent>
                   {availableTotems.map((totem) => (
@@ -1238,7 +1469,7 @@ export default function EventDetailPage() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="assign-location">Location *</Label>
+              <Label htmlFor="assign-location">{t('pages.eventDetail.locationRequired')}</Label>
               <Input
                 id="assign-location"
                 value={assignLocation}
@@ -1248,7 +1479,7 @@ export default function EventDetailPage() {
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="assign-start">Start Date *</Label>
+                <Label htmlFor="assign-start">{t('pages.eventDetail.startDate')} *</Label>
                 <Input
                   id="assign-start"
                   type="datetime-local"
@@ -1258,7 +1489,7 @@ export default function EventDetailPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="assign-end">End Date *</Label>
+                <Label htmlFor="assign-end">{t('pages.eventDetail.endDate')} *</Label>
                 <Input
                   id="assign-end"
                   type="datetime-local"
@@ -1270,10 +1501,10 @@ export default function EventDetailPage() {
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setAssignTotemOpen(false)}>
-                Cancel
+                {t('pages.eventDetail.cancel')}
               </Button>
               <Button type="submit" disabled={isAssigningTotem}>
-                {isAssigningTotem ? 'Assigning...' : 'Assign Totem'}
+                {isAssigningTotem ? t('pages.eventDetail.assigning') : t('pages.eventDetail.assignTotem')}
               </Button>
             </DialogFooter>
           </form>
@@ -1291,15 +1522,15 @@ export default function EventDetailPage() {
       >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Manual App Check-in</DialogTitle>
-            <DialogDescription>Create a check-in directly from the dashboard.</DialogDescription>
+            <DialogTitle>{t('pages.eventDetail.manualCheckinTitle')}</DialogTitle>
+            <DialogDescription>{t('pages.eventDetail.manualCheckinDescription')}</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleManualCheckInSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label>Participant *</Label>
+              <Label>{t('pages.eventDetail.participant')} *</Label>
               <Select value={manualParticipantId} onValueChange={setManualParticipantId}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select participant" />
+                  <SelectValue placeholder={t('pages.eventDetail.selectParticipant')} />
                 </SelectTrigger>
                 <SelectContent>
                   {manualCheckInParticipants.length > 0
@@ -1312,21 +1543,19 @@ export default function EventDetailPage() {
                 </SelectContent>
               </Select>
               {manualCheckInParticipants.length === 0 ? (
-                <p className="text-muted-foreground text-xs">
-                  All participants on this page already have a check-in. Invalidate a check-in to allow manual check-in again.
-                </p>
+                <p className="text-muted-foreground text-xs">{t('pages.eventDetail.allHaveCheckin')}</p>
               ) : null}
             </div>
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setManualCheckInOpen(false)}>
-                Cancel
+                {t('pages.eventDetail.cancel')}
               </Button>
               <Button
                 type="submit"
                 disabled={isSubmittingManualCheckIn || !manualParticipantId || manualCheckInParticipants.length === 0}
               >
-                {isSubmittingManualCheckIn ? 'Saving...' : 'Create Check-in'}
+                {isSubmittingManualCheckIn ? t('pages.eventDetail.saving') : t('pages.eventDetail.createCheckin')}
               </Button>
             </DialogFooter>
           </form>
@@ -1342,16 +1571,14 @@ export default function EventDetailPage() {
       >
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Add Participant</DialogTitle>
-            <DialogDescription>
-              The system will reuse an existing person from this organization by email or create a new one.
-            </DialogDescription>
+            <DialogTitle>{t('pages.eventDetail.addParticipantTitle')}</DialogTitle>
+            <DialogDescription>{t('pages.eventDetail.addParticipantDescription')}</DialogDescription>
           </DialogHeader>
 
           <form onSubmit={handleCreateParticipant} className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="participant-name">Name *</Label>
+                <Label htmlFor="participant-name">{t('pages.eventDetail.nameRequired')}</Label>
                 <Input
                   id="participant-name"
                   value={participantName}
@@ -1360,7 +1587,7 @@ export default function EventDetailPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="participant-email">Email *</Label>
+                <Label htmlFor="participant-email">{t('pages.eventDetail.emailRequired')}</Label>
                 <Input
                   id="participant-email"
                   type="email"
@@ -1373,7 +1600,7 @@ export default function EventDetailPage() {
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="participant-document">Document</Label>
+                <Label htmlFor="participant-document">{t('pages.eventDetail.document')}</Label>
                 <Input
                   id="participant-document"
                   value={participantDocument}
@@ -1381,7 +1608,7 @@ export default function EventDetailPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Document Type</Label>
+                <Label>{t('pages.eventDetail.documentType')}</Label>
                 <Select
                   value={participantDocumentType}
                   onValueChange={(value) =>
@@ -1389,13 +1616,13 @@ export default function EventDetailPage() {
                   }
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select document type" />
+                    <SelectValue placeholder={t('pages.eventDetail.selectDocumentType')} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="PASSPORT">Passport</SelectItem>
-                    <SelectItem value="ID_CARD">ID card</SelectItem>
-                    <SelectItem value="DRIVER_LICENSE">Driver license</SelectItem>
-                    <SelectItem value="OTHER">Other</SelectItem>
+                    <SelectItem value="PASSPORT">{t('pages.eventDetail.passport')}</SelectItem>
+                    <SelectItem value="ID_CARD">{t('pages.eventDetail.idCard')}</SelectItem>
+                    <SelectItem value="DRIVER_LICENSE">{t('pages.eventDetail.driverLicense')}</SelectItem>
+                    <SelectItem value="OTHER">{t('pages.eventDetail.other')}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -1403,7 +1630,7 @@ export default function EventDetailPage() {
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="participant-phone">Phone</Label>
+                <Label htmlFor="participant-phone">{t('pages.eventDetail.phone')}</Label>
                 <Input
                   id="participant-phone"
                   value={participantPhone}
@@ -1411,7 +1638,7 @@ export default function EventDetailPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="participant-company">Company</Label>
+                <Label htmlFor="participant-company">{t('pages.eventDetail.company')}</Label>
                 <Input
                   id="participant-company"
                   value={participantCompany}
@@ -1421,7 +1648,7 @@ export default function EventDetailPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="participant-job-title">Job Title</Label>
+              <Label htmlFor="participant-job-title">{t('pages.eventDetail.jobTitle')}</Label>
               <Input
                 id="participant-job-title"
                 value={participantJobTitle}
@@ -1430,7 +1657,7 @@ export default function EventDetailPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="participant-face-url">Face Image URL (optional)</Label>
+              <Label htmlFor="participant-face-url">{t('pages.eventDetail.faceImageUrlOptional')}</Label>
               <Input
                 id="participant-face-url"
                 type="url"
@@ -1447,19 +1674,19 @@ export default function EventDetailPage() {
             </div>
 
             <div className="space-y-2">
-              <Label>Face Webcam (optional)</Label>
+              <Label>{t('pages.eventDetail.faceWebcamOptional')}</Label>
               <div className="flex gap-2">
                 {!isCreateFaceCameraOpen ? (
                   <Button type="button" variant="outline" onClick={openCreateFaceCamera}>
-                    Open camera
+                    {t('pages.eventDetail.openCamera')}
                   </Button>
                 ) : (
                   <>
                     <Button type="button" variant="outline" onClick={captureCreateFacePhoto}>
-                      Capture photo
+                      {t('pages.eventDetail.capturePhoto')}
                     </Button>
                     <Button type="button" variant="ghost" onClick={stopCreateFaceCamera}>
-                      Close camera
+                      {t('pages.eventDetail.closeCamera')}
                     </Button>
                   </>
                 )}
@@ -1472,7 +1699,7 @@ export default function EventDetailPage() {
 
             {(participantFaceImageDataUrl || participantFaceImageUrl.trim()) && (
               <div className="space-y-2">
-                <Label>Face Preview</Label>
+                <Label>{t('pages.eventDetail.facePreview')}</Label>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={participantFaceImageDataUrl || participantFaceImageUrl.trim()}
@@ -1484,10 +1711,10 @@ export default function EventDetailPage() {
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setCreateParticipantOpen(false)}>
-                Cancel
+                {t('pages.eventDetail.cancel')}
               </Button>
               <Button type="submit" disabled={isCreatingParticipant || !participantName || !participantEmail}>
-                {isCreatingParticipant ? 'Saving...' : 'Add Participant'}
+                {isCreatingParticipant ? t('pages.eventDetail.saving') : t('pages.eventDetail.addParticipantAction')}
               </Button>
             </DialogFooter>
           </form>
@@ -1497,20 +1724,20 @@ export default function EventDetailPage() {
       <Dialog open={!!changeLocationSub} onOpenChange={(open) => !open && setChangeLocationSub(null)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Change Location</DialogTitle>
-            <DialogDescription>Update the location for this totem.</DialogDescription>
+            <DialogTitle>{t('pages.eventDetail.changeLocationTitle')}</DialogTitle>
+            <DialogDescription>{t('pages.eventDetail.changeLocationDescription')}</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleUpdateLocation} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="new-location">Location *</Label>
+              <Label htmlFor="new-location">{t('pages.eventDetail.locationRequired')}</Label>
               <Input id="new-location" value={newLocation} onChange={(e) => setNewLocation(e.target.value)} required />
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setChangeLocationSub(null)}>
-                Cancel
+                {t('pages.eventDetail.cancel')}
               </Button>
               <Button type="submit" disabled={isUpdatingLocation}>
-                {isUpdatingLocation ? 'Saving...' : 'Save Location'}
+                {isUpdatingLocation ? t('pages.eventDetail.saving') : t('pages.eventDetail.saveLocation')}
               </Button>
             </DialogFooter>
           </form>
@@ -1520,24 +1747,24 @@ export default function EventDetailPage() {
       <Dialog open={!!editParticipant} onOpenChange={(open) => !open && setEditParticipant(null)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Edit Participant</DialogTitle>
-            <DialogDescription>Update participant details.</DialogDescription>
+            <DialogTitle>{t('pages.eventDetail.editParticipantTitle')}</DialogTitle>
+            <DialogDescription>{t('pages.eventDetail.editParticipantDescription')}</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSaveParticipant} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="edit-company">Company</Label>
+              <Label htmlFor="edit-company">{t('pages.eventDetail.company')}</Label>
               <Input id="edit-company" value={editCompany} onChange={(e) => setEditCompany(e.target.value)} />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit-job-title">Job Title</Label>
+              <Label htmlFor="edit-job-title">{t('pages.eventDetail.jobTitle')}</Label>
               <Input id="edit-job-title" value={editJobTitle} onChange={(e) => setEditJobTitle(e.target.value)} />
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setEditParticipant(null)}>
-                Cancel
+                {t('pages.eventDetail.cancel')}
               </Button>
               <Button type="submit" disabled={isSavingParticipant}>
-                {isSavingParticipant ? 'Saving...' : 'Save'}
+                {isSavingParticipant ? t('pages.eventDetail.saving') : t('pages.eventDetail.save')}
               </Button>
             </DialogFooter>
           </form>
@@ -1547,17 +1774,23 @@ export default function EventDetailPage() {
       <Dialog open={!!viewParticipant} onOpenChange={(open) => !open && setViewParticipant(null)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Participant</DialogTitle>
-            <DialogDescription>Participant details.</DialogDescription>
+            <DialogTitle>{t('pages.eventDetail.participantDetailsTitle')}</DialogTitle>
+            <DialogDescription>{t('pages.eventDetail.participantDetailsDescription')}</DialogDescription>
           </DialogHeader>
           <div className="space-y-2 text-sm">
-            <InfoRow label="Name" value={viewParticipant?.name ?? ''} />
-            <InfoRow label="Email" value={viewParticipant?.email ?? ''} />
-            <InfoRow label="Company" value={viewParticipant?.company ?? '—'} />
-            <InfoRow label="Job Title" value={viewParticipant?.jobTitle ?? '—'} />
             <InfoRow
-              label="Registered At"
-              value={viewParticipant ? formatDateTime(viewParticipant.registeredAt) : ''}
+              label={t('pages.eventDetail.nameRequired').replace(' *', '')}
+              value={viewParticipant?.name ?? ''}
+            />
+            <InfoRow
+              label={t('pages.eventDetail.emailRequired').replace(' *', '')}
+              value={viewParticipant?.email ?? ''}
+            />
+            <InfoRow label={t('pages.eventDetail.company')} value={viewParticipant?.company ?? '—'} />
+            <InfoRow label={t('pages.eventDetail.jobTitle')} value={viewParticipant?.jobTitle ?? '—'} />
+            <InfoRow
+              label={t('pages.eventDetail.registeredAt')}
+              value={viewParticipant ? formatDateTime(viewParticipant.registeredAt, locale) : ''}
             />
           </div>
         </DialogContent>
@@ -1576,14 +1809,16 @@ export default function EventDetailPage() {
       >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{registerFaceParticipant?.faceId ? 'Update Face Image' : 'Register Face'}</DialogTitle>
-            <DialogDescription>
-              Provide an image URL or capture from webcam. Embedding and hash are generated internally.
-            </DialogDescription>
+            <DialogTitle>
+              {registerFaceParticipant?.faceId
+                ? t('pages.eventDetail.updateFaceTitle')
+                : t('pages.eventDetail.registerFaceTitle')}
+            </DialogTitle>
+            <DialogDescription>{t('pages.eventDetail.registerFaceDescription')}</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleRegisterFace} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="face-url">Image URL</Label>
+              <Label htmlFor="face-url">{t('pages.eventDetail.imageUrl')}</Label>
               <Input
                 id="face-url"
                 type="url"
@@ -1600,19 +1835,19 @@ export default function EventDetailPage() {
             </div>
 
             <div className="space-y-2">
-              <Label>Webcam</Label>
+              <Label>{t('pages.eventDetail.faceWebcamOptional').replace(' (optional)', '')}</Label>
               <div className="flex gap-2">
                 {!isFaceCameraOpen ? (
                   <Button type="button" variant="outline" onClick={openFaceCamera}>
-                    Open camera
+                    {t('pages.eventDetail.openCamera')}
                   </Button>
                 ) : (
                   <>
                     <Button type="button" variant="outline" onClick={captureFacePhoto}>
-                      Capture photo
+                      {t('pages.eventDetail.capturePhoto')}
                     </Button>
                     <Button type="button" variant="ghost" onClick={stopFaceCamera}>
-                      Close camera
+                      {t('pages.eventDetail.closeCamera')}
                     </Button>
                   </>
                 )}
@@ -1625,7 +1860,7 @@ export default function EventDetailPage() {
 
             {(faceImageDataUrl || faceImageUrl.trim()) && (
               <div className="space-y-2">
-                <Label>Preview</Label>
+                <Label>{t('pages.eventDetail.preview')}</Label>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={faceImageDataUrl || faceImageUrl.trim()}
@@ -1646,10 +1881,14 @@ export default function EventDetailPage() {
                   stopFaceCamera();
                 }}
               >
-                Cancel
+                {t('pages.eventDetail.cancel')}
               </Button>
               <Button type="submit" disabled={isRegisteringFace}>
-                {isRegisteringFace ? 'Saving...' : registerFaceParticipant?.faceId ? 'Update Face' : 'Register Face'}
+                {isRegisteringFace
+                  ? t('pages.eventDetail.saving')
+                  : registerFaceParticipant?.faceId
+                    ? t('pages.eventDetail.updateFaceAction')
+                    : t('pages.eventDetail.registerFaceAction')}
               </Button>
             </DialogFooter>
           </form>

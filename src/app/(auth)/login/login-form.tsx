@@ -111,7 +111,7 @@ export function LoginForm() {
 
     try {
       await authenticateTotem({ accessCode: data.accessCode });
-      router.push('/totem');
+      router.push('/totem/credentialing');
     } catch (error) {
       if (error instanceof AppError) {
         setApiError(error.message);

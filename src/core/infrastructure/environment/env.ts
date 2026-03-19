@@ -10,6 +10,10 @@ const envSchema = z.object({
   JWT_EXPIRES_IN: z.string().default('1h'),
   GOOGLE_CLIENT_ID: z.string().min(1),
   GOOGLE_CLIENT_SECRET: z.string().min(1),
+  TOTEM_SESSION_TIMEOUT_MS: z.coerce
+    .number()
+    .positive()
+    .default(8 * 60 * 60 * 1000), // Default: 8 hours
 });
 
 function validateEnv() {

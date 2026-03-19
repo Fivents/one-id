@@ -28,9 +28,21 @@ interface TotemsTableProps {
   onGenerateCode: (totem: AdminTotemResponse) => void;
   onRevokeCode: (totem: AdminTotemResponse) => void;
   onChangeStatus: (totem: AdminTotemResponse, status: TotemStatus) => void;
+  onAssignToOrganization: (totem: AdminTotemResponse) => void;
+  onUnassignFromOrganization: (totem: AdminTotemResponse) => void;
+  onViewAssignments: (totem: AdminTotemResponse) => void;
 }
 
-export function TotemsTable({ onEdit, onDelete, onGenerateCode, onRevokeCode, onChangeStatus }: TotemsTableProps) {
+export function TotemsTable({
+  onEdit,
+  onDelete,
+  onGenerateCode,
+  onRevokeCode,
+  onChangeStatus,
+  onAssignToOrganization,
+  onUnassignFromOrganization,
+  onViewAssignments,
+}: TotemsTableProps) {
   const { t } = useI18n();
   const { filteredTotems, isLoading, selectedIds, toggleSelection, selectAll, clearSelection } = useAdminTotems();
 
@@ -72,7 +84,8 @@ export function TotemsTable({ onEdit, onDelete, onGenerateCode, onRevokeCode, on
             <TableHead>{t('common.labels.name')}</TableHead>
             <TableHead>{t('adminTotems.columns.accessCode')}</TableHead>
             <TableHead>{t('common.labels.status')}</TableHead>
-            <TableHead>{t('adminTotems.columns.subscription')}</TableHead>
+            <TableHead>{t('pages.adminTotemsTable.organization')}</TableHead>
+            <TableHead>{t('pages.adminTotemsTable.event')}</TableHead>
             <TableHead>{t('adminTotems.columns.price')}</TableHead>
             <TableHead>{t('adminTotems.columns.discount')}</TableHead>
             <TableHead>{t('common.labels.createdAt')}</TableHead>
@@ -91,6 +104,9 @@ export function TotemsTable({ onEdit, onDelete, onGenerateCode, onRevokeCode, on
               onGenerateCode={onGenerateCode}
               onRevokeCode={onRevokeCode}
               onChangeStatus={onChangeStatus}
+              onAssignToOrganization={onAssignToOrganization}
+              onUnassignFromOrganization={onUnassignFromOrganization}
+              onViewAssignments={onViewAssignments}
             />
           ))}
         </TableBody>
@@ -108,6 +124,9 @@ function TotemRow({
   onGenerateCode,
   onRevokeCode,
   onChangeStatus,
+  onAssignToOrganization,
+  onUnassignFromOrganization,
+  onViewAssignments,
 }: {
   totem: AdminTotemResponse;
   selected: boolean;
@@ -117,8 +136,11 @@ function TotemRow({
   onGenerateCode: (totem: AdminTotemResponse) => void;
   onRevokeCode: (totem: AdminTotemResponse) => void;
   onChangeStatus: (totem: AdminTotemResponse, status: TotemStatus) => void;
+  onAssignToOrganization: (totem: AdminTotemResponse) => void;
+  onUnassignFromOrganization: (totem: AdminTotemResponse) => void;
+  onViewAssignments: (totem: AdminTotemResponse) => void;
 }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
 
   // Status badge based on session (online/offline) or manual maintenance
   const isOnline = totem.hasActiveSession;
@@ -152,22 +174,19 @@ function TotemRow({
           {statusLabel}
         </Badge>
       </TableCell>
-      <TableCell>
-        {totem.currentSubscription ? (
-          <Badge variant="outline" className="bg-blue-500/10 text-blue-600">
-            {t('adminTotems.columns.inUseBy', { org: totem.currentSubscription.organizationName })}
-          </Badge>
-        ) : (
-          <Badge variant="outline" className="bg-green-500/10 text-green-600">
-            {t('adminTotems.columns.available')}
-          </Badge>
-        )}
+      <TableCell className="text-muted-foreground">
+        {totem.currentSubscription?.organizationName ?? t('pages.adminTotemsTable.notAssigned')}
       </TableCell>
       <TableCell className="text-muted-foreground">
-        {totem.price.toLocaleString(undefined, { style: 'currency', currency: 'BRL' })}
+        {totem.currentEvent?.eventName ?? t('pages.adminTotemsTable.noEvent')}
+      </TableCell>
+      <TableCell className="text-muted-foreground">
+        {new Intl.NumberFormat(locale, { style: 'currency', currency: 'BRL' }).format(totem.price)}
       </TableCell>
       <TableCell className="text-muted-foreground">{totem.discount}%</TableCell>
-      <TableCell className="text-muted-foreground">{new Date(totem.createdAt).toLocaleDateString()}</TableCell>
+      <TableCell className="text-muted-foreground">
+        {new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(new Date(totem.createdAt))}
+      </TableCell>
       <TableCell>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -179,6 +198,16 @@ function TotemRow({
             <DropdownMenuItem onClick={() => onEdit(totem)}>
               <Edit className="mr-2 h-4 w-4" />
               {t('common.actions.edit')}
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => onAssignToOrganization(totem)}>
+              {t('pages.adminTotemsTable.assignToOrganization')}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onUnassignFromOrganization(totem)} disabled={!totem.currentSubscription}>
+              {t('pages.adminTotemsTable.unassignFromOrganization')}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onViewAssignments(totem)}>
+              {t('pages.adminTotemsTable.viewAssignments')}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             {totem.accessCode ? (

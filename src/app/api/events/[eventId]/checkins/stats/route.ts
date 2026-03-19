@@ -20,14 +20,7 @@ export const GET = withAuth(
       const filters = parseCheckInFilters(req.nextUrl.searchParams);
       const where = buildCheckInWhere(eventId, filters);
 
-      const [
-        total,
-        faceCount,
-        qrCount,
-        manualCount,
-        confidenceAgg,
-        totemUsage,
-      ] = await Promise.all([
+      const [total, faceCount, qrCount, manualCount, confidenceAgg, totemUsage] = await Promise.all([
         prisma.checkIn.count({ where }),
         prisma.checkIn.count({ where: { ...where, method: 'FACE_RECOGNITION' } }),
         prisma.checkIn.count({ where: { ...where, method: 'QR_CODE' } }),

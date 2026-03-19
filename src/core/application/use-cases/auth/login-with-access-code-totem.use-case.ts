@@ -1,6 +1,13 @@
 import { TotemAuthResponse } from '@/core/communication/responses/auth/auth.response';
-import { IPasswordHasher, ISessionRepository, ITokenProvider, ITotemRepository } from '@/core/domain/contracts';
+import {
+  IAuditLogRepository,
+  IPasswordHasher,
+  ISessionRepository,
+  ITokenProvider,
+  ITotemRepository,
+} from '@/core/domain/contracts';
 import { InvalidAccessCodeError, TotemAccessDeniedError } from '@/core/errors';
+import { env } from '@/core/infrastructure/environment/env';
 
 export class LoginWithAccessCodeTotemUseCase {
   constructor(
@@ -8,16 +15,26 @@ export class LoginWithAccessCodeTotemUseCase {
     private readonly tokenProvider: ITokenProvider,
     private readonly passwordHasher: IPasswordHasher,
     private readonly sessionRepository: ISessionRepository,
+    private readonly auditLogRepository: IAuditLogRepository,
   ) {}
 
   async execute(accessCode: string, meta: { ipAddress: string; userAgent: string }): Promise<TotemAuthResponse> {
     const totem = await this.totemRepository.findByAccessCode(accessCode);
 
     if (!totem) {
+      await this.logAudit('TOTEM_AUTH_FAILED', 'Invalid access code.', {
+        ipAddress: meta.ipAddress,
+        reason: 'INVALID_ACCESS_CODE',
+      });
       throw new InvalidAccessCodeError();
     }
 
     if (!totem.canAuthenticate()) {
+      await this.logAudit('TOTEM_AUTH_FAILED', `Totem ${totem.name} access denied.`, {
+        totemId: totem.id,
+        ipAddress: meta.ipAddress,
+        reason: 'TOTEM_ACCESS_DENIED',
+      });
       throw new TotemAccessDeniedError(totem.id);
     }
 
@@ -37,11 +54,17 @@ export class LoginWithAccessCodeTotemUseCase {
       tokenHash,
       ipAddress: meta.ipAddress,
       userAgent: meta.userAgent,
-      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days for devices
+      expiresAt: new Date(Date.now() + env.TOTEM_SESSION_TIMEOUT_MS),
     });
 
     // Set totem status to ACTIVE upon successful login
     await this.totemRepository.update(totem.id, { status: 'ACTIVE' });
+
+    await this.logAudit('TOTEM_AUTH_SUCCESS', `Totem ${totem.name} authenticated successfully.`, {
+      totemId: totem.id,
+      totemName: totem.name,
+      ipAddress: meta.ipAddress,
+    });
 
     return {
       token,
@@ -50,5 +73,18 @@ export class LoginWithAccessCodeTotemUseCase {
         name: totem.name,
       },
     };
+  }
+
+  private async logAudit(
+    action: 'TOTEM_AUTH' | 'TOTEM_AUTH_SUCCESS' | 'TOTEM_AUTH_FAILED',
+    description: string,
+    metadata: Record<string, unknown>,
+  ): Promise<void> {
+    try {
+      await this.auditLogRepository.create({ action, description, metadata });
+    } catch {
+      // Audit logging should never block the auth flow
+      console.error(`[TotemAuth] Failed to log audit: ${action}`);
+    }
   }
 }

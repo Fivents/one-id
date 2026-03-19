@@ -40,6 +40,26 @@ export const GET = withAuth(
       },
     });
 
+    const subscriptionIds = subscriptions.map((subscription) => subscription.id);
+
+    const activeEventSubscriptions = subscriptionIds.length
+      ? await prisma.totemEventSubscription.findMany({
+          where: {
+            totemOrganizationSubscriptionId: { in: subscriptionIds },
+            startsAt: { lte: new Date() },
+            endsAt: { gte: new Date() },
+          },
+          include: {
+            event: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        })
+      : [];
+
     // Fetch active sessions
     const sessions = await prisma.totemSession.findMany({
       where: {
@@ -62,6 +82,20 @@ export const GET = withAuth(
       });
     });
 
+    const eventSubscriptionMap = new Map(
+      activeEventSubscriptions.map((eventSubscription) => [
+        eventSubscription.totemOrganizationSubscriptionId,
+        {
+          id: eventSubscription.id,
+          eventId: eventSubscription.eventId,
+          eventName: eventSubscription.event.name,
+          locationName: eventSubscription.locationName,
+          startsAt: eventSubscription.startsAt,
+          endsAt: eventSubscription.endsAt,
+        },
+      ]),
+    );
+
     const sessionSet = new Set(sessions.map((s) => s.totemId));
 
     const enrichedTotems: AdminTotemResponse[] = totems.map((t) => ({
@@ -76,6 +110,9 @@ export const GET = withAuth(
       updatedAt: t.updatedAt as Date,
       deletedAt: t.deletedAt as Date | null,
       currentSubscription: subscriptionMap.get(t.id as string) || null,
+      currentEvent: subscriptionMap.get(t.id as string)
+        ? (eventSubscriptionMap.get(subscriptionMap.get(t.id as string)!.id) ?? null)
+        : null,
       isAvailable: !subscriptionMap.has(t.id as string),
       hasActiveSession: sessionSet.has(t.id as string),
     }));

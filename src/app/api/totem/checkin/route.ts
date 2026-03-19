@@ -1,0 +1,76 @@
+import { NextRequest, NextResponse } from 'next/server';
+
+import { z } from 'zod/v4';
+
+import { TotemCheckInService } from '@/core/application/services/totem-checkin.service';
+import { withAuth, withTotemAuth, withTotemRoutingGuard } from '@/core/infrastructure/http/middlewares';
+import { getTotemAuth } from '@/core/infrastructure/http/types';
+import { prisma } from '@/core/infrastructure/prisma-client';
+import { PrismaAuditLogRepository } from '@/core/infrastructure/repositories/prisma-audit-log.repository';
+
+import { resolveActiveTotemEventContextByTotemId } from '../_lib/active-totem-context';
+
+const FACE_EMBEDDING_DIMENSION = 512;
+
+const checkInSchema = z.object({
+  embedding: z
+    .array(z.number().finite())
+    .length(FACE_EMBEDDING_DIMENSION, `Embedding must contain ${FACE_EMBEDDING_DIMENSION} dimensions.`),
+  faceCount: z.number().int().min(0).max(10).default(1),
+  livenessScore: z.number().min(0).max(1).optional(),
+  blinkDetected: z.boolean().optional().default(false),
+});
+
+function makeCheckInService(): TotemCheckInService {
+  return new TotemCheckInService(prisma, new PrismaAuditLogRepository(prisma));
+}
+
+export const POST = withAuth(
+  withTotemAuth(
+    withTotemRoutingGuard(async (req: NextRequest) => {
+      try {
+        const auth = getTotemAuth(req);
+        const totemId = auth.totemId;
+
+        const body = await req.json();
+        const data = checkInSchema.parse(body);
+
+        const activeContext = await resolveActiveTotemEventContextByTotemId(totemId);
+        if (!activeContext) {
+          return NextResponse.json(
+            {
+              error: 'No active event assigned to this totem.',
+              code: 'TOTEM_NO_ACTIVE_EVENT',
+            },
+            { status: 403 },
+          );
+        }
+
+        const service = makeCheckInService();
+        const result = await service.execute(data, activeContext, totemId);
+
+        if (!result.success) {
+          const { error } = result;
+          return NextResponse.json(
+            {
+              error: error.message,
+              code: error.code,
+              ...(error.confidence !== undefined ? { confidence: error.confidence } : {}),
+              ...(error.threshold !== undefined ? { threshold: error.threshold } : {}),
+            },
+            { status: error.status },
+          );
+        }
+
+        return NextResponse.json(result.data, { status: 201 });
+      } catch (error: unknown) {
+        if (error instanceof z.ZodError) {
+          return NextResponse.json({ error: error.issues[0]?.message ?? 'Invalid payload.' }, { status: 400 });
+        }
+
+        const message = error instanceof Error ? error.message : 'Internal server error.';
+        return NextResponse.json({ error: message }, { status: 500 });
+      }
+    }),
+  ),
+);

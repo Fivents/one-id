@@ -109,7 +109,7 @@ export function buildCheckInWhere(eventId: string, filters: ParsedCheckInFilters
           },
         }
       : {}),
-    ...((filters.from || filters.to)
+    ...(filters.from || filters.to
       ? {
           checkedInAt: {
             ...(filters.from ? { gte: filters.from } : {}),
@@ -117,7 +117,7 @@ export function buildCheckInWhere(eventId: string, filters: ParsedCheckInFilters
           },
         }
       : {}),
-    ...((filters.confidenceMin !== undefined || filters.confidenceMax !== undefined)
+    ...(filters.confidenceMin !== undefined || filters.confidenceMax !== undefined
       ? {
           confidence: {
             ...(filters.confidenceMin !== undefined ? { gte: filters.confidenceMin } : {}),

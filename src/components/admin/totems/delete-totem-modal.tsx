@@ -28,6 +28,8 @@ export function DeleteTotemModal({ totem, open, onOpenChange }: DeleteTotemModal
   const { t } = useI18n();
   const { deleteTotem } = useAdminTotems();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [forceDelete, setForceDelete] = useState(false);
+  const [warningMessage, setWarningMessage] = useState<string | null>(null);
 
   async function handleDelete() {
     if (!totem) return;
@@ -35,12 +37,22 @@ export function DeleteTotemModal({ totem, open, onOpenChange }: DeleteTotemModal
     setIsSubmitting(true);
 
     try {
-      await deleteTotem(totem.id);
+      await deleteTotem(totem.id, { force: forceDelete });
       toast.success(t('adminTotems.messages.deleteSuccess'));
+      setForceDelete(false);
+      setWarningMessage(null);
       onOpenChange(false);
     } catch (error) {
       const message = error instanceof Error ? error.message : t('adminTotems.messages.deleteError');
-      toast.error(message);
+
+      if (message.includes('currently assigned to an organization')) {
+        setForceDelete(true);
+        setWarningMessage(
+          'This totem is currently assigned to an organization. Deleting it will remove all active assignments. Do you want to continue?',
+        );
+      } else {
+        toast.error(message);
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -55,7 +67,7 @@ export function DeleteTotemModal({ totem, open, onOpenChange }: DeleteTotemModal
           </div>
           <DialogTitle className="text-center">{t('common.actions.delete')}</DialogTitle>
           <DialogDescription className="text-center">
-            {t('adminTotems.messages.deleteConfirmDescription', { name: totem?.name ?? '' })}
+            {warningMessage ?? t('adminTotems.messages.deleteConfirmDescription', { name: totem?.name ?? '' })}
           </DialogDescription>
         </DialogHeader>
 

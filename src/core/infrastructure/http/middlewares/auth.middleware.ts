@@ -51,7 +51,7 @@ export function withAuth(handler: RouteHandler): RouteHandler {
 
       const authContext: TotemAuthContext = {
         type: 'totem',
-        totemSessionId: payload.sub,
+        totemId: payload.sub,
         totemName: payload.name,
       };
 

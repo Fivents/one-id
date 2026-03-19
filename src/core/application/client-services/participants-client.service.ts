@@ -7,6 +7,8 @@ import type { RegisterFaceRequest } from '@/core/communication/requests/person-f
 type UpdateFaceRequest = {
   imageUrl?: string;
   imageDataUrl?: string;
+  embedding?: number[];
+  embeddingModel?: string;
   isActive?: boolean;
 };
 

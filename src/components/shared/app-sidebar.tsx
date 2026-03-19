@@ -76,6 +76,7 @@ export function AppSidebar() {
 
   const organizationEventsHref = activeOrganization ? `/organizations/${activeOrganization.id}/events` : null;
   const organizationPeopleHref = activeOrganization ? `/organizations/${activeOrganization.id}/people` : null;
+  const organizationTotemsHref = activeOrganization ? `/organizations/${activeOrganization.id}/totems` : null;
 
   const filteredNavItems = navItems.filter((item) => role && item.roles.includes(role));
 
@@ -150,6 +151,21 @@ export function AppSidebar() {
                   <SidebarMenuButton disabled aria-disabled>
                     <Calendar className="h-4 w-4" />
                     <span>Events</span>
+                  </SidebarMenuButton>
+                )}
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                {organizationTotemsHref ? (
+                  <SidebarMenuButton asChild isActive={pathname.startsWith(organizationTotemsHref)}>
+                    <Link href={organizationTotemsHref}>
+                      <Monitor className="h-4 w-4" />
+                      <span>Totems</span>
+                    </Link>
+                  </SidebarMenuButton>
+                ) : (
+                  <SidebarMenuButton disabled aria-disabled>
+                    <Monitor className="h-4 w-4" />
+                    <span>Totems</span>
                   </SidebarMenuButton>
                 )}
               </SidebarMenuItem>

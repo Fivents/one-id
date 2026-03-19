@@ -32,7 +32,7 @@ export class PrismaTotemRepository implements ITotemRepository {
   }
 
   async findByAccessCode(accessCode: string): Promise<TotemEntity | null> {
-    const totem = await this.db.totem.findUnique({
+    const totem = await this.db.totem.findFirst({
       where: { accessCode, deletedAt: null },
     });
 
@@ -42,7 +42,7 @@ export class PrismaTotemRepository implements ITotemRepository {
   }
 
   async findById(id: string): Promise<TotemEntity | null> {
-    const totem = await this.db.totem.findUnique({
+    const totem = await this.db.totem.findFirst({
       where: { id, deletedAt: null },
     });
 

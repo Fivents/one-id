@@ -21,85 +21,86 @@ export const GET = withAuth(
     const oneMinuteAgo = new Date(now.getTime() - 60 * 1000);
     const heartbeatThreshold = new Date(now.getTime() - HEARTBEAT_WINDOW_MS);
 
-    const [liveCount, checkInsPerMinute, lowConfidencePerMinute, lastCheckIn, activeTotems, potentiallyOffline] = await Promise.all([
-      prisma.checkIn.count({
-        where: {
-          eventParticipant: { eventId, deletedAt: null },
-        },
-      }),
-      prisma.checkIn.count({
-        where: {
-          eventParticipant: { eventId, deletedAt: null },
-          checkedInAt: { gte: oneMinuteAgo },
-        },
-      }),
-      prisma.checkIn.count({
-        where: {
-          eventParticipant: { eventId, deletedAt: null },
-          checkedInAt: { gte: oneMinuteAgo },
-          method: 'FACE_RECOGNITION',
-          confidence: { lt: 0.65 },
-        },
-      }),
-      prisma.checkIn.findFirst({
-        where: {
-          eventParticipant: { eventId, deletedAt: null },
-        },
-        orderBy: [{ checkedInAt: 'desc' }, { id: 'desc' }],
-        include: {
-          eventParticipant: {
-            select: {
-              person: {
-                select: {
-                  name: true,
+    const [liveCount, checkInsPerMinute, lowConfidencePerMinute, lastCheckIn, activeTotems, potentiallyOffline] =
+      await Promise.all([
+        prisma.checkIn.count({
+          where: {
+            eventParticipant: { eventId, deletedAt: null },
+          },
+        }),
+        prisma.checkIn.count({
+          where: {
+            eventParticipant: { eventId, deletedAt: null },
+            checkedInAt: { gte: oneMinuteAgo },
+          },
+        }),
+        prisma.checkIn.count({
+          where: {
+            eventParticipant: { eventId, deletedAt: null },
+            checkedInAt: { gte: oneMinuteAgo },
+            method: 'FACE_RECOGNITION',
+            confidence: { lt: 0.65 },
+          },
+        }),
+        prisma.checkIn.findFirst({
+          where: {
+            eventParticipant: { eventId, deletedAt: null },
+          },
+          orderBy: [{ checkedInAt: 'desc' }, { id: 'desc' }],
+          include: {
+            eventParticipant: {
+              select: {
+                person: {
+                  select: {
+                    name: true,
+                  },
                 },
               },
             },
           },
-        },
-      }),
-      prisma.totemEventSubscription.count({
-        where: {
-          eventId,
-          startsAt: { lte: now },
-          endsAt: { gte: now },
-          totemOrganizationSubscription: {
-            totem: {
-              status: 'ACTIVE',
-              lastHeartbeat: { gte: heartbeatThreshold },
-              deletedAt: null,
-            },
-          },
-        },
-      }),
-      prisma.totemEventSubscription.findMany({
-        where: {
-          eventId,
-          startsAt: { lte: now },
-          endsAt: { gte: now },
-          totemOrganizationSubscription: {
-            totem: {
-              OR: [{ status: { not: 'ACTIVE' } }, { lastHeartbeat: { lt: heartbeatThreshold } }],
-              deletedAt: null,
-            },
-          },
-        },
-        select: {
-          totemOrganizationSubscription: {
-            select: {
+        }),
+        prisma.totemEventSubscription.count({
+          where: {
+            eventId,
+            startsAt: { lte: now },
+            endsAt: { gte: now },
+            totemOrganizationSubscription: {
               totem: {
-                select: {
-                  id: true,
-                  name: true,
-                  lastHeartbeat: true,
-                  status: true,
+                status: 'ACTIVE',
+                lastHeartbeat: { gte: heartbeatThreshold },
+                deletedAt: null,
+              },
+            },
+          },
+        }),
+        prisma.totemEventSubscription.findMany({
+          where: {
+            eventId,
+            startsAt: { lte: now },
+            endsAt: { gte: now },
+            totemOrganizationSubscription: {
+              totem: {
+                OR: [{ status: { not: 'ACTIVE' } }, { lastHeartbeat: { lt: heartbeatThreshold } }],
+                deletedAt: null,
+              },
+            },
+          },
+          select: {
+            totemOrganizationSubscription: {
+              select: {
+                totem: {
+                  select: {
+                    id: true,
+                    name: true,
+                    lastHeartbeat: true,
+                    status: true,
+                  },
                 },
               },
             },
           },
-        },
-      }),
-    ]);
+        }),
+      ]);
 
     const alerts: Array<{ type: 'LOW_CONFIDENCE' | 'PEAK' | 'TOTEM_OFFLINE'; message: string }> = [];
 

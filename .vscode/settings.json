@@ -1,11 +1,6 @@
 {
   // Linter em tempo real
-  "eslint.validate": [
-    "javascript",
-    "javascriptreact",
-    "typescript",
-    "typescriptreact"
-  ],
+  "eslint.validate": ["javascript", "javascriptreact", "typescript", "typescriptreact"],
   // Formatação
   "editor.formatOnSave": true,
   "editor.defaultFormatter": "esbenp.prettier-vscode",
@@ -15,5 +10,6 @@
   },
   "chat.tools.terminal.autoApprove": {
     "pnpm": true
-  }
+  },
+  "claudeCodeChat.permissions.yoloMode": false
 }
