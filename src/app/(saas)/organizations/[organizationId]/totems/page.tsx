@@ -8,6 +8,7 @@ import { Loader2, MonitorCheck } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { useConfirm } from '@/components/shared/confirm-dialog';
+import { TotemStatusBadge } from '@/components/organizations/totems/totem-status-badge';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -305,9 +306,7 @@ export default function OrganizationTotemsPage() {
                 <TableRow key={totem.totemOrganizationSubscriptionId}>
                   <TableCell className="font-medium">{totem.totemName}</TableCell>
                   <TableCell>
-                    <Badge variant={totem.totemStatus === 'ACTIVE' ? 'default' : 'secondary'}>
-                      {totem.totemStatus}
-                    </Badge>
+                    <TotemStatusBadge status={totem.totemStatus} />
                   </TableCell>
                   <TableCell>
                     {formatDateTime(totem.startsAt, locale)} - {formatDateTime(totem.endsAt, locale)}

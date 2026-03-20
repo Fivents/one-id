@@ -30,6 +30,10 @@ export type TranslationSchema = {
       pending: string;
       approved: string;
       rejected: string;
+      draft: string;
+      published: string;
+      completed: string;
+      canceled: string;
       totemActive: string;
       totemInactive: string;
       totemMaintenance: string;
@@ -41,6 +45,7 @@ export type TranslationSchema = {
       phone: string;
       document: string;
       date: string;
+      dateTime: string;
       status: string;
       role: string;
       organization: string;

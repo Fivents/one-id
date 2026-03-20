@@ -9,7 +9,12 @@ export class UpdatePrintConfigController {
 
   async handle(id: string, request: UpdatePrintConfigRequest): Promise<ControllerResponse<Record<string, unknown>>> {
     try {
-      const config = await this.updatePrintConfigUseCase.execute(id, request);
+      // Convert itemsOrder array to JSON string for the entity if present
+      const data = {
+        ...request,
+        ...(request.itemsOrder !== undefined && { itemsOrder: JSON.stringify(request.itemsOrder) }),
+      };
+      const config = await this.updatePrintConfigUseCase.execute(id, data as any);
 
       return ok(config.toJSON());
     } catch (error) {

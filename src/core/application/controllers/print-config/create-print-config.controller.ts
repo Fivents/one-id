@@ -8,7 +8,12 @@ export class CreatePrintConfigController {
 
   async handle(request: CreatePrintConfigRequest): Promise<ControllerResponse<Record<string, unknown>>> {
     try {
-      const config = await this.createPrintConfigUseCase.execute(request);
+      // Convert itemsOrder array to JSON string for the entity
+      const data = {
+        ...request,
+        itemsOrder: JSON.stringify(request.itemsOrder),
+      };
+      const config = await this.createPrintConfigUseCase.execute(data as any);
 
       return created(config.toJSON());
     } catch {
