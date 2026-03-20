@@ -89,9 +89,9 @@ export function EditOrganizationModal({ organization, open, onOpenChange }: Edit
           </div>
 
           <div className="space-y-2">
-            <Label>Slug</Label>
+            <Label>{t('organizations.form.slugLabel')}</Label>
             <Input value={organization?.slug ?? ''} disabled className="bg-muted" />
-            <p className="text-muted-foreground text-xs">Slug cannot be changed after creation.</p>
+            <p className="text-muted-foreground text-xs">{t('organizations.form.slugImmutableHint')}</p>
           </div>
 
           <div className="space-y-2">
@@ -116,13 +116,13 @@ export function EditOrganizationModal({ organization, open, onOpenChange }: Edit
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="edit-org-logo">Logo URL</Label>
+            <Label htmlFor="edit-org-logo">{t('organizations.form.logoLabel')}</Label>
             <Input
               id="edit-org-logo"
               type="url"
               value={logoUrl}
               onChange={(e) => setLogoUrl(e.target.value)}
-              placeholder="https://example.com/logo.png"
+              placeholder={t('organizations.form.logoPlaceholder')}
             />
           </div>
 

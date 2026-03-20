@@ -17,6 +17,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useEvents } from '@/core/application/contexts';
+import { useI18n } from '@/i18n';
 
 interface CreateEventModalProps {
   open: boolean;
@@ -35,6 +36,7 @@ function slugify(text: string): string {
 
 export function CreateEventModal({ open, onOpenChange, organizationId }: CreateEventModalProps) {
   const { createEvent } = useEvents();
+  const { t } = useI18n();
 
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
@@ -72,12 +74,12 @@ export function CreateEventModal({ open, onOpenChange, organizationId }: CreateE
     const endDate = new Date(endsAt);
 
     if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
-      toast.error('Invalid start or end date.');
+      toast.error(t('pages.organizationEvents.invalidDateError'));
       return;
     }
 
     if (startDate >= endDate) {
-      toast.error('Start date must be before end date.');
+      toast.error(t('pages.organizationEvents.dateRangeError'));
       return;
     }
 
@@ -97,11 +99,11 @@ export function CreateEventModal({ open, onOpenChange, organizationId }: CreateE
         printConfigId: null,
       });
 
-      toast.success('Event created successfully.');
+      toast.success(t('pages.organizationEvents.createSuccess'));
       resetForm();
       onOpenChange(false);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to create event.';
+      const message = error instanceof Error ? error.message : t('pages.organizationEvents.createError');
       toast.error(message);
     } finally {
       setIsSubmitting(false);
@@ -112,18 +114,18 @@ export function CreateEventModal({ open, onOpenChange, organizationId }: CreateE
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Create Event</DialogTitle>
-          <DialogDescription>Create a new event for this organization.</DialogDescription>
+          <DialogTitle>{t('pages.organizationEvents.createTitle')}</DialogTitle>
+          <DialogDescription>{t('pages.organizationEvents.createDescription')}</DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="event-name">Name *</Label>
+            <Label htmlFor="event-name">{t('common.labels.name')} *</Label>
             <Input id="event-name" value={name} onChange={(e) => setName(e.target.value)} required />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="event-slug">Slug *</Label>
+            <Label htmlFor="event-slug">{t('organizations.form.slugLabel')} *</Label>
             <Input
               id="event-slug"
               value={slug}
@@ -136,7 +138,7 @@ export function CreateEventModal({ open, onOpenChange, organizationId }: CreateE
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="event-description">Description</Label>
+            <Label htmlFor="event-description">{t('common.labels.description')}</Label>
             <Textarea
               id="event-description"
               value={description}
@@ -146,18 +148,18 @@ export function CreateEventModal({ open, onOpenChange, organizationId }: CreateE
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="event-timezone">Timezone *</Label>
+            <Label htmlFor="event-timezone">{t('pages.organizationEvents.timezoneLabel')} *</Label>
             <Input id="event-timezone" value={timezone} onChange={(e) => setTimezone(e.target.value)} required />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="event-address">Address</Label>
+            <Label htmlFor="event-address">{t('common.labels.address')}</Label>
             <Input id="event-address" value={address} onChange={(e) => setAddress(e.target.value)} />
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="event-start">Start Date *</Label>
+              <Label htmlFor="event-start">{t('common.labels.startDate')} *</Label>
               <Input
                 id="event-start"
                 type="datetime-local"
@@ -167,7 +169,7 @@ export function CreateEventModal({ open, onOpenChange, organizationId }: CreateE
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="event-end">End Date *</Label>
+              <Label htmlFor="event-end">{t('common.labels.endDate')} *</Label>
               <Input
                 id="event-end"
                 type="datetime-local"
@@ -180,10 +182,10 @@ export function CreateEventModal({ open, onOpenChange, organizationId }: CreateE
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
+              {t('common.actions.cancel')}
             </Button>
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? 'Creating...' : 'Create Event'}
+              {isSubmitting ? t('common.labels.creating') : t('common.actions.create')}
             </Button>
           </DialogFooter>
         </form>

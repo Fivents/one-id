@@ -18,6 +18,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useEvents } from '@/core/application/contexts';
 import type { EventSummaryResponse } from '@/core/communication/responses/event';
+import { useI18n } from '@/i18n';
 
 interface EditEventModalProps {
   event: EventSummaryResponse | null;
@@ -27,6 +28,7 @@ interface EditEventModalProps {
 
 export function EditEventModal({ event, open, onOpenChange }: EditEventModalProps) {
   const { updateEvent } = useEvents();
+  const { t } = useI18n();
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -56,12 +58,12 @@ export function EditEventModal({ event, open, onOpenChange }: EditEventModalProp
     const endDate = new Date(endsAt);
 
     if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
-      toast.error('Invalid start or end date.');
+      toast.error(t('pages.organizationEvents.invalidDateError'));
       return;
     }
 
     if (startDate >= endDate) {
-      toast.error('Start date must be before end date.');
+      toast.error(t('pages.organizationEvents.dateRangeError'));
       return;
     }
 
@@ -77,10 +79,10 @@ export function EditEventModal({ event, open, onOpenChange }: EditEventModalProp
         endsAt: endDate,
       });
 
-      toast.success('Event updated successfully.');
+      toast.success(t('pages.organizationEvents.updateSuccess'));
       onOpenChange(false);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to update event.';
+      const message = error instanceof Error ? error.message : t('pages.organizationEvents.updateError');
       toast.error(message);
     } finally {
       setIsSubmitting(false);
@@ -91,24 +93,24 @@ export function EditEventModal({ event, open, onOpenChange }: EditEventModalProp
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Edit Event</DialogTitle>
-          <DialogDescription>Update event details.</DialogDescription>
+          <DialogTitle>{t('pages.organizationEvents.editTitle')}</DialogTitle>
+          <DialogDescription>{t('pages.organizationEvents.editDescription')}</DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="edit-event-name">Name *</Label>
+            <Label htmlFor="edit-event-name">{t('common.labels.name')} *</Label>
             <Input id="edit-event-name" value={name} onChange={(e) => setName(e.target.value)} required />
           </div>
 
           <div className="space-y-2">
             <Label>Slug</Label>
             <Input value={event?.slug ?? ''} disabled className="bg-muted" />
-            <p className="text-muted-foreground text-xs">Slug cannot be changed after creation.</p>
+            <p className="text-muted-foreground text-xs">{t('organizations.form.slugImmutableHint')}</p>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="edit-event-description">Description</Label>
+            <Label htmlFor="edit-event-description">{t('common.labels.description')}</Label>
             <Textarea
               id="edit-event-description"
               value={description}
@@ -118,18 +120,18 @@ export function EditEventModal({ event, open, onOpenChange }: EditEventModalProp
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="edit-event-timezone">Timezone *</Label>
+            <Label htmlFor="edit-event-timezone">{t('pages.organizationEvents.timezoneLabel')} *</Label>
             <Input id="edit-event-timezone" value={timezone} onChange={(e) => setTimezone(e.target.value)} required />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="edit-event-address">Address</Label>
+            <Label htmlFor="edit-event-address">{t('common.labels.address')}</Label>
             <Input id="edit-event-address" value={address} onChange={(e) => setAddress(e.target.value)} />
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="edit-event-start">Start Date *</Label>
+              <Label htmlFor="edit-event-start">{t('common.labels.startDate')} *</Label>
               <Input
                 id="edit-event-start"
                 type="datetime-local"
@@ -139,7 +141,7 @@ export function EditEventModal({ event, open, onOpenChange }: EditEventModalProp
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit-event-end">End Date *</Label>
+              <Label htmlFor="edit-event-end">{t('common.labels.endDate')} *</Label>
               <Input
                 id="edit-event-end"
                 type="datetime-local"
@@ -152,10 +154,10 @@ export function EditEventModal({ event, open, onOpenChange }: EditEventModalProp
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
+              {t('common.actions.cancel')}
             </Button>
             <Button type="submit" disabled={isSubmitting || !name.trim()}>
-              {isSubmitting ? 'Saving...' : 'Save Changes'}
+              {isSubmitting ? t('common.labels.saving') : t('common.actions.save')}
             </Button>
           </DialogFooter>
         </form>

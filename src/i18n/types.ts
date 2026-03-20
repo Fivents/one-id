@@ -50,6 +50,13 @@ export type TranslationSchema = {
       company: string;
       jobTitle: string;
       createdAt: string;
+      description: string;
+      address: string;
+      startDate: string;
+      endDate: string;
+      saving: string;
+      creating: string;
+      noPlan: string;
     };
   };
   auth: {
@@ -310,6 +317,11 @@ export type TranslationSchema = {
       editDescription: string;
       createDescription: string;
       planRequired: string;
+      slugLabel: string;
+      slugPlaceholder: string;
+      logoLabel: string;
+      logoPlaceholder: string;
+      slugImmutableHint: string;
     };
     messages: {
       createSuccess: string;

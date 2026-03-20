@@ -107,7 +107,7 @@ export function CreateOrganizationModal({ open, onOpenChange }: CreateOrganizati
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="org-slug">Slug *</Label>
+            <Label htmlFor="org-slug">{t('organizations.form.slugLabel')} *</Label>
             <Input
               id="org-slug"
               value={slug}
@@ -115,7 +115,7 @@ export function CreateOrganizationModal({ open, onOpenChange }: CreateOrganizati
                 setSlug(e.target.value);
                 setSlugManuallyEdited(true);
               }}
-              placeholder="example-corp"
+              placeholder={t('organizations.form.slugPlaceholder')}
               required
             />
           </div>
@@ -142,13 +142,13 @@ export function CreateOrganizationModal({ open, onOpenChange }: CreateOrganizati
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="org-logo">Logo URL</Label>
+            <Label htmlFor="org-logo">{t('organizations.form.logoLabel')}</Label>
             <Input
               id="org-logo"
               type="url"
               value={logoUrl}
               onChange={(e) => setLogoUrl(e.target.value)}
-              placeholder="https://example.com/logo.png"
+              placeholder={t('organizations.form.logoPlaceholder')}
             />
           </div>
 

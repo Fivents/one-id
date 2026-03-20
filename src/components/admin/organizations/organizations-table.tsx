@@ -47,7 +47,7 @@ export function OrganizationsTable({ onEdit, onDelete, onToggleStatus }: Organiz
         <TableHeader>
           <TableRow>
             <TableHead>{t('common.labels.name')}</TableHead>
-            <TableHead>Slug</TableHead>
+            <TableHead>{t('tables.labels.slug')}</TableHead>
             <TableHead>Email</TableHead>
             <TableHead>{t('common.labels.status')}</TableHead>
             <TableHead>{t('organizations.detail.plan')}</TableHead>
@@ -107,7 +107,7 @@ function OrganizationRow({
             {organization.subscription.planName}
           </Badge>
         ) : (
-          <span className="text-muted-foreground text-sm">No Plan</span>
+          <span className="text-muted-foreground text-sm">{t('common.labels.noPlan')}</span>
         )}
       </TableCell>
       <TableCell className="text-muted-foreground">{organization._count.events}</TableCell>

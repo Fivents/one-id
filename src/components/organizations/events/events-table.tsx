@@ -15,6 +15,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { EventSummaryResponse } from '@/core/communication/responses/event';
+import { useI18n } from '@/i18n';
 
 import { EventStatusBadge } from './event-status-badge';
 
@@ -57,6 +58,7 @@ export function EventsTable({
   onComplete,
   onCancel,
 }: EventsTableProps) {
+  const { t } = useI18n();
   if (isLoading) {
     return <EventsTableSkeleton />;
   }
@@ -64,8 +66,8 @@ export function EventsTable({
   if (events.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-16">
-        <p className="text-muted-foreground text-sm">No events created yet.</p>
-        <p className="text-muted-foreground text-sm">Create the first event for this organization.</p>
+        <p className="text-muted-foreground text-sm">{t('pages.organizationEvents.noEventsTitle')}</p>
+        <p className="text-muted-foreground text-sm">{t('pages.organizationEvents.noEventsDescription')}</p>
       </div>
     );
   }
@@ -75,16 +77,16 @@ export function EventsTable({
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Name</TableHead>
-            <TableHead>Slug</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Start Date</TableHead>
-            <TableHead>End Date</TableHead>
-            <TableHead>Participants</TableHead>
-            <TableHead>Check-ins</TableHead>
-            <TableHead>Totems</TableHead>
-            <TableHead>Created At</TableHead>
-            <TableHead className="w-17.5">Actions</TableHead>
+            <TableHead>{t('pages.eventsTable.columnName')}</TableHead>
+            <TableHead>{t('pages.eventsTable.columnSlug')}</TableHead>
+            <TableHead>{t('pages.eventsTable.columnStatus')}</TableHead>
+            <TableHead>{t('pages.eventsTable.columnStartDate')}</TableHead>
+            <TableHead>{t('pages.eventsTable.columnEndDate')}</TableHead>
+            <TableHead>{t('pages.eventsTable.columnParticipants')}</TableHead>
+            <TableHead>{t('pages.eventsTable.columnCheckins')}</TableHead>
+            <TableHead>{t('pages.eventsTable.columnTotems')}</TableHead>
+            <TableHead>{t('pages.eventsTable.columnCreatedAt')}</TableHead>
+            <TableHead className="w-17.5">{t('pages.eventsTable.columnActions')}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -114,29 +116,29 @@ export function EventsTable({
                     <DropdownMenuItem asChild>
                       <Link href={`/organizations/${organizationId}/events/${event.id}`}>
                         <Eye className="mr-2 h-4 w-4" />
-                        View Details
+                        {t('common.actions.viewDetails')}
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => onEdit(event)}>
                       <Edit className="mr-2 h-4 w-4" />
-                      Edit Event
+                      {t('common.actions.edit')}
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={() => onPublish(event)} disabled={!canPublish(event.status)}>
                       <Send className="mr-2 h-4 w-4" />
-                      Publish Event
+                      {t('pages.organizationEvents.publishEvent')}
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => onActivate(event)} disabled={!canActivate(event.status)}>
                       <Play className="mr-2 h-4 w-4" />
-                      Activate Event
+                      {t('pages.organizationEvents.activateEvent')}
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => onComplete(event)} disabled={!canComplete(event.status)}>
                       <CheckCircle className="mr-2 h-4 w-4" />
-                      Complete Event
+                      {t('pages.organizationEvents.completeEvent')}
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => onCancel(event)} disabled={!canCancel(event.status)}>
                       <XCircle className="mr-2 h-4 w-4" />
-                      Cancel Event
+                      {t('pages.organizationEvents.cancelEvent')}
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
@@ -144,7 +146,7 @@ export function EventsTable({
                       className="text-destructive focus:text-destructive"
                     >
                       <Trash2 className="mr-2 h-4 w-4" />
-                      Delete Event
+                      {t('common.actions.delete')}
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
