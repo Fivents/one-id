@@ -36,10 +36,10 @@ interface FrameState {
   timestamp: number;
 }
 
-const FRAME_HISTORY_SIZE = 15; // Track last 15 frames (~500ms at 30fps)
+const FRAME_HISTORY_SIZE = 20; // Track last 20 frames (~667ms at 30fps)
+const BLINK_THRESHOLD_FRAMES = 3; // Minimum frames to confirm blink
 let frameHistory: FrameState[] = [];
-const blinks = 0;
-const headTurns = 0;
+let detectedBlinksCount = 0;
 
 /**
  * Detect blink from iris/eye state
@@ -74,25 +74,46 @@ function detectEyeBlink(face: Record<string, unknown>): { leftOpen: boolean; rig
 
 /**
  * Detect actual blinks by looking for eye closure transitions
- * A blink is: open -> closed -> open within 100-400ms
+ * A blink is: open -> closed -> open sequence detected
+ * Returns true if at least one blink was detected in recent frames
  */
 function processBlinks(): boolean {
-  if (frameHistory.length < 3) return false;
+  if (frameHistory.length < BLINK_THRESHOLD_FRAMES) return false;
 
-  const recent = frameHistory.slice(-5);
+  const recent = frameHistory.slice(-10); // Look at last 10 frames
 
-  // Look for transition: open -> closed -> open
+  // Detect blink pattern: open → closed → open
   for (let i = 1; i < recent.length - 1; i++) {
     const prev = recent[i - 1];
     const curr = recent[i];
     const next = recent[i + 1];
 
-    // Blink detected if: was open, now closed (or partially), then open again
     const wasBothOpen = prev.eyeState.leftOpen && prev.eyeState.rightOpen;
-    const isClosed = !curr.eyeState.leftOpen || !curr.eyeState.rightOpen;
+    const isEitherClosed = !curr.eyeState.leftOpen || !curr.eyeState.rightOpen;
     const isOpenAgain = next.eyeState.leftOpen && next.eyeState.rightOpen;
 
-    if (wasBothOpen && isClosed && isOpenAgain) {
+    if (wasBothOpen && isEitherClosed && isOpenAgain) {
+      detectedBlinksCount++;
+      return true;
+    }
+
+    // Also detect partial blink (one eye closes fully)
+    const wasLeftOpen = prev.eyeState.leftOpen;
+    const isLeftClosed = !curr.eyeState.leftOpen;
+    const leftOpenAgain = next.eyeState.leftOpen;
+
+    if (wasLeftOpen && isLeftClosed && leftOpenAgain) {
+      detectedBlinksCount++;
+      return true;
+    }
+
+    // Same for right eye
+    const wasRightOpen = prev.eyeState.rightOpen;
+    const isRightClosed = !curr.eyeState.rightOpen;
+    const rightOpenAgain = next.eyeState.rightOpen;
+
+    if (wasRightOpen && isRightClosed && rightOpenAgain) {
+      detectedBlinksCount++;
       return true;
     }
   }
@@ -101,35 +122,36 @@ function processBlinks(): boolean {
 }
 
 /**
- * Detect head movements (yaw/rotation for challenge response)
- * Challenge: "Turn your head left and right"
+ * Detect head movements (yaw/rotation for liveness challenge response)
+ * Challenge: "Turn your head left and right" or "Nod your head"
  */
-function detectHeadMovement(): { hasMovement: boolean; direction: string } {
+function detectHeadMovement(): { hasMovement: boolean; direction: string; magnitude: number } {
   if (frameHistory.length < 5) {
-    return { hasMovement: false, direction: 'insufficient_data' };
+    return { hasMovement: false, direction: 'insufficient_data', magnitude: 0 };
   }
 
   const first = frameHistory[0];
   const last = frameHistory[frameHistory.length - 1];
 
-  const yawChange = Math.abs((last.headRotation.yaw - first.headRotation.yaw) * 180); // Convert to degrees
-  const pitchChange = Math.abs(last.headRotation.pitch - first.headRotation.pitch) * 180;
-  const rollChange = Math.abs(last.headRotation.roll - first.headRotation.roll) * 180;
+  // Angles are typically in radians, convert to degrees
+  const yawChange = Math.abs((last.headRotation.yaw - first.headRotation.yaw) * 180 / Math.PI);
+  const pitchChange = Math.abs((last.headRotation.pitch - first.headRotation.pitch) * 180 / Math.PI);
+  const rollChange = Math.abs((last.headRotation.roll - first.headRotation.roll) * 180 / Math.PI);
 
   const totalMovement = yawChange + pitchChange + rollChange;
 
-  if (totalMovement > 30) {
+  if (totalMovement > 25) {
     // Significant movement detected
-    if (yawChange > pitchChange && yawChange > 15) {
-      return { hasMovement: true, direction: 'horizontal' }; // Left-right turn
-    } else if (pitchChange > 15) {
-      return { hasMovement: true, direction: 'vertical' }; // Nod up-down
-    } else {
-      return { hasMovement: true, direction: 'rotational' }; // Tilt
+    if (yawChange > pitchChange && yawChange > 10) {
+      return { hasMovement: true, direction: 'horizontal', magnitude: yawChange }; // Left-right turn
+    } else if (pitchChange > 10) {
+      return { hasMovement: true, direction: 'vertical', magnitude: pitchChange }; // Nod up-down
+    } else if (rollChange > 10) {
+      return { hasMovement: true, direction: 'rotational', magnitude: rollChange }; // Tilt
     }
   }
 
-  return { hasMovement: false, direction: 'none' };
+  return { hasMovement: false, direction: 'none', magnitude: 0 };
 }
 
 function detectBlink(face: Record<string, unknown>): boolean {

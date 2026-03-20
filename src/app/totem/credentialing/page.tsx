@@ -27,11 +27,11 @@ interface FaceBox {
 type TotemScreenState = 'idle' | 'detecting' | 'recognizing' | 'success' | 'failure' | 'offline';
 
 const FALLBACK_AI_CONFIG: TotemAIConfig = {
-  confidenceThreshold: 0.75,
+  confidenceThreshold: 0.72,
   detectionIntervalMs: 500,
   maxFaces: 1,
   livenessDetection: false,
-  minFaceSize: 80,
+  minFaceSize: 85,
   recommendedEmbeddingModel: 'InsightFace Buffalo_L (ArcFace, 512d)',
   recommendedDetectorModel: 'SCRFD 10G (2026 production baseline)',
 };
