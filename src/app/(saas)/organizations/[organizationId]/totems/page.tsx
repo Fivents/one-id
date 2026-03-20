@@ -119,7 +119,7 @@ export default function OrganizationTotemsPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [organizationId, t('pages.organizationTotems.loadError')]);
+  }, [organizationId]);
 
   useEffect(() => {
     if (!isLoadingPage && (!isAuthenticated || !canView)) {

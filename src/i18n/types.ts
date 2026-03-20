@@ -847,11 +847,49 @@ export type TranslationSchema = {
     organizationEvents: Record<string, string>;
     organizationPeople: Record<string, string>;
     eventDetail: Record<string, string>;
+    adminOrganizations: Record<string, string>;
+    adminOrganizationsTable: Record<string, string>;
+    organizationDetail: Record<string, string>;
+    peopleTable: Record<string, string>;
+    eventsTable: Record<string, string>;
     adminTotemsPage: Record<string, string>;
     organizationTotems: Record<string, string>;
     adminTotemsTable: Record<string, string>;
     totemLogin: Record<string, string>;
     totemCredentialing: Record<string, string>;
+  };
+  tables: {
+    labels: {
+      name: string;
+      slug: string;
+      email: string;
+      phone: string;
+      status: string;
+      startDate: string;
+      endDate: string;
+      participants: string;
+      checkIns: string;
+      createdAt: string;
+      totems: string;
+      actions: string;
+      registeredAt: string;
+      document: string;
+    };
+    actions: {
+      viewDetails: string;
+      edit: string;
+      delete: string;
+      activate: string;
+      deactivate: string;
+      publish: string;
+      complete: string;
+      cancel: string;
+    };
+    messages: {
+      noResults: string;
+      createFirst: string;
+      searching: string;
+    };
   };
   totem: {
     loginTitle: string;

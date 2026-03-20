@@ -1,8 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { useI18n } from '@/i18n';
+
 import { Button } from '@/components/ui/button';
+import { useI18n } from '@/i18n';
 
 interface PrintConfigFormProps {
   eventId: string;

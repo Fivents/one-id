@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
+
 import { z } from 'zod/v4';
 
+import { type PrintConfigResponse,updatePrintConfigRequestSchema } from '@/core/communication/requests/print-config';
 import { withAuth, withRBAC } from '@/core/infrastructure/http/middlewares';
 import type { RouteContext } from '@/core/infrastructure/http/types';
 import { prisma } from '@/core/infrastructure/prisma-client';
-import { updatePrintConfigRequestSchema, type PrintConfigResponse } from '@/core/communication/requests/print-config';
 
 import { getAuthorizedEvent } from '../../_lib/access';
 

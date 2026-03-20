@@ -84,4 +84,3 @@ export interface PrintConfigResponse {
   createdAt: string;
   updatedAt: string;
 }
-

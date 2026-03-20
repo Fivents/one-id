@@ -273,15 +273,7 @@ function AdminTotemsPageContent() {
         toast.error(message);
       }
     },
-    [
-      confirm,
-      fetchTotems,
-      t('pages.adminTotemsPage.removeOrgError'),
-      t('pages.adminTotemsPage.removeOrgSuccess'),
-      t('pages.adminTotemsPage.unassignOrgConfirm'),
-      t('pages.adminTotemsPage.unassignOrgDescription'),
-      t('pages.adminTotemsPage.unassignOrgTitle'),
-    ],
+    [confirm, fetchTotems],
   );
 
   const handleViewAssignments = useCallback(async (totem: AdminTotemResponse) => {
@@ -329,15 +321,7 @@ function AdminTotemsPageContent() {
         toast.error(message);
       }
     },
-    [
-      assignmentsTotem,
-      confirm,
-      t('pages.adminTotemsPage.removeHistory'),
-      t('pages.adminTotemsPage.removeHistoryDescription'),
-      t('pages.adminTotemsPage.removeHistoryError'),
-      t('pages.adminTotemsPage.removeHistorySuccess'),
-      t('pages.adminTotemsPage.removeHistoryTitle'),
-    ],
+    [assignmentsTotem, confirm],
   );
 
   const assignmentsTotalPages = useMemo(() => {
