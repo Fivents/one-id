@@ -30,6 +30,9 @@ export type TranslationSchema = {
       pending: string;
       approved: string;
       rejected: string;
+      totemActive: string;
+      totemInactive: string;
+      totemMaintenance: string;
     };
     labels: {
       name: string;

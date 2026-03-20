@@ -36,6 +36,9 @@ export const translations: Translations = {
         published: 'Publicado',
         completed: 'Concluído',
         canceled: 'Cancelado',
+        totemActive: 'Ativo',
+        totemInactive: 'Inativo',
+        totemMaintenance: 'Manutenção',
       },
       labels: {
         name: 'Nome',
@@ -1452,6 +1455,9 @@ export const translations: Translations = {
         published: 'Published',
         completed: 'Completed',
         canceled: 'Canceled',
+        totemActive: 'Active',
+        totemInactive: 'Inactive',
+        totemMaintenance: 'Maintenance',
       },
       labels: {
         name: 'Name',
@@ -2808,6 +2814,9 @@ export const translations: Translations = {
         published: 'Publié',
         completed: 'Terminé',
         canceled: 'Annulé',
+        totemActive: 'Actif',
+        totemInactive: 'Inactif',
+        totemMaintenance: 'Maintenance',
       },
       labels: {
         name: 'Nom',
@@ -4158,6 +4167,9 @@ export const translations: Translations = {
         published: 'Publicado',
         completed: 'Completado',
         canceled: 'Cancelado',
+        totemActive: 'Activo',
+        totemInactive: 'Inactivo',
+        totemMaintenance: 'Mantenimiento',
       },
       labels: {
         name: 'Nombre',
@@ -5505,6 +5517,9 @@ export const translations: Translations = {
         published: '已发布',
         completed: '已完成',
         canceled: '已取消',
+        totemActive: '活跃',
+        totemInactive: '非活跃',
+        totemMaintenance: '维护',
       },
       labels: {
         name: '名称',
