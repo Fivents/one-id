@@ -1,5 +1,6 @@
 import { Badge } from '@/components/ui/badge';
 import type { EventStatus } from '@/core/domain/entities/event.entity';
+import { useI18n } from '@/i18n';
 
 const STATUS_STYLES: Record<EventStatus, string> = {
   DRAFT: 'bg-gray-400/10 text-gray-500',
@@ -9,10 +10,20 @@ const STATUS_STYLES: Record<EventStatus, string> = {
   CANCELED: 'bg-rose-500/10 text-rose-600',
 };
 
+const STATUS_KEYS: Record<EventStatus, string> = {
+  DRAFT: 'common.status.draft',
+  PUBLISHED: 'common.status.published',
+  ACTIVE: 'common.status.active',
+  COMPLETED: 'common.status.completed',
+  CANCELED: 'common.status.canceled',
+};
+
 export function EventStatusBadge({ status }: { status: EventStatus }) {
+  const { t } = useI18n();
   return (
     <Badge variant="outline" className={STATUS_STYLES[status]}>
-      {status}
+      {t(STATUS_KEYS[status])}
     </Badge>
   );
 }
+

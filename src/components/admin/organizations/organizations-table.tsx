@@ -48,7 +48,7 @@ export function OrganizationsTable({ onEdit, onDelete, onToggleStatus }: Organiz
           <TableRow>
             <TableHead>{t('common.labels.name')}</TableHead>
             <TableHead>{t('tables.labels.slug')}</TableHead>
-            <TableHead>Email</TableHead>
+            <TableHead>{t('common.labels.email')}</TableHead>
             <TableHead>{t('common.labels.status')}</TableHead>
             <TableHead>{t('organizations.detail.plan')}</TableHead>
             <TableHead>{t('organizations.detail.events')}</TableHead>
