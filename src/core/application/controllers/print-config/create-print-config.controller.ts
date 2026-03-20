@@ -13,7 +13,7 @@ export class CreatePrintConfigController {
         ...request,
         itemsOrder: JSON.stringify(request.itemsOrder),
       };
-      const config = await this.createPrintConfigUseCase.execute(data as any);
+      const config = await this.createPrintConfigUseCase.execute(data as unknown);
 
       return created(config.toJSON());
     } catch {
