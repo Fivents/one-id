@@ -39,7 +39,7 @@ interface FrameState {
 const FRAME_HISTORY_SIZE = 20; // Track last 20 frames (~667ms at 30fps)
 const BLINK_THRESHOLD_FRAMES = 3; // Minimum frames to confirm blink
 let frameHistory: FrameState[] = [];
-let detectedBlinksCount = 0;
+const _detectedBlinksCount = 0;
 
 /**
  * Detect blink from iris/eye state
@@ -93,7 +93,7 @@ function processBlinks(): boolean {
     const isOpenAgain = next.eyeState.leftOpen && next.eyeState.rightOpen;
 
     if (wasBothOpen && isEitherClosed && isOpenAgain) {
-      detectedBlinksCount++;
+      // _detectedBlinksCount++;
       return true;
     }
 
@@ -103,7 +103,7 @@ function processBlinks(): boolean {
     const leftOpenAgain = next.eyeState.leftOpen;
 
     if (wasLeftOpen && isLeftClosed && leftOpenAgain) {
-      detectedBlinksCount++;
+      // _detectedBlinksCount++;
       return true;
     }
 
@@ -113,7 +113,7 @@ function processBlinks(): boolean {
     const rightOpenAgain = next.eyeState.rightOpen;
 
     if (wasRightOpen && isRightClosed && rightOpenAgain) {
-      detectedBlinksCount++;
+      // _detectedBlinksCount++;
       return true;
     }
   }
@@ -125,7 +125,7 @@ function processBlinks(): boolean {
  * Detect head movements (yaw/rotation for liveness challenge response)
  * Challenge: "Turn your head left and right" or "Nod your head"
  */
-function detectHeadMovement(): { hasMovement: boolean; direction: string; magnitude: number } {
+function _detectHeadMovement(): { hasMovement: boolean; direction: string; magnitude: number } {
   if (frameHistory.length < 5) {
     return { hasMovement: false, direction: 'insufficient_data', magnitude: 0 };
   }

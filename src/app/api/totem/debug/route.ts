@@ -110,7 +110,20 @@ export async function POST(request: NextRequest) {
 
     // Step 4: Check event subscriptions for each active org
     let foundActiveEvent = false;
-    const eventDetails: any[] = [];
+    interface EventDetail {
+      org: string;
+      event: string;
+      eventStatus: string;
+      subStartsAt: string;
+      subEndsAt: string;
+      subRevokedAt: string | null;
+      eventStartsAt: string;
+      eventEndsAt: string;
+      subActive: boolean;
+      eventActive: boolean;
+      fullyActive: boolean;
+    }
+    const eventDetails: EventDetail[] = [];
 
     for (const orgSub of activeOrgSubs) {
       const eventSubs = await prisma.totemEventSubscription.findMany({

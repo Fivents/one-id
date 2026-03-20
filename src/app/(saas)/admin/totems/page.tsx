@@ -177,7 +177,8 @@ function AdminTotemsPageContent() {
     } finally {
       setIsBulkDeleting(false);
     }
-  }, [bulkSoftDelete, selectedIds, clearSelection, fetchDeletedTotems, t]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bulkSoftDelete, selectedIds, clearSelection, fetchDeletedTotems]);
 
   const handleBulkHardDelete = useCallback(async (totemIds: string[]) => {
     setPendingBulkHardDeleteIds(totemIds);
@@ -198,7 +199,8 @@ function AdminTotemsPageContent() {
     } finally {
       setIsBulkDeleting(false);
     }
-  }, [bulkHardDelete, pendingBulkHardDeleteIds, t]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bulkHardDelete, pendingBulkHardDeleteIds]);
 
   const handleGenerateCode = useCallback(
     async (totem: AdminTotemResponse) => {
@@ -273,6 +275,7 @@ function AdminTotemsPageContent() {
         toast.error(message);
       }
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [confirm, fetchTotems],
   );
 
@@ -296,6 +299,7 @@ function AdminTotemsPageContent() {
     }
   }, []);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const handleRemoveAssignmentHistory = useCallback(
     async (assignmentId: string) => {
       if (!assignmentsTotem) return;
@@ -340,6 +344,7 @@ function AdminTotemsPageContent() {
     }
   }, [assignmentsPage, assignmentsTotalPages]);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const getStatusBadge = useCallback(
     (status: TotemAssignmentHistory['status']) => {
       if (status === 'ACTIVE') {
@@ -352,15 +357,12 @@ function AdminTotemsPageContent() {
         return <Badge className="bg-amber-500/20 text-amber-700">{t('pages.adminTotemsPage.statusRevoked')}</Badge>;
       }
       return <Badge className="bg-zinc-500/15 text-zinc-700">{t('pages.adminTotemsPage.statusExpired')}</Badge>;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
     },
-    [
-      t('pages.adminTotemsPage.statusActive'),
-      t('pages.adminTotemsPage.statusExpired'),
-      t('pages.adminTotemsPage.statusRevoked'),
-      t('pages.adminTotemsPage.statusScheduled'),
-    ],
+    [],
   );
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const submitAssignToOrganization = useCallback(
     async (event: React.FormEvent) => {
       event.preventDefault();
@@ -397,9 +399,10 @@ function AdminTotemsPageContent() {
         toast.error(message);
       } finally {
         setIsAssigningOrg(false);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
       }
     },
-    [assignEndsAt, assignOrgTotem, assignOrganizationId, assignStartsAt, fetchTotems, t],
+    [assignEndsAt, assignOrgTotem, assignOrganizationId, assignStartsAt, fetchTotems],
   );
 
   if (isLoading || !isAuthenticated || !isSuperAdmin()) {

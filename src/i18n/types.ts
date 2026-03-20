@@ -1042,6 +1042,12 @@ export type TranslationSchema = {
       // Miscellaneous
       createCheckin: string;
       none: string;
+      // Additional keys
+      changeLocationTitle: string;
+      checkinStatus: string;
+      eventUpdated: string;
+      invalidate: string;
+      preview: string;
     };
     adminOrganizations: Record<string, string>;
     adminOrganizationsTable: Record<string, string>;

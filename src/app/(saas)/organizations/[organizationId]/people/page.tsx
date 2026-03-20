@@ -51,7 +51,7 @@ function Pagination({
   total: number;
   onPageChange: (page: number) => void;
 }) {
-  const { t, locale } = useI18n();
+  const { t } = useI18n();
 
   return (
     <div className="flex items-center justify-between pt-2">
@@ -194,7 +194,7 @@ export default function OrganizationPeoplePage() {
         setIsLoading(false);
       }
     },
-    [organizationId, activePage, deletedPage, search, t('pages.organizationPeople.loadPeopleError')],
+    [organizationId, activePage, deletedPage, search],
   );
 
   const loadPersonEvents = useCallback(
@@ -211,7 +211,7 @@ export default function OrganizationPeoplePage() {
         setIsLoadingPersonEvents(false);
       }
     },
-    [t('pages.organizationPeople.loadPersonEventsError')],
+    [],
   );
 
   useEffect(() => {
@@ -295,7 +295,7 @@ export default function OrganizationPeoplePage() {
     } catch {
       toast.error(t('pages.organizationPeople.webcamAccessError'));
     }
-  }, [stopCreateFaceCamera, t('pages.organizationPeople.webcamAccessError')]);
+  }, [stopCreateFaceCamera]);
 
   const captureCreateFacePhoto = useCallback(() => {
     const video = createFaceVideoRef.current;
@@ -319,11 +319,7 @@ export default function OrganizationPeoplePage() {
     setCreateFaceImageDataUrl(captured);
     setCreateFaceImageUrl('');
     stopCreateFaceCamera();
-  }, [
-    stopCreateFaceCamera,
-    t('pages.organizationPeople.cameraNotReady'),
-    t('pages.organizationPeople.capturePhotoError'),
-  ]);
+  }, [stopCreateFaceCamera]);
 
   const openEditModal = useCallback((person: PersonSummaryResponse) => {
     setEditPerson(person);

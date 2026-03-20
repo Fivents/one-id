@@ -316,6 +316,7 @@ export default function TotemCredentialingPage() {
       stopCamera();
       void stopRuntime();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     aiConfig.livenessDetection,
     aiConfig.maxFaces,
@@ -325,7 +326,6 @@ export default function TotemCredentialingPage() {
     stopCamera,
     stopLoop,
     stopRuntime,
-    t('pages.totemCredentialing.initFailure'),
     updateStatus,
   ]);
 

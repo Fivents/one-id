@@ -6,10 +6,11 @@ import { type PrintConfigResponse,updatePrintConfigRequestSchema } from '@/core/
 import { withAuth, withRBAC } from '@/core/infrastructure/http/middlewares';
 import type { RouteContext } from '@/core/infrastructure/http/types';
 import { prisma } from '@/core/infrastructure/prisma-client';
+import type { PrintConfig, Prisma } from '@/generated/prisma';
 
 import { getAuthorizedEvent } from '../../_lib/access';
 
-function mapPrintConfigToResponse(config: any): PrintConfigResponse {
+function mapPrintConfigToResponse(config: PrintConfig): PrintConfigResponse {
   return {
     id: config.id,
     paperWidth: config.paper_width,
@@ -171,7 +172,7 @@ export const PATCH = withAuth(
       }
 
       // Update existing print config
-      const updateData: any = {};
+      const updateData: Prisma.PrintConfigUpdateInput = {};
       if (data.paperWidth !== undefined) updateData.paperWidth = data.paperWidth;
       if (data.paperHeight !== undefined) updateData.paperHeight = data.paperHeight;
       if (data.orientation !== undefined) updateData.orientation = data.orientation;

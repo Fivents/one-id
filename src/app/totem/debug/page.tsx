@@ -1,18 +1,21 @@
 'use client';
 
-import { useEffect,useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 
 export default function TotemDebugPage() {
   const [output, setOutput] = useState<string[]>([]);
 
-  const addLog = (message: string) => {
+  const addLog = useCallback((message: string) => {
     setOutput(prev => [...prev, `[${new Date().toLocaleTimeString()}] ${message}`]);
-  };
+  }, []);
 
   useEffect(() => {
-    addLog('Debug page loaded');
+    const logs: string[] = [];
+    const logEntry = (message: string) => {
+      logs.push(`[${new Date().toLocaleTimeString()}] ${message}`);
+    };
 
     // Test 1: localStorage availability
     try {
@@ -21,34 +24,40 @@ export default function TotemDebugPage() {
       localStorage.removeItem('test');
 
       if (value === 'value') {
-        addLog('✅ localStorage: WORKING');
+        logEntry('✅ localStorage: WORKING');
       } else {
-        addLog('❌ localStorage: NOT WORKING - value mismatch');
+        logEntry('❌ localStorage: NOT WORKING - value mismatch');
       }
     } catch (error) {
-      addLog(`❌ localStorage: ERROR - ${error instanceof Error ? error.message : 'Unknown error'}`);
+      logEntry(`❌ localStorage: ERROR - ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
 
     // Test 2: Check for existing token
     try {
       const token = localStorage.getItem('oneid.totem.token');
       if (token) {
-        addLog(`✅ Totem token found: ${token.slice(0, 20)}...`);
+        logEntry(`✅ Totem token found: ${token.slice(0, 20)}...`);
       } else {
-        addLog('⚠️  No totem token in localStorage');
+        logEntry('⚠️  No totem token in localStorage');
       }
     } catch (error) {
-      addLog(`❌ Error reading token: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      logEntry(`❌ Error reading token: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
 
     // Test 3: Check window object
-    addLog(`ℹ️  Window object: ${typeof window === 'undefined' ? 'UNDEFINED' : 'AVAILABLE'}`);
+    logEntry(`ℹ️  Window object: ${typeof window === 'undefined' ? 'UNDEFINED' : 'AVAILABLE'}`);
 
     // Test 4: Check navigator
-    addLog(`ℹ️  Navigator online: ${navigator.onLine ? 'YES' : 'NO'}`);
+    logEntry(`ℹ️  Navigator online: ${navigator.onLine ? 'YES' : 'NO'}`);
 
     // Test 5: Browser info
-    addLog(`ℹ️  User Agent: ${navigator.userAgent.slice(0, 50)}...`);
+    logEntry(`ℹ️  User Agent: ${navigator.userAgent.slice(0, 50)}...`);
+
+    logEntry('Debug page loaded');
+
+    // Set all logs at once
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setOutput(logs);
   }, []);
 
   const testLogin = async () => {
@@ -156,8 +165,8 @@ export default function TotemDebugPage() {
         <div className="mt-6 p-4 bg-zinc-900 border border-zinc-700 rounded-lg">
           <h2 className="font-semibold mb-2">Instructions:</h2>
           <ol className="list-decimal list-inside space-y-1 text-sm">
-            <li>Click "Test Login" to authenticate with the totem code</li>
-            <li>Click "Test Session" to validate the session</li>
+            <li>Click &quot;Test Login&quot; to authenticate with the totem code</li>
+            <li>Click &quot;Test Session&quot; to validate the session</li>
             <li>Check the output for any errors</li>
             <li>If successful, you should be able to visit /totem/credentialing</li>
           </ol>
