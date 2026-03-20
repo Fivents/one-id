@@ -13,7 +13,8 @@ export class CreatePrintConfigController {
         ...request,
         itemsOrder: JSON.stringify(request.itemsOrder),
       };
-      const config = await this.createPrintConfigUseCase.execute(data as unknown);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const config = await this.createPrintConfigUseCase.execute(data as any);
 
       return created(config.toJSON());
     } catch {

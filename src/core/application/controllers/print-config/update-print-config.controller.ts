@@ -14,7 +14,8 @@ export class UpdatePrintConfigController {
         ...request,
         ...(request.itemsOrder !== undefined && { itemsOrder: JSON.stringify(request.itemsOrder) }),
       };
-      const config = await this.updatePrintConfigUseCase.execute(id, data as unknown);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const config = await this.updatePrintConfigUseCase.execute(id, data as any);
 
       return ok(config.toJSON());
     } catch (error) {

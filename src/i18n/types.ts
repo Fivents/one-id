@@ -279,6 +279,20 @@ export type TranslationSchema = {
       dialogEditParticipant: string;
       dialogParticipantDescription: string;
     };
+    eventsTable: {
+      noEventsTitle: string;
+      noEventsDescription: string;
+      columnName: string;
+      columnSlug: string;
+      columnStatus: string;
+      columnStartDate: string;
+      columnEndDate: string;
+      columnParticipants: string;
+      columnCheckins: string;
+      columnTotems: string;
+      columnCreatedAt: string;
+      columnActions: string;
+    };
   };
   organizations: {
     list: {

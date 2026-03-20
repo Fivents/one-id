@@ -283,6 +283,20 @@ export const translations: Translations = {
         dialogEditParticipant: 'Editar Participante',
         dialogParticipantDescription: 'Preencha os dados do participante',
       },
+      eventsTable: {
+        noEventsTitle: 'Nenhum evento criado ainda.',
+        noEventsDescription: 'Crie o primeiro evento para esta organização.',
+        columnName: 'Nome',
+        columnSlug: 'Slug',
+        columnStatus: 'Status',
+        columnStartDate: 'Data de Início',
+        columnEndDate: 'Data de Término',
+        columnParticipants: 'Participantes',
+        columnCheckins: 'Check-ins',
+        columnTotems: 'Totens',
+        columnCreatedAt: 'Criado em',
+        columnActions: 'Ações',
+      },
     },
     organizations: {
       list: {
