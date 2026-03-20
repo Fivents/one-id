@@ -14,7 +14,7 @@ export class UpdatePrintConfigController {
         ...request,
         ...(request.itemsOrder !== undefined && { itemsOrder: JSON.stringify(request.itemsOrder) }),
       };
-      const config = await this.updatePrintConfigUseCase.execute(id, data as any);
+      const config = await this.updatePrintConfigUseCase.execute(id, data as unknown);
 
       return ok(config.toJSON());
     } catch (error) {

@@ -7,8 +7,8 @@ import { useParams, useRouter } from 'next/navigation';
 import { Loader2, MonitorCheck } from 'lucide-react';
 import { toast } from 'sonner';
 
-import { useConfirm } from '@/components/shared/confirm-dialog';
 import { TotemStatusBadge } from '@/components/organizations/totems/totem-status-badge';
+import { useConfirm } from '@/components/shared/confirm-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {

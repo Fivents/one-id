@@ -1,23 +1,25 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+
 import Link from 'next/link';
+
 import {
-  CheckCircle,
-  Zap,
-  Users,
-  BarChart3,
-  Shield,
-  Camera,
   ArrowRight,
-  Sparkles,
+  BarChart3,
+  Camera,
+  CheckCircle,
   Globe,
+  Shield,
   Smartphone,
+  Sparkles,
+  Users,
+  Zap,
 } from 'lucide-react';
 
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 
 interface Plan {
   id: string;

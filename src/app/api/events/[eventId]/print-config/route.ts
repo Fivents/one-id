@@ -10,7 +10,7 @@ import { Prisma } from '@/generated/prisma/client';
 
 import { getAuthorizedEvent } from '../../_lib/access';
 
-function mapPrintConfigToResponse(config: Prisma.PrintConfigGetPayload<{}>): PrintConfigResponse {
+function mapPrintConfigToResponse(config: Prisma.PrintConfigGetPayload<Record<string, never>>): PrintConfigResponse {
   return {
     id: config.id,
     paperWidth: config.paperWidth,
