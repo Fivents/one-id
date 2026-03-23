@@ -1,6 +1,7 @@
 /// <reference lib="webworker" />
 
 import { Human } from '@vladmandic/human';
+import { SCRFD } from '@/core/infrastructure/ml/scrfd';
 import {
   assignFacesToTracks,
   clearTracks,
@@ -66,6 +67,12 @@ let initialized = false;
 // ── NEW (Phase 4): Face Tracking State ──────────────────────────────────
 let faceTracker: FaceTracker | null = null;
 let trackingEnabled = false;
+
+// ── NEW (Phase 4): SCRFD Detector State ─────────────────────────────────
+let scrfd: SCRFD | null = null;
+let detectorType: 'human' | 'scrfd' = 'human'; // Default to Human.js
+let fallbackEnabled = true; // Auto-fallback SCRFD → Human.js on error
+let detectorLoadFailed = false; // Track if SCRFD failed to load
 
 // ── Blink & Head Movement Detection ──────────────────────────────────
 // Track face landmarks to detect actual eye blinks and head movements
@@ -412,6 +419,40 @@ async function initHuman(payload: WorkerInitPayload) {
   } else {
     faceTracker = null;
   }
+
+  // ── NEW (Phase 4): Initialize SCRFD detector if enabled ───────────────
+  detectorType = payload.detectorType ?? 'human';
+  fallbackEnabled = payload.fallbackEnabled ?? true;
+
+  if (detectorType === 'scrfd' && !detectorLoadFailed) {
+    try {
+      scrfd = new SCRFD({
+        modelType: 'w600', // Balanced speed/accuracy for totems
+        backend: 'wasm', // WebAssembly for browser compatibility
+        quantized: true, // Quantized for speed
+        numThreads: 4,
+        scoreThreshold: 0.6,
+      });
+
+      await scrfd.load({
+        modelBasePath: 'https://cdn.jsdelivr.net/npm/scrfd-web@0.1.0/models',
+      });
+
+      console.log('[SCRFD] Detector initialized successfully');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      console.warn(`[SCRFD] Failed to initialize detector: ${message}`);
+
+      if (fallbackEnabled) {
+        console.warn('[SCRFD] Falling back to Human.js detector');
+        detectorType = 'human';
+        detectorLoadFailed = true; // Don't retry SCRFD
+        scrfd = null;
+      } else {
+        throw error; // If fallback disabled, fail immediately
+      }
+    }
+  }
 }
 
 function normalizeLivenessScore(face: Record<string, unknown>, enabled: boolean): number {
@@ -459,15 +500,111 @@ function normalizeLivenessScore(face: Record<string, unknown>, enabled: boolean)
   return 0;
 }
 
+// ── NEW (Phase 4): Multi-detector face detection with fallback ───────────
+/**
+ * Attempt detection using configured detector with fallback
+ * Priority: SCRFD (if enabled) → fallback to Human.js on error
+ */
+async function detectFacesWithFallback(bitmap: ImageBitmap): Promise<Array<Record<string, unknown>>> {
+  // First attempt: Use SCRFD if enabled and loaded
+  if (detectorType === 'scrfd' && scrfd && !detectorLoadFailed) {
+    try {
+      // Run SCRFD detection
+      const scrfdResults = await scrfd.detect(bitmap);
+
+      if (scrfdResults.length > 0) {
+        // Convert SCRFD results to Human.js-compatible format
+        return convertScrfdToHumanFormat(scrfdResults);
+      }
+
+      // If SCRFD returned no faces, still use its results (not an error)
+      return [];
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+
+      if (fallbackEnabled) {
+        console.warn(`[Face Detection] SCRFD failed: ${message}. Falling back to Human.js.`);
+        // Switch to Human.js for this and subsequent frames
+        detectorType = 'human';
+        detectorLoadFailed = true;
+        // Continue to Human.js detection below
+      } else {
+        // If fallback disabled, throw error
+        throw error;
+      }
+    }
+  }
+
+  // Fallback or primary: Use Human.js detection
+  if (!human) {
+    throw new Error('Human.js detector not initialized');
+  }
+
+  const result = await human.detect(bitmap);
+  return (result.face ?? []) as unknown as Array<Record<string, unknown>>;
+}
+
+/**
+ * Convert SCRFD detections to Human.js-compatible format
+ * This allows seamless integration with existing liveness/quality pipeline
+ */
+function convertScrfdToHumanFormat(scrfdDetections: any[]): Array<Record<string, unknown>> {
+  return scrfdDetections.map((detection) => {
+    const box = detection.box || { x: 0, y: 0, width: 0, height: 0 };
+
+    return {
+      // Basic detection fields
+      box: box,
+      x: box.x,
+      y: box.y,
+      width: box.width,
+      height: box.height,
+      confidence: detection.score || 0.8,
+
+      // Landmarks (convert SCRFD 5-point to Human.js format)
+      landmarks: convertScrfdLandmarks(detection.landmarks || []),
+
+      // Placeholder fields (SCRFD doesn't provide these, will be computed by liveness pipeline)
+      iris: undefined, // Will be computed from landmarks by existing pipeline
+      mesh: undefined,
+      description: { confidence: detection.score || 0.8 }, // Use detection score as descriptor confidence
+      yaw: 0, // Head pose angles (will be estimated if needed)
+      pitch: 0,
+      roll: 0,
+
+      // Anti-spoof (SCRFD doesn't provide this, fallback to default)
+      antiSpoof: { score: 0.8 }, // Default to moderate confidence (will be refined by liveness)
+    };
+  });
+}
+
+/**
+ * Convert SCRFD 5-point landmarks to format expected by liveness pipeline
+ * SCRFD format: [[x,y], [x,y], ...] for [left_eye, right_eye, nose, left_mouth, right_mouth]
+ * Human.js format: [[x,y,z,confidence], ...]
+ */
+function convertScrfdLandmarks(scrfdLandmarks: number[][]): Array<[number, number, number, number]> {
+  if (!Array.isArray(scrfdLandmarks) || scrfdLandmarks.length === 0) {
+    return [];
+  }
+
+  // Convert each landmark, adding z=0 and confidence=1.0
+  return scrfdLandmarks.slice(0, 5).map((lm) => {
+    if (Array.isArray(lm) && lm.length >= 2) {
+      return [lm[0], lm[1], 0, 1.0];
+    }
+    return [0, 0, 0, 0];
+  });
+}
+
 async function analyzeFrame(payload: WorkerAnalyzePayload, initPayload: WorkerInitPayload) {
   if (!human || !initialized) {
     await initHuman(initPayload);
   }
 
-  const result = await human!.detect(payload.bitmap);
+  // ── NEW (Phase 4): Use multi-detector with fallback ───────────────────
+  const faces = await detectFacesWithFallback(payload.bitmap);
   payload.bitmap.close();
-
-  const faces = (result.face ?? []) as unknown as Array<Record<string, unknown>>;
 
   if (!faces.length) {
     return {
@@ -651,6 +788,16 @@ ctx.onmessage = async (event: MessageEvent<WorkerRequest>) => {
       await human?.reset();
       human = null;
       initialized = false;
+
+      // NEW (Phase 4): Dispose SCRFD if loaded
+      if (scrfd) {
+        try {
+          await scrfd.dispose();
+        } catch {
+          // Ignore disposal errors
+        }
+        scrfd = null;
+      }
 
       // NEW (Phase 4): Clear face tracker
       if (faceTracker) {
