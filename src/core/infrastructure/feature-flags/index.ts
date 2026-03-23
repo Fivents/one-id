@@ -59,6 +59,14 @@ export const featureFlags = {
    * Impact: Minimal (fallback only on error).
    */
   DETECTOR_FALLBACK_ENABLED: process.env.FEATURE_DETECTOR_FALLBACK_ENABLED === 'true',
+
+  /**
+   * Embedding Encryption at Rest (Phase 5).
+   * When enabled: All face embeddings encrypted with AES-256-GCM in database.
+   * Security: Protects embeddings if database is compromised.
+   * Impact: ~2-3ms per encryption/decryption operation.
+   */
+  EMBEDDING_ENCRYPTION_ENABLED: process.env.FEATURE_EMBEDDING_ENCRYPTION_ENABLED === 'true',
 } as const;
 
 /**
@@ -73,6 +81,7 @@ export function logFeatureFlagStatus(): void {
       FACE_TRACKING_ENABLED: featureFlags.FACE_TRACKING_ENABLED,
       SCRFD_DETECTOR_ENABLED: featureFlags.SCRFD_DETECTOR_ENABLED,
       DETECTOR_FALLBACK_ENABLED: featureFlags.DETECTOR_FALLBACK_ENABLED,
+      EMBEDDING_ENCRYPTION_ENABLED: featureFlags.EMBEDDING_ENCRYPTION_ENABLED,
     });
   }
 }

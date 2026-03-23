@@ -4,7 +4,9 @@ import type {
   ICheckInMetricsService,
   IConfidenceThresholdService,
   ICooldownService,
+  IEmbeddingEncryptionService,
   IFaceQualityService,
+  IMultiTenantAuditService,
   ITemplateAggregationService,
 } from '@/core/domain/contracts';
 import { env } from '@/core/infrastructure/environment/env';
@@ -38,8 +40,10 @@ import type { PrismaClient } from '@/generated/prisma/client';
 import { CheckInMetricsService } from './check-in-metrics.service';
 import { ConfidenceThresholdService } from './confidence-threshold.service';
 import { CooldownService } from './cooldown.service';
+import { EmbeddingEncryptionService } from '@/core/infrastructure/providers/embedding-encryption.service';
 import { FaceQualityService } from './face-quality.service';
 import { TemplateAggregationService } from './template-aggregation.service';
+import { MultiTenantAuditService } from './multi-tenant-audit.service';
 
 /**
  * ContainerService manages singleton instances across the application.
@@ -82,6 +86,10 @@ class ContainerService {
   private confidenceThresholdService: IConfidenceThresholdService | null = null;
   private cooldownService: ICooldownService | null = null;
   private checkInMetricsService: ICheckInMetricsService | null = null;
+  // FASE 5: Security - Embedding Encryption
+  private embeddingEncryptionService: IEmbeddingEncryptionService | null = null;
+  // FASE 5: Compliance - Multi-Tenant Audit
+  private multiTenantAuditService: IMultiTenantAuditService | null = null;
 
   constructor(prismaClient: PrismaClient) {
     this.prismaClient = prismaClient;
@@ -300,6 +308,22 @@ class ContainerService {
       this.checkInMetricsService = new CheckInMetricsService(this.prismaClient);
     }
     return this.checkInMetricsService;
+  }
+
+  // FASE 5: Security
+
+  getEmbeddingEncryptionService(): IEmbeddingEncryptionService {
+    if (!this.embeddingEncryptionService) {
+      this.embeddingEncryptionService = new EmbeddingEncryptionService();
+    }
+    return this.embeddingEncryptionService;
+  }
+
+  getMultiTenantAuditService(): IMultiTenantAuditService {
+    if (!this.multiTenantAuditService) {
+      this.multiTenantAuditService = new MultiTenantAuditService();
+    }
+    return this.multiTenantAuditService;
   }
 }
 

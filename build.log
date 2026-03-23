@@ -1,0 +1,129 @@
+
+> one-id@0.1.0 build
+> next build
+
+▲ Next.js 16.1.6 (Turbopack)
+- Environments: .env
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 4.2s
+  Running TypeScript ...
+  Collecting page data using 27 workers ...
+  Generating static pages using 27 workers (0/54) ...
+  Generating static pages using 27 workers (13/54) 
+  Generating static pages using 27 workers (26/54) 
+  Generating static pages using 27 workers (40/54) 
+✓ Generating static pages using 27 workers (54/54) in 230.6ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├ ○ /admin/organizations
+├ ƒ /admin/organizations/[organizationId]
+├ ○ /admin/plans
+├ ○ /admin/totems
+├ ○ /admin/users
+├ ƒ /api/admin/features
+├ ƒ /api/admin/features/[id]
+├ ƒ /api/admin/organizations
+├ ƒ /api/admin/organizations/[id]
+├ ƒ /api/admin/organizations/[id]/members
+├ ƒ /api/admin/organizations/[id]/status
+├ ƒ /api/admin/organizations/[id]/subscription
+├ ƒ /api/admin/plan-categories
+├ ƒ /api/admin/plan-categories/[id]
+├ ƒ /api/admin/plans
+├ ƒ /api/admin/plans/[id]
+├ ƒ /api/admin/plans/[id]/features
+├ ƒ /api/admin/totems
+├ ƒ /api/admin/totems/[id]
+├ ƒ /api/admin/totems/[id]/generate-code
+├ ƒ /api/admin/totems/[id]/hard-delete
+├ ƒ /api/admin/totems/[id]/restore
+├ ƒ /api/admin/totems/[id]/revoke-code
+├ ƒ /api/admin/totems/[id]/status
+├ ƒ /api/admin/totems/bulk
+├ ƒ /api/admin/totems/bulk-delete
+├ ƒ /api/admin/totems/bulk-hard-delete
+├ ƒ /api/admin/totems/deleted
+├ ƒ /api/admin/users
+├ ƒ /api/admin/users/[id]
+├ ƒ /api/admin/users/[id]/hard-delete
+├ ƒ /api/admin/users/[id]/memberships
+├ ƒ /api/admin/users/[id]/memberships/remove
+├ ƒ /api/admin/users/bulk-delete
+├ ƒ /api/admin/users/bulk-hard-delete
+├ ƒ /api/admin/users/deleted
+├ ƒ /api/admin/users/reset-password
+├ ƒ /api/admin/users/restore
+├ ƒ /api/auth/check-email
+├ ƒ /api/auth/google
+├ ƒ /api/auth/google/callback
+├ ƒ /api/auth/login
+├ ƒ /api/auth/logout
+├ ƒ /api/auth/refresh
+├ ƒ /api/auth/setup-password
+├ ƒ /api/auth/token-login
+├ ƒ /api/check-in
+├ ƒ /api/check-in/event/[eventId]
+├ ƒ /api/check-out
+├ ƒ /api/events
+├ ƒ /api/events/[eventId]
+├ ƒ /api/events/[eventId]/ai-config
+├ ƒ /api/events/[eventId]/checkins
+├ ƒ /api/events/[eventId]/checkins/[checkInId]
+├ ƒ /api/events/[eventId]/checkins/realtime
+├ ƒ /api/events/[eventId]/checkins/stats
+├ ƒ /api/events/[eventId]/participants
+├ ƒ /api/events/[eventId]/print-config
+├ ƒ /api/events/[eventId]/status
+├ ƒ /api/events/[eventId]/totems
+├ ƒ /api/events/[eventId]/totems/[subscriptionId]
+├ ƒ /api/organizations
+├ ƒ /api/organizations/[organizationId]
+├ ƒ /api/organizations/[organizationId]/status
+├ ƒ /api/organizations/[organizationId]/totems
+├ ƒ /api/participants/[participantId]
+├ ƒ /api/people
+├ ƒ /api/people/[personId]
+├ ƒ /api/people/[personId]/events
+├ ƒ /api/people/[personId]/events/[eventId]
+├ ƒ /api/people/[personId]/hard-delete
+├ ƒ /api/people/bulk-delete
+├ ƒ /api/people/bulk-hard-delete
+├ ƒ /api/person-faces
+├ ƒ /api/person-faces/[faceId]
+├ ƒ /api/print-configs
+├ ƒ /api/sessions
+├ ƒ /api/sessions/[sessionId]
+├ ƒ /api/totem/checkin
+├ ƒ /api/totem/debug
+├ ƒ /api/totem/login
+├ ƒ /api/totem/session
+├ ƒ /api/totems
+├ ƒ /api/totems/[totemId]
+├ ƒ /api/totems/[totemId]/assign-event
+├ ƒ /api/totems/[totemId]/assign-organization
+├ ƒ /api/totems/[totemId]/assignments
+├ ƒ /api/totems/[totemId]/assignments/[assignmentId]
+├ ƒ /api/totems/[totemId]/unassign-event
+├ ƒ /api/totems/[totemId]/unassign-organization
+├ ƒ /api/users
+├ ƒ /api/users/[userId]
+├ ○ /dashboard
+├ ○ /login
+├ ƒ /organizations/[organizationId]/events
+├ ƒ /organizations/[organizationId]/events/[eventId]
+├ ƒ /organizations/[organizationId]/people
+├ ƒ /organizations/[organizationId]/totems
+├ ○ /set-password
+├ ○ /totem
+├ ○ /totem/credentialing
+├ ○ /totem/debug
+└ ○ /totem/login
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+
