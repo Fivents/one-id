@@ -27,7 +27,7 @@ async function blobFromSource(input: { imageDataUrl?: string; imageUrl?: string 
 export async function extractFaceEmbedding(input: {
   imageDataUrl?: string;
   imageUrl?: string;
-}): Promise<number[] | null> {
+}): Promise<{ embedding: number[]; faceCount: number } | null> {
   const runtime = new TotemFaceRuntime();
 
   try {
@@ -37,11 +37,25 @@ export async function extractFaceEmbedding(input: {
     const bitmap = await createImageBitmap(blob);
     const analysis = await runtime.analyze(bitmap);
 
-    if (!analysis.face || analysis.faceCount !== 1) {
-      return null;
+    if (!analysis.face) {
+      if (analysis.faceCount === 0) {
+        throw new Error('No face detected in the image. Please ensure your face is clearly visible in the photo.');
+      }
+      throw new Error('Face detection failed. Please try again with a clearer image.');
     }
 
-    return analysis.face.embedding;
+    if (analysis.faceCount !== 1) {
+      throw new Error(`Detected ${analysis.faceCount} faces. Please provide an image with exactly one face.`);
+    }
+
+    if (!analysis.face.isBigEnough) {
+      throw new Error('Face is too small in the image. Please move closer to the camera or use a larger face in the photo.');
+    }
+
+    return {
+      embedding: analysis.face.embedding,
+      faceCount: analysis.faceCount,
+    };
   } finally {
     await runtime.dispose();
   }

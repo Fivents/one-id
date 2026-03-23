@@ -336,25 +336,30 @@ export default function EventDetailPage() {
       const normalizedFaceImageUrl = participantFaceImageUrl.trim();
       const normalizedFaceImageDataUrl = participantFaceImageDataUrl.trim();
       if (normalizedFaceImageUrl || normalizedFaceImageDataUrl) {
-        const embedding = await extractFaceEmbedding({
+        const result = await extractFaceEmbedding({
           imageDataUrl: normalizedFaceImageDataUrl || undefined,
           imageUrl: normalizedFaceImageUrl || undefined,
         });
 
-        if (!embedding) {
+        if (!result) {
           throw new Error(t('pages.eventDetail.embeddingError'));
         }
+
+        const { embedding } = result;
 
         const faceResponse = await participantsClient.registerFace({
           personId: response.data.personId,
           imageUrl: normalizedFaceImageUrl || undefined,
           imageDataUrl: normalizedFaceImageDataUrl || undefined,
-          embedding: embedding ?? undefined,
-          embeddingModel: embedding ? 'Human v3.3.6 face description (SFace/ArcFace compatible)' : undefined,
+          embedding,
+          embeddingModel: 'Human v3.3.6 face description (SFace/ArcFace compatible)',
         });
 
         if (!faceResponse.success) {
-          throw new Error(faceResponse.error.message);
+          const errorMsg = faceResponse.error?.details
+            ? faceResponse.error.details.map((d: any) => d.message).join('; ')
+            : faceResponse.error?.message;
+          throw new Error(errorMsg || 'Failed to register face');
         }
       }
 
@@ -694,21 +699,23 @@ export default function EventDetailPage() {
 
     setIsRegisteringFace(true);
     try {
-      const embedding = await extractFaceEmbedding({
+      const result = await extractFaceEmbedding({
         imageDataUrl: normalizedImageDataUrl || undefined,
         imageUrl: normalizedImageUrl || undefined,
       });
 
-      if (!embedding) {
+      if (!result) {
         throw new Error(t('pages.eventDetail.embeddingError'));
       }
+
+      const { embedding } = result;
 
       if (registerFaceParticipant.faceId) {
         await participantsClient.replaceFaceImage(registerFaceParticipant.faceId, {
           imageUrl: normalizedImageUrl || undefined,
           imageDataUrl: normalizedImageDataUrl || undefined,
-          embedding: embedding ?? undefined,
-          embeddingModel: embedding ? 'Human v3.3.6 face description (SFace/ArcFace compatible)' : undefined,
+          embedding,
+          embeddingModel: 'Human v3.3.6 face description (SFace/ArcFace compatible)',
           isActive: true,
         });
       } else {
@@ -716,8 +723,8 @@ export default function EventDetailPage() {
           personId: registerFaceParticipant.personId,
           imageUrl: normalizedImageUrl || undefined,
           imageDataUrl: normalizedImageDataUrl || undefined,
-          embedding: embedding ?? undefined,
-          embeddingModel: embedding ? 'Human v3.3.6 face description (SFace/ArcFace compatible)' : undefined,
+          embedding,
+          embeddingModel: 'Human v3.3.6 face description (SFace/ArcFace compatible)',
         });
       }
 

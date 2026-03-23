@@ -9,6 +9,7 @@ export type ApiFailure = {
     code: string;
     message: string;
     meta?: Record<string, unknown>;
+    details?: Array<{ field: string; message: string; code?: string }>;
   };
 };
 

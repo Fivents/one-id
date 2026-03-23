@@ -363,14 +363,16 @@ export default function OrganizationPeoplePage() {
           const normalizedFaceImageUrl = createFaceImageUrl.trim();
           const normalizedFaceImageDataUrl = createFaceImageDataUrl.trim();
           if (normalizedFaceImageUrl || normalizedFaceImageDataUrl) {
-            const embedding = await extractFaceEmbedding({
+            const result = await extractFaceEmbedding({
               imageDataUrl: normalizedFaceImageDataUrl || undefined,
               imageUrl: normalizedFaceImageUrl || undefined,
             });
 
-            if (!embedding) {
+            if (!result) {
               throw new Error(t('pages.organizationPeople.embeddingError'));
             }
+
+            const { embedding } = result;
 
             const faceResponse = await participantsClient.registerFace({
               personId: response.data.id,
@@ -380,7 +382,12 @@ export default function OrganizationPeoplePage() {
               embeddingModel: 'Human v3.3.6 face description (SFace/ArcFace compatible)',
             });
 
-            if (!faceResponse.success) throw new Error(faceResponse.error.message);
+            if (!faceResponse.success) {
+              const errorMsg = faceResponse.error?.details
+                ? faceResponse.error.details.map((d: any) => d.message).join('; ')
+                : faceResponse.error?.message;
+              throw new Error(errorMsg || 'Failed to register face');
+            }
           }
 
           toast.success(t('pages.organizationPeople.personCreatedSuccess'));
@@ -662,14 +669,16 @@ export default function OrganizationPeoplePage() {
 
     setIsSavingFace(true);
     try {
-      const embedding = await extractFaceEmbedding({
+      const result = await extractFaceEmbedding({
         imageDataUrl: normalizedImageDataUrl || undefined,
         imageUrl: normalizedImageUrl || undefined,
       });
 
-      if (!embedding) {
+      if (!result) {
         throw new Error(t('pages.organizationPeople.embeddingError'));
       }
+
+      const { embedding } = result;
 
       if (manageFacePerson.faceId) {
         const response = await participantsClient.replaceFaceImage(manageFacePerson.faceId, {
@@ -680,7 +689,12 @@ export default function OrganizationPeoplePage() {
           isActive: true,
         });
 
-        if (!response.success) throw new Error(response.error.message);
+        if (!response.success) {
+          const errorMsg = response.error?.details
+            ? response.error.details.map((d: any) => d.message).join('; ')
+            : response.error?.message;
+          throw new Error(errorMsg || 'Failed to update face image');
+        }
       } else {
         const response = await participantsClient.registerFace({
           personId: manageFacePerson.id,
@@ -690,7 +704,12 @@ export default function OrganizationPeoplePage() {
           embeddingModel: 'Human v3.3.6 face description (SFace/ArcFace compatible)',
         });
 
-        if (!response.success) throw new Error(response.error.message);
+        if (!response.success) {
+          const errorMsg = response.error?.details
+            ? response.error.details.map((d: any) => d.message).join('; ')
+            : response.error?.message;
+          throw new Error(errorMsg || 'Failed to register face');
+        }
       }
 
       toast.success(
@@ -709,18 +728,7 @@ export default function OrganizationPeoplePage() {
     } finally {
       setIsSavingFace(false);
     }
-  }, [
-    manageFacePerson,
-    faceImageUrl,
-    faceImageDataUrl,
-    stopFaceCamera,
-    loadPeople,
-    t('pages.organizationPeople.embeddingError'),
-    t('pages.organizationPeople.faceImageUpdated'),
-    t('pages.organizationPeople.faceRegistered'),
-    t('pages.organizationPeople.provideImageSource'),
-    t('pages.organizationPeople.saveFaceError'),
-  ]);
+  }, [manageFacePerson, faceImageUrl, faceImageDataUrl, stopFaceCamera, t, loadPeople, participantsClient]);
 
   if (isLoadingPage || !isAuthenticated || !canView) {
     return null;

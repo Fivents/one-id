@@ -4,6 +4,7 @@ interface ApiErrorBody {
   code?: string;
   message?: string;
   error?: string;
+  details?: Array<{ field: string; message: string; code?: string }>;
 }
 
 export function mapToApiFailure(error: unknown): ApiFailure {
@@ -51,12 +52,13 @@ export function mapResponseErrorBody(body: unknown): ApiFailure {
 
   const code = parsed?.code ?? 'UNKNOWN_ERROR';
   const message = parsed?.message ?? parsed?.error ?? 'An unexpected error occurred.';
+  const details = parsed?.details;
 
   // Preserve extra fields as meta for special error handling
   const meta: Record<string, unknown> = {};
   if (body && typeof body === 'object') {
     for (const [key, value] of Object.entries(body)) {
-      if (key !== 'code' && key !== 'message' && key !== 'error') {
+      if (key !== 'code' && key !== 'message' && key !== 'error' && key !== 'details') {
         meta[key] = value;
       }
     }
@@ -64,6 +66,11 @@ export function mapResponseErrorBody(body: unknown): ApiFailure {
 
   return {
     success: false,
-    error: { code, message, ...(Object.keys(meta).length > 0 ? { meta } : {}) },
+    error: {
+      code,
+      message,
+      ...(details ? { details } : {}),
+      ...(Object.keys(meta).length > 0 ? { meta } : {}),
+    },
   };
 }

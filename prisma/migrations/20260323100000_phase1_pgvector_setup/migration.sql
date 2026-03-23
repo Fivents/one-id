@@ -50,5 +50,3 @@ WHERE face_quality_score IS NULL;
 CREATE INDEX IF NOT EXISTS idx_person_faces_embedding_vector_hnsw
 ON person_faces USING hnsw (embedding_vector vector_cosine_ops)
 WITH (m = 16, ef_construction = 200);
-
-
