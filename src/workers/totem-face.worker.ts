@@ -1,11 +1,26 @@
 /// <reference lib="webworker" />
 
 import { Human } from '@vladmandic/human';
+import {
+  assignFacesToTracks,
+  clearTracks,
+  createFaceTracker,
+  createNewTrack,
+  getAggregatedLivenessScore,
+  getTrackStability,
+  type FaceDetection,
+  type FaceTracker,
+  type TrackedFace,
+  updateTrackLiveness,
+} from '@/core/infrastructure/features/face-tracking';
 
 type WorkerInitPayload = {
   maxFaces: number;
   minFaceSize: number;
   livenessEnabled: boolean;
+  trackingEnabled?: boolean; // NEW (Phase 4)
+  detectorType?: 'human' | 'scrfd'; // NEW (Phase 4)
+  fallbackEnabled?: boolean; // NEW (Phase 4)
 };
 
 type WorkerAnalyzePayload = {
@@ -24,8 +39,33 @@ type WorkerResponse = {
   data?: unknown;
 };
 
+// ── NEW: Face Quality Score ─────────────────────────────────────
+interface FaceQualityMetadata {
+  brightness: number;
+  blurriness: number;
+  faceSize: number;
+  headPoseYaw: number;
+  headPosePitch: number;
+  headPoseRoll: number;
+  landmarkConfidence: number;
+}
+
+// ── NEW: Multimodal Liveness Analysis ───────────────────────────
+interface LivenessAnalysis {
+  antiSpoofScore: number;
+  blinkDetected: boolean;
+  headMovementDetected: boolean;
+  textureQuality: number;
+  finalLivenessScore: number;
+  timestamp?: number; // NEW (Phase 4)
+}
+
 let human: Human | null = null;
 let initialized = false;
+
+// ── NEW (Phase 4): Face Tracking State ──────────────────────────────────
+let faceTracker: FaceTracker | null = null;
+let trackingEnabled = false;
 
 // ── Blink & Head Movement Detection ──────────────────────────────────
 // Track face landmarks to detect actual eye blinks and head movements
@@ -181,6 +221,141 @@ function detectBlink(face: Record<string, unknown>): boolean {
   return processBlinks();
 }
 
+// ── NEW (Phase 1): Multimodal Liveness Detection ─────────────────
+function computeMultimodalLiveness(
+  face: Record<string, unknown>,
+  frameHistory: FrameState[],
+  livenessEnabled: boolean,
+): LivenessAnalysis {
+  if (!livenessEnabled) {
+    return {
+      antiSpoofScore: 1,
+      blinkDetected: true,
+      headMovementDetected: true,
+      textureQuality: 1,
+      finalLivenessScore: 1,
+      timestamp: Date.now(),
+    };
+  }
+
+  // 1. Anti-spoofing score (from Human.js model)
+  const antiSpoofScore = extractAntiSpoofScore(face);
+
+  // 2. Blink detection (from temporal eye state)
+  const blinkDetected = processBlinks();
+
+  // 3. Head movement detection (from frame history)
+  const headMovement = _detectHeadMovement();
+  const headMovementDetected = headMovement.magnitude > 15; // degrees threshold
+
+  // 4. Texture quality (face descriptor confidence)
+  const description = face['description'] as Record<string, unknown> | undefined;
+  const textureQuality = Number(description?.['confidence'] ?? 0.5);
+
+  // Weighted combination (normalized 0-1)
+  const finalScore =
+    antiSpoofScore * 0.4 +
+    (blinkDetected ? 0.8 : 0.2) * 0.3 +
+    (headMovementDetected ? 0.8 : 0.2) * 0.2 +
+    textureQuality * 0.1;
+
+  return {
+    antiSpoofScore,
+    blinkDetected,
+    headMovementDetected,
+    textureQuality,
+    finalLivenessScore: Math.max(0, Math.min(1, finalScore)),
+    timestamp: Date.now(),
+  };
+}
+
+/**
+ * Extract anti-spoof score from Human.js model.
+ * Returns 0-1 confidence value.
+ */
+function extractAntiSpoofScore(face: Record<string, unknown>): number {
+  // Try multiple possible field names from Human.js output
+  const possibleFields = ['antiSpoof', 'liveness', 'live', 'real', 'spoofScore'];
+
+  for (const field of possibleFields) {
+    const value = face[field];
+
+    // Check if it's a nested object with score
+    if (typeof value === 'object' && value !== null) {
+      const score = (value as Record<string, unknown>)['score'];
+      if (typeof score === 'number') {
+        return Math.max(0, Math.min(1, score));
+      }
+    }
+
+    // Check if it's a direct number
+    if (typeof value === 'number') {
+      return Math.max(0, Math.min(1, value));
+    }
+
+    // Check if it's boolean
+    if (typeof value === 'boolean') {
+      return value ? 1 : 0;
+    }
+  }
+
+  // Fallback: if no anti-spoof data, assume not live
+  return 0;
+}
+
+// ── NEW (Phase 1): Face Quality Assessment ──────────────────────
+function assessFaceQuality(face: Record<string, unknown>): FaceQualityMetadata {
+  const box = (face['box'] ?? {}) as Record<string, unknown>;
+  const description = face['description'] as Record<string, unknown> | undefined;
+
+  // Brightness: based on descriptor confidence variance
+  const descriptorConfidence = Number(description?.['confidence'] ?? 0.5);
+  const brightness = (0.5 - descriptorConfidence) * 2; // Range: -1 to 1
+
+  // Blurriness: inverse of descriptor confidence
+  let blurriness = 0.5;
+  if (descriptorConfidence > 0.8) blurriness = 0;
+  else if (descriptorConfidence > 0.6) blurriness = 0.2;
+  else if (descriptorConfidence > 0.4) blurriness = 0.4;
+  else blurriness = 0.8;
+
+  // Face size
+  const faceSize = Number(box['width'] ?? 0);
+
+  // Head pose angles
+  const headPoseYaw = Number(face['yaw'] ?? 0);
+  const headPosePitch = Number(face['pitch'] ?? 0);
+  const headPoseRoll = Number(face['roll'] ?? 0);
+
+  // Landmark confidence (from mesh or landmarks array)
+  const landmarks = face['landmarks'] as unknown[];
+  let landmarkConfidence = 0.5;
+
+  if (Array.isArray(landmarks) && landmarks.length > 0) {
+    const confidences: number[] = [];
+    for (const lm of landmarks) {
+      if (Array.isArray(lm) && lm.length >= 4) {
+        const conf = Number(lm[3] ?? 0);
+        if (conf >= 0 && conf <= 1) confidences.push(conf);
+      }
+    }
+
+    if (confidences.length > 0) {
+      landmarkConfidence = confidences.reduce((a, b) => a + b, 0) / confidences.length;
+    }
+  }
+
+  return {
+    brightness,
+    blurriness,
+    faceSize,
+    headPoseYaw,
+    headPosePitch,
+    headPoseRoll,
+    landmarkConfidence,
+  };
+}
+
 function buildHumanConfig(payload: WorkerInitPayload) {
   return {
     debug: false,
@@ -229,6 +404,14 @@ async function initHuman(payload: WorkerInitPayload) {
   await human.load();
   await human.warmup();
   initialized = true;
+
+  // NEW (Phase 4): Initialize face tracking if enabled
+  trackingEnabled = payload.trackingEnabled ?? false;
+  if (trackingEnabled) {
+    faceTracker = createFaceTracker(60); // 60 frames ~= 2 seconds at 30fps
+  } else {
+    faceTracker = null;
+  }
 }
 
 function normalizeLivenessScore(face: Record<string, unknown>, enabled: boolean): number {
@@ -290,7 +473,14 @@ async function analyzeFrame(payload: WorkerAnalyzePayload, initPayload: WorkerIn
     return {
       faceCount: 0,
       face: null,
-      blinkDetected: false, // No face = no blink
+      blinkDetected: false,
+      liveness: {
+        antiSpoofScore: 0,
+        blinkDetected: false,
+        headMovementDetected: false,
+        textureQuality: 0,
+        finalLivenessScore: 0,
+      },
     };
   }
 
@@ -307,24 +497,115 @@ async function analyzeFrame(payload: WorkerAnalyzePayload, initPayload: WorkerIn
   const width = Number(box['width'] ?? 0);
   const height = Number(box['height'] ?? 0);
 
-  // Use actual iris-based blink detection
+  // Detect actual blink
   const blinkDetected = detectBlink(bestFace);
 
-  return {
-    faceCount: faces.length,
-    face: {
+  // NEW (Phase 1): Compute multimodal liveness
+  const liveness = computeMultimodalLiveness(bestFace, frameHistory, initPayload.livenessEnabled);
+
+  // NEW (Phase 1): Assess face quality
+  const qualityMetadata = assessFaceQuality(bestFace);
+
+  // NEW (Phase 4): Face tracking
+  let trackId: string | undefined;
+  let trackStability: number | undefined;
+  let historicalLivenessAvg: number | undefined;
+
+  if (trackingEnabled && faceTracker) {
+    // Convert detection to tracking format
+    const detection: FaceDetection = {
       box: {
         x: Number(box['x'] ?? 0),
         y: Number(box['y'] ?? 0),
         width,
         height,
       },
-      isBigEnough: width >= initPayload.minFaceSize && height >= initPayload.minFaceSize,
+      landmarks: bestFace['landmarks'],
       embedding,
-      livenessScore: normalizeLivenessScore(bestFace, initPayload.livenessEnabled),
+      confidence: Number(bestFace['confidence'] ?? 0.5),
+    };
+
+    // Assign to existing tracks or create new one
+    const { tracked, newDetections: newDetections } = assignFacesToTracks([detection], faceTracker);
+
+    let bestTrack: TrackedFace;
+
+    if (tracked.length > 0) {
+      // Use existing track
+      bestTrack = tracked[0].track;
+    } else if (newDetections.length > 0) {
+      // Create new track for this detection
+      bestTrack = createNewTrack(detection, faceTracker);
+    } else {
+      // No track available (shouldn't happen)
+      bestTrack = createNewTrack(detection, faceTracker);
+    }
+
+    // Update track's liveness history
+    const livenessScore = {
+      ...liveness,
+      timestamp: liveness.timestamp || Date.now(),
+    };
+    updateTrackLiveness(bestTrack, livenessScore);
+
+    // Calculate aggregated liveness from last 5 frames
+    historicalLivenessAvg = getAggregatedLivenessScore(bestTrack, 5);
+
+    // Get track stability metrics
+    const stability = getTrackStability(bestTrack);
+    trackStability = stability.iouConfidence;
+    trackId = bestTrack.id;
+  }
+
+  // Build final response
+  const faceResponse = {
+    box: {
+      x: Number(box['x'] ?? 0),
+      y: Number(box['y'] ?? 0),
+      width,
+      height,
     },
-    blinkDetected,
+    isBigEnough: width >= initPayload.minFaceSize && height >= initPayload.minFaceSize,
+    embedding,
+    livenessScore: liveness.finalLivenessScore,
+    qualityScore: computeQualityScore(qualityMetadata),
+    qualityMetadata,
   };
+
+  // Add tracking fields if tracking is enabled
+  if (trackingEnabled && trackId !== undefined && trackStability !== undefined && historicalLivenessAvg !== undefined) {
+    Object.assign(faceResponse, {
+      trackId,
+      trackStability,
+      historicalLivenessAvg,
+    });
+  }
+
+  return {
+    faceCount: faces.length,
+    face: faceResponse,
+    blinkDetected,
+    liveness,
+  };
+}
+
+// Helper to compute overall quality score
+function computeQualityScore(quality: FaceQualityMetadata): number {
+  const normalizedBrightness = 1 - Math.abs(quality.brightness);
+  const normalizedBlur = 1 - quality.blurriness;
+  const normalizedPose = Math.max(
+    0,
+    1 - (Math.abs(quality.headPoseYaw) + Math.abs(quality.headPosePitch) + Math.abs(quality.headPoseRoll)) / 3,
+  );
+  const normalizedFaceSize = Math.min(1, quality.faceSize / 400);
+
+  return (
+    normalizedBrightness * 0.2 +
+    normalizedBlur * 0.2 +
+    normalizedPose * 0.2 +
+    normalizedFaceSize * 0.2 +
+    quality.landmarkConfidence * 0.2
+  );
 }
 
 let lastInitPayload: WorkerInitPayload = {
@@ -370,6 +651,12 @@ ctx.onmessage = async (event: MessageEvent<WorkerRequest>) => {
       await human?.reset();
       human = null;
       initialized = false;
+
+      // NEW (Phase 4): Clear face tracker
+      if (faceTracker) {
+        clearTracks(faceTracker);
+        faceTracker = null;
+      }
 
       const response: WorkerResponse = {
         id: request.id,

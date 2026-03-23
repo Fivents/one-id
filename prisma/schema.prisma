@@ -362,6 +362,25 @@ model TotemEventSubscription {
   revokedAt DateTime? @map("revoked_at")
   revokedReason String? @map("revoked_reason")
 
+  // FASE 3: Performance & Adaptive Thresholds
+  confidenceThresholdAdaptive Boolean @default(false) @map("confidence_threshold_adaptive")
+  confidenceThresholdMin      Float   @default(0.50) @map("confidence_threshold_min")
+  confidenceThresholdMax      Float   @default(0.90) @map("confidence_threshold_max")
+  cooldownStrategyType        String  @default("FIXED") @map("cooldown_strategy_type") // "FIXED" | "EXPONENTIAL"
+  cooldownInitialMs           Int     @default(5000) @map("cooldown_initial_ms")
+  cooldownMaxMs               Int     @default(60000) @map("cooldown_max_ms")
+
+  // Performance stats (updated after each check-in)
+  lastCheckInAt      DateTime? @map("last_check_in_at")
+  totalCheckIns      Int       @default(0) @map("total_check_ins")
+  successCheckIns    Int       @default(0) @map("success_check_ins")
+  avgCheckInLatencyMs Int?     @map("avg_check_in_latency_ms")
+  avgConfidence      Float?    @map("avg_confidence")
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
   totemOrganizationSubscription TotemOrganizationSubscription @relation(fields: [totemOrganizationSubscriptionId], references: [id], onDelete: Cascade)
   event                         Event                         @relation(fields: [eventId], references: [id], onDelete: Cascade)
   checkIns                      CheckIn[]
@@ -397,6 +416,7 @@ model Person {
 model PersonFace {
   id String @id @default(uuid())
 
+  // Existing embedding storage (kept for migration)
   embedding Bytes
   imageHash String @map("image_hash")
   imageUrl  String @map("image_url")
@@ -405,15 +425,35 @@ model PersonFace {
 
   isActive Boolean @default(true) @map("is_active")
 
+  // NEW (Phase 1): Vector search support
+  embeddingVector Unsupported("vector(512)")? @map("embedding_vector")
+  embeddingModelVersion String @default("InsightFace:0.3.3") @map("embedding_model_version")
+  embeddingNormalized Boolean @default(true) @map("embedding_normalized")
+
+  // NEW (Phase 1): Quality assessment metadata
+  faceQualityScore Float? @map("face_quality_score")
+  faceQualityMetadata Json? @map("face_quality_metadata")
+
+  // NEW (Phase 2): Multi-template support
+  faceTemplatePosition String? @map("face_template_position")
+  templateSetId String? @map("template_set_id")
+
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
 
   person Person @relation(fields: [personId], references: [id], onDelete: Cascade)
 
+  // Indices
   @@index([personId])
+  @@index([embeddingModelVersion])
+  @@index([templateSetId])
+  @@unique([imageHash], map: "person_faces_image_hash_key")
+  // Prevent duplicate poses in same template set
+  @@unique([personId, faceTemplatePosition], map: "person_faces_person_id_pose_key")
   @@map("person_faces")
 }
+
 
 model EventParticipant {
   id       String  @id @default(uuid())
@@ -693,4 +733,58 @@ model Notification {
 
   @@index([userId])
   @@map("notifications")
+}
+
+// FASE 3: Performance Monitoring & Cooldown Tracking
+model PersonCheckInCooldown {
+  id                  String @id @default(uuid())
+  eventParticipantId  String @map("event_participant_id")
+  eventId             String @map("event_id")
+  failedAttempts      Int    @default(0) @map("failed_attempts")
+  currentCooldownMs   Int    @map("current_cooldown_ms")
+  cooldownEndsAt      DateTime @map("cooldown_ends_at")
+  lastAttemptAt       DateTime @map("last_attempt_at")
+  resetAt             DateTime? @map("reset_at") // Last successful check-in
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Unique per event (person can have different cooldown state in different events)
+  @@unique([eventParticipantId, eventId])
+  @@index([eventParticipantId])
+  @@index([eventId])
+  @@index([cooldownEndsAt])
+  @@map("person_check_in_cooldowns")
+}
+
+model CheckInMetrics {
+  id                      String @id @default(uuid())
+  totemEventSubscriptionId String @map("totem_event_subscription_id")
+  eventId                 String @map("event_id")
+  organizationId          String @map("organization_id")
+
+  // Metrics snapshot (hourly aggregation)
+  hour               DateTime @map("hour")
+  checkInCount       Int      @map("check_in_count")
+  successCount       Int      @map("success_count")
+  failureCount       Int      @map("failure_count")
+  avgLatencyMs       Float    @map("avg_latency_ms")
+  p95LatencyMs       Float    @map("p95_latency_ms")
+  avgConfidence      Float    @map("avg_confidence")
+
+  // Failure reasons breakdown
+  lowQualityCount    Int @default(0) @map("low_quality_count")
+  lowConfidenceCount Int @default(0) @map("low_confidence_count")
+  cooldownCount      Int @default(0) @map("cooldown_count")
+  livenessFailCount  Int @default(0) @map("liveness_fail_count")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Unique per hour per totem event subscription
+  @@unique([totemEventSubscriptionId, hour])
+  @@index([eventId])
+  @@index([organizationId])
+  @@index([hour])
+  @@map("check_in_metrics")
 }

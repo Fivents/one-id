@@ -2,11 +2,22 @@ export interface TotemFaceWorkerInitPayload {
   maxFaces: number;
   minFaceSize: number;
   livenessEnabled: boolean;
+  // NEW (Phase 4): Detector and tracking configuration
+  trackingEnabled?: boolean;
+  detectorType?: 'human' | 'scrfd';
+  fallbackEnabled?: boolean;
 }
 
 export interface TotemFaceAnalysis {
   faceCount: number;
   blinkDetected: boolean;
+  liveness?: {
+    antiSpoofScore: number;
+    blinkDetected: boolean;
+    headMovementDetected: boolean;
+    textureQuality: number;
+    finalLivenessScore: number;
+  };
   face: {
     box: {
       x: number;
@@ -17,6 +28,20 @@ export interface TotemFaceAnalysis {
     isBigEnough: boolean;
     embedding: number[];
     livenessScore: number;
+    qualityScore?: number; // NEW (Phase 1)
+    qualityMetadata?: {
+      brightness: number;
+      blurriness: number;
+      faceSize: number;
+      headPoseYaw: number;
+      headPosePitch: number;
+      headPoseRoll: number;
+      landmarkConfidence: number;
+    }; // NEW (Phase 1)
+    // NEW (Phase 4): Face tracking fields
+    trackId?: string;
+    trackStability?: number;
+    historicalLivenessAvg?: number;
   } | null;
 }
 

@@ -1,5 +1,12 @@
 // ── Service Container with Lazy Initialization ──────────────────────
 
+import type {
+  ICheckInMetricsService,
+  IConfidenceThresholdService,
+  ICooldownService,
+  IFaceQualityService,
+  ITemplateAggregationService,
+} from '@/core/domain/contracts';
 import { env } from '@/core/infrastructure/environment/env';
 import { prisma } from '@/core/infrastructure/prisma-client';
 import { BcryptPasswordHasher } from '@/core/infrastructure/providers/bcrypt-password-hasher';
@@ -27,6 +34,12 @@ import { PrismaTotemEventSubscriptionRepository } from '@/core/infrastructure/re
 import { PrismaTotemOrganizationSubscriptionRepository } from '@/core/infrastructure/repositories/prisma-totem-organization-subscription.repository';
 import { PrismaUserRepository } from '@/core/infrastructure/repositories/prisma-user.repository';
 import type { PrismaClient } from '@/generated/prisma/client';
+
+import { CheckInMetricsService } from './check-in-metrics.service';
+import { ConfidenceThresholdService } from './confidence-threshold.service';
+import { CooldownService } from './cooldown.service';
+import { FaceQualityService } from './face-quality.service';
+import { TemplateAggregationService } from './template-aggregation.service';
 
 /**
  * ContainerService manages singleton instances across the application.
@@ -63,6 +76,12 @@ class ContainerService {
   private passwordHasher: BcryptPasswordHasher | null = null;
   private tokenProvider: JoseTokenProvider | null = null;
   private googleOAuthProvider: GoogleOAuthProvider | null = null;
+  private faceQualityService: IFaceQualityService | null = null;
+  private templateAggregationService: ITemplateAggregationService | null = null;
+  // FASE 3: Performance Optimization Services
+  private confidenceThresholdService: IConfidenceThresholdService | null = null;
+  private cooldownService: ICooldownService | null = null;
+  private checkInMetricsService: ICheckInMetricsService | null = null;
 
   constructor(prismaClient: PrismaClient) {
     this.prismaClient = prismaClient;
@@ -244,6 +263,43 @@ class ContainerService {
       );
     }
     return this.googleOAuthProvider;
+  }
+
+  getFaceQualityService(): IFaceQualityService {
+    if (!this.faceQualityService) {
+      this.faceQualityService = new FaceQualityService();
+    }
+    return this.faceQualityService;
+  }
+
+  getTemplateAggregationService(): ITemplateAggregationService {
+    if (!this.templateAggregationService) {
+      this.templateAggregationService = new TemplateAggregationService();
+    }
+    return this.templateAggregationService;
+  }
+
+  // FASE 3: Performance Optimization Services
+
+  getConfidenceThresholdService(): IConfidenceThresholdService {
+    if (!this.confidenceThresholdService) {
+      this.confidenceThresholdService = new ConfidenceThresholdService();
+    }
+    return this.confidenceThresholdService;
+  }
+
+  getCooldownService(): ICooldownService {
+    if (!this.cooldownService) {
+      this.cooldownService = new CooldownService(this.prismaClient);
+    }
+    return this.cooldownService;
+  }
+
+  getCheckInMetricsService(): ICheckInMetricsService {
+    if (!this.checkInMetricsService) {
+      this.checkInMetricsService = new CheckInMetricsService(this.prismaClient);
+    }
+    return this.checkInMetricsService;
   }
 }
 

@@ -2,10 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { z } from 'zod/v4';
 
+import { containerService } from '@/core/application/services/container.service';
 import { TotemCheckInService } from '@/core/application/services/totem-checkin.service';
 import { withAuth, withTotemAuth, withTotemRoutingGuard } from '@/core/infrastructure/http/middlewares';
 import { getTotemAuth } from '@/core/infrastructure/http/types';
 import { prisma } from '@/core/infrastructure/prisma-client';
+import { PostgresVectorDbRepository } from '@/core/infrastructure/repositories/postgres-vector-db.repository';
 import { PrismaAuditLogRepository } from '@/core/infrastructure/repositories/prisma-audit-log.repository';
 
 import { resolveActiveTotemEventContextByTotemId } from '../_lib/active-totem-context';
@@ -19,10 +21,28 @@ const checkInSchema = z.object({
   faceCount: z.number().int().min(0).max(10).default(1),
   livenessScore: z.number().min(0).max(1).optional(),
   blinkDetected: z.boolean().optional().default(false),
+  // NEW (Phase 4): Face tracking fields
+  trackId: z.string().min(1).optional(),
+  trackStability: z.number().min(0).max(1).optional(),
+  historicalLivenessAvg: z.number().min(0).max(1).optional(),
 });
 
 function makeCheckInService(): TotemCheckInService {
-  return new TotemCheckInService(prisma, new PrismaAuditLogRepository(prisma));
+  const vectorDb = new PostgresVectorDbRepository(prisma);
+  const auditLog = new PrismaAuditLogRepository(prisma);
+  // FASE 3: Inject performance optimization services
+  const cooldownService = containerService.getCooldownService();
+  const metricsService = containerService.getCheckInMetricsService();
+  const confidenceThresholdService = containerService.getConfidenceThresholdService();
+
+  return new TotemCheckInService(
+    prisma,
+    auditLog,
+    vectorDb,
+    cooldownService,
+    metricsService,
+    confidenceThresholdService,
+  );
 }
 
 export const POST = withAuth(

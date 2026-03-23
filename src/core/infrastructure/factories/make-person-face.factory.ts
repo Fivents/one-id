@@ -6,7 +6,11 @@ import { RegisterFaceUseCase } from '@/core/application/use-cases/person-face/re
 import { RemoveFaceUseCase } from '@/core/application/use-cases/person-face/remove-face.use-case';
 
 export function makeRegisterFaceUseCase(): RegisterFaceUseCase {
-  return new RegisterFaceUseCase(containerService.getPersonFaceRepository());
+  return new RegisterFaceUseCase(
+    containerService.getPersonFaceRepository(),
+    containerService.getFaceQualityService(),
+    containerService.getTemplateAggregationService(),
+  );
 }
 
 export function makeRemoveFaceUseCase(): RemoveFaceUseCase {
