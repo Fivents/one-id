@@ -26,7 +26,11 @@ export const GET = withAuth(
           deletedAt: null,
         },
       },
-      include: {
+      select: {
+        id: true,
+        totemId: true,
+        startsAt: true,
+        endsAt: true,
         totem: {
           select: {
             id: true,
@@ -39,7 +43,12 @@ export const GET = withAuth(
             startsAt: { lte: now },
             endsAt: { gte: now },
           },
-          include: {
+          select: {
+            id: true,
+            eventId: true,
+            locationName: true,
+            startsAt: true,
+            endsAt: true,
             event: {
               select: {
                 id: true,

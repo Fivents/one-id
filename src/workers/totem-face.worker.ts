@@ -624,12 +624,30 @@ async function analyzeFrame(payload: WorkerAnalyzePayload, initPayload: WorkerIn
   const bestFace = faces[0];
   const box = (bestFace['box'] ?? {}) as Record<string, unknown>;
   const embeddingRaw = bestFace['embedding'];
+  const description = bestFace['description'] as Record<string, unknown> | undefined;
 
-  const embedding = Array.isArray(embeddingRaw)
-    ? embeddingRaw.map((value) => Number(value))
-    : embeddingRaw instanceof Float32Array
-      ? Array.from(embeddingRaw)
-      : [];
+  // Extract embedding from description if not directly available
+  let embedding: number[] = [];
+
+  if (Array.isArray(embeddingRaw)) {
+    embedding = embeddingRaw.map((value) => Number(value));
+  } else if (embeddingRaw instanceof Float32Array) {
+    embedding = Array.from(embeddingRaw);
+  } else if (description?.['embedding']) {
+    const descEmbedding = description['embedding'];
+    if (Array.isArray(descEmbedding)) {
+      embedding = descEmbedding.map((value) => Number(value));
+    } else if (descEmbedding instanceof Float32Array) {
+      embedding = Array.from(descEmbedding);
+    }
+  }
+
+  // Validate embedding dimensions (known valid outputs: 512 or 1024)
+  if (embedding.length === 0) {
+    console.warn('[Face Detection] Warning: Empty embedding detected');
+  } else if (embedding.length !== 512 && embedding.length !== 1024) {
+    console.warn(`[Face Detection] Warning: Embedding has ${embedding.length} dimensions, expected 512 or 1024`);
+  }
 
   const width = Number(box['width'] ?? 0);
   const height = Number(box['height'] ?? 0);

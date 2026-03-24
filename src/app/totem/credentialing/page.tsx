@@ -36,6 +36,27 @@ const FALLBACK_AI_CONFIG: TotemAIConfig = {
   recommendedDetectorModel: 'SCRFD 10G (2026 production baseline)',
 };
 
+const FACE_ANALYSIS_TIMEOUT_MS = 4000;
+const RESULT_MESSAGE_HOLD_MS = 1800;
+
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, timeoutError: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timeoutId = window.setTimeout(() => {
+      reject(new Error(timeoutError));
+    }, timeoutMs);
+
+    promise
+      .then((value) => {
+        window.clearTimeout(timeoutId);
+        resolve(value);
+      })
+      .catch((error) => {
+        window.clearTimeout(timeoutId);
+        reject(error);
+      });
+  });
+}
+
 export default function TotemCredentialingPage() {
   const router = useRouter();
   const { t } = useI18n();
@@ -48,6 +69,7 @@ export default function TotemCredentialingPage() {
   const isProcessingRef = useRef(false);
 
   const [isLoading, setIsLoading] = useState(true);
+  const [isSessionReady, setIsSessionReady] = useState(false);
   const [status, setStatus] = useState<TotemScreenState>('idle');
   const [message, setMessage] = useState<string>(t('pages.totemCredentialing.approachCamera'));
   const [aiConfig, setAiConfig] = useState<TotemAIConfig>(FALLBACK_AI_CONFIG);
@@ -60,6 +82,10 @@ export default function TotemCredentialingPage() {
   const [lastParticipant, setLastParticipant] = useState<TotemCheckInResponse['participant'] | null>(null);
   const [checkInsCount, setCheckInsCount] = useState(0);
   const [sessionToken, setSessionToken] = useState<string | null>(null);
+
+  const approachCameraMessage = t('pages.totemCredentialing.approachCamera');
+  const noActiveEventMessage = t('pages.totemCredentialing.noActiveEvent');
+  const offlineServerMessage = t('pages.totemCredentialing.offlineServer');
 
   const statusClass = useMemo(() => {
     if (status === 'success') return 'border-emerald-400/80 bg-emerald-500/20 text-emerald-100';
@@ -118,10 +144,10 @@ export default function TotemCredentialingPage() {
   const runDetectionCycle = useCallback(async () => {
     if (!isRunningRef.current) return;
 
-    const scheduleNext = () => {
+    const scheduleNext = (delayMs = aiConfig.detectionIntervalMs) => {
       loopTimerRef.current = window.setTimeout(() => {
         void runDetectionCycle();
-      }, aiConfig.detectionIntervalMs);
+      }, delayMs);
     };
 
     if (!connectionOnline) {
@@ -147,7 +173,11 @@ export default function TotemCredentialingPage() {
 
     try {
       const bitmap = await createImageBitmap(video);
-      const analysis = await runtime.analyze(bitmap);
+      const analysis = await withTimeout(
+        runtime.analyze(bitmap),
+        FACE_ANALYSIS_TIMEOUT_MS,
+        'FACE_ANALYSIS_TIMEOUT',
+      );
 
       if (!analysis.faceCount || !analysis.face) {
         setFaceBox(null);
@@ -178,6 +208,8 @@ export default function TotemCredentialingPage() {
 
       updateStatus('recognizing', t('pages.totemCredentialing.recognizing'));
 
+      const requestStartedAt = Date.now();
+
       const checkInResponse = await sendCheckIn(
         {
           embedding: analysis.face.embedding,
@@ -188,19 +220,45 @@ export default function TotemCredentialingPage() {
         sessionToken ?? undefined,
       );
 
+      if (process.env.NODE_ENV !== 'production') {
+        console.info('[TotemCredentialing] check-in response', {
+          success: checkInResponse.success,
+          code: checkInResponse.success ? 'CHECKIN_APPROVED' : checkInResponse.error.code,
+          latencyMs: Date.now() - requestStartedAt,
+          faceCount: analysis.faceCount,
+          embeddingDimensions: analysis.face.embedding.length,
+        });
+      }
+
       if (!checkInResponse.success) {
+        let shouldPlayErrorTone = true;
+
         if (checkInResponse.error.code === 'CHECKIN_PARTICIPANT_NOT_FOUND') {
           updateStatus('failure', t('pages.totemCredentialing.participantNotFound'));
         } else if (checkInResponse.error.code === 'CHECKIN_LOW_CONFIDENCE') {
           updateStatus('failure', t('pages.totemCredentialing.lowConfidence'));
+        } else if (checkInResponse.error.code === 'CHECKIN_DUPLICATE') {
+          updateStatus('failure', checkInResponse.error.message);
+          shouldPlayErrorTone = false;
         } else if (checkInResponse.error.code === 'CHECKIN_MULTIPLE_FACES') {
           updateStatus('failure', t('pages.totemCredentialing.multipleFaces'));
         } else if (checkInResponse.error.code === 'CHECKIN_LOW_LIVENESS') {
           updateStatus('failure', t('pages.totemCredentialing.lowLiveness'));
         } else if (checkInResponse.error.code === 'CHECKIN_NO_BLINK') {
           updateStatus('failure', t('pages.totemCredentialing.noBlink'));
-        } else if (checkInResponse.error.code === 'CHECKIN_GLOBAL_COOLDOWN') {
+        } else if (
+          checkInResponse.error.code === 'REQUEST_TIMEOUT' ||
+          checkInResponse.error.code === 'REQUEST_FAILED' ||
+          checkInResponse.error.code === 'UNEXPECTED_ERROR'
+        ) {
+          updateStatus('failure', t('pages.totemCredentialing.processingFailure'));
+          shouldPlayErrorTone = false;
+        } else if (
+          checkInResponse.error.code === 'CHECKIN_GLOBAL_COOLDOWN' ||
+          checkInResponse.error.code === 'CHECKIN_PERSON_COOLDOWN'
+        ) {
           updateStatus('detecting', t('pages.totemCredentialing.waitingCooldown'));
+          shouldPlayErrorTone = false;
         } else if (checkInResponse.error.code === 'TOTEM_NO_ACTIVE_EVENT') {
           clearTotemToken();
           router.replace('/totem/login');
@@ -210,8 +268,10 @@ export default function TotemCredentialingPage() {
         }
 
         setLastParticipant(null);
-        playTone('error');
-        scheduleNext();
+        if (shouldPlayErrorTone) {
+          playTone('error');
+        }
+        scheduleNext(RESULT_MESSAGE_HOLD_MS);
         return;
       }
 
@@ -219,52 +279,112 @@ export default function TotemCredentialingPage() {
       setLastParticipant(checkInResponse.data.participant);
       updateStatus('success', t('pages.totemCredentialing.checkInSuccess'));
       playTone('success');
-      scheduleNext();
-    } catch {
-      updateStatus('failure', t('pages.totemCredentialing.processingFailure'));
-      scheduleNext();
+      scheduleNext(RESULT_MESSAGE_HOLD_MS);
+    } catch (error) {
+      const code = error instanceof Error ? error.message : '';
+
+      if (process.env.NODE_ENV !== 'production') {
+        console.error('[TotemCredentialing] detection cycle error', {
+          code,
+          error,
+        });
+      }
+
+      if (code === 'FACE_ANALYSIS_TIMEOUT') {
+        updateStatus('failure', t('pages.totemCredentialing.processingFailure'));
+      } else {
+        updateStatus('failure', t('pages.totemCredentialing.processingFailure'));
+      }
+
+      scheduleNext(RESULT_MESSAGE_HOLD_MS);
     } finally {
       isProcessingRef.current = false;
     }
   }, [aiConfig, connectionOnline, playTone, router, sessionToken, t, updateStatus]);
 
-  const loadSession = useCallback(async () => {
-    const token = getTotemToken();
-
-    if (!token) {
-      router.replace('/totem/login');
-      return;
+  const waitForSessionToken = useCallback(async () => {
+    const immediateToken = getTotemToken();
+    if (immediateToken) {
+      return immediateToken;
     }
 
-    setSessionToken(token);
+    for (let attempt = 0; attempt < 6; attempt += 1) {
+      await new Promise<void>((resolve) => {
+        window.setTimeout(resolve, 120);
+      });
 
-    const session = await getTotemSession(token);
+      const token = getTotemToken();
+      if (token) {
+        return token;
+      }
+    }
 
-    if (!session.success) {
-      clearTotemToken();
+    return null;
+  }, []);
 
-      // Special handling for NO_ACTIVE_EVENT
-      if (session.error.code === 'TOTEM_NO_ACTIVE_EVENT') {
-        updateStatus('failure', t('pages.totemCredentialing.noActiveEvent'));
+  const isRetriableSessionError = useCallback((code?: string) => {
+    return code === 'UNEXPECTED_ERROR' || code === 'REQUEST_FAILED' || code === 'REQUEST_TIMEOUT';
+  }, []);
+
+  const loadSession = useCallback(async () => {
+    try {
+      const token = await waitForSessionToken();
+
+      if (!token) {
+        setIsSessionReady(false);
+        setIsLoading(false);
+        router.replace('/totem/login');
         return;
       }
 
-      router.replace('/totem/login');
-      return;
+      setSessionToken(token);
+
+      let session = await getTotemSession(token);
+
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        if (session.success || !isRetriableSessionError(session.error.code)) {
+          break;
+        }
+
+        await new Promise<void>((resolve) => {
+          window.setTimeout(resolve, 180 * (attempt + 1));
+        });
+
+        session = await getTotemSession(token);
+      }
+
+      if (!session.success) {
+        setIsSessionReady(false);
+        setIsLoading(false);
+
+        if (session.error.code === 'TOTEM_NO_ACTIVE_EVENT') {
+          clearTotemToken();
+          updateStatus('failure', t('pages.totemCredentialing.noActiveEvent'));
+          return;
+        }
+
+        clearTotemToken();
+        router.replace('/totem/login');
+        return;
+      }
+
+      setEventName(session.data.activeEvent.name);
+      setAiConfig(session.data.aiConfig);
+      setIsSessionReady(true);
+      setIsLoading(false);
+    } catch {
+      setIsSessionReady(false);
+      setIsLoading(false);
+      updateStatus('failure', t('pages.totemCredentialing.processingFailure'));
     }
-
-    setEventName(session.data.activeEvent.name);
-    setAiConfig(session.data.aiConfig);
-
-    setIsLoading(false);
-  }, [router, t, updateStatus]);
+  }, [isRetriableSessionError, router, t, updateStatus, waitForSessionToken]);
 
   useEffect(() => {
     void loadSession();
   }, [loadSession]);
 
   useEffect(() => {
-    if (isLoading) return;
+    if (isLoading || !isSessionReady) return;
 
     let ignore = false;
 
@@ -322,6 +442,7 @@ export default function TotemCredentialingPage() {
     aiConfig.maxFaces,
     aiConfig.minFaceSize,
     isLoading,
+    isSessionReady,
     runDetectionCycle,
     stopCamera,
     stopLoop,
@@ -417,14 +538,20 @@ export default function TotemCredentialingPage() {
   }, []);
 
   useEffect(() => {
-    if (!sessionToken) return;
+    if (!sessionToken || !isSessionReady) return;
 
     const interval = window.setInterval(async () => {
       const response = await getTotemSession(sessionToken);
 
       if (!response.success) {
         if (response.error.code === 'TOTEM_NO_ACTIVE_EVENT') {
-          updateStatus('failure', t('pages.totemCredentialing.noActiveEvent'));
+          updateStatus('failure', noActiveEventMessage);
+          return;
+        }
+
+        if (isRetriableSessionError(response.error.code)) {
+          setConnectionOnline(false);
+          updateStatus('offline', offlineServerMessage);
           return;
         }
 
@@ -441,16 +568,34 @@ export default function TotemCredentialingPage() {
     return () => {
       window.clearInterval(interval);
     };
-  }, [router, sessionToken, t('pages.totemCredentialing.noActiveEvent'), updateStatus]);
+  }, [
+    isRetriableSessionError,
+    isSessionReady,
+    noActiveEventMessage,
+    offlineServerMessage,
+    router,
+    sessionToken,
+    updateStatus,
+  ]);
 
   useEffect(() => {
-    setMessage((current) => (current ? current : t('pages.totemCredentialing.approachCamera')));
-  }, [t('pages.totemCredentialing.approachCamera')]);
+    setMessage((current) => (current ? current : approachCameraMessage));
+  }, [approachCameraMessage]);
 
   if (isLoading) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-black text-white">
         <p className="text-lg">{t('pages.totemCredentialing.booting')}</p>
+      </main>
+    );
+  }
+
+  if (!isSessionReady) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-black p-6 text-white">
+        <div className="max-w-lg rounded-2xl border border-white/15 bg-white/5 p-6 text-center backdrop-blur-md">
+          <p className="text-lg font-semibold">{message || t('pages.totemCredentialing.processingFailure')}</p>
+        </div>
       </main>
     );
   }

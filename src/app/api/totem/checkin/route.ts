@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { z } from 'zod/v4';
 
+import { faceEmbeddingSchema } from '@/core/communication/requests/person-face';
 import { containerService } from '@/core/application/services/container.service';
 import { TotemCheckInService } from '@/core/application/services/totem-checkin.service';
 import { withAuth, withTotemAuth, withTotemRoutingGuard } from '@/core/infrastructure/http/middlewares';
@@ -12,12 +13,8 @@ import { PrismaAuditLogRepository } from '@/core/infrastructure/repositories/pri
 
 import { resolveActiveTotemEventContextByTotemId } from '../_lib/active-totem-context';
 
-const FACE_EMBEDDING_DIMENSION = 512;
-
 const checkInSchema = z.object({
-  embedding: z
-    .array(z.number().finite())
-    .length(FACE_EMBEDDING_DIMENSION, `Embedding must contain ${FACE_EMBEDDING_DIMENSION} dimensions.`),
+  embedding: faceEmbeddingSchema,
   faceCount: z.number().int().min(0).max(10).default(1),
   livenessScore: z.number().min(0).max(1).optional(),
   blinkDetected: z.boolean().optional().default(false),

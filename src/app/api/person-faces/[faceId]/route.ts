@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod/v4';
 
 import { makeRemoveFaceController } from '@/core/application/controller-factories';
+import { faceEmbeddingSchema } from '@/core/communication/requests/person-face';
 import { AppError } from '@/core/errors';
 import { withAuth, withRBAC } from '@/core/infrastructure/http/middlewares';
 import { toNextResponse } from '@/core/infrastructure/http/to-next-response';
@@ -12,15 +13,11 @@ import { parseWithZod } from '@/core/utils/parse-with-zod';
 
 import { assertOrganizationAccess } from '../../people/_lib/access';
 
-const FACE_EMBEDDING_DIMENSION = 512;
-
 const updateFaceSchema = z
   .object({
     imageUrl: z.string().url().optional(),
     imageDataUrl: z.string().min(1).optional(),
-    embedding: z
-      .array(z.number().finite())
-      .length(FACE_EMBEDDING_DIMENSION, `Embedding must contain ${FACE_EMBEDDING_DIMENSION} dimensions.`),
+    embedding: faceEmbeddingSchema,
     embeddingModel: z.string().min(1).max(120).optional(),
     isActive: z.boolean().optional(),
   })
@@ -58,14 +55,28 @@ export const PATCH = withAuth(
         embedding: Buffer.from(new Float32Array(data.embedding).buffer),
       };
 
-      const updated = await prisma.personFace.update({
-        where: { id: faceId },
-        data: {
-          imageHash: faceFeatures.imageHash,
-          imageUrl: faceFeatures.storedImageUrl,
-          isActive: data.isActive,
-          embedding: new Uint8Array(faceFeatures.embedding),
-        },
+      const embeddingVector = `[${data.embedding.join(',')}]`;
+
+      const updated = await prisma.$transaction(async (tx) => {
+        const updatedFace = await tx.personFace.update({
+          where: { id: faceId },
+          data: {
+            imageHash: faceFeatures.imageHash,
+            imageUrl: faceFeatures.storedImageUrl,
+            isActive: data.isActive,
+            embedding: new Uint8Array(faceFeatures.embedding),
+          },
+        });
+
+        await tx.$executeRaw`
+          UPDATE person_faces
+          SET embedding_vector = ${embeddingVector}::vector,
+              embedding_normalized = true,
+              updated_at = NOW()
+          WHERE id = ${faceId}
+        `;
+
+        return updatedFace;
       });
 
       return NextResponse.json(updated, { status: 200 });

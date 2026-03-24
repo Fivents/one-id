@@ -7,6 +7,16 @@ import type { PrismaClient } from '@/generated/prisma/client';
 export class PrismaPersonFaceRepository implements IPersonFaceRepository {
   constructor(private readonly db: PrismaClient) {}
 
+  private toPgVectorString(embeddingBuffer: Buffer): string {
+    const vector = new Float32Array(
+      embeddingBuffer.buffer,
+      embeddingBuffer.byteOffset,
+      Math.floor(embeddingBuffer.byteLength / 4),
+    );
+
+    return `[${Array.from(vector).join(',')}]`;
+  }
+
   async findActiveByPerson(personId: string): Promise<PersonFaceEntity[]> {
     const faces = await this.db.personFace.findMany({
       where: { personId, isActive: true, deletedAt: null },
@@ -28,24 +38,36 @@ export class PrismaPersonFaceRepository implements IPersonFaceRepository {
   }
 
   async create(data: CreatePersonFaceData): Promise<PersonFaceEntity> {
-    const face = await this.db.personFace.create({
-      data: {
-        embedding: new Uint8Array(data.embedding),
-        imageHash: data.imageHash,
-        imageUrl: data.imageUrl,
-        personId: data.personId,
-        // Store quality assessment data if provided
-        ...(data.faceQualityScore !== undefined && { faceQualityScore: data.faceQualityScore }),
-        ...(data.faceQualityMetadata !== undefined && {
-          faceQualityMetadata: JSON.parse(JSON.stringify(data.faceQualityMetadata)),
-        }),
-        // Store model version for embedding compatibility tracking
-        embeddingModelVersion: data.embeddingModelVersion ?? 'InsightFace:0.3.3',
-        // Store template position for future multi-template support
-        ...(data.templatePosition !== undefined && { faceTemplatePosition: data.templatePosition }),
-        // Store template set ID for Phase 2 multi-pose grouping
-        ...(data.templateSetId !== undefined && { templateSetId: data.templateSetId }),
-      },
+    const face = await this.db.$transaction(async (tx) => {
+      const created = await tx.personFace.create({
+        data: {
+          embedding: new Uint8Array(data.embedding),
+          imageHash: data.imageHash,
+          imageUrl: data.imageUrl,
+          personId: data.personId,
+          // Store quality assessment data if provided
+          ...(data.faceQualityScore !== undefined && { faceQualityScore: data.faceQualityScore }),
+          ...(data.faceQualityMetadata !== undefined && {
+            faceQualityMetadata: JSON.parse(JSON.stringify(data.faceQualityMetadata)),
+          }),
+          // Store model version for embedding compatibility tracking
+          embeddingModelVersion: data.embeddingModelVersion ?? 'InsightFace:0.3.3',
+          // Store template position for future multi-template support
+          ...(data.templatePosition !== undefined && { faceTemplatePosition: data.templatePosition }),
+          // Store template set ID for Phase 2 multi-pose grouping
+          ...(data.templateSetId !== undefined && { templateSetId: data.templateSetId }),
+        },
+      });
+
+      await tx.$executeRaw`
+        UPDATE person_faces
+        SET embedding_vector = ${this.toPgVectorString(data.embedding)}::vector,
+            embedding_normalized = true,
+            updated_at = NOW()
+        WHERE id = ${created.id}
+      `;
+
+      return created;
     });
 
     return PersonFaceEntity.create({

@@ -26,7 +26,13 @@ export const GET = withAuth(
       where: {
         totemId,
       },
-      include: {
+      select: {
+        id: true,
+        organizationId: true,
+        startsAt: true,
+        endsAt: true,
+        revokedAt: true,
+        revokedReason: true,
         organization: {
           select: {
             id: true,
@@ -34,7 +40,14 @@ export const GET = withAuth(
           },
         },
         eventSubscriptions: {
-          include: {
+          select: {
+            id: true,
+            eventId: true,
+            locationName: true,
+            startsAt: true,
+            endsAt: true,
+            revokedAt: true,
+            revokedReason: true,
             event: {
               select: {
                 id: true,

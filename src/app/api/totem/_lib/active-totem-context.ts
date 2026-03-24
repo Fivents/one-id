@@ -28,11 +28,11 @@ export interface ActiveTotemContext {
 }
 
 const DEFAULT_AI_CONFIG: EventAIConfigDTO = {
-  confidenceThreshold: 0.75,
+  confidenceThreshold: 0.72,
   detectionIntervalMs: 500,
   maxFaces: 1,
   livenessDetection: false,
-  minFaceSize: 80,
+  minFaceSize: 64,
   recommendedEmbeddingModel: 'InsightFace Buffalo_L (ArcFace, 512d)',
   recommendedDetectorModel: 'SCRFD 10G (2026 production baseline)',
 };

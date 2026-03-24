@@ -97,7 +97,12 @@ export const POST = withAuth(
           startsAt: data.startsAt,
           endsAt: data.endsAt,
         },
-        include: {
+        select: {
+          id: true,
+          eventId: true,
+          locationName: true,
+          startsAt: true,
+          endsAt: true,
           event: {
             select: {
               id: true,

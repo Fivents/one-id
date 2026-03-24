@@ -13,8 +13,12 @@ import type { PrismaClient } from '@/generated/prisma/client';
 
 const FACE_EMBEDDING_DIMENSION = 512;
 const PERSON_COOLDOWN_MS = 5_000;
-const EMBEDDING_MODEL_VERSION = 'InsightFace:0.3.3'; // Current model version
 const MINIMUM_QUALITY_SCORE = 0.65; // Minimum face quality for matching
+const VECTOR_SEARCH_RELAXATION = 0.2;
+const MIN_SEARCH_THRESHOLD = 0.5;
+const MAX_ACCEPTANCE_RELAXATION = 0.06;
+const MIN_ACCEPTANCE_THRESHOLD = 0.62;
+const RELAXED_MIN_MARGIN_FROM_SECOND = 0.03;
 
 export interface CheckInInput {
   embedding: number[];
@@ -42,6 +46,15 @@ export interface CheckInResult {
   totemEventSubscriptionId: string;
   participant: CheckInParticipant;
 }
+
+type MatchCandidate = {
+  eventParticipantId: string;
+  participantName: string;
+  company: string | null;
+  jobTitle: string | null;
+  faceImageUrl: string | null;
+  confidence: number;
+};
 
 export type CheckInError = {
   code: string;
@@ -164,16 +177,9 @@ export class TotemCheckInService {
 
       // ── Find best match (using Vector Search if available) ────────
       const probeEmbedding = input.embedding;
-      let bestMatch:
-        | {
-            eventParticipantId: string;
-            participantName: string;
-            company: string | null;
-            jobTitle: string | null;
-            faceImageUrl: string | null;
-            confidence: number;
-          }
-        | undefined;
+      let bestMatch: MatchCandidate | undefined;
+      let secondBestConfidence: number | undefined;
+      const configuredConfidenceThreshold = this.normalizeThreshold(context.aiConfig.confidenceThreshold);
 
       if (this.vectorDbRepository) {
         // ── PHASE 1: Use Vector Search (O(log n)) ────────────────────
@@ -182,11 +188,13 @@ export class TotemCheckInService {
           eventId: context.event.id,
           organizationId: context.organizationId,
           k: 5, // Return top 5 candidates
-          threshold: context.aiConfig.confidenceThreshold,
+          threshold: this.getSearchThreshold(configuredConfidenceThreshold),
         });
 
         if (searchResults.length > 0) {
           const topMatch = searchResults[0];
+          const runnerUp = searchResults[1];
+
           bestMatch = {
             eventParticipantId: topMatch.eventParticipantId,
             participantName: topMatch.personName,
@@ -195,72 +203,18 @@ export class TotemCheckInService {
             faceImageUrl: topMatch.faceImageUrl,
             confidence: topMatch.confidence,
           };
+
+          secondBestConfidence = runnerUp?.confidence;
         }
-      } else {
-        // ── Fallback: Legacy Loop Search (O(n×m)) ───────────────────
-        const participants = await this.db.eventParticipant.findMany({
-          where: {
-            eventId: context.event.id,
-            deletedAt: null,
-            person: {
-              deletedAt: null,
-            },
-          },
-          select: {
-            id: true,
-            company: true,
-            jobTitle: true,
-            person: {
-              select: {
-                name: true,
-                faces: {
-                  where: {
-                    deletedAt: null,
-                    isActive: true,
-                  },
-                  select: {
-                    id: true,
-                    embedding: true,
-                    imageUrl: true,
-                    faceQualityScore: true,
-                  },
-                },
-              },
-            },
-          },
-        });
+      }
 
-        for (const participant of participants) {
-          for (const face of participant.person.faces) {
-            // Phase 2: More flexible quality filtering
-            // If person has multiple templates, don't skip low-quality ones
-            // because another template might be better
-            // For single template, only accept if quality acceptable
-            const totalTemplatesForPerson = participant.person.faces.length;
-            if (
-              totalTemplatesForPerson === 1 &&
-              face.faceQualityScore !== null &&
-              face.faceQualityScore < MINIMUM_QUALITY_SCORE
-            ) {
-              continue; // Skip single-template faces that are low quality
-            }
+      if (!bestMatch || bestMatch.confidence < configuredConfidenceThreshold) {
+        // Safety net: keep check-in operational even if embedding_vector is missing or stale.
+        const fallback = await this.findBestMatchWithLegacyLoop(probeEmbedding, context.event.id);
 
-            const confidence = this.cosineSimilarity(
-              Buffer.from(face.embedding),
-              Buffer.from(new Float32Array(probeEmbedding).buffer),
-            );
-
-            if (!bestMatch || confidence > bestMatch.confidence) {
-              bestMatch = {
-                eventParticipantId: participant.id,
-                participantName: participant.person.name,
-                company: participant.company,
-                jobTitle: participant.jobTitle,
-                faceImageUrl: face.imageUrl,
-                confidence,
-              };
-            }
-          }
+        if (fallback.bestMatch && (!bestMatch || fallback.bestMatch.confidence > bestMatch.confidence)) {
+          bestMatch = fallback.bestMatch;
+          secondBestConfidence = fallback.secondBestConfidence;
         }
       }
 
@@ -269,12 +223,21 @@ export class TotemCheckInService {
         return this.deny('CHECKIN_PARTICIPANT_NOT_FOUND', 'Participant not found.', 404, context, totemId);
       }
 
+      const thresholdDecision = this.resolveThresholdDecision(
+        configuredConfidenceThreshold,
+        bestMatch.confidence,
+        secondBestConfidence,
+      );
+
       // ── Confidence threshold ──────────────────────────────────────
-      if (bestMatch.confidence < context.aiConfig.confidenceThreshold) {
+      if (bestMatch.confidence < thresholdDecision.acceptanceThreshold) {
         failureReason = 'LOW_CONFIDENCE';
         return this.deny('CHECKIN_LOW_CONFIDENCE', 'Confidence below threshold.', 400, context, totemId, {
           confidence: bestMatch.confidence,
-          threshold: context.aiConfig.confidenceThreshold,
+          threshold: thresholdDecision.acceptanceThreshold,
+          configuredThreshold: configuredConfidenceThreshold,
+          thresholdMode: thresholdDecision.mode,
+          secondBestConfidence,
           faceCount: input.faceCount,
           participantName: bestMatch.participantName,
           eventParticipantId: bestMatch.eventParticipantId,
@@ -365,7 +328,10 @@ export class TotemCheckInService {
         metadata: {
           checkInId: checkIn.id,
           confidence: bestMatch.confidence,
-          confidenceThreshold: context.aiConfig.confidenceThreshold,
+          confidenceThreshold: thresholdDecision.acceptanceThreshold,
+          configuredThreshold: configuredConfidenceThreshold,
+          thresholdMode: thresholdDecision.mode,
+          secondBestConfidence,
           totemId,
           eventId: context.event.id,
           totemEventSubscriptionId: context.totemEventSubscriptionId,
@@ -451,6 +417,133 @@ export class TotemCheckInService {
     }
 
     return dot / Math.sqrt(normA * normB);
+  }
+
+  private async findBestMatchWithLegacyLoop(
+    probeEmbedding: number[],
+    eventId: string,
+  ): Promise<{ bestMatch?: MatchCandidate; secondBestConfidence?: number }> {
+    const participants = await this.db.eventParticipant.findMany({
+      where: {
+        eventId,
+        deletedAt: null,
+        person: {
+          deletedAt: null,
+        },
+      },
+      select: {
+        id: true,
+        company: true,
+        jobTitle: true,
+        person: {
+          select: {
+            name: true,
+            faces: {
+              where: {
+                deletedAt: null,
+                isActive: true,
+              },
+              select: {
+                id: true,
+                embedding: true,
+                imageUrl: true,
+                faceQualityScore: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const participantCandidates = new Map<string, MatchCandidate>();
+    const probeBuffer = Buffer.from(new Float32Array(probeEmbedding).buffer);
+
+    for (const participant of participants) {
+      for (const face of participant.person.faces) {
+        const totalTemplatesForPerson = participant.person.faces.length;
+
+        if (
+          totalTemplatesForPerson === 1 &&
+          face.faceQualityScore !== null &&
+          face.faceQualityScore < MINIMUM_QUALITY_SCORE
+        ) {
+          continue;
+        }
+
+        const confidence = this.cosineSimilarity(Buffer.from(face.embedding), probeBuffer);
+        const previous = participantCandidates.get(participant.id);
+
+        if (!previous || confidence > previous.confidence) {
+          participantCandidates.set(participant.id, {
+            eventParticipantId: participant.id,
+            participantName: participant.person.name,
+            company: participant.company,
+            jobTitle: participant.jobTitle,
+            faceImageUrl: face.imageUrl,
+            confidence,
+          });
+        }
+      }
+    }
+
+    const sortedCandidates = Array.from(participantCandidates.values()).sort((a, b) => b.confidence - a.confidence);
+
+    return {
+      bestMatch: sortedCandidates[0],
+      secondBestConfidence: sortedCandidates[1]?.confidence,
+    };
+  }
+
+  private normalizeThreshold(value: number): number {
+    if (!Number.isFinite(value)) {
+      return 0.75;
+    }
+
+    return Math.max(MIN_SEARCH_THRESHOLD, Math.min(0.95, value));
+  }
+
+  private getSearchThreshold(configuredThreshold: number): number {
+    return Math.max(MIN_SEARCH_THRESHOLD, configuredThreshold - VECTOR_SEARCH_RELAXATION);
+  }
+
+  private resolveThresholdDecision(
+    configuredThreshold: number,
+    bestConfidence: number,
+    secondBestConfidence?: number,
+  ): { acceptanceThreshold: number; mode: 'STRICT' | 'RELAXED_NEAR_MATCH' } {
+    if (bestConfidence >= configuredThreshold) {
+      return { acceptanceThreshold: configuredThreshold, mode: 'STRICT' };
+    }
+
+    const relaxedThreshold = Math.max(
+      MIN_ACCEPTANCE_THRESHOLD,
+      configuredThreshold - MAX_ACCEPTANCE_RELAXATION,
+    );
+
+    const isNearThreshold = bestConfidence >= relaxedThreshold;
+
+    if (!isNearThreshold) {
+      return { acceptanceThreshold: configuredThreshold, mode: 'STRICT' };
+    }
+
+    if (secondBestConfidence === undefined) {
+      // Single candidate only gets minor tolerance to reduce false accepts.
+      const singleCandidateThreshold = Math.max(relaxedThreshold, configuredThreshold - 0.02);
+
+      if (bestConfidence >= singleCandidateThreshold) {
+        return { acceptanceThreshold: singleCandidateThreshold, mode: 'RELAXED_NEAR_MATCH' };
+      }
+
+      return { acceptanceThreshold: configuredThreshold, mode: 'STRICT' };
+    }
+
+    const confidenceGap = bestConfidence - secondBestConfidence;
+
+    if (confidenceGap >= RELAXED_MIN_MARGIN_FROM_SECOND) {
+      return { acceptanceThreshold: relaxedThreshold, mode: 'RELAXED_NEAR_MATCH' };
+    }
+
+    return { acceptanceThreshold: configuredThreshold, mode: 'STRICT' };
   }
 
   private async deny(

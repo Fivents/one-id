@@ -59,6 +59,10 @@ export interface TotemCheckInResponse {
 
 const TOTEM_TOKEN_KEY = 'oneid.totem.token';
 
+interface RequestOptions {
+  timeoutMs?: number;
+}
+
 function mapFailure(error: unknown): ApiResponse<never> {
   const message = error instanceof Error ? error.message : 'Unexpected error.';
   return {
@@ -70,9 +74,18 @@ function mapFailure(error: unknown): ApiResponse<never> {
   };
 }
 
-async function request<T>(url: string, init: RequestInit): Promise<ApiResponse<T>> {
+async function request<T>(url: string, init: RequestInit, options: RequestOptions = {}): Promise<ApiResponse<T>> {
+  const timeoutMs = options.timeoutMs ?? 10000;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => {
+    controller.abort();
+  }, timeoutMs);
+
   try {
-    const response = await fetch(url, init);
+    const response = await fetch(url, {
+      ...init,
+      signal: controller.signal,
+    });
     const payload = await response.json().catch(() => ({}));
 
     if (!response.ok) {
@@ -87,7 +100,19 @@ async function request<T>(url: string, init: RequestInit): Promise<ApiResponse<T
 
     return { success: true, data: payload as T };
   } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      return {
+        success: false,
+        error: {
+          code: 'REQUEST_TIMEOUT',
+          message: 'Server response timeout.',
+        },
+      };
+    }
+
     return mapFailure(error);
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
 
@@ -113,6 +138,8 @@ export async function loginTotem(key: string): Promise<ApiResponse<TotemLoginRes
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({ key }),
+  }, {
+    timeoutMs: 12000,
   });
 
   if (response.success) {
@@ -140,6 +167,8 @@ export async function getTotemSession(token?: string): Promise<ApiResponse<Totem
     headers: {
       Authorization: `Bearer ${activeToken}`,
     },
+  }, {
+    timeoutMs: 8000,
   });
 }
 
@@ -172,6 +201,8 @@ export async function sendCheckIn(
       Authorization: `Bearer ${activeToken}`,
     },
     body: JSON.stringify(payload),
+  }, {
+    timeoutMs: 7000,
   });
 }
 
@@ -193,6 +224,8 @@ export async function getEventAIConfig(eventId: string, token?: string): Promise
     headers: {
       Authorization: `Bearer ${activeToken}`,
     },
+  }, {
+    timeoutMs: 10000,
   });
 }
 

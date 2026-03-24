@@ -131,7 +131,7 @@ export class PostgresVectorDbRepository implements IVectorDbRepository {
         confidence
       FROM ranked_faces
       WHERE template_rank = 1
-        AND confidence > ${input.threshold}
+        AND confidence >= ${input.threshold}
       ORDER BY confidence DESC
       LIMIT ${input.k}
     `;

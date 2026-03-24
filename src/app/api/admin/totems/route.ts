@@ -30,7 +30,12 @@ export const GET = withAuth(
         startsAt: { lte: new Date() },
         endsAt: { gte: new Date() },
       },
-      include: {
+      select: {
+        id: true,
+        totemId: true,
+        organizationId: true,
+        startsAt: true,
+        endsAt: true,
         organization: {
           select: {
             id: true,
@@ -49,7 +54,13 @@ export const GET = withAuth(
             startsAt: { lte: new Date() },
             endsAt: { gte: new Date() },
           },
-          include: {
+          select: {
+            id: true,
+            eventId: true,
+            totemOrganizationSubscriptionId: true,
+            locationName: true,
+            startsAt: true,
+            endsAt: true,
             event: {
               select: {
                 id: true,
