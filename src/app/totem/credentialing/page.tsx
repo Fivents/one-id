@@ -31,7 +31,7 @@ const FALLBACK_AI_CONFIG: TotemAIConfig = {
   detectionIntervalMs: 500,
   maxFaces: 1,
   livenessDetection: false,
-  minFaceSize: 85,
+  minFaceSize: 50, // Reduced to allow close-range detection with small faces
   recommendedEmbeddingModel: 'InsightFace Buffalo_L (ArcFace, 512d)',
   recommendedDetectorModel: 'SCRFD 10G (2026 production baseline)',
 };

@@ -31,7 +31,9 @@ export async function extractFaceEmbedding(input: {
   const runtime = new TotemFaceRuntime();
 
   try {
-    await runtime.init({ maxFaces: 1, minFaceSize: 80, livenessEnabled: false });
+    // minFaceSize: 20 pixels - very lenient for enrollment
+    // Enrollment is more flexible than live check-in (totem)
+    await runtime.init({ maxFaces: 1, minFaceSize: 20, livenessEnabled: false });
 
     const blob = await blobFromSource(input);
     const bitmap = await createImageBitmap(blob);
@@ -46,10 +48,6 @@ export async function extractFaceEmbedding(input: {
 
     if (analysis.faceCount !== 1) {
       throw new Error(`Detected ${analysis.faceCount} faces. Please provide an image with exactly one face.`);
-    }
-
-    if (!analysis.face.isBigEnough) {
-      throw new Error('Face is too small in the image. Please move closer to the camera or use a larger face in the photo.');
     }
 
     return {

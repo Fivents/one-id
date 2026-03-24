@@ -314,7 +314,9 @@ export default function OrganizationPeoplePage() {
       return;
     }
 
-    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    // Mirror horizontally to match video preview (scaleX(-1))
+    context.scale(-1, 1);
+    context.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
     const captured = canvas.toDataURL('image/jpeg', 0.9);
     setCreateFaceImageDataUrl(captured);
     setCreateFaceImageUrl('');
@@ -649,7 +651,9 @@ export default function OrganizationPeoplePage() {
       return;
     }
 
-    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    // Mirror horizontally to match video preview (scaleX(-1))
+    context.scale(-1, 1);
+    context.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
     const captured = canvas.toDataURL('image/jpeg', 0.9);
     setFaceImageDataUrl(captured);
     setFaceImageUrl('');
@@ -1119,7 +1123,14 @@ export default function OrganizationPeoplePage() {
                 )}
               </div>
               {isCreateFaceCameraOpen && (
-                <video ref={createFaceVideoRef} className="w-full rounded-md border" autoPlay playsInline muted />
+                <video
+                  ref={createFaceVideoRef}
+                  className="w-full rounded-md border"
+                  style={{ transform: 'scaleX(-1)' }}
+                  autoPlay
+                  playsInline
+                  muted
+                />
               )}
             </div>
 
@@ -1324,7 +1335,14 @@ export default function OrganizationPeoplePage() {
               </div>
 
               {isFaceCameraOpen && (
-                <video ref={faceVideoRef} className="w-full rounded-md border" autoPlay playsInline muted />
+                <video
+                  ref={faceVideoRef}
+                  className="w-full rounded-md border"
+                  style={{ transform: 'scaleX(-1)' }}
+                  autoPlay
+                  playsInline
+                  muted
+                />
               )}
             </div>
 

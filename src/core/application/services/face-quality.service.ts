@@ -15,7 +15,7 @@ import type { FaceQualityScore,IFaceQualityService } from '@/core/domain/contrac
 export class FaceQualityService implements IFaceQualityService {
   // Configurable thresholds
   private readonly QUALITY_THRESHOLD = 0.65; // Overall score threshold
-  private readonly MIN_FACE_SIZE = 100; // Minimum face width in pixels
+  private readonly MIN_FACE_SIZE = 40; // Minimum face width in pixels (reduced for very close-range detection)
   private readonly MAX_YAW = Math.PI * 0.2; // ±36 degrees
   private readonly MAX_PITCH = Math.PI * 0.2; // ±36 degrees
   private readonly MAX_ROLL = Math.PI * 0.15; // ±27 degrees
