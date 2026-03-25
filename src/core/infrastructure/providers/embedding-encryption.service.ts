@@ -21,7 +21,7 @@
  * - Multiple keys supported (for gradual migration)
  */
 
-import { randomBytes, createCipheriv, createDecipheriv } from 'node:crypto';
+import { createCipheriv, createDecipheriv,randomBytes } from 'node:crypto';
 
 export interface EncryptedEmbedding {
   version: number; // Key version for rotation

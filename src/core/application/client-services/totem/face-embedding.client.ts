@@ -33,7 +33,13 @@ export async function extractFaceEmbedding(input: {
   try {
     // minFaceSize: 20 pixels - very lenient for enrollment
     // Enrollment is more flexible than live check-in (totem)
-    await runtime.init({ maxFaces: 1, minFaceSize: 20, livenessEnabled: false });
+    await runtime.init({
+      maxFaces: 1,
+      minFaceSize: 20,
+      livenessEnabled: false,
+      livenessThreshold: 0.7,
+      confidenceThreshold: 0.5,
+    });
 
     const blob = await blobFromSource(input);
     const bitmap = await createImageBitmap(blob);

@@ -14,7 +14,6 @@ export type { ICooldownService, PersonCooldownState } from './cooldown.service';
 export type {
   IEmbeddingEncryptionService,
 } from './embedding-encryption.service';
-export type { IMultiTenantAuditService } from './multi-tenant-audit.service';
 export type { CreateEventData, IEventRepository, UpdateEventData } from './event.repository';
 export type {
   CreateEventParticipantData,
@@ -25,6 +24,7 @@ export type { FaceQualityScore, IFaceQualityService } from './face-quality.servi
 export type { CreateFeatureData, IFeatureRepository, UpdateFeatureData } from './feature.repository';
 export type { GoogleUserInfo, IGoogleOAuthProvider } from './google-oauth.provider';
 export type { CreateMembershipData, IMembershipRepository } from './membership.repository';
+export type { IMultiTenantAuditService } from './multi-tenant-audit.service';
 export type { CreateNotificationData, INotificationRepository } from './notification.repository';
 export type {
   CreateOrganizationData,

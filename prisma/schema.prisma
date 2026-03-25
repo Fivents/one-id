@@ -278,11 +278,22 @@ model EventAIConfig {
 
   eventId String @unique @map("event_id")
 
-  confidenceThreshold Float   @default(0.75) @map("confidence_threshold")
+  // Detection & Matching
+  confidenceThreshold Float   @default(0.62) @map("confidence_threshold")
   detectionIntervalMs Int     @default(500) @map("detection_interval_ms")
   maxFaces            Int     @default(1) @map("max_faces")
-  livenessDetection   Boolean @default(false) @map("liveness_detection")
   minFaceSize         Int     @default(80) @map("min_face_size")
+
+  // Liveness Detection
+  livenessDetection   Boolean @default(true) @map("liveness_detection")
+  livenessThreshold   Float   @default(0.70) @map("liveness_threshold")
+
+  // pgvector HNSW Search
+  efSearch            Int     @default(64) @map("ef_search")
+  topKCandidates      Int     @default(5) @map("top_k_candidates")
+
+  // Anti-fraud
+  cooldownSeconds     Int     @default(8) @map("cooldown_seconds")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")

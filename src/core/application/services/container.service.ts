@@ -12,6 +12,7 @@ import type {
 import { env } from '@/core/infrastructure/environment/env';
 import { prisma } from '@/core/infrastructure/prisma-client';
 import { BcryptPasswordHasher } from '@/core/infrastructure/providers/bcrypt-password-hasher';
+import { EmbeddingEncryptionService } from '@/core/infrastructure/providers/embedding-encryption.service';
 import { GoogleOAuthProvider } from '@/core/infrastructure/providers/google-oauth.provider';
 import { JoseTokenProvider } from '@/core/infrastructure/providers/jose-token-provider';
 import { PrismaAuditLogRepository } from '@/core/infrastructure/repositories/prisma-audit-log.repository';
@@ -40,10 +41,9 @@ import type { PrismaClient } from '@/generated/prisma/client';
 import { CheckInMetricsService } from './check-in-metrics.service';
 import { ConfidenceThresholdService } from './confidence-threshold.service';
 import { CooldownService } from './cooldown.service';
-import { EmbeddingEncryptionService } from '@/core/infrastructure/providers/embedding-encryption.service';
 import { FaceQualityService } from './face-quality.service';
-import { TemplateAggregationService } from './template-aggregation.service';
 import { MultiTenantAuditService } from './multi-tenant-audit.service';
+import { TemplateAggregationService } from './template-aggregation.service';
 
 /**
  * ContainerService manages singleton instances across the application.

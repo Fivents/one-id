@@ -1,46 +1,55 @@
 /// <reference lib="webworker" />
 
-import { Human } from '@vladmandic/human';
-import { SCRFD } from '@/core/infrastructure/ml/scrfd';
-import {
-  assignFacesToTracks,
-  clearTracks,
-  createFaceTracker,
-  createNewTrack,
-  getAggregatedLivenessScore,
-  getTrackStability,
-  type FaceDetection,
-  type FaceTracker,
-  type TrackedFace,
-  updateTrackLiveness,
-} from '@/core/infrastructure/features/face-tracking';
+/**
+ * Totem Face Recognition Worker
+ *
+ * Production-ready facial recognition pipeline:
+ * 1. SCRFD detection (InsightFace)
+ * 2. Multi-frame liveness detection
+ * 3. ArcFace embedding extraction (512-dim)
+ *
+ * All inference runs in this worker thread via ONNX Runtime Web.
+ * Main thread is never blocked.
+ */
 
-type WorkerInitPayload = {
+import * as ort from 'onnxruntime-web';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Types
+// ═══════════════════════════════════════════════════════════════════════════════
+
+interface WorkerInitPayload {
   maxFaces: number;
   minFaceSize: number;
   livenessEnabled: boolean;
-  trackingEnabled?: boolean; // NEW (Phase 4)
-  detectorType?: 'human' | 'scrfd'; // NEW (Phase 4)
-  fallbackEnabled?: boolean; // NEW (Phase 4)
-};
+  livenessThreshold: number;
+  confidenceThreshold: number;
+  modelsPath?: string;
+}
 
-type WorkerAnalyzePayload = {
+interface WorkerAnalyzePayload {
   bitmap: ImageBitmap;
-};
+}
 
 type WorkerRequest =
   | { id: number; type: 'init'; payload: WorkerInitPayload }
   | { id: number; type: 'analyze'; payload: WorkerAnalyzePayload }
   | { id: number; type: 'dispose' };
 
-type WorkerResponse = {
+interface WorkerResponse {
   id: number;
   ok: boolean;
   error?: string;
   data?: unknown;
-};
+}
 
-// ── NEW: Face Quality Score ─────────────────────────────────────
+interface FaceBox {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 interface FaceQualityMetadata {
   brightness: number;
   blurriness: number;
@@ -51,796 +60,946 @@ interface FaceQualityMetadata {
   landmarkConfidence: number;
 }
 
-// ── NEW: Multimodal Liveness Analysis ───────────────────────────
-interface LivenessAnalysis {
-  antiSpoofScore: number;
-  blinkDetected: boolean;
-  headMovementDetected: boolean;
-  textureQuality: number;
-  finalLivenessScore: number;
-  timestamp?: number; // NEW (Phase 4)
+interface FaceAnalysisResult {
+  faceCount: number;
+  face: {
+    box: FaceBox;
+    isBigEnough: boolean;
+    embedding: number[];
+    livenessScore: number;
+    qualityScore: number;
+    qualityMetadata: FaceQualityMetadata;
+    landmarks: number[][];
+    detectionScore: number;
+  } | null;
+  liveness: {
+    isLive: boolean;
+    score: number;
+    blinkDetected: boolean;
+    headMovementDetected: boolean;
+    framesAnalyzed: number;
+  } | null;
+  timings: {
+    detectionMs: number;
+    embeddingMs: number;
+    totalMs: number;
+  };
 }
 
-let human: Human | null = null;
+// ═══════════════════════════════════════════════════════════════════════════════
+// Configuration
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const SCRFD_MODEL = 'scrfd_10g_bnkps.onnx';
+const ARCFACE_MODEL = 'w600k_r50.onnx';
+const SCRFD_INPUT_SIZE = 640;
+const ARCFACE_INPUT_SIZE = 112;
+const EMBEDDING_DIM = 512;
+
+// ArcFace alignment template (112x112)
+const ARCFACE_TEMPLATE = [
+  [38.2946, 51.6963], // left eye
+  [73.5318, 51.5014], // right eye
+  [56.0252, 71.7366], // nose
+  [41.5493, 92.3655], // mouth left
+  [70.7299, 92.2041], // mouth right
+];
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// State
+// ═══════════════════════════════════════════════════════════════════════════════
+
+let config: WorkerInitPayload | null = null;
 let initialized = false;
 
-// ── NEW (Phase 4): Face Tracking State ──────────────────────────────────
-let faceTracker: FaceTracker | null = null;
-let trackingEnabled = false;
+// ONNX Sessions
+let scrfdSession: ort.InferenceSession | null = null;
+let arcfaceSession: ort.InferenceSession | null = null;
 
-// ── NEW (Phase 4): SCRFD Detector State ─────────────────────────────────
-let scrfd: SCRFD | null = null;
-let detectorType: 'human' | 'scrfd' = 'human'; // Default to Human.js
-let fallbackEnabled = true; // Auto-fallback SCRFD → Human.js on error
-let detectorLoadFailed = false; // Track if SCRFD failed to load
-
-// ── Blink & Head Movement Detection ──────────────────────────────────
-// Track face landmarks to detect actual eye blinks and head movements
-
-interface FrameState {
-  eyeState: { leftOpen: boolean; rightOpen: boolean };
-  headRotation: { yaw: number; pitch: number; roll: number };
+// Liveness state
+const livenessFrames: {
   timestamp: number;
-}
+  landmarks: number[][];
+  headPose: { yaw: number; pitch: number; roll: number };
+}[] = [];
+const blinkHistory: boolean[] = [];
+let lastEyeState = { leftOpen: true, rightOpen: true };
 
-const FRAME_HISTORY_SIZE = 20; // Track last 20 frames (~667ms at 30fps)
-const BLINK_THRESHOLD_FRAMES = 3; // Minimum frames to confirm blink
-let frameHistory: FrameState[] = [];
-const _detectedBlinksCount = 0;
+// ═══════════════════════════════════════════════════════════════════════════════
+// Message Handler
+// ═══════════════════════════════════════════════════════════════════════════════
 
-/**
- * Detect blink from iris/eye state
- * Eyes are considered "open" when iris is visible within eye bounds
- */
-function detectEyeBlink(face: Record<string, unknown>): { leftOpen: boolean; rightOpen: boolean } {
-  // Try to extract iris data
-  const iris = face['iris'] as unknown;
-  if (!iris) {
-    return { leftOpen: true, rightOpen: true }; // Default open if no iris data
-  }
+self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
+  const request = event.data;
 
-  const irisArray = Array.isArray(iris) ? iris : [];
+  try {
+    switch (request.type) {
+      case 'init':
+        await handleInit(request.payload);
+        respond(request.id, true);
+        break;
 
-  // iris typically has [left_iris, right_iris] or similar structure
-  // If iris confidence is 0 or null, eye is likely closed
-  let leftOpen = true;
-  let rightOpen = true;
+      case 'analyze':
+        const result = await handleAnalyze(request.payload);
+        respond(request.id, true, result);
+        break;
 
-  if (Array.isArray(irisArray[0])) {
-    const leftIris = irisArray[0] as number[];
-    leftOpen = leftIris && leftIris.length > 0 && (leftIris[3] ?? 0.1) > 0.05; // confidence > 0.05
-  }
+      case 'dispose':
+        await handleDispose();
+        respond(request.id, true);
+        break;
 
-  if (Array.isArray(irisArray[1])) {
-    const rightIris = irisArray[1] as number[];
-    rightOpen = rightIris && rightIris.length > 0 && (rightIris[3] ?? 0.1) > 0.05;
-  }
-
-  return { leftOpen, rightOpen };
-}
-
-/**
- * Detect actual blinks by looking for eye closure transitions
- * A blink is: open -> closed -> open sequence detected
- * Returns true if at least one blink was detected in recent frames
- */
-function processBlinks(): boolean {
-  if (frameHistory.length < BLINK_THRESHOLD_FRAMES) return false;
-
-  const recent = frameHistory.slice(-10); // Look at last 10 frames
-
-  // Detect blink pattern: open → closed → open
-  for (let i = 1; i < recent.length - 1; i++) {
-    const prev = recent[i - 1];
-    const curr = recent[i];
-    const next = recent[i + 1];
-
-    const wasBothOpen = prev.eyeState.leftOpen && prev.eyeState.rightOpen;
-    const isEitherClosed = !curr.eyeState.leftOpen || !curr.eyeState.rightOpen;
-    const isOpenAgain = next.eyeState.leftOpen && next.eyeState.rightOpen;
-
-    if (wasBothOpen && isEitherClosed && isOpenAgain) {
-      // _detectedBlinksCount++;
-      return true;
+      default: {
+        const _exhaustive: never = request;
+        respond((_exhaustive as WorkerRequest).id, false, undefined, 'Unknown request type');
+      }
     }
-
-    // Also detect partial blink (one eye closes fully)
-    const wasLeftOpen = prev.eyeState.leftOpen;
-    const isLeftClosed = !curr.eyeState.leftOpen;
-    const leftOpenAgain = next.eyeState.leftOpen;
-
-    if (wasLeftOpen && isLeftClosed && leftOpenAgain) {
-      // _detectedBlinksCount++;
-      return true;
-    }
-
-    // Same for right eye
-    const wasRightOpen = prev.eyeState.rightOpen;
-    const isRightClosed = !curr.eyeState.rightOpen;
-    const rightOpenAgain = next.eyeState.rightOpen;
-
-    if (wasRightOpen && isRightClosed && rightOpenAgain) {
-      // _detectedBlinksCount++;
-      return true;
-    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    console.error('[FaceWorker] Error:', message);
+    respond(request.id, false, undefined, message);
   }
+};
 
-  return false;
+function respond(id: number, ok: boolean, data?: unknown, error?: string): void {
+  const response: WorkerResponse = { id, ok };
+  if (data !== undefined) response.data = data;
+  if (error) response.error = error;
+  self.postMessage(response);
 }
 
-/**
- * Detect head movements (yaw/rotation for liveness challenge response)
- * Challenge: "Turn your head left and right" or "Nod your head"
- */
-function _detectHeadMovement(): { hasMovement: boolean; direction: string; magnitude: number } {
-  if (frameHistory.length < 5) {
-    return { hasMovement: false, direction: 'insufficient_data', magnitude: 0 };
+// ═══════════════════════════════════════════════════════════════════════════════
+// Initialization
+// ═══════════════════════════════════════════════════════════════════════════════
+
+async function handleInit(payload: WorkerInitPayload): Promise<void> {
+  if (initialized) {
+    console.log('[FaceWorker] Already initialized, skipping');
+    return;
   }
 
-  const first = frameHistory[0];
-  const last = frameHistory[frameHistory.length - 1];
+  config = payload;
+  const modelsPath = payload.modelsPath || '/models';
 
-  // Angles are typically in radians, convert to degrees
-  const yawChange = Math.abs((last.headRotation.yaw - first.headRotation.yaw) * 180 / Math.PI);
-  const pitchChange = Math.abs((last.headRotation.pitch - first.headRotation.pitch) * 180 / Math.PI);
-  const rollChange = Math.abs((last.headRotation.roll - first.headRotation.roll) * 180 / Math.PI);
+  console.log('[FaceWorker] Initializing with config:', {
+    maxFaces: payload.maxFaces,
+    minFaceSize: payload.minFaceSize,
+    livenessEnabled: payload.livenessEnabled,
+  });
 
-  const totalMovement = yawChange + pitchChange + rollChange;
+  // Configure ONNX Runtime WASM paths for Web Worker context
+  // Workers need absolute URLs since they don't have the same base URL as the main page
+  const origin = self.location.origin;
+  const wasmPath = `${origin}/wasm/`;
 
-  if (totalMovement > 25) {
-    // Significant movement detected
-    if (yawChange > pitchChange && yawChange > 10) {
-      return { hasMovement: true, direction: 'horizontal', magnitude: yawChange }; // Left-right turn
-    } else if (pitchChange > 10) {
-      return { hasMovement: true, direction: 'vertical', magnitude: pitchChange }; // Nod up-down
-    } else if (rollChange > 10) {
-      return { hasMovement: true, direction: 'rotational', magnitude: rollChange }; // Tilt
-    }
+  ort.env.wasm.wasmPaths = wasmPath;
+  ort.env.wasm.numThreads = 1; // Single thread is more stable in workers
+  ort.env.wasm.simd = true;
+
+  // Disable proxy worker since we're already in a worker
+  ort.env.wasm.proxy = false;
+
+  console.log('[FaceWorker] WASM path:', wasmPath);
+
+  // Load models
+  const startTime = performance.now();
+
+  try {
+    // Load SCRFD
+    console.log('[FaceWorker] Loading SCRFD model...');
+    const scrfdUrl = `${origin}${modelsPath}/${SCRFD_MODEL}`;
+    console.log('[FaceWorker] SCRFD URL:', scrfdUrl);
+
+    scrfdSession = await ort.InferenceSession.create(scrfdUrl, {
+      executionProviders: ['wasm'],
+      graphOptimizationLevel: 'all',
+    });
+    console.log(`[FaceWorker] SCRFD loaded in ${(performance.now() - startTime).toFixed(0)}ms`);
+
+    // Load ArcFace
+    const arcfaceStart = performance.now();
+    console.log('[FaceWorker] Loading ArcFace model...');
+    const arcfaceUrl = `${origin}${modelsPath}/${ARCFACE_MODEL}`;
+    console.log('[FaceWorker] ArcFace URL:', arcfaceUrl);
+
+    arcfaceSession = await ort.InferenceSession.create(arcfaceUrl, {
+      executionProviders: ['wasm'],
+      graphOptimizationLevel: 'all',
+    });
+    console.log(`[FaceWorker] ArcFace loaded in ${(performance.now() - arcfaceStart).toFixed(0)}ms`);
+
+    // Warm up models
+    await warmupModels();
+
+    initialized = true;
+    console.log(`[FaceWorker] Initialization complete in ${(performance.now() - startTime).toFixed(0)}ms`);
+  } catch (error) {
+    console.error('[FaceWorker] Model loading failed:', error);
+    throw error;
   }
-
-  return { hasMovement: false, direction: 'none', magnitude: 0 };
 }
 
-function detectBlink(face: Record<string, unknown>): boolean {
-  const now = Date.now();
-
-  // Extract eye state from iris tracking
-  const eyeState = detectEyeBlink(face);
-
-  // Extract head rotation from face landmarks if available
-  const headRotation = {
-    yaw: Number(face['yaw'] ?? 0),
-    pitch: Number(face['pitch'] ?? 0),
-    roll: Number(face['roll'] ?? 0),
-  };
-
-  frameHistory.push({ eyeState, headRotation, timestamp: now });
-
-  // Keep only recent frames (roughly last 1 second)
-  frameHistory = frameHistory.filter((f) => now - f.timestamp < 1000);
-
-  // Keep only last N frames
-  if (frameHistory.length > FRAME_HISTORY_SIZE) {
-    frameHistory = frameHistory.slice(-FRAME_HISTORY_SIZE);
+async function warmupModels(): Promise<void> {
+  // Warmup SCRFD
+  if (scrfdSession) {
+    const dummyInput = new Float32Array(3 * SCRFD_INPUT_SIZE * SCRFD_INPUT_SIZE);
+    const tensor = new ort.Tensor('float32', dummyInput, [1, 3, SCRFD_INPUT_SIZE, SCRFD_INPUT_SIZE]);
+    await scrfdSession.run({ [scrfdSession.inputNames[0]]: tensor });
   }
 
-  // Use actual blink detection
-  return processBlinks();
+  // Warmup ArcFace
+  if (arcfaceSession) {
+    const dummyInput = new Float32Array(3 * ARCFACE_INPUT_SIZE * ARCFACE_INPUT_SIZE);
+    const tensor = new ort.Tensor('float32', dummyInput, [1, 3, ARCFACE_INPUT_SIZE, ARCFACE_INPUT_SIZE]);
+    await arcfaceSession.run({ [arcfaceSession.inputNames[0]]: tensor });
+  }
+
+  console.log('[FaceWorker] Models warmed up');
 }
 
-// ── NEW (Phase 1): Multimodal Liveness Detection ─────────────────
-function computeMultimodalLiveness(
-  face: Record<string, unknown>,
-  frameHistory: FrameState[],
-  livenessEnabled: boolean,
-): LivenessAnalysis {
-  if (!livenessEnabled) {
+// ═══════════════════════════════════════════════════════════════════════════════
+// Face Analysis
+// ═══════════════════════════════════════════════════════════════════════════════
+
+async function handleAnalyze(payload: WorkerAnalyzePayload): Promise<FaceAnalysisResult> {
+  if (!initialized || !scrfdSession || !arcfaceSession || !config) {
+    throw new Error('Worker not initialized');
+  }
+
+  const totalStart = performance.now();
+  const { bitmap } = payload;
+
+  // 1. Face Detection with SCRFD
+  const detectionStart = performance.now();
+  const detections = await detectFaces(bitmap);
+  const detectionMs = performance.now() - detectionStart;
+
+  // No faces detected
+  if (detections.length === 0) {
+    bitmap.close();
     return {
-      antiSpoofScore: 1,
-      blinkDetected: true,
-      headMovementDetected: true,
-      textureQuality: 1,
-      finalLivenessScore: 1,
-      timestamp: Date.now(),
+      faceCount: 0,
+      face: null,
+      liveness: null,
+      timings: {
+        detectionMs,
+        embeddingMs: 0,
+        totalMs: performance.now() - totalStart,
+      },
     };
   }
 
-  // 1. Anti-spoofing score (from Human.js model)
-  const antiSpoofScore = extractAntiSpoofScore(face);
+  // Too many faces
+  if (detections.length > config.maxFaces) {
+    bitmap.close();
+    return {
+      faceCount: detections.length,
+      face: null,
+      liveness: null,
+      timings: {
+        detectionMs,
+        embeddingMs: 0,
+        totalMs: performance.now() - totalStart,
+      },
+    };
+  }
 
-  // 2. Blink detection (from temporal eye state)
-  const blinkDetected = processBlinks();
+  // Get best face (highest score)
+  const bestFace = detections.reduce((a, b) => (a.score > b.score ? a : b));
 
-  // 3. Head movement detection (from frame history)
-  const headMovement = _detectHeadMovement();
-  const headMovementDetected = headMovement.magnitude > 15; // degrees threshold
+  // Check minimum face size
+  const isBigEnough = bestFace.box.width >= config.minFaceSize && bestFace.box.height >= config.minFaceSize;
 
-  // 4. Texture quality (face descriptor confidence)
-  const description = face['description'] as Record<string, unknown> | undefined;
-  const textureQuality = Number(description?.['confidence'] ?? 0.5);
+  // Calculate quality metadata
+  const qualityMetadata = calculateQualityMetadata(bestFace, bitmap.width, bitmap.height);
+  const qualityScore = calculateQualityScore(qualityMetadata);
 
-  // Weighted combination (normalized 0-1)
-  const finalScore =
-    antiSpoofScore * 0.4 +
-    (blinkDetected ? 0.8 : 0.2) * 0.3 +
-    (headMovementDetected ? 0.8 : 0.2) * 0.2 +
-    textureQuality * 0.1;
+  // Update liveness frames
+  if (config.livenessEnabled) {
+    addLivenessFrame(bestFace.landmarks, qualityMetadata);
+  }
+
+  // 2. Extract embedding if face is good enough
+  let embedding: number[] = [];
+  let embeddingMs = 0;
+
+  if (isBigEnough && qualityScore >= 0.5) {
+    const embeddingStart = performance.now();
+    embedding = await extractEmbedding(bitmap, bestFace.landmarks);
+    embeddingMs = performance.now() - embeddingStart;
+  }
+
+  // 3. Evaluate liveness
+  const liveness = config.livenessEnabled ? evaluateLiveness() : null;
+
+  bitmap.close();
 
   return {
-    antiSpoofScore,
-    blinkDetected,
-    headMovementDetected,
-    textureQuality,
-    finalLivenessScore: Math.max(0, Math.min(1, finalScore)),
-    timestamp: Date.now(),
+    faceCount: detections.length,
+    face: {
+      box: bestFace.box,
+      isBigEnough,
+      embedding,
+      livenessScore: liveness?.score ?? 1.0,
+      qualityScore,
+      qualityMetadata,
+      landmarks: bestFace.landmarks,
+      detectionScore: bestFace.score,
+    },
+    liveness,
+    timings: {
+      detectionMs,
+      embeddingMs,
+      totalMs: performance.now() - totalStart,
+    },
   };
 }
 
-/**
- * Extract anti-spoof score from Human.js model.
- * Returns 0-1 confidence value.
- */
-function extractAntiSpoofScore(face: Record<string, unknown>): number {
-  // Try multiple possible field names from Human.js output
-  const possibleFields = ['antiSpoof', 'liveness', 'live', 'real', 'spoofScore'];
+// ═══════════════════════════════════════════════════════════════════════════════
+// SCRFD Face Detection
+// ═══════════════════════════════════════════════════════════════════════════════
 
-  for (const field of possibleFields) {
-    const value = face[field];
-
-    // Check if it's a nested object with score
-    if (typeof value === 'object' && value !== null) {
-      const score = (value as Record<string, unknown>)['score'];
-      if (typeof score === 'number') {
-        return Math.max(0, Math.min(1, score));
-      }
-    }
-
-    // Check if it's a direct number
-    if (typeof value === 'number') {
-      return Math.max(0, Math.min(1, value));
-    }
-
-    // Check if it's boolean
-    if (typeof value === 'boolean') {
-      return value ? 1 : 0;
-    }
-  }
-
-  // Fallback: if no anti-spoof data, assume not live
-  return 0;
+interface Detection {
+  box: FaceBox;
+  score: number;
+  landmarks: number[][];
 }
 
-// ── NEW (Phase 1): Face Quality Assessment ──────────────────────
-function assessFaceQuality(face: Record<string, unknown>): FaceQualityMetadata {
-  const box = (face['box'] ?? {}) as Record<string, unknown>;
-  const description = face['description'] as Record<string, unknown> | undefined;
+async function detectFaces(image: ImageBitmap): Promise<Detection[]> {
+  if (!scrfdSession) throw new Error('SCRFD not loaded');
 
-  // Brightness: based on descriptor confidence variance
-  const descriptorConfidence = Number(description?.['confidence'] ?? 0.5);
-  const brightness = (0.5 - descriptorConfidence) * 2; // Range: -1 to 1
+  // Preprocess image
+  const { tensor, scaleX, scaleY, padX, padY } = preprocessForScrfd(image);
 
-  // Blurriness: inverse of descriptor confidence
-  let blurriness = 0.5;
-  if (descriptorConfidence > 0.8) blurriness = 0;
-  else if (descriptorConfidence > 0.6) blurriness = 0.2;
-  else if (descriptorConfidence > 0.4) blurriness = 0.4;
-  else blurriness = 0.8;
+  // Run inference
+  const results = await scrfdSession.run({ [scrfdSession.inputNames[0]]: tensor });
 
-  // Face size
-  const faceSize = Number(box['width'] ?? 0);
+  // Parse outputs
+  return parseScrfdOutputs(results, scaleX, scaleY, padX, padY);
+}
 
-  // Head pose angles
-  const headPoseYaw = Number(face['yaw'] ?? 0);
-  const headPosePitch = Number(face['pitch'] ?? 0);
-  const headPoseRoll = Number(face['roll'] ?? 0);
+function preprocessForScrfd(image: ImageBitmap): {
+  tensor: ort.Tensor;
+  scaleX: number;
+  scaleY: number;
+  padX: number;
+  padY: number;
+} {
+  const { width, height } = image;
 
-  // Landmark confidence (from mesh or landmarks array)
-  const landmarks = face['landmarks'] as unknown[];
-  let landmarkConfidence = 0.5;
+  // Calculate scale to fit in SCRFD_INPUT_SIZE
+  const scale = Math.min(SCRFD_INPUT_SIZE / width, SCRFD_INPUT_SIZE / height);
+  const newWidth = Math.round(width * scale);
+  const newHeight = Math.round(height * scale);
+  const padX = (SCRFD_INPUT_SIZE - newWidth) / 2;
+  const padY = (SCRFD_INPUT_SIZE - newHeight) / 2;
 
-  if (Array.isArray(landmarks) && landmarks.length > 0) {
-    const confidences: number[] = [];
-    for (const lm of landmarks) {
-      if (Array.isArray(lm) && lm.length >= 4) {
-        const conf = Number(lm[3] ?? 0);
-        if (conf >= 0 && conf <= 1) confidences.push(conf);
+  // Create canvas
+  const canvas = new OffscreenCanvas(SCRFD_INPUT_SIZE, SCRFD_INPUT_SIZE);
+  const ctx = canvas.getContext('2d')!;
+
+  // Fill with gray padding
+  ctx.fillStyle = 'rgb(114, 114, 114)';
+  ctx.fillRect(0, 0, SCRFD_INPUT_SIZE, SCRFD_INPUT_SIZE);
+
+  // Draw resized image
+  ctx.drawImage(image, padX, padY, newWidth, newHeight);
+
+  // Get image data and convert to tensor
+  const imageData = ctx.getImageData(0, 0, SCRFD_INPUT_SIZE, SCRFD_INPUT_SIZE);
+  const data = imageData.data;
+  const size = SCRFD_INPUT_SIZE * SCRFD_INPUT_SIZE;
+  const tensorData = new Float32Array(3 * size);
+
+  for (let i = 0; i < size; i++) {
+    const idx = i * 4;
+    tensorData[i] = data[idx] / 255; // R
+    tensorData[size + i] = data[idx + 1] / 255; // G
+    tensorData[2 * size + i] = data[idx + 2] / 255; // B
+  }
+
+  return {
+    tensor: new ort.Tensor('float32', tensorData, [1, 3, SCRFD_INPUT_SIZE, SCRFD_INPUT_SIZE]),
+    scaleX: 1 / scale,
+    scaleY: 1 / scale,
+    padX,
+    padY,
+  };
+}
+
+function parseScrfdOutputs(
+  outputs: ort.InferenceSession.ReturnType,
+  scaleX: number,
+  scaleY: number,
+  padX: number,
+  padY: number,
+): Detection[] {
+  const detections: Detection[] = [];
+  const scoreThreshold = 0.5;
+  const nmsThreshold = 0.4;
+
+  // SCRFD outputs scores, bboxes, keypoints per stride
+  const outputNames = Object.keys(outputs);
+
+  // Try to find outputs by name pattern
+  const strides = [8, 16, 32];
+
+  for (const stride of strides) {
+    // Find matching outputs for this stride
+    const scoreKey = outputNames.find((n) => n.toLowerCase().includes('score') && n.includes(String(stride)));
+    const bboxKey = outputNames.find((n) => n.toLowerCase().includes('bbox') && n.includes(String(stride)));
+    const kpsKey = outputNames.find(
+      (n) => (n.toLowerCase().includes('kps') || n.toLowerCase().includes('landmark')) && n.includes(String(stride)),
+    );
+
+    if (!scoreKey || !bboxKey) continue;
+
+    const scores = outputs[scoreKey].data as Float32Array;
+    const bboxes = outputs[bboxKey].data as Float32Array;
+    const kps = kpsKey ? (outputs[kpsKey].data as Float32Array) : null;
+
+    const fmapSize = SCRFD_INPUT_SIZE / stride;
+    const numAnchors = 2;
+
+    for (let y = 0; y < fmapSize; y++) {
+      for (let x = 0; x < fmapSize; x++) {
+        for (let anchor = 0; anchor < numAnchors; anchor++) {
+          const idx = (y * fmapSize + x) * numAnchors + anchor;
+          const score = scores[idx];
+
+          if (score < scoreThreshold) continue;
+
+          // Decode bbox
+          const bboxIdx = idx * 4;
+          const cx = (x + 0.5) * stride + bboxes[bboxIdx] * stride - padX;
+          const cy = (y + 0.5) * stride + bboxes[bboxIdx + 1] * stride - padY;
+          const w = Math.exp(bboxes[bboxIdx + 2]) * stride;
+          const h = Math.exp(bboxes[bboxIdx + 3]) * stride;
+
+          // Decode landmarks
+          const landmarks: number[][] = [];
+          if (kps) {
+            const kpsIdx = idx * 10;
+            for (let k = 0; k < 5; k++) {
+              const lx = ((x + kps[kpsIdx + k * 2]) * stride - padX) * scaleX;
+              const ly = ((y + kps[kpsIdx + k * 2 + 1]) * stride - padY) * scaleY;
+              landmarks.push([lx, ly]);
+            }
+          }
+
+          detections.push({
+            box: {
+              x: (cx - w / 2) * scaleX,
+              y: (cy - h / 2) * scaleY,
+              width: w * scaleX,
+              height: h * scaleY,
+            },
+            score,
+            landmarks,
+          });
+        }
       }
     }
+  }
 
-    if (confidences.length > 0) {
-      landmarkConfidence = confidences.reduce((a, b) => a + b, 0) / confidences.length;
+  // If no stride-specific outputs found, try generic output format
+  if (detections.length === 0 && outputNames.length > 0) {
+    // Try first output as concatenated results
+    const output = outputs[outputNames[0]];
+    const data = output.data as Float32Array;
+    const dims = output.dims;
+
+    // Format: [1, N, 15] where 15 = 4 (bbox) + 1 (score) + 10 (landmarks)
+    if (dims.length === 3 && dims[2] >= 5) {
+      const numDets = dims[1];
+      const stride = dims[2];
+
+      for (let i = 0; i < numDets; i++) {
+        const offset = i * stride;
+        const score = stride === 15 ? data[offset + 4] : data[offset + stride - 1];
+
+        if (score < scoreThreshold) continue;
+
+        const x1 = (data[offset] - padX) * scaleX;
+        const y1 = (data[offset + 1] - padY) * scaleY;
+        const x2 = (data[offset + 2] - padX) * scaleX;
+        const y2 = (data[offset + 3] - padY) * scaleY;
+
+        const landmarks: number[][] = [];
+        if (stride >= 15) {
+          for (let k = 0; k < 5; k++) {
+            landmarks.push([(data[offset + 5 + k * 2] - padX) * scaleX, (data[offset + 6 + k * 2] - padY) * scaleY]);
+          }
+        }
+
+        detections.push({
+          box: { x: x1, y: y1, width: x2 - x1, height: y2 - y1 },
+          score,
+          landmarks,
+        });
+      }
     }
   }
+
+  // Apply NMS
+  return applyNMS(detections, nmsThreshold);
+}
+
+function applyNMS(detections: Detection[], threshold: number): Detection[] {
+  if (detections.length === 0) return [];
+
+  const sorted = [...detections].sort((a, b) => b.score - a.score);
+  const kept: Detection[] = [];
+
+  while (sorted.length > 0) {
+    const best = sorted.shift()!;
+    kept.push(best);
+
+    for (let i = sorted.length - 1; i >= 0; i--) {
+      if (calculateIoU(best.box, sorted[i].box) > threshold) {
+        sorted.splice(i, 1);
+      }
+    }
+  }
+
+  return kept;
+}
+
+function calculateIoU(box1: FaceBox, box2: FaceBox): number {
+  const x1 = Math.max(box1.x, box2.x);
+  const y1 = Math.max(box1.y, box2.y);
+  const x2 = Math.min(box1.x + box1.width, box2.x + box2.width);
+  const y2 = Math.min(box1.y + box1.height, box2.y + box2.height);
+
+  if (x2 < x1 || y2 < y1) return 0;
+
+  const intersection = (x2 - x1) * (y2 - y1);
+  const union = box1.width * box1.height + box2.width * box2.height - intersection;
+
+  return intersection / union;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ArcFace Embedding Extraction
+// ═══════════════════════════════════════════════════════════════════════════════
+
+async function extractEmbedding(image: ImageBitmap, landmarks: number[][]): Promise<number[]> {
+  if (!arcfaceSession) throw new Error('ArcFace not loaded');
+  if (landmarks.length < 5) return [];
+
+  // Align face
+  const aligned = alignFace(image, landmarks);
+
+  // Preprocess for ArcFace
+  const tensor = preprocessForArcFace(aligned);
+
+  // Run inference
+  const results = await arcfaceSession.run({ [arcfaceSession.inputNames[0]]: tensor });
+  const output = results[arcfaceSession.outputNames[0]];
+  const embedding = new Float32Array(output.data as Float32Array);
+
+  // L2 normalize
+  return normalizeL2(embedding);
+}
+
+function alignFace(image: ImageBitmap, landmarks: number[][]): OffscreenCanvas {
+  // Estimate similarity transform
+  const matrix = estimateSimilarityTransform(landmarks, ARCFACE_TEMPLATE);
+
+  // Create aligned canvas
+  const canvas = new OffscreenCanvas(ARCFACE_INPUT_SIZE, ARCFACE_INPUT_SIZE);
+  const ctx = canvas.getContext('2d')!;
+
+  // Apply transform and draw
+  warpAffine(image, ctx, matrix);
+
+  return canvas;
+}
+
+function estimateSimilarityTransform(src: number[][], dst: number[][]): number[][] {
+  const n = Math.min(src.length, dst.length);
+
+  // Calculate centroids
+  let srcMeanX = 0,
+    srcMeanY = 0,
+    dstMeanX = 0,
+    dstMeanY = 0;
+  for (let i = 0; i < n; i++) {
+    srcMeanX += src[i][0];
+    srcMeanY += src[i][1];
+    dstMeanX += dst[i][0];
+    dstMeanY += dst[i][1];
+  }
+  srcMeanX /= n;
+  srcMeanY /= n;
+  dstMeanX /= n;
+  dstMeanY /= n;
+
+  // Calculate covariance
+  let cov00 = 0,
+    cov01 = 0,
+    cov10 = 0,
+    cov11 = 0,
+    srcVar = 0;
+  for (let i = 0; i < n; i++) {
+    const sx = src[i][0] - srcMeanX;
+    const sy = src[i][1] - srcMeanY;
+    const dx = dst[i][0] - dstMeanX;
+    const dy = dst[i][1] - dstMeanY;
+
+    cov00 += sx * dx;
+    cov01 += sx * dy;
+    cov10 += sy * dx;
+    cov11 += sy * dy;
+    srcVar += sx * sx + sy * sy;
+  }
+
+  const a = cov00 + cov11;
+  const b = cov10 - cov01;
+  const scale = Math.sqrt(a * a + b * b) / srcVar;
+  const cos = a / (srcVar * scale);
+  const sin = b / (srcVar * scale);
+
+  const tx = dstMeanX - scale * (cos * srcMeanX - sin * srcMeanY);
+  const ty = dstMeanY - scale * (sin * srcMeanX + cos * srcMeanY);
+
+  return [
+    [scale * cos, -scale * sin, tx],
+    [scale * sin, scale * cos, ty],
+  ];
+}
+
+function warpAffine(image: ImageBitmap, ctx: OffscreenCanvasRenderingContext2D, matrix: number[][]): void {
+  // Draw source image to temp canvas
+  const srcCanvas = new OffscreenCanvas(image.width, image.height);
+  const srcCtx = srcCanvas.getContext('2d')!;
+  srcCtx.drawImage(image, 0, 0);
+
+  const srcData = srcCtx.getImageData(0, 0, image.width, image.height).data;
+  const dstData = ctx.createImageData(ARCFACE_INPUT_SIZE, ARCFACE_INPUT_SIZE);
+
+  // Invert transform matrix
+  const a = matrix[0][0],
+    b = matrix[0][1],
+    c = matrix[0][2];
+  const d = matrix[1][0],
+    e = matrix[1][1],
+    f = matrix[1][2];
+  const det = a * e - b * d;
+  const invA = e / det,
+    invB = -b / det,
+    invC = (b * f - e * c) / det;
+  const invD = -d / det,
+    invE = a / det,
+    invF = (d * c - a * f) / det;
+
+  // Bilinear interpolation
+  for (let dy = 0; dy < ARCFACE_INPUT_SIZE; dy++) {
+    for (let dx = 0; dx < ARCFACE_INPUT_SIZE; dx++) {
+      const sx = invA * dx + invB * dy + invC;
+      const sy = invD * dx + invE * dy + invF;
+
+      const x0 = Math.floor(sx),
+        y0 = Math.floor(sy);
+      const x1 = x0 + 1,
+        y1 = y0 + 1;
+
+      if (x0 >= 0 && x1 < image.width && y0 >= 0 && y1 < image.height) {
+        const fx = sx - x0,
+          fy = sy - y0;
+        const idx00 = (y0 * image.width + x0) * 4;
+        const idx01 = (y0 * image.width + x1) * 4;
+        const idx10 = (y1 * image.width + x0) * 4;
+        const idx11 = (y1 * image.width + x1) * 4;
+        const dstIdx = (dy * ARCFACE_INPUT_SIZE + dx) * 4;
+
+        for (let ch = 0; ch < 4; ch++) {
+          const v00 = srcData[idx00 + ch];
+          const v01 = srcData[idx01 + ch];
+          const v10 = srcData[idx10 + ch];
+          const v11 = srcData[idx11 + ch];
+          const v0 = v00 * (1 - fx) + v01 * fx;
+          const v1 = v10 * (1 - fx) + v11 * fx;
+          dstData.data[dstIdx + ch] = v0 * (1 - fy) + v1 * fy;
+        }
+      }
+    }
+  }
+
+  ctx.putImageData(dstData, 0, 0);
+}
+
+function preprocessForArcFace(canvas: OffscreenCanvas): ort.Tensor {
+  const ctx = canvas.getContext('2d')!;
+  const imageData = ctx.getImageData(0, 0, ARCFACE_INPUT_SIZE, ARCFACE_INPUT_SIZE);
+  const data = imageData.data;
+  const size = ARCFACE_INPUT_SIZE * ARCFACE_INPUT_SIZE;
+  const tensorData = new Float32Array(3 * size);
+
+  // Normalize to [-1, 1] in CHW format
+  for (let i = 0; i < size; i++) {
+    const idx = i * 4;
+    tensorData[i] = data[idx] / 127.5 - 1; // R
+    tensorData[size + i] = data[idx + 1] / 127.5 - 1; // G
+    tensorData[2 * size + i] = data[idx + 2] / 127.5 - 1; // B
+  }
+
+  return new ort.Tensor('float32', tensorData, [1, 3, ARCFACE_INPUT_SIZE, ARCFACE_INPUT_SIZE]);
+}
+
+function normalizeL2(embedding: Float32Array): number[] {
+  let norm = 0;
+  for (let i = 0; i < embedding.length; i++) {
+    norm += embedding[i] * embedding[i];
+  }
+  norm = Math.sqrt(norm);
+
+  const result: number[] = new Array(embedding.length);
+  for (let i = 0; i < embedding.length; i++) {
+    result[i] = embedding[i] / norm;
+  }
+
+  return result;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Quality Assessment
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function calculateQualityMetadata(face: Detection, imageWidth: number, imageHeight: number): FaceQualityMetadata {
+  const landmarks = face.landmarks;
+
+  // Calculate head pose from landmarks
+  const headPose = estimateHeadPose(landmarks);
+
+  // Calculate face size relative to image
+  const faceSize = Math.max(face.box.width, face.box.height);
+  const relativeSize = faceSize / Math.min(imageWidth, imageHeight);
+
+  // Estimate brightness (would need actual pixel analysis)
+  const brightness = 0.7; // Placeholder
+
+  // Estimate blurriness from detection confidence
+  const blurriness = 1 - face.score;
+
+  // Landmark confidence from detection score
+  const landmarkConfidence = face.score;
 
   return {
     brightness,
     blurriness,
-    faceSize,
-    headPoseYaw,
-    headPosePitch,
-    headPoseRoll,
+    faceSize: relativeSize,
+    headPoseYaw: headPose.yaw,
+    headPosePitch: headPose.pitch,
+    headPoseRoll: headPose.roll,
     landmarkConfidence,
   };
 }
 
-function buildHumanConfig(payload: WorkerInitPayload) {
-  return {
-    debug: false,
-    backend: 'webgl',
-    modelBasePath: 'https://cdn.jsdelivr.net/npm/@vladmandic/human/models',
-    cacheSensitivity: 0,
-    face: {
-      enabled: true,
-      detector: {
-        enabled: true,
-        maxDetected: payload.maxFaces,
-        minConfidence: 0.6,
-        rotation: true,
-      },
-      mesh: {
-        enabled: false,
-      },
-      iris: {
-        enabled: true, // Enable iris tracking for accurate blink detection
-      },
-      emotion: {
-        enabled: false,
-      },
-      description: {
-        enabled: true,
-      },
-      antiSpoof: {
-        enabled: payload.livenessEnabled,
-      },
-      liveness: {
-        enabled: payload.livenessEnabled,
-      },
-    },
-    body: { enabled: false },
-    hand: { enabled: false },
-    object: { enabled: false },
-    gesture: { enabled: false },
-  } as const;
+function estimateHeadPose(landmarks: number[][]): { yaw: number; pitch: number; roll: number } {
+  if (landmarks.length < 5) {
+    return { yaw: 0, pitch: 0, roll: 0 };
+  }
+
+  const leftEye = landmarks[0];
+  const rightEye = landmarks[1];
+  const nose = landmarks[2];
+
+  // Roll from eye angle
+  const eyeAngle = Math.atan2(rightEye[1] - leftEye[1], rightEye[0] - leftEye[0]);
+  const roll = (eyeAngle * 180) / Math.PI;
+
+  // Yaw from nose position
+  const eyeCenterX = (leftEye[0] + rightEye[0]) / 2;
+  const eyeDistance = Math.sqrt(Math.pow(rightEye[0] - leftEye[0], 2) + Math.pow(rightEye[1] - leftEye[1], 2));
+  const noseOffset = (nose[0] - eyeCenterX) / eyeDistance;
+  const yaw = noseOffset * 45;
+
+  // Pitch (simplified)
+  const eyeCenterY = (leftEye[1] + rightEye[1]) / 2;
+  const noseToEyeY = nose[1] - eyeCenterY;
+  const pitch = (noseToEyeY / eyeDistance - 0.5) * 30;
+
+  return { yaw, pitch, roll };
 }
 
-async function initHuman(payload: WorkerInitPayload) {
-  if (!human) {
-    human = new Human(buildHumanConfig(payload));
-  }
-
-  await human.load();
-  await human.warmup();
-  initialized = true;
-
-  // NEW (Phase 4): Initialize face tracking if enabled
-  trackingEnabled = payload.trackingEnabled ?? false;
-  if (trackingEnabled) {
-    faceTracker = createFaceTracker(60); // 60 frames ~= 2 seconds at 30fps
-  } else {
-    faceTracker = null;
-  }
-
-  // ── NEW (Phase 4): Initialize SCRFD detector if enabled ───────────────
-  detectorType = payload.detectorType ?? 'human';
-  fallbackEnabled = payload.fallbackEnabled ?? true;
-
-  if (detectorType === 'scrfd' && !detectorLoadFailed) {
-    try {
-      scrfd = new SCRFD({
-        modelType: 'w600', // Balanced speed/accuracy for totems
-        backend: 'wasm', // WebAssembly for browser compatibility
-        quantized: true, // Quantized for speed
-        numThreads: 4,
-        scoreThreshold: 0.6,
-      });
-
-      await scrfd.load({
-        modelBasePath: 'https://cdn.jsdelivr.net/npm/scrfd-web@0.1.0/models',
-      });
-
-      console.log('[SCRFD] Detector initialized successfully');
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unknown error';
-      console.warn(`[SCRFD] Failed to initialize detector: ${message}`);
-
-      if (fallbackEnabled) {
-        console.warn('[SCRFD] Falling back to Human.js detector');
-        detectorType = 'human';
-        detectorLoadFailed = true; // Don't retry SCRFD
-        scrfd = null;
-      } else {
-        throw error; // If fallback disabled, fail immediately
-      }
-    }
-  }
-}
-
-function normalizeLivenessScore(face: Record<string, unknown>, enabled: boolean): number {
-  if (!enabled) return 1; // Max score if liveness not required
-
-  // Try to extract liveness/antiSpoof from multiple possible sources
-  // Human.js may return: face.live, face.real, face.liveness, face.antiSpoof, or face.score
-
-  let livenessValue: unknown = undefined;
-
-  // Try multiple field names in order of preference
-  const fieldNames = ['liveness', 'live', 'real', 'antiSpoof', 'score'];
-  for (const field of fieldNames) {
-    const value = face[field];
-    if (value !== undefined && value !== null) {
-      livenessValue = value;
-      break;
-    }
-  }
-
-  // If still no value, try nested structures
-  if (livenessValue === undefined) {
-    const antiSpoof = face['antiSpoof'] as Record<string, unknown> | undefined;
-    if (antiSpoof && typeof antiSpoof === 'object') {
-      livenessValue = antiSpoof['score'] ?? antiSpoof['value'];
-    }
-  }
-
-  // Normalize to 0-1 range
-  if (typeof livenessValue === 'number') {
-    return Math.max(0, Math.min(1, livenessValue));
-  }
-
-  if (typeof livenessValue === 'boolean') {
-    return livenessValue ? 1 : 0;
-  }
-
-  // If we detected a blink, increase liveness confidence
-  const eyeState = detectEyeBlink(face);
-  if (eyeState.leftOpen || eyeState.rightOpen) {
-    return 0.7; // Reasonable confidence if we detected eye state
-  }
-
-  // Fallback: assume not live
-  return 0;
-}
-
-// ── NEW (Phase 4): Multi-detector face detection with fallback ───────────
-/**
- * Attempt detection using configured detector with fallback
- * Priority: SCRFD (if enabled) → fallback to Human.js on error
- */
-async function detectFacesWithFallback(bitmap: ImageBitmap): Promise<Array<Record<string, unknown>>> {
-  // First attempt: Use SCRFD if enabled and loaded
-  if (detectorType === 'scrfd' && scrfd && !detectorLoadFailed) {
-    try {
-      // Run SCRFD detection
-      const scrfdResults = await scrfd.detect(bitmap);
-
-      if (scrfdResults.length > 0) {
-        // Convert SCRFD results to Human.js-compatible format
-        return convertScrfdToHumanFormat(scrfdResults);
-      }
-
-      // If SCRFD returned no faces, still use its results (not an error)
-      return [];
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unknown error';
-
-      if (fallbackEnabled) {
-        console.warn(`[Face Detection] SCRFD failed: ${message}. Falling back to Human.js.`);
-        // Switch to Human.js for this and subsequent frames
-        detectorType = 'human';
-        detectorLoadFailed = true;
-        // Continue to Human.js detection below
-      } else {
-        // If fallback disabled, throw error
-        throw error;
-      }
-    }
-  }
-
-  // Fallback or primary: Use Human.js detection
-  if (!human) {
-    throw new Error('Human.js detector not initialized');
-  }
-
-  const result = await human.detect(bitmap);
-  return (result.face ?? []) as unknown as Array<Record<string, unknown>>;
-}
-
-/**
- * Convert SCRFD detections to Human.js-compatible format
- * This allows seamless integration with existing liveness/quality pipeline
- */
-function convertScrfdToHumanFormat(scrfdDetections: any[]): Array<Record<string, unknown>> {
-  return scrfdDetections.map((detection) => {
-    const box = detection.box || { x: 0, y: 0, width: 0, height: 0 };
-
-    return {
-      // Basic detection fields
-      box: box,
-      x: box.x,
-      y: box.y,
-      width: box.width,
-      height: box.height,
-      confidence: detection.score || 0.8,
-
-      // Landmarks (convert SCRFD 5-point to Human.js format)
-      landmarks: convertScrfdLandmarks(detection.landmarks || []),
-
-      // Placeholder fields (SCRFD doesn't provide these, will be computed by liveness pipeline)
-      iris: undefined, // Will be computed from landmarks by existing pipeline
-      mesh: undefined,
-      description: { confidence: detection.score || 0.8 }, // Use detection score as descriptor confidence
-      yaw: 0, // Head pose angles (will be estimated if needed)
-      pitch: 0,
-      roll: 0,
-
-      // Anti-spoof (SCRFD doesn't provide this, fallback to default)
-      antiSpoof: { score: 0.8 }, // Default to moderate confidence (will be refined by liveness)
-    };
-  });
-}
-
-/**
- * Convert SCRFD 5-point landmarks to format expected by liveness pipeline
- * SCRFD format: [[x,y], [x,y], ...] for [left_eye, right_eye, nose, left_mouth, right_mouth]
- * Human.js format: [[x,y,z,confidence], ...]
- */
-function convertScrfdLandmarks(scrfdLandmarks: number[][]): Array<[number, number, number, number]> {
-  if (!Array.isArray(scrfdLandmarks) || scrfdLandmarks.length === 0) {
-    return [];
-  }
-
-  // Convert each landmark, adding z=0 and confidence=1.0
-  return scrfdLandmarks.slice(0, 5).map((lm) => {
-    if (Array.isArray(lm) && lm.length >= 2) {
-      return [lm[0], lm[1], 0, 1.0];
-    }
-    return [0, 0, 0, 0];
-  });
-}
-
-async function analyzeFrame(payload: WorkerAnalyzePayload, initPayload: WorkerInitPayload) {
-  if (!human || !initialized) {
-    await initHuman(initPayload);
-  }
-
-  // ── NEW (Phase 4): Use multi-detector with fallback ───────────────────
-  const faces = await detectFacesWithFallback(payload.bitmap);
-  payload.bitmap.close();
-
-  if (!faces.length) {
-    return {
-      faceCount: 0,
-      face: null,
-      blinkDetected: false,
-      liveness: {
-        antiSpoofScore: 0,
-        blinkDetected: false,
-        headMovementDetected: false,
-        textureQuality: 0,
-        finalLivenessScore: 0,
-      },
-    };
-  }
-
-  const bestFace = faces[0];
-  const box = (bestFace['box'] ?? {}) as Record<string, unknown>;
-  const embeddingRaw = bestFace['embedding'];
-  const description = bestFace['description'] as Record<string, unknown> | undefined;
-
-  // Extract embedding from description if not directly available
-  let embedding: number[] = [];
-
-  if (Array.isArray(embeddingRaw)) {
-    embedding = embeddingRaw.map((value) => Number(value));
-  } else if (embeddingRaw instanceof Float32Array) {
-    embedding = Array.from(embeddingRaw);
-  } else if (description?.['embedding']) {
-    const descEmbedding = description['embedding'];
-    if (Array.isArray(descEmbedding)) {
-      embedding = descEmbedding.map((value) => Number(value));
-    } else if (descEmbedding instanceof Float32Array) {
-      embedding = Array.from(descEmbedding);
-    }
-  }
-
-  // Validate embedding dimensions (known valid outputs: 512 or 1024)
-  if (embedding.length === 0) {
-    console.warn('[Face Detection] Warning: Empty embedding detected');
-  } else if (embedding.length !== 512 && embedding.length !== 1024) {
-    console.warn(`[Face Detection] Warning: Embedding has ${embedding.length} dimensions, expected 512 or 1024`);
-  }
-
-  const width = Number(box['width'] ?? 0);
-  const height = Number(box['height'] ?? 0);
-
-  // Detect actual blink
-  const blinkDetected = detectBlink(bestFace);
-
-  // NEW (Phase 1): Compute multimodal liveness
-  const liveness = computeMultimodalLiveness(bestFace, frameHistory, initPayload.livenessEnabled);
-
-  // NEW (Phase 1): Assess face quality
-  const qualityMetadata = assessFaceQuality(bestFace);
-
-  // NEW (Phase 4): Face tracking
-  let trackId: string | undefined;
-  let trackStability: number | undefined;
-  let historicalLivenessAvg: number | undefined;
-
-  if (trackingEnabled && faceTracker) {
-    // Convert detection to tracking format
-    const detection: FaceDetection = {
-      box: {
-        x: Number(box['x'] ?? 0),
-        y: Number(box['y'] ?? 0),
-        width,
-        height,
-      },
-      landmarks: bestFace['landmarks'],
-      embedding,
-      confidence: Number(bestFace['confidence'] ?? 0.5),
-    };
-
-    // Assign to existing tracks or create new one
-    const { tracked, newDetections: newDetections } = assignFacesToTracks([detection], faceTracker);
-
-    let bestTrack: TrackedFace;
-
-    if (tracked.length > 0) {
-      // Use existing track
-      bestTrack = tracked[0].track;
-    } else if (newDetections.length > 0) {
-      // Create new track for this detection
-      bestTrack = createNewTrack(detection, faceTracker);
-    } else {
-      // No track available (shouldn't happen)
-      bestTrack = createNewTrack(detection, faceTracker);
-    }
-
-    // Update track's liveness history
-    const livenessScore = {
-      ...liveness,
-      timestamp: liveness.timestamp || Date.now(),
-    };
-    updateTrackLiveness(bestTrack, livenessScore);
-
-    // Calculate aggregated liveness from last 5 frames
-    historicalLivenessAvg = getAggregatedLivenessScore(bestTrack, 5);
-
-    // Get track stability metrics
-    const stability = getTrackStability(bestTrack);
-    trackStability = stability.iouConfidence;
-    trackId = bestTrack.id;
-  }
-
-  // Build final response
-  const faceResponse = {
-    box: {
-      x: Number(box['x'] ?? 0),
-      y: Number(box['y'] ?? 0),
-      width,
-      height,
-    },
-    isBigEnough: width >= initPayload.minFaceSize && height >= initPayload.minFaceSize,
-    embedding,
-    livenessScore: liveness.finalLivenessScore,
-    qualityScore: computeQualityScore(qualityMetadata),
-    qualityMetadata,
+function calculateQualityScore(metadata: FaceQualityMetadata): number {
+  // Weights for each factor
+  const weights = {
+    brightness: 0.15,
+    blurriness: 0.2,
+    faceSize: 0.25,
+    headPose: 0.25,
+    landmarkConfidence: 0.15,
   };
 
-  // Add tracking fields if tracking is enabled
-  if (trackingEnabled && trackId !== undefined && trackStability !== undefined && historicalLivenessAvg !== undefined) {
-    Object.assign(faceResponse, {
-      trackId,
-      trackStability,
-      historicalLivenessAvg,
-    });
-  }
+  // Brightness score (0.3-0.8 is ideal)
+  const brightnessScore = metadata.brightness >= 0.3 && metadata.brightness <= 0.8 ? 1.0 : 0.6;
 
-  return {
-    faceCount: faces.length,
-    face: faceResponse,
-    blinkDetected,
-    liveness,
-  };
-}
+  // Blurriness score (lower is better)
+  const blurrinessScore = 1 - metadata.blurriness;
 
-// Helper to compute overall quality score
-function computeQualityScore(quality: FaceQualityMetadata): number {
-  const normalizedBrightness = 1 - Math.abs(quality.brightness);
-  const normalizedBlur = 1 - quality.blurriness;
-  const normalizedPose = Math.max(
-    0,
-    1 - (Math.abs(quality.headPoseYaw) + Math.abs(quality.headPosePitch) + Math.abs(quality.headPoseRoll)) / 3,
-  );
-  const normalizedFaceSize = Math.min(1, quality.faceSize / 400);
+  // Face size score (larger is better, up to a point)
+  const sizeScore = Math.min(metadata.faceSize * 2, 1.0);
 
+  // Head pose score (frontal is better)
+  const poseScore =
+    1 -
+    Math.min(
+      (Math.abs(metadata.headPoseYaw) + Math.abs(metadata.headPosePitch) + Math.abs(metadata.headPoseRoll)) / 90,
+      1,
+    );
+
+  // Combine scores
   return (
-    normalizedBrightness * 0.2 +
-    normalizedBlur * 0.2 +
-    normalizedPose * 0.2 +
-    normalizedFaceSize * 0.2 +
-    quality.landmarkConfidence * 0.2
+    brightnessScore * weights.brightness +
+    blurrinessScore * weights.blurriness +
+    sizeScore * weights.faceSize +
+    poseScore * weights.headPose +
+    metadata.landmarkConfidence * weights.landmarkConfidence
   );
 }
 
-let lastInitPayload: WorkerInitPayload = {
-  maxFaces: 1,
-  minFaceSize: 80,
-  livenessEnabled: false,
-};
+// ═══════════════════════════════════════════════════════════════════════════════
+// Liveness Detection
+// ═══════════════════════════════════════════════════════════════════════════════
 
-const ctx: DedicatedWorkerGlobalScope = self as unknown as DedicatedWorkerGlobalScope;
+function addLivenessFrame(landmarks: number[][], quality: FaceQualityMetadata): void {
+  const headPose = {
+    yaw: quality.headPoseYaw,
+    pitch: quality.headPosePitch,
+    roll: quality.headPoseRoll,
+  };
 
-ctx.onmessage = async (event: MessageEvent<WorkerRequest>) => {
-  const request = event.data;
+  livenessFrames.push({
+    timestamp: Date.now(),
+    landmarks,
+    headPose,
+  });
 
-  try {
-    if (request.type === 'init') {
-      lastInitPayload = request.payload;
-      await initHuman(request.payload);
-
-      const response: WorkerResponse = {
-        id: request.id,
-        ok: true,
-        data: { ready: true },
-      };
-
-      ctx.postMessage(response);
-      return;
-    }
-
-    if (request.type === 'analyze') {
-      const data = await analyzeFrame(request.payload, lastInitPayload);
-
-      const response: WorkerResponse = {
-        id: request.id,
-        ok: true,
-        data,
-      };
-
-      ctx.postMessage(response);
-      return;
-    }
-
-    if (request.type === 'dispose') {
-      await human?.reset();
-      human = null;
-      initialized = false;
-
-      // NEW (Phase 4): Dispose SCRFD if loaded
-      if (scrfd) {
-        try {
-          await scrfd.dispose();
-        } catch {
-          // Ignore disposal errors
-        }
-        scrfd = null;
-      }
-
-      // NEW (Phase 4): Clear face tracker
-      if (faceTracker) {
-        clearTracks(faceTracker);
-        faceTracker = null;
-      }
-
-      const response: WorkerResponse = {
-        id: request.id,
-        ok: true,
-        data: { disposed: true },
-      };
-
-      ctx.postMessage(response);
-      return;
-    }
-  } catch (error) {
-    const response: WorkerResponse = {
-      id: request.id,
-      ok: false,
-      error: error instanceof Error ? error.message : 'Worker runtime error.',
-    };
-
-    ctx.postMessage(response);
+  // Keep bounded
+  if (livenessFrames.length > 30) {
+    livenessFrames.shift();
   }
-};
 
-export {};
+  // Track eye blinks (simplified for 5-point landmarks)
+  updateBlinkState(landmarks);
+}
+
+function updateBlinkState(landmarks: number[][]): void {
+  if (landmarks.length < 5) return;
+
+  // For 5-point landmarks, we can't directly measure eye openness
+  // Use head pose variance as proxy for natural movement
+  const currentOpen = { leftOpen: true, rightOpen: true };
+
+  // Detect blink transition
+  if (lastEyeState.leftOpen && !currentOpen.leftOpen) {
+    blinkHistory.push(true);
+  }
+
+  if (blinkHistory.length > 20) {
+    blinkHistory.shift();
+  }
+
+  lastEyeState = currentOpen;
+}
+
+function evaluateLiveness(): {
+  isLive: boolean;
+  score: number;
+  blinkDetected: boolean;
+  headMovementDetected: boolean;
+  framesAnalyzed: number;
+} {
+  if (livenessFrames.length < 5) {
+    return {
+      isLive: false,
+      score: 0,
+      blinkDetected: false,
+      headMovementDetected: false,
+      framesAnalyzed: livenessFrames.length,
+    };
+  }
+
+  // Check for head movement
+  const poses = livenessFrames.map((f) => f.headPose);
+  const yawVariance = variance(poses.map((p) => p.yaw));
+  const pitchVariance = variance(poses.map((p) => p.pitch));
+  const headMovementDetected = yawVariance > 2 || pitchVariance > 2;
+
+  // Check for blinks
+  const blinkDetected = blinkHistory.some((b) => b);
+
+  // Calculate texture/stability score
+  const textureScore = calculateTextureScore();
+
+  // Combine scores
+  let score = 0;
+  if (headMovementDetected) score += 0.35;
+  if (blinkDetected) score += 0.25;
+  score += textureScore * 0.4;
+
+  const threshold = config?.livenessThreshold ?? 0.7;
+
+  return {
+    isLive: score >= threshold,
+    score,
+    blinkDetected,
+    headMovementDetected,
+    framesAnalyzed: livenessFrames.length,
+  };
+}
+
+function calculateTextureScore(): number {
+  if (livenessFrames.length < 3) return 0.5;
+
+  // Measure landmark stability
+  const recent = livenessFrames.slice(-5);
+  let totalVariance = 0;
+
+  for (let i = 0; i < 5; i++) {
+    const points = recent.map((f) => f.landmarks[i] || [0, 0]);
+    const xVar = variance(points.map((p) => p[0]));
+    const yVar = variance(points.map((p) => p[1]));
+    totalVariance += xVar + yVar;
+  }
+
+  const avgVariance = totalVariance / 10;
+
+  // Natural micro-movements: 0.5-5 pixels variance
+  if (avgVariance < 0.2) return 0.3; // Too stable - photo
+  if (avgVariance > 20) return 0.4; // Too jittery - noise
+  if (avgVariance >= 0.5 && avgVariance <= 5) return 0.9;
+
+  return 0.6;
+}
+
+function variance(values: number[]): number {
+  if (values.length < 2) return 0;
+  const mean = values.reduce((a, b) => a + b, 0) / values.length;
+  return values.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / values.length;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Cleanup
+// ═══════════════════════════════════════════════════════════════════════════════
+
+async function handleDispose(): Promise<void> {
+  if (scrfdSession) {
+    scrfdSession.release();
+    scrfdSession = null;
+  }
+
+  if (arcfaceSession) {
+    arcfaceSession.release();
+    arcfaceSession = null;
+  }
+
+  livenessFrames.length = 0;
+  blinkHistory.length = 0;
+  initialized = false;
+  config = null;
+
+  console.log('[FaceWorker] Disposed');
+}

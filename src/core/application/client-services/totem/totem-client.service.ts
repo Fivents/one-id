@@ -5,7 +5,11 @@ export interface TotemAIConfig {
   detectionIntervalMs: number;
   maxFaces: number;
   livenessDetection: boolean;
+  livenessThreshold: number;
   minFaceSize: number;
+  cooldownSeconds: number;
+  efSearch: number;
+  topKCandidates: number;
   recommendedEmbeddingModel: string;
   recommendedDetectorModel: string;
 }
@@ -132,15 +136,19 @@ export function clearTotemToken() {
 }
 
 export async function loginTotem(key: string): Promise<ApiResponse<TotemLoginResponse>> {
-  const response = await request<TotemLoginResponse>('/api/totem/login', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
+  const response = await request<TotemLoginResponse>(
+    '/api/totem/login',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ key }),
     },
-    body: JSON.stringify({ key }),
-  }, {
-    timeoutMs: 12000,
-  });
+    {
+      timeoutMs: 12000,
+    },
+  );
 
   if (response.success) {
     setStoredTotemToken(response.data.token);
@@ -162,14 +170,18 @@ export async function getTotemSession(token?: string): Promise<ApiResponse<Totem
     };
   }
 
-  return request<TotemSessionResponse>('/api/totem/session', {
-    method: 'GET',
-    headers: {
-      Authorization: `Bearer ${activeToken}`,
+  return request<TotemSessionResponse>(
+    '/api/totem/session',
+    {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${activeToken}`,
+      },
     },
-  }, {
-    timeoutMs: 8000,
-  });
+    {
+      timeoutMs: 8000,
+    },
+  );
 }
 
 export async function sendCheckIn(
@@ -194,16 +206,20 @@ export async function sendCheckIn(
     };
   }
 
-  return request<TotemCheckInResponse>('/api/totem/checkin', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${activeToken}`,
+  return request<TotemCheckInResponse>(
+    '/api/totem/checkin',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${activeToken}`,
+      },
+      body: JSON.stringify(payload),
     },
-    body: JSON.stringify(payload),
-  }, {
-    timeoutMs: 7000,
-  });
+    {
+      timeoutMs: 7000,
+    },
+  );
 }
 
 export async function getEventAIConfig(eventId: string, token?: string): Promise<ApiResponse<TotemAIConfig>> {
@@ -219,14 +235,18 @@ export async function getEventAIConfig(eventId: string, token?: string): Promise
     };
   }
 
-  return request<TotemAIConfig>(`/api/events/${encodeURIComponent(eventId)}/ai-config`, {
-    method: 'GET',
-    headers: {
-      Authorization: `Bearer ${activeToken}`,
+  return request<TotemAIConfig>(
+    `/api/events/${encodeURIComponent(eventId)}/ai-config`,
+    {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${activeToken}`,
+      },
     },
-  }, {
-    timeoutMs: 10000,
-  });
+    {
+      timeoutMs: 10000,
+    },
+  );
 }
 
 export function getTotemToken(): string | null {

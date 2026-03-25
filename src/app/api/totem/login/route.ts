@@ -66,6 +66,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.issues[0]?.message ?? 'Invalid request.' }, { status: 400 });
     }
 
+    // Log the error for debugging
+    console.error('[totem-login] Unhandled error:', error);
+
     return NextResponse.json({ error: 'Internal server error.' }, { status: 500 });
   }
 }

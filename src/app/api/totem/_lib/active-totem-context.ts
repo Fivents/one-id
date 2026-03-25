@@ -5,7 +5,11 @@ export interface EventAIConfigDTO {
   detectionIntervalMs: number;
   maxFaces: number;
   livenessDetection: boolean;
+  livenessThreshold: number;
   minFaceSize: number;
+  cooldownSeconds: number;
+  efSearch: number;
+  topKCandidates: number;
   recommendedEmbeddingModel: string;
   recommendedDetectorModel: string;
 }
@@ -28,13 +32,17 @@ export interface ActiveTotemContext {
 }
 
 const DEFAULT_AI_CONFIG: EventAIConfigDTO = {
-  confidenceThreshold: 0.72,
+  confidenceThreshold: 0.62,
   detectionIntervalMs: 500,
   maxFaces: 1,
-  livenessDetection: false,
-  minFaceSize: 64,
-  recommendedEmbeddingModel: 'InsightFace Buffalo_L (ArcFace, 512d)',
-  recommendedDetectorModel: 'SCRFD 10G (2026 production baseline)',
+  livenessDetection: true,
+  livenessThreshold: 0.7,
+  minFaceSize: 80,
+  cooldownSeconds: 8,
+  efSearch: 64,
+  topKCandidates: 5,
+  recommendedEmbeddingModel: 'InsightFace ArcFace (w600k_r50)',
+  recommendedDetectorModel: 'SCRFD 10G (scrfd_10g_bnkps)',
 };
 
 async function getEventAIConfig(eventId: string): Promise<EventAIConfigDTO> {
@@ -44,7 +52,11 @@ async function getEventAIConfig(eventId: string): Promise<EventAIConfigDTO> {
       detection_interval_ms: number;
       max_faces: number;
       liveness_detection: boolean;
+      liveness_threshold: number | null;
       min_face_size: number;
+      cooldown_seconds: number | null;
+      ef_search: number | null;
+      top_k_candidates: number | null;
     }>
   >`
     SELECT
@@ -52,7 +64,11 @@ async function getEventAIConfig(eventId: string): Promise<EventAIConfigDTO> {
       detection_interval_ms,
       max_faces,
       liveness_detection,
-      min_face_size
+      liveness_threshold,
+      min_face_size,
+      cooldown_seconds,
+      ef_search,
+      top_k_candidates
     FROM event_ai_configs
     WHERE event_id = ${eventId}
     LIMIT 1
@@ -68,7 +84,11 @@ async function getEventAIConfig(eventId: string): Promise<EventAIConfigDTO> {
     detectionIntervalMs: row.detection_interval_ms,
     maxFaces: row.max_faces,
     livenessDetection: row.liveness_detection,
+    livenessThreshold: row.liveness_threshold ?? DEFAULT_AI_CONFIG.livenessThreshold,
     minFaceSize: row.min_face_size,
+    cooldownSeconds: row.cooldown_seconds ?? DEFAULT_AI_CONFIG.cooldownSeconds,
+    efSearch: row.ef_search ?? DEFAULT_AI_CONFIG.efSearch,
+    topKCandidates: row.top_k_candidates ?? DEFAULT_AI_CONFIG.topKCandidates,
     recommendedEmbeddingModel: DEFAULT_AI_CONFIG.recommendedEmbeddingModel,
     recommendedDetectorModel: DEFAULT_AI_CONFIG.recommendedDetectorModel,
   };

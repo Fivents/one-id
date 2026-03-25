@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { z } from 'zod/v4';
 
-import { faceEmbeddingSchema } from '@/core/communication/requests/person-face';
 import { containerService } from '@/core/application/services/container.service';
 import { TotemCheckInService } from '@/core/application/services/totem-checkin.service';
+import { faceEmbeddingSchema } from '@/core/communication/requests/person-face';
 import { withAuth, withTotemAuth, withTotemRoutingGuard } from '@/core/infrastructure/http/middlewares';
 import { getTotemAuth } from '@/core/infrastructure/http/types';
 import { prisma } from '@/core/infrastructure/prisma-client';
