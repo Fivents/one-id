@@ -13,6 +13,8 @@
 # testing
 /coverage
 
+/public/models/*.onnx
+
 # next.js
 /.next/
 /out/
