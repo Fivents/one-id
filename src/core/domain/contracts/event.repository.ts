@@ -7,6 +7,9 @@ export interface CreateEventData {
   timezone: string;
   address?: string | null;
   status: EventStatus;
+  faceEnabled?: boolean;
+  qrEnabled?: boolean;
+  codeEnabled?: boolean;
   startsAt: Date;
   endsAt: Date;
   organizationId: string;
@@ -20,6 +23,9 @@ export interface UpdateEventData {
   timezone?: string;
   address?: string | null;
   status?: EventStatus;
+  faceEnabled?: boolean;
+  qrEnabled?: boolean;
+  codeEnabled?: boolean;
   startsAt?: Date;
   endsAt?: Date;
   printConfigId?: string | null;

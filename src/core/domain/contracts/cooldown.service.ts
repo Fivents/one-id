@@ -34,18 +34,12 @@ export interface ICooldownService {
   /**
    * Register a failed check-in attempt (increases cooldown exponentially)
    */
-  registerFailedAttempt(
-    eventParticipantId: string,
-    eventId: string,
-  ): Promise<PersonCooldownState>;
+  registerFailedAttempt(eventParticipantId: string, eventId: string): Promise<PersonCooldownState>;
 
   /**
    * Register a successful check-in (resets cooldown for this event)
    */
-  registerSuccessfulCheckIn(
-    eventParticipantId: string,
-    eventId: string,
-  ): Promise<PersonCooldownState>;
+  registerSuccessfulCheckIn(eventParticipantId: string, eventId: string): Promise<PersonCooldownState>;
 
   /**
    * Check if admin override is allowed (less than 3 failed attempts or expired cooldown)

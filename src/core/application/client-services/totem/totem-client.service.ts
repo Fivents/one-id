@@ -25,6 +25,9 @@ export interface TotemLoginResponse {
     name: string;
     startsAt: string;
     endsAt: string;
+    faceEnabled: boolean;
+    qrEnabled: boolean;
+    codeEnabled: boolean;
   };
   totemEventSubscriptionId: string;
   aiConfig: TotemAIConfig;
@@ -42,6 +45,9 @@ export interface TotemSessionResponse {
     name: string;
     startsAt: string;
     endsAt: string;
+    faceEnabled: boolean;
+    qrEnabled: boolean;
+    codeEnabled: boolean;
   };
   totemEventSubscriptionId: string;
   aiConfig: TotemAIConfig;
@@ -49,7 +55,7 @@ export interface TotemSessionResponse {
 
 export interface TotemCheckInResponse {
   id: string;
-  confidence: number;
+  confidence: number | null;
   checkedInAt: string;
   eventParticipantId: string;
   totemEventSubscriptionId: string;
@@ -60,6 +66,27 @@ export interface TotemCheckInResponse {
     imageUrl: string | null;
   };
 }
+
+type FaceCheckInPayload = {
+  method?: 'FACE';
+  imageDataUrl?: string;
+  embedding?: number[];
+  faceCount: number;
+  livenessScore?: number;
+  blinkDetected?: boolean;
+};
+
+type QrCheckInPayload = {
+  method: 'QR';
+  qrCodeValue: string;
+};
+
+type CodeCheckInPayload = {
+  method: 'CODE';
+  accessCode: string;
+};
+
+export type TotemCheckInRequestPayload = FaceCheckInPayload | QrCheckInPayload | CodeCheckInPayload;
 
 const TOTEM_TOKEN_KEY = 'oneid.totem.token';
 
@@ -185,13 +212,7 @@ export async function getTotemSession(token?: string): Promise<ApiResponse<Totem
 }
 
 export async function sendCheckIn(
-  payload: {
-    imageDataUrl?: string;
-    embedding?: number[];
-    faceCount: number;
-    livenessScore?: number;
-    blinkDetected?: boolean;
-  },
+  payload: TotemCheckInRequestPayload,
   token?: string,
 ): Promise<ApiResponse<TotemCheckInResponse>> {
   const activeToken = token ?? getStoredTotemToken();

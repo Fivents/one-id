@@ -71,6 +71,11 @@ export const GET = withAuth(
           eventName: event.name,
           eventStartsAt: event.startsAt,
           eventEndsAt: event.endsAt,
+          checkinMethods: {
+            faceEnabled: event.faceEnabled,
+            qrEnabled: event.qrEnabled,
+            codeEnabled: event.codeEnabled,
+          },
 
           // Detection settings
           confidenceThreshold: aiConfig.confidenceThreshold,
@@ -91,8 +96,8 @@ export const GET = withAuth(
 
           // Recommended models (for client-side reference)
           recommendedModels: {
-            detector: 'scrfd_10g_bnkps.onnx',
-            embedder: 'w600k_r50.onnx',
+            detector: 'FaceDetector API',
+            embedder: 'arcface/model.onnx',
           },
 
           // Timestamp for cache validation

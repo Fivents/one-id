@@ -22,8 +22,8 @@ const DEFAULT_AI_CONFIG = {
   maxFaces: 1,
   livenessDetection: false,
   minFaceSize: 85,
-  recommendedEmbeddingModel: 'InsightFace Buffalo_L (ArcFace, 512d)',
-  recommendedDetectorModel: 'SCRFD 10G (2026 production baseline)',
+  recommendedEmbeddingModel: 'Transformers.js ArcFace (512d)',
+  recommendedDetectorModel: 'Browser FaceDetector API',
 };
 
 export const GET = withAuth(

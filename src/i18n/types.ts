@@ -1066,6 +1066,8 @@ export type TranslationSchema = {
       none: string;
       // Additional keys
       changeLocationTitle: string;
+      accessCode: string;
+      qrCode: string;
       checkinStatus: string;
       eventUpdated: string;
       invalidate: string;

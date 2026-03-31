@@ -21,7 +21,7 @@
  * - Multiple keys supported (for gradual migration)
  */
 
-import { createCipheriv, createDecipheriv,randomBytes } from 'node:crypto';
+import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
 
 export interface EncryptedEmbedding {
   version: number; // Key version for rotation
@@ -55,18 +55,14 @@ export class EmbeddingEncryptionService {
     const keyString = masterKeyEnv || process.env.EMBEDDING_ENCRYPTION_KEY;
 
     if (!keyString) {
-      throw new Error(
-        'EMBEDDING_ENCRYPTION_KEY not set. Generate with: openssl rand -base64 32',
-      );
+      throw new Error('EMBEDDING_ENCRYPTION_KEY not set. Generate with: openssl rand -base64 32');
     }
 
     try {
       this.masterKey = Buffer.from(keyString, 'base64');
 
       if (this.masterKey.length !== this.keyLength) {
-        throw new Error(
-          `Master key must be ${this.keyLength} bytes (256 bits), got ${this.masterKey.length}`,
-        );
+        throw new Error(`Master key must be ${this.keyLength} bytes (256 bits), got ${this.masterKey.length}`);
       }
     } catch (error) {
       throw new Error(
@@ -131,9 +127,7 @@ export class EmbeddingEncryptionService {
       throw new Error(`Invalid IV length: ${iv.length}, expected ${this.ivLength}`);
     }
     if (authTag.length !== this.authTagLength) {
-      throw new Error(
-        `Invalid auth tag length: ${authTag.length}, expected ${this.authTagLength}`,
-      );
+      throw new Error(`Invalid auth tag length: ${authTag.length}, expected ${this.authTagLength}`);
     }
 
     // Create decipher
@@ -149,11 +143,7 @@ export class EmbeddingEncryptionService {
       const decrypted = Buffer.concat(decryptedChunks);
 
       // Convert back to float32 array
-      const float32Array = new Float32Array(
-        decrypted.buffer,
-        decrypted.byteOffset,
-        decrypted.length / 4,
-      );
+      const float32Array = new Float32Array(decrypted.buffer, decrypted.byteOffset, decrypted.length / 4);
 
       return {
         embedding: Array.from(float32Array),
@@ -295,9 +285,7 @@ export function validateEncryptionSetup(): {
   }
 
   if (process.env.NODE_ENV !== 'production') {
-    warnings.push(
-      'Running in non-production environment. Check encryption setup before deploying to production.',
-    );
+    warnings.push('Running in non-production environment. Check encryption setup before deploying to production.');
   }
 
   return {

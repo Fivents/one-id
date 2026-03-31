@@ -10,6 +10,8 @@ export interface PersonSummaryResponse {
   document: string | null;
   documentType: 'PASSPORT' | 'ID_CARD' | 'DRIVER_LICENSE' | 'OTHER' | null;
   phone: string | null;
+  qrCodeValue: string | null;
+  accessCode: string | null;
   organizationId: string;
   createdAt: Date;
   updatedAt: Date;

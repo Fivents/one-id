@@ -48,7 +48,7 @@ export const POST = withAuth(
             details: validationDetails,
             code: 'VALIDATION_ERROR',
           },
-          { status: 400 }
+          { status: 400 },
         );
       }
 

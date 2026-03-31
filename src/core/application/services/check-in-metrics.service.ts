@@ -1,7 +1,4 @@
-import type {
-  ICheckInMetricsService,
-  MetricsSnapshot,
-} from '@/core/domain/contracts/check-in-metrics.service';
+import type { ICheckInMetricsService, MetricsSnapshot } from '@/core/domain/contracts/check-in-metrics.service';
 import type { PrismaClient } from '@/generated/prisma/client';
 
 interface InMemoryBuffer {
@@ -82,10 +79,7 @@ export class CheckInMetricsService implements ICheckInMetricsService {
     }
   }
 
-  async getMetricsSnapshot(
-    totemEventSubscriptionId: string,
-    hour?: Date,
-  ): Promise<MetricsSnapshot | null> {
+  async getMetricsSnapshot(totemEventSubscriptionId: string, hour?: Date): Promise<MetricsSnapshot | null> {
     const targetHour = hour ? this.getHourBucket(hour) : this.getHourBucket(new Date());
 
     const metrics = await this.db.checkInMetrics.findUnique({
@@ -119,10 +113,7 @@ export class CheckInMetricsService implements ICheckInMetricsService {
     };
   }
 
-  async getMetricsHistory(
-    totemEventSubscriptionId: string,
-    hoursBack: number,
-  ): Promise<MetricsSnapshot[]> {
+  async getMetricsHistory(totemEventSubscriptionId: string, hoursBack: number): Promise<MetricsSnapshot[]> {
     const now = new Date();
     const since = new Date(now.getTime() - hoursBack * 3600000);
 
@@ -134,7 +125,7 @@ export class CheckInMetricsService implements ICheckInMetricsService {
       orderBy: { hour: 'asc' },
     });
 
-    return metrics.map(m => ({
+    return metrics.map((m) => ({
       totemEventSubscriptionId: m.totemEventSubscriptionId,
       eventId: m.eventId,
       checkInCount: m.checkInCount,
@@ -158,7 +149,7 @@ export class CheckInMetricsService implements ICheckInMetricsService {
     }
 
     this.flushTimer = setInterval(() => {
-      this.flushMetrics().catch(err => {
+      this.flushMetrics().catch((err) => {
         console.error('[CheckInMetricsService] Flush error:', err);
       });
     }, this.flushInterval);
@@ -194,19 +185,16 @@ export class CheckInMetricsService implements ICheckInMetricsService {
   }
 
   private computeSnapshot(buffer: InMemoryBuffer) {
-    const latencies = buffer.checkIns.map(c => c.latencyMs);
-    const confidences = buffer.checkIns
-      .filter(c => c.confidence !== undefined)
-      .map(c => c.confidence!);
+    const latencies = buffer.checkIns.map((c) => c.latencyMs);
+    const confidences = buffer.checkIns.filter((c) => c.confidence !== undefined).map((c) => c.confidence!);
 
     return {
       checkInCount: buffer.checkIns.length,
-      successCount: buffer.checkIns.filter(c => c.success).length,
-      failureCount: buffer.checkIns.filter(c => !c.success).length,
+      successCount: buffer.checkIns.filter((c) => c.success).length,
+      failureCount: buffer.checkIns.filter((c) => !c.success).length,
       avgLatencyMs: latencies.reduce((a, b) => a + b, 0) / latencies.length,
       p95LatencyMs: this.calculatePercentile(latencies, 0.95),
-      avgConfidence:
-        confidences.length > 0 ? confidences.reduce((a, b) => a + b, 0) / confidences.length : 0,
+      avgConfidence: confidences.length > 0 ? confidences.reduce((a, b) => a + b, 0) / confidences.length : 0,
       ...buffer.failureBreakdown,
     };
   }

@@ -32,9 +32,7 @@ export interface IConfidenceThresholdService {
   /**
    * Calculate adaptive confidence threshold based on event metrics
    */
-  calculateAdaptiveThreshold(
-    input: ThresholdAdaptationInput,
-  ): Promise<AdaptiveThresholdResult>;
+  calculateAdaptiveThreshold(input: ThresholdAdaptationInput): Promise<AdaptiveThresholdResult>;
 
   /**
    * Suggest recommended threshold range for an event

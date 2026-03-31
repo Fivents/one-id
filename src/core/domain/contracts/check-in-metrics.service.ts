@@ -46,17 +46,11 @@ export interface ICheckInMetricsService {
    * Get hourly metrics snapshot for a specific hour
    * If hour not specified, returns current hour
    */
-  getMetricsSnapshot(
-    totemEventSubscriptionId: string,
-    hour?: Date,
-  ): Promise<MetricsSnapshot | null>;
+  getMetricsSnapshot(totemEventSubscriptionId: string, hour?: Date): Promise<MetricsSnapshot | null>;
 
   /**
    * Get metrics history for last N hours
    * Ordered chronologically (oldest first)
    */
-  getMetricsHistory(
-    totemEventSubscriptionId: string,
-    hoursBack: number,
-  ): Promise<MetricsSnapshot[]>;
+  getMetricsHistory(totemEventSubscriptionId: string, hoursBack: number): Promise<MetricsSnapshot[]>;
 }

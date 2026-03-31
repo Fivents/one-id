@@ -17,7 +17,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { authClient } from '@/core/application/client-services';
-import { useAuth, useTotem } from '@/core/application/contexts';
+import { loginTotem } from '@/core/application/client-services/totem';
+import { useAuth } from '@/core/application/contexts';
 import { AppError } from '@/core/errors';
 import { useI18n } from '@/i18n';
 
@@ -51,7 +52,6 @@ export function LoginForm() {
   const searchParams = useSearchParams();
   const { t } = useI18n();
   const { login } = useAuth();
-  const { authenticateTotem } = useTotem();
   const urlError = searchParams.get('error');
   const urlErrorKey = getUrlErrorKey(urlError);
 
@@ -109,14 +109,14 @@ export function LoginForm() {
   async function handleTotemSubmit(data: TotemAccessCodeData) {
     setApiError('');
 
-    try {
-      await authenticateTotem({ accessCode: data.accessCode });
-      router.push('/totem/credentialing');
-    } catch (error) {
-      if (error instanceof AppError) {
-        setApiError(error.message);
-      }
+    const response = await loginTotem(data.accessCode.trim().toUpperCase());
+
+    if (!response.success) {
+      setApiError(response.error.message);
+      return;
     }
+
+    router.push('/totem/method');
   }
 
   function handleBackToEmail() {

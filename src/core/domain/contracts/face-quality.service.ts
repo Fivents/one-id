@@ -45,7 +45,7 @@ export interface IFaceQualityService {
    * Assess face quality from detected face data.
    * Analyzes multiple dimensions and returns composite score.
    *
-   * @param face Raw face detection output from Human.js
+   * @param face Raw face detection output metadata from the client
    * @returns Quality assessment with scores and details
    */
   assessQuality(face: Record<string, unknown>): FaceQualityScore;

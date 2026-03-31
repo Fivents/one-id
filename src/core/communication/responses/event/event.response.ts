@@ -8,6 +8,9 @@ export interface EventResponse {
   timezone: string;
   address: string | null;
   status: EventStatus;
+  faceEnabled: boolean;
+  qrEnabled: boolean;
+  codeEnabled: boolean;
   startsAt: Date;
   endsAt: Date;
   organizationId: string;

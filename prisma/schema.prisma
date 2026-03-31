@@ -248,6 +248,10 @@ model Event {
   timezone    String
   address     String?
 
+  faceEnabled Boolean @default(true) @map("face_enabled")
+  qrEnabled   Boolean @default(false) @map("qr_enabled")
+  codeEnabled Boolean @default(false) @map("code_enabled")
+
   status EventStatus @default(DRAFT)
 
   startsAt DateTime @map("starts_at")
@@ -408,6 +412,8 @@ model Person {
   document     String?
   documentType DocumentType? @map("document_type")
   phone        String?
+  qrCodeValue  String?       @map("qr_code_value")
+  accessCode   String?       @map("access_code")
 
   organizationId String @map("organization_id")
 
@@ -420,6 +426,8 @@ model Person {
   eventParticipants EventParticipant[]
 
   @@unique([email, organizationId])
+  @@unique([organizationId, qrCodeValue], map: "people_organization_id_qr_code_value_key")
+  @@unique([organizationId, accessCode], map: "people_organization_id_access_code_key")
   @@index([organizationId])
   @@map("people")
 }
@@ -470,6 +478,8 @@ model EventParticipant {
   id       String  @id @default(uuid())
   company  String?
   jobTitle String? @map("job_title")
+  qrCodeValue String? @map("qr_code_value")
+  accessCode  String? @map("access_code")
 
   personId String @map("person_id")
   eventId  String @map("event_id")
@@ -485,6 +495,10 @@ model EventParticipant {
   @@unique([personId, eventId])
   @@index([personId])
   @@index([eventId])
+  @@index([eventId, qrCodeValue])
+  @@index([eventId, accessCode])
+  @@unique([eventId, qrCodeValue], map: "event_participants_event_id_qr_code_value_key")
+  @@unique([eventId, accessCode], map: "event_participants_event_id_access_code_key")
   @@map("event_participants")
 }
 

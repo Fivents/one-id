@@ -264,7 +264,9 @@ export function PrintConfigForm({ eventId, onSuccess }: PrintConfigFormProps) {
                 <label className="block text-sm font-medium text-gray-700">Posição</label>
                 <select
                   value={config.qrCodePosition}
-                  onChange={(e) => setConfig({ ...config, qrCodePosition: e.currentTarget.value as 'top' | 'center' | 'bottom' })}
+                  onChange={(e) =>
+                    setConfig({ ...config, qrCodePosition: e.currentTarget.value as 'top' | 'center' | 'bottom' })
+                  }
                   className="mt-1 w-full rounded border border-gray-300 px-3 py-2"
                 >
                   <option value="top">Topo</option>
@@ -287,7 +289,12 @@ export function PrintConfigForm({ eventId, onSuccess }: PrintConfigFormProps) {
                 <label className="block text-sm font-medium text-gray-700">Conteúdo do QR</label>
                 <select
                   value={config.qrCodeContent}
-                  onChange={(e) => setConfig({ ...config, qrCodeContent: e.currentTarget.value as 'participant_id' | 'check_in_url' | 'custom' })}
+                  onChange={(e) =>
+                    setConfig({
+                      ...config,
+                      qrCodeContent: e.currentTarget.value as 'participant_id' | 'check_in_url' | 'custom',
+                    })
+                  }
                   className="mt-1 w-full rounded border border-gray-300 px-3 py-2"
                 >
                   <option value="participant_id">ID do Participante</option>
@@ -308,7 +315,9 @@ export function PrintConfigForm({ eventId, onSuccess }: PrintConfigFormProps) {
             <label className="block text-sm font-medium text-gray-700">Tipo de Impressora</label>
             <select
               value={config.printerType}
-              onChange={(e) => setConfig({ ...config, printerType: e.currentTarget.value as 'thermal' | 'inkjet' | 'laser' })}
+              onChange={(e) =>
+                setConfig({ ...config, printerType: e.currentTarget.value as 'thermal' | 'inkjet' | 'laser' })
+              }
               className="mt-1 w-full rounded border border-gray-300 px-3 py-2"
             >
               <option value="thermal">Térmica (Zebra, Brother)</option>

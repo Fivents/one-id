@@ -1,7 +1,4 @@
-import type {
-  ICooldownService,
-  PersonCooldownState,
-} from '@/core/domain/contracts/cooldown.service';
+import type { ICooldownService, PersonCooldownState } from '@/core/domain/contracts/cooldown.service';
 import type { PrismaClient } from '@/generated/prisma/client';
 
 export class CooldownService implements ICooldownService {
@@ -39,10 +36,7 @@ export class CooldownService implements ICooldownService {
     return Math.max(0, remaining);
   }
 
-  async registerFailedAttempt(
-    eventParticipantId: string,
-    eventId: string,
-  ): Promise<PersonCooldownState> {
+  async registerFailedAttempt(eventParticipantId: string, eventId: string): Promise<PersonCooldownState> {
     let cooldown = await this.db.personCheckInCooldown.findUnique({
       where: {
         eventParticipantId_eventId: { eventParticipantId, eventId },
@@ -64,10 +58,7 @@ export class CooldownService implements ICooldownService {
     } else {
       // Exponential backoff: 5s → 10s → 30s → 60s
       // Formula: min(baseMs * 2^failedAttempts, maxCooldownMs)
-      const newCooldownMs = Math.min(
-        this.baseInitialMs * Math.pow(2, cooldown.failedAttempts),
-        this.maxCooldownMs,
-      );
+      const newCooldownMs = Math.min(this.baseInitialMs * Math.pow(2, cooldown.failedAttempts), this.maxCooldownMs);
 
       cooldown = await this.db.personCheckInCooldown.update({
         where: {
@@ -85,10 +76,7 @@ export class CooldownService implements ICooldownService {
     return this.mapToCooldownState(cooldown);
   }
 
-  async registerSuccessfulCheckIn(
-    eventParticipantId: string,
-    eventId: string,
-  ): Promise<PersonCooldownState> {
+  async registerSuccessfulCheckIn(eventParticipantId: string, eventId: string): Promise<PersonCooldownState> {
     let cooldown = await this.db.personCheckInCooldown.findUnique({
       where: {
         eventParticipantId_eventId: { eventParticipantId, eventId },
@@ -140,11 +128,7 @@ export class CooldownService implements ICooldownService {
     // 1. No cooldown exists yet, OR
     // 2. Cooldown is expired, OR
     // 3. Less than 3 failed attempts
-    return (
-      !cooldown ||
-      cooldown.cooldownEndsAt <= new Date() ||
-      cooldown.failedAttempts < 3
-    );
+    return !cooldown || cooldown.cooldownEndsAt <= new Date() || cooldown.failedAttempts < 3;
   }
 
   private mapToCooldownState(cooldown: {

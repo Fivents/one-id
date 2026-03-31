@@ -1,4 +1,4 @@
-import type { FaceQualityScore,IFaceQualityService } from '@/core/domain/contracts';
+import type { FaceQualityScore, IFaceQualityService } from '@/core/domain/contracts';
 
 /**
  * Face Quality Assessment Service
@@ -210,7 +210,7 @@ export class FaceQualityService implements IFaceQualityService {
   }
 
   /**
-   * Extract landmark confidence from Human.js landmarks array.
+   * Extract landmark confidence from client-provided landmarks array.
    * Returns both individual confidences and mean.
    */
   private extractLandmarkConfidence(landmarks: unknown): {

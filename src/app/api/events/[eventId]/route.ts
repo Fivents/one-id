@@ -43,6 +43,19 @@ export const PATCH = withAuth(
       const body = await req.json();
       const data = parseWithZod(updateEventRequestSchema, body);
 
+      const hasCheckinToggleUpdate =
+        data.faceEnabled !== undefined || data.qrEnabled !== undefined || data.codeEnabled !== undefined;
+
+      if (hasCheckinToggleUpdate) {
+        const finalFaceEnabled = data.faceEnabled ?? eventOrResponse.faceEnabled;
+        const finalQrEnabled = data.qrEnabled ?? eventOrResponse.qrEnabled;
+        const finalCodeEnabled = data.codeEnabled ?? eventOrResponse.codeEnabled;
+
+        if (!finalFaceEnabled && !finalQrEnabled && !finalCodeEnabled) {
+          return NextResponse.json({ error: 'At least one check-in method must be enabled.' }, { status: 400 });
+        }
+      }
+
       const controller = makeUpdateEventController();
       const result = await controller.handle(eventId, data);
 

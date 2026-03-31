@@ -15,47 +15,56 @@ export async function POST(request: NextRequest) {
 
     // Step 1: Find totem
     const totem = await prisma.totem.findFirst({
-      where: { accessCode: key }
+      where: { accessCode: key },
     });
 
     if (!totem) {
-      return NextResponse.json({
-        success: false,
-        step: 1,
-        message: 'Totem not found',
-        debug: {
-          accessCode: key,
-          found: false
-        }
-      }, { status: 200 });
+      return NextResponse.json(
+        {
+          success: false,
+          step: 1,
+          message: 'Totem not found',
+          debug: {
+            accessCode: key,
+            found: false,
+          },
+        },
+        { status: 200 },
+      );
     }
 
     // Step 2: Check totem status
     if (totem.deletedAt) {
-      return NextResponse.json({
-        success: false,
-        step: 2,
-        message: 'Totem is deleted',
-        debug: {
-          totemId: totem.id,
-          totemName: totem.name,
-          status: totem.status,
-          deletedAt: totem.deletedAt
-        }
-      }, { status: 200 });
+      return NextResponse.json(
+        {
+          success: false,
+          step: 2,
+          message: 'Totem is deleted',
+          debug: {
+            totemId: totem.id,
+            totemName: totem.name,
+            status: totem.status,
+            deletedAt: totem.deletedAt,
+          },
+        },
+        { status: 200 },
+      );
     }
 
     if (totem.status !== 'ACTIVE') {
-      return NextResponse.json({
-        success: false,
-        step: 3,
-        message: 'Totem is not active',
-        debug: {
-          totemId: totem.id,
-          totemName: totem.name,
-          status: totem.status
-        }
-      }, { status: 200 });
+      return NextResponse.json(
+        {
+          success: false,
+          step: 3,
+          message: 'Totem is not active',
+          debug: {
+            totemId: totem.id,
+            totemName: totem.name,
+            status: totem.status,
+          },
+        },
+        { status: 200 },
+      );
     }
 
     // Step 3: Check organization subscriptions
@@ -67,45 +76,49 @@ export async function POST(request: NextRequest) {
         startsAt: true,
         endsAt: true,
         revokedAt: true,
-        organization: { select: { name: true } }
-      }
+        organization: { select: { name: true } },
+      },
     });
 
     if (orgSubs.length === 0) {
-      return NextResponse.json({
-        success: false,
-        step: 4,
-        message: 'No organization subscriptions found',
-        debug: {
-          totemId: totem.id,
-          totemName: totem.name
-        }
-      }, { status: 200 });
+      return NextResponse.json(
+        {
+          success: false,
+          step: 4,
+          message: 'No organization subscriptions found',
+          debug: {
+            totemId: totem.id,
+            totemName: totem.name,
+          },
+        },
+        { status: 200 },
+      );
     }
 
     // Find active org subscriptions
-    const activeOrgSubs = orgSubs.filter(
-      sub => sub.startsAt <= now && sub.endsAt >= now && !sub.revokedAt
-    );
+    const activeOrgSubs = orgSubs.filter((sub) => sub.startsAt <= now && sub.endsAt >= now && !sub.revokedAt);
 
     if (activeOrgSubs.length === 0) {
-      return NextResponse.json({
-        success: false,
-        step: 5,
-        message: 'No active organization subscriptions',
-        debug: {
-          totemId: totem.id,
-          totemName: totem.name,
-          subscriptions: orgSubs.map(sub => ({
-            org: sub.organization.name,
-            startsAt: sub.startsAt.toISOString(),
-            endsAt: sub.endsAt.toISOString(),
-            revokedAt: sub.revokedAt?.toISOString() || null,
-            isActive: sub.startsAt <= now && sub.endsAt >= now && !sub.revokedAt
-          })),
-          currentTime: now.toISOString()
-        }
-      }, { status: 200 });
+      return NextResponse.json(
+        {
+          success: false,
+          step: 5,
+          message: 'No active organization subscriptions',
+          debug: {
+            totemId: totem.id,
+            totemName: totem.name,
+            subscriptions: orgSubs.map((sub) => ({
+              org: sub.organization.name,
+              startsAt: sub.startsAt.toISOString(),
+              endsAt: sub.endsAt.toISOString(),
+              revokedAt: sub.revokedAt?.toISOString() || null,
+              isActive: sub.startsAt <= now && sub.endsAt >= now && !sub.revokedAt,
+            })),
+            currentTime: now.toISOString(),
+          },
+        },
+        { status: 200 },
+      );
     }
 
     // Step 4: Check event subscriptions for each active org
@@ -140,15 +153,16 @@ export async function POST(request: NextRequest) {
               status: true,
               startsAt: true,
               endsAt: true,
-              deletedAt: true
-            }
-          }
-        }
+              deletedAt: true,
+            },
+          },
+        },
       });
 
       for (const eventSub of eventSubs) {
         const isSubActive = eventSub.startsAt <= now && eventSub.endsAt >= now && !eventSub.revokedAt;
-        const isEventActive = eventSub.event.status === 'ACTIVE' &&
+        const isEventActive =
+          eventSub.event.status === 'ACTIVE' &&
           eventSub.event.startsAt <= now &&
           eventSub.event.endsAt >= now &&
           !eventSub.event.deletedAt;
@@ -164,7 +178,7 @@ export async function POST(request: NextRequest) {
           eventEndsAt: eventSub.event.endsAt.toISOString(),
           subActive: isSubActive,
           eventActive: isEventActive,
-          fullyActive: isSubActive && isEventActive
+          fullyActive: isSubActive && isEventActive,
         });
 
         if (isSubActive && isEventActive) {
@@ -174,33 +188,39 @@ export async function POST(request: NextRequest) {
     }
 
     if (!foundActiveEvent) {
-      return NextResponse.json({
-        success: false,
-        step: 6,
-        message: 'No active event found',
+      return NextResponse.json(
+        {
+          success: false,
+          step: 6,
+          message: 'No active event found',
+          debug: {
+            totemId: totem.id,
+            totemName: totem.name,
+            currentTime: now.toISOString(),
+            events: eventDetails,
+          },
+        },
+        { status: 200 },
+      );
+    }
+
+    return NextResponse.json(
+      {
+        success: true,
+        message: 'Totem is properly configured',
         debug: {
           totemId: totem.id,
           totemName: totem.name,
-          currentTime: now.toISOString(),
-          events: eventDetails
-        }
-      }, { status: 200 });
-    }
-
-    return NextResponse.json({
-      success: true,
-      message: 'Totem is properly configured',
-      debug: {
-        totemId: totem.id,
-        totemName: totem.name,
-        status: totem.status,
-        events: eventDetails
-      }
-    }, { status: 200 });
+          status: totem.status,
+          events: eventDetails,
+        },
+      },
+      { status: 200 },
+    );
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Internal server error' },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

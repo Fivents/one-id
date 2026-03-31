@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { z } from 'zod/v4';
 
-import { type PrintConfigResponse,updatePrintConfigRequestSchema } from '@/core/communication/requests/print-config';
+import { type PrintConfigResponse, updatePrintConfigRequestSchema } from '@/core/communication/requests/print-config';
 import { withAuth, withRBAC } from '@/core/infrastructure/http/middlewares';
 import type { RouteContext } from '@/core/infrastructure/http/types';
 import { prisma } from '@/core/infrastructure/prisma-client';
@@ -69,10 +69,7 @@ export const GET = withAuth(
       });
 
       if (!event || !event.printConfigId) {
-        return NextResponse.json(
-          { error: 'Print configuration not found for this event.' },
-          { status: 404 },
-        );
+        return NextResponse.json({ error: 'Print configuration not found for this event.' }, { status: 404 });
       }
 
       const config = await prisma.printConfig.findUnique({
@@ -80,10 +77,7 @@ export const GET = withAuth(
       });
 
       if (!config) {
-        return NextResponse.json(
-          { error: 'Print configuration not found.' },
-          { status: 404 },
-        );
+        return NextResponse.json({ error: 'Print configuration not found.' }, { status: 404 });
       }
 
       return NextResponse.json(mapPrintConfigToResponse(config), { status: 200 });

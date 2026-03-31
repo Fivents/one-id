@@ -153,9 +153,7 @@ export class PrismaPersonFaceRepository implements IPersonFaceRepository {
       },
     });
 
-    const positions = faces
-      .map((f) => f.faceTemplatePosition)
-      .filter((p) => p !== null && p !== undefined) as string[];
+    const positions = faces.map((f) => f.faceTemplatePosition).filter((p) => p !== null && p !== undefined) as string[];
 
     // Complete if all 5 poses present
     const requiredPositions = ['center', 'left', 'right', 'up', 'down'];

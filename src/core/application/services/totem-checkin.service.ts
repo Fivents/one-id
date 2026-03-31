@@ -13,12 +13,7 @@ import type { PrismaClient } from '@/generated/prisma/client';
 
 const FACE_EMBEDDING_DIMENSION = 512;
 const PERSON_COOLDOWN_MS = 5_000;
-const MINIMUM_QUALITY_SCORE = 0.65; // Minimum face quality for matching
-const VECTOR_SEARCH_RELAXATION = 0.2;
 const MIN_SEARCH_THRESHOLD = 0.5;
-const MAX_ACCEPTANCE_RELAXATION = 0.06;
-const MIN_ACCEPTANCE_THRESHOLD = 0.62;
-const RELAXED_MIN_MARGIN_FROM_SECOND = 0.03;
 
 export interface CheckInInput {
   embedding: number[];
@@ -113,7 +108,19 @@ export class TotemCheckInService {
       }
 
       // ── Liveness check ────────────────────────────────────────────
-      if (context.aiConfig.livenessDetection && (input.livenessScore ?? 0) < 0.5) {
+      const livenessThreshold = context.aiConfig.livenessThreshold ?? 0.5;
+      const hasLivenessSignal =
+        input.livenessScore !== undefined ||
+        input.blinkDetected !== undefined ||
+        input.trackStability !== undefined ||
+        input.historicalLivenessAvg !== undefined;
+
+      if (
+        context.aiConfig.livenessDetection &&
+        hasLivenessSignal &&
+        input.livenessScore !== undefined &&
+        input.livenessScore < livenessThreshold
+      ) {
         failureReason = 'LIVENESS_FAILED';
         return this.deny(
           'CHECKIN_LOW_LIVENESS',
@@ -122,8 +129,8 @@ export class TotemCheckInService {
           context,
           totemId,
           {
-            livenessScore: input.livenessScore ?? 0,
-            livenessThreshold: 0.5,
+            livenessScore: input.livenessScore,
+            livenessThreshold,
             faceCount: input.faceCount,
             ...(input.blinkDetected !== undefined && { blinkDetected: input.blinkDetected }),
           },
@@ -131,7 +138,7 @@ export class TotemCheckInService {
       }
 
       // ── Blink detection ───────────────────────────────────────────
-      if (context.aiConfig.livenessDetection && !input.blinkDetected) {
+      if (context.aiConfig.livenessDetection && hasLivenessSignal && input.blinkDetected !== undefined && !input.blinkDetected) {
         failureReason = 'LIVENESS_FAILED';
         return this.deny('CHECKIN_NO_BLINK', 'Blink not detected. Please present a live face.', 400, context, totemId, {
           blinkDetected: false,
@@ -177,67 +184,52 @@ export class TotemCheckInService {
 
       // ── Find best match (using Vector Search if available) ────────
       const probeEmbedding = input.embedding;
-      let bestMatch: MatchCandidate | undefined;
-      let secondBestConfidence: number | undefined;
       const configuredConfidenceThreshold = this.normalizeThreshold(context.aiConfig.confidenceThreshold);
 
-      if (this.vectorDbRepository) {
-        // ── PHASE 1: Use Vector Search (O(log n)) ────────────────────
-        const searchResults = await this.vectorDbRepository.searchTopK({
-          embedding: probeEmbedding,
-          eventId: context.event.id,
-          organizationId: context.organizationId,
-          k: 5, // Return top 5 candidates
-          threshold: this.getSearchThreshold(configuredConfidenceThreshold),
-        });
+      if (!this.vectorDbRepository) {
+        failureReason = 'VECTOR_SEARCH_UNAVAILABLE';
+        return this.deny(
+          'CHECKIN_VECTOR_SEARCH_UNAVAILABLE',
+          'Vector search is not available for face check-in.',
+          500,
+          context,
+          totemId,
+        );
+      }
 
-        if (searchResults.length > 0) {
-          const topMatch = searchResults[0];
-          const runnerUp = searchResults[1];
+      // ── PHASE 1: Use Vector Search (O(log n)) ────────────────────
+      const searchResults = await this.vectorDbRepository.searchTopK({
+        embedding: probeEmbedding,
+        eventId: context.event.id,
+        organizationId: context.organizationId,
+        k: 5,
+        threshold: MIN_SEARCH_THRESHOLD,
+      });
 
-          bestMatch = {
+      const topMatch = searchResults[0];
+
+      const bestMatch: MatchCandidate | undefined = topMatch
+        ? {
             eventParticipantId: topMatch.eventParticipantId,
             participantName: topMatch.personName,
             company: topMatch.company,
             jobTitle: topMatch.jobTitle,
             faceImageUrl: topMatch.faceImageUrl,
             confidence: topMatch.confidence,
-          };
-
-          secondBestConfidence = runnerUp?.confidence;
-        }
-      }
-
-      if (!bestMatch || bestMatch.confidence < configuredConfidenceThreshold) {
-        // Safety net: keep check-in operational even if embedding_vector is missing or stale.
-        const fallback = await this.findBestMatchWithLegacyLoop(probeEmbedding, context.event.id);
-
-        if (fallback.bestMatch && (!bestMatch || fallback.bestMatch.confidence > bestMatch.confidence)) {
-          bestMatch = fallback.bestMatch;
-          secondBestConfidence = fallback.secondBestConfidence;
-        }
-      }
+          }
+        : undefined;
 
       if (!bestMatch) {
         failureReason = 'PARTICIPANT_NOT_FOUND';
         return this.deny('CHECKIN_PARTICIPANT_NOT_FOUND', 'Participant not found.', 404, context, totemId);
       }
 
-      const thresholdDecision = this.resolveThresholdDecision(
-        configuredConfidenceThreshold,
-        bestMatch.confidence,
-        secondBestConfidence,
-      );
-
       // ── Confidence threshold ──────────────────────────────────────
-      if (bestMatch.confidence < thresholdDecision.acceptanceThreshold) {
+      if (bestMatch.confidence < configuredConfidenceThreshold) {
         failureReason = 'LOW_CONFIDENCE';
         return this.deny('CHECKIN_LOW_CONFIDENCE', 'Confidence below threshold.', 400, context, totemId, {
           confidence: bestMatch.confidence,
-          threshold: thresholdDecision.acceptanceThreshold,
-          configuredThreshold: configuredConfidenceThreshold,
-          thresholdMode: thresholdDecision.mode,
-          secondBestConfidence,
+          threshold: configuredConfidenceThreshold,
           faceCount: input.faceCount,
           participantName: bestMatch.participantName,
           eventParticipantId: bestMatch.eventParticipantId,
@@ -298,7 +290,13 @@ export class TotemCheckInService {
 
         if (cooldownCheck) {
           failureReason = 'COOLDOWN';
-          return this.deny('CHECKIN_PERSON_COOLDOWN', 'Check-in blocked by anti-fraud cooldown.', 429, context, totemId);
+          return this.deny(
+            'CHECKIN_PERSON_COOLDOWN',
+            'Check-in blocked by anti-fraud cooldown.',
+            429,
+            context,
+            totemId,
+          );
         }
       }
 
@@ -315,10 +313,7 @@ export class TotemCheckInService {
 
       // ── FASE 3: Register successful check-in (resets cooldown) ────────
       if (this.cooldownService) {
-        await this.cooldownService.registerSuccessfulCheckIn(
-          bestMatch.eventParticipantId,
-          context.event.id,
-        );
+        await this.cooldownService.registerSuccessfulCheckIn(bestMatch.eventParticipantId, context.event.id);
       }
 
       // ── Audit log: approved ───────────────────────────────────────
@@ -328,17 +323,14 @@ export class TotemCheckInService {
         metadata: {
           checkInId: checkIn.id,
           confidence: bestMatch.confidence,
-          confidenceThreshold: thresholdDecision.acceptanceThreshold,
-          configuredThreshold: configuredConfidenceThreshold,
-          thresholdMode: thresholdDecision.mode,
-          secondBestConfidence,
+          confidenceThreshold: configuredConfidenceThreshold,
           totemId,
           eventId: context.event.id,
           totemEventSubscriptionId: context.totemEventSubscriptionId,
           participantName: bestMatch.participantName,
           eventParticipantId: bestMatch.eventParticipantId,
           faceCount: input.faceCount,
-          searchMethod: this.vectorDbRepository ? 'VECTOR_DB' : 'LEGACY_LOOP',
+          searchMethod: 'VECTOR_DB',
           ...(input.livenessScore !== undefined && { livenessScore: input.livenessScore }),
           ...(input.blinkDetected !== undefined && { blinkDetected: input.blinkDetected }),
           // NEW (Phase 4): Add tracking information
@@ -396,154 +388,12 @@ export class TotemCheckInService {
 
   // ── Helpers ──────────────────────────────────────────────────────
 
-  private cosineSimilarity(a: Buffer, b: Buffer): number {
-    const vecA = new Float32Array(a.buffer, a.byteOffset, Math.floor(a.byteLength / 4));
-    const vecB = new Float32Array(b.buffer, b.byteOffset, Math.floor(b.byteLength / 4));
-
-    const length = Math.min(vecA.length, vecB.length);
-
-    let dot = 0;
-    let normA = 0;
-    let normB = 0;
-
-    for (let i = 0; i < length; i += 1) {
-      dot += vecA[i] * vecB[i];
-      normA += vecA[i] * vecA[i];
-      normB += vecB[i] * vecB[i];
-    }
-
-    if (!normA || !normB) {
-      return 0;
-    }
-
-    return dot / Math.sqrt(normA * normB);
-  }
-
-  private async findBestMatchWithLegacyLoop(
-    probeEmbedding: number[],
-    eventId: string,
-  ): Promise<{ bestMatch?: MatchCandidate; secondBestConfidence?: number }> {
-    const participants = await this.db.eventParticipant.findMany({
-      where: {
-        eventId,
-        deletedAt: null,
-        person: {
-          deletedAt: null,
-        },
-      },
-      select: {
-        id: true,
-        company: true,
-        jobTitle: true,
-        person: {
-          select: {
-            name: true,
-            faces: {
-              where: {
-                deletedAt: null,
-                isActive: true,
-              },
-              select: {
-                id: true,
-                embedding: true,
-                imageUrl: true,
-                faceQualityScore: true,
-              },
-            },
-          },
-        },
-      },
-    });
-
-    const participantCandidates = new Map<string, MatchCandidate>();
-    const probeBuffer = Buffer.from(new Float32Array(probeEmbedding).buffer);
-
-    for (const participant of participants) {
-      for (const face of participant.person.faces) {
-        const totalTemplatesForPerson = participant.person.faces.length;
-
-        if (
-          totalTemplatesForPerson === 1 &&
-          face.faceQualityScore !== null &&
-          face.faceQualityScore < MINIMUM_QUALITY_SCORE
-        ) {
-          continue;
-        }
-
-        const confidence = this.cosineSimilarity(Buffer.from(face.embedding), probeBuffer);
-        const previous = participantCandidates.get(participant.id);
-
-        if (!previous || confidence > previous.confidence) {
-          participantCandidates.set(participant.id, {
-            eventParticipantId: participant.id,
-            participantName: participant.person.name,
-            company: participant.company,
-            jobTitle: participant.jobTitle,
-            faceImageUrl: face.imageUrl,
-            confidence,
-          });
-        }
-      }
-    }
-
-    const sortedCandidates = Array.from(participantCandidates.values()).sort((a, b) => b.confidence - a.confidence);
-
-    return {
-      bestMatch: sortedCandidates[0],
-      secondBestConfidence: sortedCandidates[1]?.confidence,
-    };
-  }
-
   private normalizeThreshold(value: number): number {
     if (!Number.isFinite(value)) {
       return 0.75;
     }
 
     return Math.max(MIN_SEARCH_THRESHOLD, Math.min(0.95, value));
-  }
-
-  private getSearchThreshold(configuredThreshold: number): number {
-    return Math.max(MIN_SEARCH_THRESHOLD, configuredThreshold - VECTOR_SEARCH_RELAXATION);
-  }
-
-  private resolveThresholdDecision(
-    configuredThreshold: number,
-    bestConfidence: number,
-    secondBestConfidence?: number,
-  ): { acceptanceThreshold: number; mode: 'STRICT' | 'RELAXED_NEAR_MATCH' } {
-    if (bestConfidence >= configuredThreshold) {
-      return { acceptanceThreshold: configuredThreshold, mode: 'STRICT' };
-    }
-
-    const relaxedThreshold = Math.max(
-      MIN_ACCEPTANCE_THRESHOLD,
-      configuredThreshold - MAX_ACCEPTANCE_RELAXATION,
-    );
-
-    const isNearThreshold = bestConfidence >= relaxedThreshold;
-
-    if (!isNearThreshold) {
-      return { acceptanceThreshold: configuredThreshold, mode: 'STRICT' };
-    }
-
-    if (secondBestConfidence === undefined) {
-      // Single candidate only gets minor tolerance to reduce false accepts.
-      const singleCandidateThreshold = Math.max(relaxedThreshold, configuredThreshold - 0.02);
-
-      if (bestConfidence >= singleCandidateThreshold) {
-        return { acceptanceThreshold: singleCandidateThreshold, mode: 'RELAXED_NEAR_MATCH' };
-      }
-
-      return { acceptanceThreshold: configuredThreshold, mode: 'STRICT' };
-    }
-
-    const confidenceGap = bestConfidence - secondBestConfidence;
-
-    if (confidenceGap >= RELAXED_MIN_MARGIN_FROM_SECOND) {
-      return { acceptanceThreshold: relaxedThreshold, mode: 'RELAXED_NEAR_MATCH' };
-    }
-
-    return { acceptanceThreshold: configuredThreshold, mode: 'STRICT' };
   }
 
   private async deny(

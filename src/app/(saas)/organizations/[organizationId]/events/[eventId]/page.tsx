@@ -69,6 +69,24 @@ function calculateCheckInRate(total: number, checkedIn: number) {
 const NONE_PRINT_CONFIG = '__none__';
 const PARTICIPANTS_PAGE_SIZE = 20;
 
+async function readImageFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        resolve(reader.result);
+        return;
+      }
+
+      reject(new Error('Invalid image file.'));
+    };
+
+    reader.onerror = () => reject(new Error('Failed to read image file.'));
+    reader.readAsDataURL(file);
+  });
+}
+
 export default function EventDetailPage() {
   const router = useRouter();
   const params = useParams();
@@ -102,6 +120,8 @@ export default function EventDetailPage() {
   const [participantPhone, setParticipantPhone] = useState('');
   const [participantCompany, setParticipantCompany] = useState('');
   const [participantJobTitle, setParticipantJobTitle] = useState('');
+  const [participantQrCodeValue, setParticipantQrCodeValue] = useState('');
+  const [participantAccessCode, setParticipantAccessCode] = useState('');
   const [participantFaceImageUrl, setParticipantFaceImageUrl] = useState('');
   const [participantFaceImageDataUrl, setParticipantFaceImageDataUrl] = useState('');
   const [isCreateFaceCameraOpen, setIsCreateFaceCameraOpen] = useState(false);
@@ -135,6 +155,8 @@ export default function EventDetailPage() {
 
   const [editCompany, setEditCompany] = useState('');
   const [editJobTitle, setEditJobTitle] = useState('');
+  const [editQrCodeValue, setEditQrCodeValue] = useState('');
+  const [editAccessCode, setEditAccessCode] = useState('');
   const [isSavingParticipant, setIsSavingParticipant] = useState(false);
 
   const [faceImageUrl, setFaceImageUrl] = useState('');
@@ -164,8 +186,8 @@ export default function EventDetailPage() {
     maxFaces: 1,
     livenessDetection: false,
     minFaceSize: 80,
-    recommendedEmbeddingModel: 'InsightFace Buffalo_L (ArcFace, 512d)',
-    recommendedDetectorModel: 'SCRFD 10G (2026 production baseline)',
+    recommendedEmbeddingModel: 'Transformers.js ArcFace (512d)',
+    recommendedDetectorModel: 'Browser FaceDetector API',
   });
   const [isSavingAIConfig, setIsSavingAIConfig] = useState(false);
 
@@ -241,6 +263,8 @@ export default function EventDetailPage() {
     setParticipantPhone('');
     setParticipantCompany('');
     setParticipantJobTitle('');
+    setParticipantQrCodeValue('');
+    setParticipantAccessCode('');
     setParticipantFaceImageUrl('');
     setParticipantFaceImageDataUrl('');
     stopCreateFaceCamera();
@@ -313,6 +337,25 @@ export default function EventDetailPage() {
     stopCreateFaceCamera();
   }
 
+  async function handleCreateFaceFileChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const input = event.currentTarget;
+    const file = input.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    try {
+      const dataUrl = await readImageFileAsDataUrl(file);
+      setParticipantFaceImageDataUrl(dataUrl);
+      setParticipantFaceImageUrl('');
+      stopCreateFaceCamera();
+    } catch {
+      toast.error(t('pages.eventDetail.capturePhotoError'));
+    } finally {
+      input.value = '';
+    }
+  }
+
   async function handleCreateParticipant(e: React.FormEvent) {
     e.preventDefault();
 
@@ -327,6 +370,8 @@ export default function EventDetailPage() {
         phone: participantPhone.trim() || null,
         company: participantCompany.trim() || null,
         jobTitle: participantJobTitle.trim() || null,
+        qrCodeValue: participantQrCodeValue.trim() || null,
+        accessCode: participantAccessCode.trim().toUpperCase() || null,
       });
 
       if (!response.success) {
@@ -352,12 +397,12 @@ export default function EventDetailPage() {
           imageUrl: normalizedFaceImageUrl || undefined,
           imageDataUrl: normalizedFaceImageDataUrl || undefined,
           embedding,
-          embeddingModel: 'Human v3.3.6 face description (SFace/ArcFace compatible)',
+          embeddingModel: 'Transformers.js ArcFace (512d)',
         });
 
         if (!faceResponse.success) {
           const errorMsg = faceResponse.error?.details
-            ? faceResponse.error.details.map((d: any) => d.message).join('; ')
+            ? faceResponse.error.details.map((d) => d.message).join('; ')
             : faceResponse.error?.message;
           throw new Error(errorMsg || 'Failed to register face');
         }
@@ -493,6 +538,8 @@ export default function EventDetailPage() {
     if (editParticipant) {
       setEditCompany(editParticipant.company ?? '');
       setEditJobTitle(editParticipant.jobTitle ?? '');
+      setEditQrCodeValue(editParticipant.qrCodeValue ?? '');
+      setEditAccessCode(editParticipant.accessCode ?? '');
     }
   }, [editParticipant]);
 
@@ -567,6 +614,25 @@ export default function EventDetailPage() {
     setFaceImageDataUrl(captured);
     setFaceImageUrl('');
     stopFaceCamera();
+  }
+
+  async function handleFaceFileChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const input = event.currentTarget;
+    const file = input.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    try {
+      const dataUrl = await readImageFileAsDataUrl(file);
+      setFaceImageDataUrl(dataUrl);
+      setFaceImageUrl('');
+      stopFaceCamera();
+    } catch {
+      toast.error(t('pages.eventDetail.capturePhotoError'));
+    } finally {
+      input.value = '';
+    }
   }
 
   async function handleAssignTotem(e: React.FormEvent) {
@@ -653,6 +719,8 @@ export default function EventDetailPage() {
       await participantsClient.updateParticipant(editParticipant.id, {
         company: editCompany.trim() || null,
         jobTitle: editJobTitle.trim() || null,
+        qrCodeValue: editQrCodeValue.trim() || null,
+        accessCode: editAccessCode.trim().toUpperCase() || null,
       });
       toast.success(t('pages.eventDetail.participantUpdatedSuccess'));
       setEditParticipant(null);
@@ -715,7 +783,7 @@ export default function EventDetailPage() {
           imageUrl: normalizedImageUrl || undefined,
           imageDataUrl: normalizedImageDataUrl || undefined,
           embedding,
-          embeddingModel: 'Human v3.3.6 face description (SFace/ArcFace compatible)',
+          embeddingModel: 'Transformers.js ArcFace (512d)',
           isActive: true,
         });
       } else {
@@ -724,7 +792,7 @@ export default function EventDetailPage() {
           imageUrl: normalizedImageUrl || undefined,
           imageDataUrl: normalizedImageDataUrl || undefined,
           embedding,
-          embeddingModel: 'Human v3.3.6 face description (SFace/ArcFace compatible)',
+          embeddingModel: 'Transformers.js ArcFace (512d)',
         });
       }
 
@@ -972,6 +1040,8 @@ export default function EventDetailPage() {
                         <TableHead>{t('pages.eventDetail.jobTitle')}</TableHead>
                         <TableHead>{t('pages.eventDetail.registeredAt')}</TableHead>
                         <TableHead>{t('pages.eventDetail.face')}</TableHead>
+                        <TableHead>{t('pages.eventDetail.accessCode')}</TableHead>
+                        <TableHead>{t('pages.eventDetail.qrCode')}</TableHead>
                         <TableHead>{t('pages.eventDetail.checkinStatus')}</TableHead>
                         <TableHead className="w-24">{t('pages.eventDetail.actions')}</TableHead>
                       </TableRow>
@@ -998,6 +1068,8 @@ export default function EventDetailPage() {
                               {participant.faceId ? t('pages.eventDetail.withImage') : t('pages.eventDetail.noImage')}
                             </Badge>
                           </TableCell>
+                          <TableCell className="text-muted-foreground">{participant.accessCode ?? '—'}</TableCell>
+                          <TableCell className="text-muted-foreground">{participant.qrCodeValue ?? '—'}</TableCell>
                           <TableCell>
                             <Badge
                               variant="outline"
@@ -1663,6 +1735,25 @@ export default function EventDetailPage() {
               />
             </div>
 
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="participant-qr-code">QR Code</Label>
+                <Input
+                  id="participant-qr-code"
+                  value={participantQrCodeValue}
+                  onChange={(e) => setParticipantQrCodeValue(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="participant-access-code">Código de acesso</Label>
+                <Input
+                  id="participant-access-code"
+                  value={participantAccessCode}
+                  onChange={(e) => setParticipantAccessCode(e.target.value.toUpperCase())}
+                />
+              </div>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="participant-face-url">{t('pages.eventDetail.faceImageUrlOptional')}</Label>
               <Input
@@ -1677,6 +1768,18 @@ export default function EventDetailPage() {
                   }
                 }}
                 placeholder="https://..."
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="participant-face-upload">Upload de imagem (opcional)</Label>
+              <Input
+                id="participant-face-upload"
+                type="file"
+                accept="image/*"
+                onChange={(event) => {
+                  void handleCreateFaceFileChange(event);
+                }}
               />
             </div>
 
@@ -1766,6 +1869,18 @@ export default function EventDetailPage() {
               <Label htmlFor="edit-job-title">{t('pages.eventDetail.jobTitle')}</Label>
               <Input id="edit-job-title" value={editJobTitle} onChange={(e) => setEditJobTitle(e.target.value)} />
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-qr-code">QR Code</Label>
+              <Input id="edit-qr-code" value={editQrCodeValue} onChange={(e) => setEditQrCodeValue(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-access-code">Código de acesso</Label>
+              <Input
+                id="edit-access-code"
+                value={editAccessCode}
+                onChange={(e) => setEditAccessCode(e.target.value.toUpperCase())}
+              />
+            </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setEditParticipant(null)}>
                 {t('pages.eventDetail.cancel')}
@@ -1795,6 +1910,8 @@ export default function EventDetailPage() {
             />
             <InfoRow label={t('pages.eventDetail.company')} value={viewParticipant?.company ?? '—'} />
             <InfoRow label={t('pages.eventDetail.jobTitle')} value={viewParticipant?.jobTitle ?? '—'} />
+            <InfoRow label="QR Code" value={viewParticipant?.qrCodeValue ?? '—'} />
+            <InfoRow label="Código de acesso" value={viewParticipant?.accessCode ?? '—'} />
             <InfoRow
               label={t('pages.eventDetail.registeredAt')}
               value={viewParticipant ? formatDateTime(viewParticipant.registeredAt, locale) : ''}
@@ -1838,6 +1955,18 @@ export default function EventDetailPage() {
                   }
                 }}
                 placeholder="https://..."
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="face-upload">Upload de imagem (opcional)</Label>
+              <Input
+                id="face-upload"
+                type="file"
+                accept="image/*"
+                onChange={(event) => {
+                  void handleFaceFileChange(event);
+                }}
               />
             </div>
 

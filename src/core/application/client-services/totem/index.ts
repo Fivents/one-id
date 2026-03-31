@@ -6,6 +6,7 @@ export {
   loginTotem,
   sendCheckIn,
   type TotemAIConfig,
+  type TotemCheckInRequestPayload,
   type TotemCheckInResponse,
   type TotemLoginResponse,
   type TotemSessionResponse,

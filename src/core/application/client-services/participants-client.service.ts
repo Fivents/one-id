@@ -19,6 +19,8 @@ export interface ParticipantResponse {
   id: string;
   company: string | null;
   jobTitle: string | null;
+  qrCodeValue: string | null;
+  accessCode: string | null;
   personId: string;
   eventId: string;
   createdAt: Date;

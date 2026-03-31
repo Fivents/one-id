@@ -88,26 +88,18 @@ export interface IMultiTenantAuditService {
    * - All check-ins reference valid participants
    * - No orphaned records
    */
-  verifyMultiTenantIsolation(
-    organizationId: string
-  ): Promise<MultiTenantValidation>;
+  verifyMultiTenantIsolation(organizationId: string): Promise<MultiTenantValidation>;
 
   /**
    * Verify encryption adoption rate in organization
    */
-  verifyEncryptionAdoption(
-    organizationId: string
-  ): Promise<EncryptionAdoptionMetrics>;
+  verifyEncryptionAdoption(organizationId: string): Promise<EncryptionAdoptionMetrics>;
 
   /**
    * Generate compliance audit report
    * For: GDPR, SOC2, HIPAA
    */
-  generateComplianceAuditReport(
-    organizationId: string,
-    startDate: Date,
-    endDate: Date
-  ): Promise<ComplianceAuditReport>;
+  generateComplianceAuditReport(organizationId: string, startDate: Date, endDate: Date): Promise<ComplianceAuditReport>;
 
   /**
    * Cross-organization isolation test

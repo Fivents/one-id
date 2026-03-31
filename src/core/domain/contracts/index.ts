@@ -1,19 +1,14 @@
 export type { CreateAuditLogData, IAuditLogRepository } from './audit-log.repository';
 export type { IAuthIdentityRepository } from './auth-identity.repository';
 export type { CreateCheckInData, ICheckInRepository } from './check-in.repository';
-export type {
-  ICheckInMetricsService,
-  MetricsSnapshot,
-} from './check-in-metrics.service';
+export type { ICheckInMetricsService, MetricsSnapshot } from './check-in-metrics.service';
 export type {
   AdaptiveThresholdResult,
   IConfidenceThresholdService,
   ThresholdAdaptationInput,
 } from './confidence-threshold.service';
 export type { ICooldownService, PersonCooldownState } from './cooldown.service';
-export type {
-  IEmbeddingEncryptionService,
-} from './embedding-encryption.service';
+export type { IEmbeddingEncryptionService } from './embedding-encryption.service';
 export type { CreateEventData, IEventRepository, UpdateEventData } from './event.repository';
 export type {
   CreateEventParticipantData,

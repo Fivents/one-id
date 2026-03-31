@@ -12,6 +12,9 @@ export interface EventProps {
   timezone: string;
   address?: string | null;
   status: EventStatus;
+  faceEnabled: boolean;
+  qrEnabled: boolean;
+  codeEnabled: boolean;
   startsAt: Date;
   endsAt: Date;
   organizationId: string;
@@ -43,6 +46,16 @@ export class EventEntity extends BaseEntity {
         level: 'error',
       });
     }
+
+    if (!props.faceEnabled && !props.qrEnabled && !props.codeEnabled) {
+      throw new AppError({
+        code: ErrorCode.ENTITY_INVARIANT_VIOLATION,
+        message: 'Event must have at least one check-in method enabled',
+        httpStatus: 400,
+        level: 'error',
+      });
+    }
+
     return new EventEntity(props);
   }
 
@@ -68,6 +81,18 @@ export class EventEntity extends BaseEntity {
 
   get status(): EventStatus {
     return this.props.status;
+  }
+
+  get faceEnabled(): boolean {
+    return this.props.faceEnabled;
+  }
+
+  get qrEnabled(): boolean {
+    return this.props.qrEnabled;
+  }
+
+  get codeEnabled(): boolean {
+    return this.props.codeEnabled;
   }
 
   get startsAt(): Date {
@@ -159,6 +184,9 @@ export class EventEntity extends BaseEntity {
       timezone: this.props.timezone,
       address: this.props.address,
       status: this.props.status,
+      faceEnabled: this.props.faceEnabled,
+      qrEnabled: this.props.qrEnabled,
+      codeEnabled: this.props.codeEnabled,
       startsAt: this.props.startsAt,
       endsAt: this.props.endsAt,
       organizationId: this.props.organizationId,

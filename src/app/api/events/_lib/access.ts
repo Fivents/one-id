@@ -6,6 +6,9 @@ import { prisma } from '@/core/infrastructure/prisma-client';
 interface EventScope {
   id: string;
   organizationId: string;
+  faceEnabled: boolean;
+  qrEnabled: boolean;
+  codeEnabled: boolean;
 }
 
 export async function assertOrganizationAccess(req: NextRequest, organizationId: string): Promise<NextResponse | null> {
@@ -34,7 +37,13 @@ export async function assertOrganizationAccess(req: NextRequest, organizationId:
 export async function getAuthorizedEvent(req: NextRequest, eventId: string): Promise<EventScope | NextResponse> {
   const event = await prisma.event.findUnique({
     where: { id: eventId, deletedAt: null },
-    select: { id: true, organizationId: true },
+    select: {
+      id: true,
+      organizationId: true,
+      faceEnabled: true,
+      qrEnabled: true,
+      codeEnabled: true,
+    },
   });
 
   if (!event) {

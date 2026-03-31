@@ -25,6 +25,9 @@ export interface ActiveTotemContext {
     name: string;
     startsAt: Date;
     endsAt: Date;
+    faceEnabled: boolean;
+    qrEnabled: boolean;
+    codeEnabled: boolean;
   };
   totemOrganizationSubscriptionId: string;
   totemEventSubscriptionId: string;
@@ -41,8 +44,8 @@ const DEFAULT_AI_CONFIG: EventAIConfigDTO = {
   cooldownSeconds: 8,
   efSearch: 64,
   topKCandidates: 5,
-  recommendedEmbeddingModel: 'InsightFace ArcFace (w600k_r50)',
-  recommendedDetectorModel: 'SCRFD 10G (scrfd_10g_bnkps)',
+  recommendedEmbeddingModel: 'Transformers.js ArcFace (512d)',
+  recommendedDetectorModel: 'Browser FaceDetector API',
 };
 
 async function getEventAIConfig(eventId: string): Promise<EventAIConfigDTO> {
@@ -101,7 +104,9 @@ async function resolveFromWhere(where: { id?: string; accessCode?: string }): Pr
     where: {
       ...where,
       deletedAt: null,
-      status: 'ACTIVE',
+      status: {
+        not: 'MAINTENANCE',
+      },
     },
     select: {
       id: true,
@@ -135,6 +140,9 @@ async function resolveFromWhere(where: { id?: string; accessCode?: string }): Pr
                   name: true,
                   startsAt: true,
                   endsAt: true,
+                  faceEnabled: true,
+                  qrEnabled: true,
+                  codeEnabled: true,
                 },
               },
             },
@@ -175,6 +183,9 @@ async function resolveFromWhere(where: { id?: string; accessCode?: string }): Pr
       name: eventSubscription.event.name,
       startsAt: eventSubscription.event.startsAt,
       endsAt: eventSubscription.event.endsAt,
+      faceEnabled: eventSubscription.event.faceEnabled,
+      qrEnabled: eventSubscription.event.qrEnabled,
+      codeEnabled: eventSubscription.event.codeEnabled,
     },
     totemOrganizationSubscriptionId: orgSubscription.id,
     totemEventSubscriptionId: eventSubscription.id,

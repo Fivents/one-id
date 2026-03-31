@@ -119,13 +119,13 @@ export default function Home() {
               <span className="text-xl font-bold text-white">Fivents OneID</span>
             </div>
             <div className="hidden gap-8 md:flex">
-              <a href="#features" className="text-sm text-gray-300 hover:text-white transition-colors">
+              <a href="#features" className="text-sm text-gray-300 transition-colors hover:text-white">
                 Recursos
               </a>
-              <a href="#pricing" className="text-sm text-gray-300 hover:text-white transition-colors">
+              <a href="#pricing" className="text-sm text-gray-300 transition-colors hover:text-white">
                 Preços
               </a>
-              <a href="#contact" className="text-sm text-gray-300 hover:text-white transition-colors">
+              <a href="#contact" className="text-sm text-gray-300 transition-colors hover:text-white">
                 Contato
               </a>
             </div>
@@ -139,57 +139,53 @@ export default function Home() {
       </nav>
 
       {/* Hero Section */}
-      <section className="relative overflow-hidden bg-black px-4 sm:px-6 lg:px-8 py-20 sm:py-32">
+      <section className="relative overflow-hidden bg-black px-4 py-20 sm:px-6 sm:py-32 lg:px-8">
         {/* Animated background gradient */}
         <div className="absolute inset-0">
-          <div className="absolute top-0 left-1/4 h-96 w-96 bg-blue-600/20 rounded-full blur-3xl animate-pulse" />
-          <div className="absolute bottom-0 right-1/4 h-96 w-96 bg-purple-600/20 rounded-full blur-3xl animate-pulse" />
+          <div className="absolute top-0 left-1/4 h-96 w-96 animate-pulse rounded-full bg-blue-600/20 blur-3xl" />
+          <div className="absolute right-1/4 bottom-0 h-96 w-96 animate-pulse rounded-full bg-purple-600/20 blur-3xl" />
         </div>
 
         <div className="relative mx-auto max-w-4xl text-center">
-          <Badge className="mb-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white border-0">
+          <Badge className="mb-4 border-0 bg-gradient-to-r from-blue-500 to-purple-600 text-white">
             <Sparkles className="mr-2 h-3 w-3" />
             Tecnologia de Ponta em Reconhecimento Facial
           </Badge>
 
-          <h1 className="text-5xl sm:text-7xl font-bold text-white mb-6 leading-tight">
+          <h1 className="mb-6 text-5xl leading-tight font-bold text-white sm:text-7xl">
             Credenciamento de Eventos com IA
           </h1>
 
-          <p className="text-xl text-gray-300 mb-8 max-w-2xl mx-auto">
-            Revolucione seu check-in com reconhecimento facial avançado. Instantâneo, seguro e escalável.
-            A plataforma perfeita para eventos que exigem eficiência.
+          <p className="mx-auto mb-8 max-w-2xl text-xl text-gray-300">
+            Revolucione seu check-in com reconhecimento facial avançado. Instantâneo, seguro e escalável. A plataforma
+            perfeita para eventos que exigem eficiência.
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
+          <div className="mb-12 flex flex-col justify-center gap-4 sm:flex-row">
             <Link href="/login">
               <Button
                 size="lg"
-                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white border-0"
+                className="border-0 bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700"
               >
                 Começar Grátis <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </Link>
-            <Button
-              size="lg"
-              variant="outline"
-              className="border-white/20 text-white hover:bg-white/10"
-            >
+            <Button size="lg" variant="outline" className="border-white/20 text-white hover:bg-white/10">
               Solicitar Demo
             </Button>
           </div>
 
-          <div className="grid grid-cols-3 gap-6 text-gray-300 text-sm">
+          <div className="grid grid-cols-3 gap-6 text-sm text-gray-300">
             <div>
-              <div className="text-3xl font-bold text-white mb-2">99%</div>
+              <div className="mb-2 text-3xl font-bold text-white">99%</div>
               <div>Precisão Facial</div>
             </div>
             <div>
-              <div className="text-3xl font-bold text-white mb-2">&lt;1s</div>
+              <div className="mb-2 text-3xl font-bold text-white">&lt;1s</div>
               <div>Tempo de Check-in</div>
             </div>
             <div>
-              <div className="text-3xl font-bold text-white mb-2">24/7</div>
+              <div className="mb-2 text-3xl font-bold text-white">24/7</div>
               <div>Disponibilidade</div>
             </div>
           </div>
@@ -197,27 +193,26 @@ export default function Home() {
       </section>
 
       {/* Features Section */}
-      <section id="features" className="bg-gradient-to-b from-black via-blue-950/10 to-black px-4 sm:px-6 lg:px-8 py-20 sm:py-32">
+      <section
+        id="features"
+        className="bg-gradient-to-b from-black via-blue-950/10 to-black px-4 py-20 sm:px-6 sm:py-32 lg:px-8"
+      >
         <div className="mx-auto max-w-6xl">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl sm:text-5xl font-bold text-white mb-4">
-              Recursos Poderosos
-            </h2>
-            <p className="text-xl text-gray-400 max-w-2xl mx-auto">
+          <div className="mb-16 text-center">
+            <h2 className="mb-4 text-4xl font-bold text-white sm:text-5xl">Recursos Poderosos</h2>
+            <p className="mx-auto max-w-2xl text-xl text-gray-400">
               Tudo que você precisa para gerenciar credenciamento de eventos com segurança e eficiência
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
             {features.map((feature, index) => (
               <Card
                 key={index}
-                className="bg-white/5 border-white/10 hover:border-white/20 transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/20"
+                className="border-white/10 bg-white/5 transition-all duration-300 hover:border-white/20 hover:shadow-lg hover:shadow-blue-500/20"
               >
                 <CardHeader>
-                  <div className="mb-4 p-3 rounded-lg bg-white/5 w-fit">
-                    {feature.icon}
-                  </div>
+                  <div className="mb-4 w-fit rounded-lg bg-white/5 p-3">{feature.icon}</div>
                   <CardTitle className="text-white">{feature.title}</CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -230,13 +225,11 @@ export default function Home() {
       </section>
 
       {/* Use Cases Section */}
-      <section className="bg-black px-4 sm:px-6 lg:px-8 py-20 sm:py-32">
+      <section className="bg-black px-4 py-20 sm:px-6 sm:py-32 lg:px-8">
         <div className="mx-auto max-w-6xl">
-          <h2 className="text-4xl sm:text-5xl font-bold text-white mb-16 text-center">
-            Ideal para Qualquer Evento
-          </h2>
+          <h2 className="mb-16 text-center text-4xl font-bold text-white sm:text-5xl">Ideal para Qualquer Evento</h2>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
             {[
               {
                 title: 'Conferências Corporativas',
@@ -259,9 +252,9 @@ export default function Home() {
                 metrics: ['Análise de conexões', 'Relatório de networking', 'Matching inteligente'],
               },
             ].map((useCase, index) => (
-              <Card key={index} className="bg-gradient-to-br from-blue-900/30 to-purple-900/30 border-white/10">
+              <Card key={index} className="border-white/10 bg-gradient-to-br from-blue-900/30 to-purple-900/30">
                 <CardHeader>
-                  <CardTitle className="text-white flex items-center gap-2">
+                  <CardTitle className="flex items-center gap-2 text-white">
                     <CheckCircle className="h-5 w-5 text-green-500" />
                     {useCase.title}
                   </CardTitle>
@@ -270,8 +263,8 @@ export default function Home() {
                 <CardContent>
                   <ul className="space-y-2">
                     {useCase.metrics.map((metric, idx) => (
-                      <li key={idx} className="text-gray-300 flex items-center gap-2">
-                        <div className="h-1.5 w-1.5 bg-blue-500 rounded-full" />
+                      <li key={idx} className="flex items-center gap-2 text-gray-300">
+                        <div className="h-1.5 w-1.5 rounded-full bg-blue-500" />
                         {metric}
                       </li>
                     ))}
@@ -284,25 +277,23 @@ export default function Home() {
       </section>
 
       {/* Pricing Section */}
-      <section id="pricing" className="bg-gradient-to-b from-black to-blue-950/20 px-4 sm:px-6 lg:px-8 py-20 sm:py-32">
+      <section id="pricing" className="bg-gradient-to-b from-black to-blue-950/20 px-4 py-20 sm:px-6 sm:py-32 lg:px-8">
         <div className="mx-auto max-w-6xl">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl sm:text-5xl font-bold text-white mb-4">
-              Planos Transparentes
-            </h2>
+          <div className="mb-16 text-center">
+            <h2 className="mb-4 text-4xl font-bold text-white sm:text-5xl">Planos Transparentes</h2>
             <p className="text-xl text-gray-400">
               Escolha o plano perfeito para seu evento. Sem surpresas, sem contratos longos.
             </p>
           </div>
 
           {loading ? (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
               {[1, 2, 3].map((i) => (
-                <div key={i} className="h-96 bg-white/5 rounded-xl animate-pulse border border-white/10" />
+                <div key={i} className="h-96 animate-pulse rounded-xl border border-white/10 bg-white/5" />
               ))}
             </div>
           ) : plans.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
               {plans.map((plan, index) => (
                 <Card
                   key={plan.id}
@@ -313,15 +304,15 @@ export default function Home() {
                   }`}
                 >
                   {index === 1 && (
-                    <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                      <Badge className="bg-gradient-to-r from-blue-500 to-purple-600 text-white border-0">
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 transform">
+                      <Badge className="border-0 bg-gradient-to-r from-blue-500 to-purple-600 text-white">
                         Mais Popular
                       </Badge>
                     </div>
                   )}
 
                   <CardHeader>
-                    <CardTitle className="text-white text-2xl">{plan.name}</CardTitle>
+                    <CardTitle className="text-2xl text-white">{plan.name}</CardTitle>
                     <CardDescription>{plan.description}</CardDescription>
                   </CardHeader>
 
@@ -330,7 +321,7 @@ export default function Home() {
                       <span className="text-4xl font-bold text-white">
                         {plan.discount ? (
                           <>
-                            <span className="line-through text-gray-500 text-2xl">
+                            <span className="text-2xl text-gray-500 line-through">
                               R$ {plan.price.toLocaleString('pt-BR')}
                             </span>
                             <br />
@@ -340,13 +331,13 @@ export default function Home() {
                           `R$ ${plan.price.toLocaleString('pt-BR')}`
                         )}
                       </span>
-                      <p className="text-gray-400 text-sm mt-1">/mês</p>
+                      <p className="mt-1 text-sm text-gray-400">/mês</p>
                     </div>
 
                     <Button
-                      className={`w-full mb-6 ${
+                      className={`mb-6 w-full ${
                         index === 1
-                          ? 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 border-0'
+                          ? 'border-0 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700'
                           : ''
                       }`}
                       variant={index === 1 ? 'default' : 'outline'}
@@ -363,7 +354,7 @@ export default function Home() {
                         `Até ${plan._count?.planFeatures || 10} participantes`,
                       ].map((feature, idx) => (
                         <div key={idx} className="flex items-center gap-3 text-sm text-gray-300">
-                          <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
+                          <CheckCircle className="h-4 w-4 flex-shrink-0 text-green-500" />
                           {feature}
                         </div>
                       ))}
@@ -373,7 +364,7 @@ export default function Home() {
               ))}
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
               {getDefaultPlans().map((plan, index) => (
                 <Card
                   key={plan.id}
@@ -384,15 +375,15 @@ export default function Home() {
                   }`}
                 >
                   {index === 1 && (
-                    <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                      <Badge className="bg-gradient-to-r from-blue-500 to-purple-600 text-white border-0">
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 transform">
+                      <Badge className="border-0 bg-gradient-to-r from-blue-500 to-purple-600 text-white">
                         Mais Popular
                       </Badge>
                     </div>
                   )}
 
                   <CardHeader>
-                    <CardTitle className="text-white text-2xl">{plan.name}</CardTitle>
+                    <CardTitle className="text-2xl text-white">{plan.name}</CardTitle>
                     <CardDescription>{plan.description}</CardDescription>
                   </CardHeader>
 
@@ -401,13 +392,13 @@ export default function Home() {
                       <span className="text-4xl font-bold text-white">
                         R$ {(plan.price * 100).toLocaleString('pt-BR')}
                       </span>
-                      <p className="text-gray-400 text-sm mt-1">/mês</p>
+                      <p className="mt-1 text-sm text-gray-400">/mês</p>
                     </div>
 
                     <Button
-                      className={`w-full mb-6 ${
+                      className={`mb-6 w-full ${
                         index === 1
-                          ? 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 border-0'
+                          ? 'border-0 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700'
                           : ''
                       }`}
                       variant={index === 1 ? 'default' : 'outline'}
@@ -424,7 +415,7 @@ export default function Home() {
                         `Até ${plan.features || 10} participantes`,
                       ].map((feature, idx) => (
                         <div key={idx} className="flex items-center gap-3 text-sm text-gray-300">
-                          <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
+                          <CheckCircle className="h-4 w-4 flex-shrink-0 text-green-500" />
                           {feature}
                         </div>
                       ))}
@@ -437,11 +428,7 @@ export default function Home() {
 
           <div className="mt-16 text-center text-gray-400">
             <p>Planos personalizados para eventos maiores? </p>
-            <Button
-              variant="link"
-              className="text-blue-400 hover:text-blue-300 px-0 h-auto"
-              id="contact"
-            >
+            <Button variant="link" className="h-auto px-0 text-blue-400 hover:text-blue-300" id="contact">
               Entre em contato com nosso time de vendas
             </Button>
           </div>
@@ -449,71 +436,59 @@ export default function Home() {
       </section>
 
       {/* Call to Action Section */}
-      <section className="bg-gradient-to-r from-blue-950 to-purple-950 px-4 sm:px-6 lg:px-8 py-20 sm:py-32 relative overflow-hidden">
-        <div className="absolute top-0 right-0 h-96 w-96 bg-blue-500/10 rounded-full blur-3xl" />
+      <section className="relative overflow-hidden bg-gradient-to-r from-blue-950 to-purple-950 px-4 py-20 sm:px-6 sm:py-32 lg:px-8">
+        <div className="absolute top-0 right-0 h-96 w-96 rounded-full bg-blue-500/10 blur-3xl" />
 
         <div className="relative mx-auto max-w-3xl text-center">
-          <h2 className="text-4xl sm:text-5xl font-bold text-white mb-6">
-            Pronto para transformar seu evento?
-          </h2>
-          <p className="text-xl text-gray-300 mb-8">
-            Milhares de eventos já usam Fivents para revolucionar o credenciamento.
-            Junte-se a eles hoje.
+          <h2 className="mb-6 text-4xl font-bold text-white sm:text-5xl">Pronto para transformar seu evento?</h2>
+          <p className="mb-8 text-xl text-gray-300">
+            Milhares de eventos já usam Fivents para revolucionar o credenciamento. Junte-se a eles hoje.
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <div className="flex flex-col justify-center gap-4 sm:flex-row">
             <Link href="/login">
-              <Button
-                size="lg"
-                className="bg-white text-blue-600 hover:bg-gray-100 border-0 font-semibold"
-              >
+              <Button size="lg" className="border-0 bg-white font-semibold text-blue-600 hover:bg-gray-100">
                 Começar Grátis <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </Link>
-            <Button
-              size="lg"
-              variant="outline"
-              className="border-white/20 text-white hover:bg-white/10"
-            >
+            <Button size="lg" variant="outline" className="border-white/20 text-white hover:bg-white/10">
               Agendar Demo
             </Button>
           </div>
 
-          <p className="text-gray-400 text-sm mt-8">
-            Sem cartão de crédito necessário • Configuração em 5 minutos
-          </p>
+          <p className="mt-8 text-sm text-gray-400">Sem cartão de crédito necessário • Configuração em 5 minutos</p>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="bg-black border-t border-white/10 px-4 sm:px-6 lg:px-8 py-12">
+      <footer className="border-t border-white/10 bg-black px-4 py-12 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-7xl">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
+          <div className="mb-8 grid grid-cols-1 gap-8 md:grid-cols-4">
             <div>
-              <div className="flex items-center gap-2 mb-4">
+              <div className="mb-4 flex items-center gap-2">
                 <div className="relative h-6 w-6 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600" />
                 <span className="font-bold text-white">Fivents</span>
               </div>
-              <p className="text-gray-400 text-sm">
+              <p className="text-sm text-gray-400">
                 Plataforma de credenciamento inteligente com reconhecimento facial de ponta.
               </p>
             </div>
 
             <div>
-              <h4 className="font-semibold text-white mb-4">Produto</h4>
-              <ul className="space-y-2 text-gray-400 text-sm">
+              <h4 className="mb-4 font-semibold text-white">Produto</h4>
+              <ul className="space-y-2 text-sm text-gray-400">
                 <li>
-                  <a href="#features" className="hover:text-white transition-colors">
+                  <a href="#features" className="transition-colors hover:text-white">
                     Recursos
                   </a>
                 </li>
                 <li>
-                  <a href="#pricing" className="hover:text-white transition-colors">
+                  <a href="#pricing" className="transition-colors hover:text-white">
                     Preços
                   </a>
                 </li>
                 <li>
-                  <a href="#" className="hover:text-white transition-colors">
+                  <a href="#" className="transition-colors hover:text-white">
                     API Docs
                   </a>
                 </li>
@@ -521,20 +496,20 @@ export default function Home() {
             </div>
 
             <div>
-              <h4 className="font-semibold text-white mb-4">Empresa</h4>
-              <ul className="space-y-2 text-gray-400 text-sm">
+              <h4 className="mb-4 font-semibold text-white">Empresa</h4>
+              <ul className="space-y-2 text-sm text-gray-400">
                 <li>
-                  <a href="#" className="hover:text-white transition-colors">
+                  <a href="#" className="transition-colors hover:text-white">
                     Sobre
                   </a>
                 </li>
                 <li>
-                  <a href="#" className="hover:text-white transition-colors">
+                  <a href="#" className="transition-colors hover:text-white">
                     Blog
                   </a>
                 </li>
                 <li>
-                  <a href="#" className="hover:text-white transition-colors">
+                  <a href="#" className="transition-colors hover:text-white">
                     Carreiras
                   </a>
                 </li>
@@ -542,20 +517,20 @@ export default function Home() {
             </div>
 
             <div>
-              <h4 className="font-semibold text-white mb-4">Legal</h4>
-              <ul className="space-y-2 text-gray-400 text-sm">
+              <h4 className="mb-4 font-semibold text-white">Legal</h4>
+              <ul className="space-y-2 text-sm text-gray-400">
                 <li>
-                  <a href="#" className="hover:text-white transition-colors">
+                  <a href="#" className="transition-colors hover:text-white">
                     Privacidade
                   </a>
                 </li>
                 <li>
-                  <a href="#" className="hover:text-white transition-colors">
+                  <a href="#" className="transition-colors hover:text-white">
                     Termos de Uso
                   </a>
                 </li>
                 <li>
-                  <a href="#" className="hover:text-white transition-colors">
+                  <a href="#" className="transition-colors hover:text-white">
                     Contato
                   </a>
                 </li>
@@ -563,15 +538,13 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="border-t border-white/10 pt-8 flex flex-col sm:flex-row justify-between items-center">
-            <p className="text-gray-400 text-sm">
-              © 2024 Fivents. Todos os direitos reservados.
-            </p>
-            <div className="flex gap-6 mt-4 sm:mt-0">
-              <a href="#" className="text-gray-400 hover:text-white transition-colors">
+          <div className="flex flex-col items-center justify-between border-t border-white/10 pt-8 sm:flex-row">
+            <p className="text-sm text-gray-400">© 2024 Fivents. Todos os direitos reservados.</p>
+            <div className="mt-4 flex gap-6 sm:mt-0">
+              <a href="#" className="text-gray-400 transition-colors hover:text-white">
                 <Smartphone className="h-5 w-5" />
               </a>
-              <a href="#" className="text-gray-400 hover:text-white transition-colors">
+              <a href="#" className="text-gray-400 transition-colors hover:text-white">
                 <Globe className="h-5 w-5" />
               </a>
             </div>

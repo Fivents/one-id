@@ -4,6 +4,8 @@ export interface EventParticipantProps {
   id: string;
   company?: string | null;
   jobTitle?: string | null;
+  qrCodeValue?: string | null;
+  accessCode?: string | null;
   personId: string;
   eventId: string;
   createdAt: Date;
@@ -26,6 +28,14 @@ export class EventParticipantEntity extends BaseEntity {
 
   get jobTitle(): string | null | undefined {
     return this.props.jobTitle;
+  }
+
+  get qrCodeValue(): string | null | undefined {
+    return this.props.qrCodeValue;
+  }
+
+  get accessCode(): string | null | undefined {
+    return this.props.accessCode;
   }
 
   get personId(): string {
@@ -69,6 +79,8 @@ export class EventParticipantEntity extends BaseEntity {
       id: this.id,
       company: this.props.company,
       jobTitle: this.props.jobTitle,
+      qrCodeValue: this.props.qrCodeValue,
+      accessCode: this.props.accessCode,
       personId: this.props.personId,
       eventId: this.props.eventId,
       createdAt: this.props.createdAt,

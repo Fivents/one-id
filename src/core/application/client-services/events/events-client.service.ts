@@ -15,6 +15,8 @@ export interface EventParticipantDetailResponse {
   email: string;
   company: string | null;
   jobTitle: string | null;
+  qrCodeValue: string | null;
+  accessCode: string | null;
   eventId: string;
   registeredAt: Date;
   hasCheckIn: boolean;

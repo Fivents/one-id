@@ -13,6 +13,7 @@
  */
 
 import { prisma } from '@/core/infrastructure/prisma-client';
+import { type AuditAction, AuditAction as PrismaAuditAction, type AuditLog, Prisma } from '@/generated/prisma/client';
 
 export interface AuditContext {
   userId: string;
@@ -43,6 +44,18 @@ export interface MultiTenantValidation {
   isolationStatus: 'VERIFIED' | 'COMPROMISED' | 'UNKNOWN';
 }
 
+function toAuditAction(actionType: string): AuditAction {
+  if ((Object.values(PrismaAuditAction) as string[]).includes(actionType)) {
+    return actionType as AuditAction;
+  }
+
+  throw new Error(`Unsupported audit action: ${actionType}`);
+}
+
+function toJsonValue(details: Record<string, unknown>): Prisma.InputJsonValue {
+  return details as Prisma.InputJsonValue;
+}
+
 /**
  * Audit Service with multi-tenant validation
  */
@@ -50,7 +63,7 @@ export class MultiTenantAuditService {
   /**
    * Log sensitive operation with organization context
    */
-  async logSensitiveOperation(entry: AuditEntry): Promise<any> {
+  async logSensitiveOperation(entry: AuditEntry): Promise<AuditLog> {
     // Validate organization context
     const org = await prisma.organization.findUnique({
       where: { id: entry.context.organizationId },
@@ -58,9 +71,7 @@ export class MultiTenantAuditService {
     });
 
     if (!org) {
-      throw new Error(
-        `Invalid organization context: ${entry.context.organizationId}`
-      );
+      throw new Error(`Invalid organization context: ${entry.context.organizationId}`);
     }
 
     // Validate user belongs to organization
@@ -73,17 +84,15 @@ export class MultiTenantAuditService {
     });
 
     if (!membership) {
-      throw new Error(
-        `User ${entry.context.userId} not in organization ${entry.context.organizationId}`
-      );
+      throw new Error(`User ${entry.context.userId} not in organization ${entry.context.organizationId}`);
     }
 
     // Create audit log
     return prisma.auditLog.create({
       data: {
-        action: entry.actionType as any, // AuditAction enum value
+        action: toAuditAction(entry.actionType),
         description: entry.description,
-        metadata: entry.details as any,
+        metadata: toJsonValue(entry.details),
         userId: entry.context.userId,
         organizationId: entry.context.organizationId,
         eventId: entry.context.eventId,
@@ -99,51 +108,42 @@ export class MultiTenantAuditService {
    * 3. All embeddings have proper organization context
    * 4. No orphaned records (data consistency)
    */
-  async verifyMultiTenantIsolation(
-    organizationId: string
-  ): Promise<MultiTenantValidation> {
+  async verifyMultiTenantIsolation(organizationId: string): Promise<MultiTenantValidation> {
     // Count total records
-    const [
-      personFaces,
-      personFacesWithoutOrg,
-      checkIns,
-      checkInsWithoutOrg,
-      allEmbeddings,
-      encryptedEmbeddings,
-    ] = await Promise.all([
-      prisma.personFace.count({
-        where: { person: { organizationId } },
-      }),
-      prisma.personFace.count({
-        where: {
-          person: { organizationId: { not: organizationId } },
-        },
-      }),
-      prisma.checkIn.count({
-        where: { eventParticipant: { event: { organizationId } } },
-      }),
-      prisma.checkIn.count({
-        where: {
-          eventParticipant: { event: { organizationId: { not: organizationId } } },
-        },
-      }),
-      prisma.personFace.count({
-        where: { person: { organizationId } },
-      }),
-      prisma.personFace.count({
-        where: {
-          person: { organizationId },
-          embeddingNormalized: true, // Placeholder: encrypted ones would also be normalized
-        },
-      }),
-    ]);
+    const [personFaces, personFacesWithoutOrg, checkIns, checkInsWithoutOrg, allEmbeddings, encryptedEmbeddings] =
+      await Promise.all([
+        prisma.personFace.count({
+          where: { person: { organizationId } },
+        }),
+        prisma.personFace.count({
+          where: {
+            person: { organizationId: { not: organizationId } },
+          },
+        }),
+        prisma.checkIn.count({
+          where: { eventParticipant: { event: { organizationId } } },
+        }),
+        prisma.checkIn.count({
+          where: {
+            eventParticipant: { event: { organizationId: { not: organizationId } } },
+          },
+        }),
+        prisma.personFace.count({
+          where: { person: { organizationId } },
+        }),
+        prisma.personFace.count({
+          where: {
+            person: { organizationId },
+            embeddingNormalized: true, // Placeholder: encrypted ones would also be normalized
+          },
+        }),
+      ]);
 
     // Calculate integrity metrics
     const unencryptedEmbeddings = allEmbeddings - encryptedEmbeddings;
 
     // Determine isolation status
-    let isolationStatus: 'VERIFIED' | 'COMPROMISED' | 'UNKNOWN' =
-      'VERIFIED';
+    let isolationStatus: 'VERIFIED' | 'COMPROMISED' | 'UNKNOWN' = 'VERIFIED';
     if (personFacesWithoutOrg > 0 || checkInsWithoutOrg > 0) {
       isolationStatus = 'COMPROMISED';
     }
@@ -218,7 +218,7 @@ export class MultiTenantAuditService {
   async generateComplianceAuditReport(
     organizationId: string,
     startDate: Date,
-    endDate: Date
+    endDate: Date,
   ): Promise<{
     organizationId: string;
     period: { start: Date; end: Date };
@@ -252,9 +252,7 @@ export class MultiTenantAuditService {
 
     // User access analysis
     const uniqueUsers = new Set(auditLogs.map((log) => log.userId)).size;
-    const failedAttempts = auditLogs.filter(
-      (log) => log.description && log.description.includes('failed')
-    ).length;
+    const failedAttempts = auditLogs.filter((log) => log.description && log.description.includes('failed')).length;
     const roles = new Set(
       await prisma.membership
         .findMany({
@@ -262,7 +260,7 @@ export class MultiTenantAuditService {
           select: { role: true },
           distinct: ['role'],
         })
-        .then((memberships) => memberships.map((m) => m.role))
+        .then((memberships) => memberships.map((m) => m.role)),
     );
 
     // Data processing metrics
@@ -279,7 +277,7 @@ export class MultiTenantAuditService {
 
     // Check for key rotations (from audit logs)
     const keyRotations = auditLogs.filter(
-      (log) => log.action === 'FACE_REGISTERED' // Using existing audit action as placeholder
+      (log) => log.action === 'FACE_REGISTERED', // Using existing audit action as placeholder
     ).length;
 
     // Determine compliance status
@@ -312,10 +310,8 @@ export class MultiTenantAuditService {
         .map((log) => ({
           timestamp: log.createdAt,
           type: log.action,
-          severity: log.description?.includes('unauthorized') ||
-            log.description?.includes('forbidden')
-            ? 'HIGH'
-            : 'MEDIUM',
+          severity:
+            log.description?.includes('unauthorized') || log.description?.includes('forbidden') ? 'HIGH' : 'MEDIUM',
           description: log.description || `${log.action} incident`,
         })),
       complianceStatus,
@@ -337,9 +333,7 @@ export class MultiTenantAuditService {
     status: 'SECURE' | 'COMPROMISED';
   }> {
     // Check for person faces with mismatched org context
-    const misalignedPersonFaces = await prisma.$queryRaw<
-      Array<{ organization_id: string; count: bigint }>
-    >`
+    const misalignedPersonFaces = await prisma.$queryRaw<Array<{ organization_id: string; count: bigint }>>`
       SELECT DISTINCT p.organization_id, COUNT(*) as count
       FROM person_faces pf
       JOIN persons p ON pf.person_id = p.id
@@ -357,9 +351,7 @@ export class MultiTenantAuditService {
     `;
 
     // Check for check-ins with organizational anomalies
-    const anomalousCheckIns = await prisma.$queryRaw<
-      Array<{ organization_id: string; anomaly_count: bigint }>
-    >`
+    const anomalousCheckIns = await prisma.$queryRaw<Array<{ organization_id: string; anomaly_count: bigint }>>`
       SELECT e.organization_id, COUNT(*) as anomaly_count
       FROM check_ins ci
       JOIN events e ON ci.event_id = e.id

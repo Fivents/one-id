@@ -198,15 +198,11 @@ export class PostgresVectorDbRepository implements IVectorDbRepository {
       Array<{ count: bigint }>
     >`SELECT COUNT(*) as count FROM person_faces WHERE embedding_vector IS NOT NULL`;
 
-    const indexSizeResult = await this.db.$queryRaw<
-      Array<{ pg_size_pretty: string }>
-    >`
+    const indexSizeResult = await this.db.$queryRaw<Array<{ pg_size_pretty: string }>>`
       SELECT pg_size_pretty(pg_total_relation_size('idx_person_faces_embedding_vector_hnsw')) as pg_size_pretty
     `;
 
-    const lastFaceResult = await this.db.$queryRaw<
-      Array<{ updated_at: Date }>
-    >`
+    const lastFaceResult = await this.db.$queryRaw<Array<{ updated_at: Date }>>`
       SELECT updated_at FROM person_faces
       WHERE embedding_vector IS NOT NULL
       ORDER BY updated_at DESC
@@ -230,11 +226,7 @@ export class PostgresVectorDbRepository implements IVectorDbRepository {
 
     if (Buffer.isBuffer(embedding)) {
       // Convert Buffer to Float32Array
-      floats = new Float32Array(
-        embedding.buffer,
-        embedding.byteOffset,
-        Math.floor(embedding.byteLength / 4),
-      );
+      floats = new Float32Array(embedding.buffer, embedding.byteOffset, Math.floor(embedding.byteLength / 4));
     } else if (Array.isArray(embedding)) {
       // Already array, convert to Float32Array for consistency
       floats = new Float32Array(embedding);

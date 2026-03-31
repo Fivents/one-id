@@ -40,6 +40,9 @@ export interface TotemAuthResponse {
     name: string;
     startsAt: string;
     endsAt: string;
+    faceEnabled: boolean;
+    qrEnabled: boolean;
+    codeEnabled: boolean;
   };
   totemEventSubscriptionId?: string;
   aiConfig?: TotemAIConfig;

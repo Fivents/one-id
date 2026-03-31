@@ -6,6 +6,8 @@ export interface CreatePersonData {
   document?: string | null;
   documentType?: DocumentType | null;
   phone?: string | null;
+  qrCodeValue?: string | null;
+  accessCode?: string | null;
   organizationId: string;
 }
 
@@ -15,6 +17,8 @@ export interface UpdatePersonData {
   document?: string | null;
   documentType?: DocumentType | null;
   phone?: string | null;
+  qrCodeValue?: string | null;
+  accessCode?: string | null;
 }
 
 export interface IPersonRepository {

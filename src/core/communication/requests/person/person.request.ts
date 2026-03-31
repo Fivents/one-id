@@ -8,6 +8,8 @@ export const createPersonRequestSchema = z.object({
   document: z.string().nullable().optional(),
   documentType: documentTypeSchema.nullable().optional(),
   phone: z.string().nullable().optional(),
+  qrCodeValue: z.string().min(1).nullable().optional(),
+  accessCode: z.string().min(1).nullable().optional(),
   organizationId: z.string().min(1, 'Organization ID is required.'),
 });
 
@@ -19,6 +21,8 @@ export const updatePersonRequestSchema = z.object({
   document: z.string().nullable().optional(),
   documentType: documentTypeSchema.nullable().optional(),
   phone: z.string().nullable().optional(),
+  qrCodeValue: z.string().min(1).nullable().optional(),
+  accessCode: z.string().min(1).nullable().optional(),
 });
 
 export type UpdatePersonRequest = z.infer<typeof updatePersonRequestSchema>;
@@ -32,6 +36,8 @@ export const importPersonsRequestSchema = z.object({
       document: z.string().nullable().optional(),
       documentType: documentTypeSchema.nullable().optional(),
       phone: z.string().nullable().optional(),
+      qrCodeValue: z.string().min(1).nullable().optional(),
+      accessCode: z.string().min(1).nullable().optional(),
     }),
   ),
 });

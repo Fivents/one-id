@@ -11,6 +11,7 @@ import { withAuth, withRBAC } from '@/core/infrastructure/http/middlewares';
 import { toNextResponse } from '@/core/infrastructure/http/to-next-response';
 import type { RouteContext } from '@/core/infrastructure/http/types';
 import { parseWithZod } from '@/core/utils/parse-with-zod';
+import { Prisma } from '@/generated/prisma/client';
 
 import { getAuthorizedPerson } from '../_lib/access';
 
@@ -50,6 +51,10 @@ export const PATCH = withAuth(
     } catch (error) {
       if (error instanceof AppError) {
         return NextResponse.json({ error: error.message }, { status: error.httpStatus });
+      }
+
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        return NextResponse.json({ error: 'QR code or access code already in use for this organization.' }, { status: 409 });
       }
 
       return NextResponse.json({ error: 'Internal server error.' }, { status: 500 });

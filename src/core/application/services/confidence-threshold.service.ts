@@ -5,38 +5,25 @@ import type {
 } from '@/core/domain/contracts/confidence-threshold.service';
 
 export class ConfidenceThresholdService implements IConfidenceThresholdService {
-  private readonly baseThreshold = 0.70;
+  private readonly baseThreshold = 0.7;
 
-  async calculateAdaptiveThreshold(
-    input: ThresholdAdaptationInput,
-  ): Promise<AdaptiveThresholdResult> {
+  async calculateAdaptiveThreshold(input: ThresholdAdaptationInput): Promise<AdaptiveThresholdResult> {
     // Factor 1: Participant count (more people = slightly lower threshold)
     // Rationale: With more faces, embeddings more spread out in vector space
     // Scale: 0.9 (min, -10%) at 10k participants to 1.0 at 0 participants
-    const participantCountFactor = Math.max(
-      0.9,
-      1.0 - (input.eventParticipantCount / 10000) * 0.1,
-    );
+    const participantCountFactor = Math.max(0.9, 1.0 - (input.eventParticipantCount / 10000) * 0.1);
 
     // Factor 2: Enrollment age (older = confidence decays)
     // Rationale: Lighting changes, aging, face recognition model drift
     // Scale: 0.8 (min, -20%) at 1 year old to 1.0 for fresh enrollments
-    const enrollmentAgeFactor = Math.max(
-      0.8,
-      1.0 - (input.enrollmentTimeframeHours / 8760) * 0.2,
-    );
+    const enrollmentAgeFactor = Math.max(0.8, 1.0 - (input.enrollmentTimeframeHours / 8760) * 0.2);
 
     // Factor 3: Quality distribution (from historical accuracy)
-    const qualityDistributionFactor = this.computeQualityFactor(
-      input.recentMatchQualityScores,
-    );
+    const qualityDistributionFactor = this.computeQualityFactor(input.recentMatchQualityScores);
 
     // Apply all factors multiplicatively
     const recommendedThreshold =
-      this.baseThreshold *
-      participantCountFactor *
-      enrollmentAgeFactor *
-      qualityDistributionFactor;
+      this.baseThreshold * participantCountFactor * enrollmentAgeFactor * qualityDistributionFactor;
 
     return {
       recommendedThreshold: Math.max(0.5, Math.min(0.9, recommendedThreshold)),

@@ -40,6 +40,24 @@ type ActiveTab = 'active' | 'deleted';
 
 type DocumentType = 'PASSPORT' | 'ID_CARD' | 'DRIVER_LICENSE' | 'OTHER';
 
+async function readImageFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        resolve(reader.result);
+        return;
+      }
+
+      reject(new Error('Invalid image file.'));
+    };
+
+    reader.onerror = () => reject(new Error('Failed to read image file.'));
+    reader.readAsDataURL(file);
+  });
+}
+
 function Pagination({
   page,
   totalPages,
@@ -136,6 +154,8 @@ export default function OrganizationPeoplePage() {
   const [formDocument, setFormDocument] = useState('');
   const [formDocumentType, setFormDocumentType] = useState<DocumentType | ''>('');
   const [formPhone, setFormPhone] = useState('');
+  const [formQrCodeValue, setFormQrCodeValue] = useState('');
+  const [formAccessCode, setFormAccessCode] = useState('');
   const [createFaceImageUrl, setCreateFaceImageUrl] = useState('');
   const [createFaceImageDataUrl, setCreateFaceImageDataUrl] = useState('');
   const [isCreateFaceCameraOpen, setIsCreateFaceCameraOpen] = useState(false);
@@ -197,22 +217,19 @@ export default function OrganizationPeoplePage() {
     [organizationId, activePage, deletedPage, search],
   );
 
-  const loadPersonEvents = useCallback(
-    async (personId: string) => {
-      setIsLoadingPersonEvents(true);
-      try {
-        const response = await peopleClient.listPersonEvents(personId);
-        if (!response.success) throw new Error(response.error.message);
-        setPersonEvents(response.data);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : t('pages.organizationPeople.loadPersonEventsError');
-        toast.error(message);
-      } finally {
-        setIsLoadingPersonEvents(false);
-      }
-    },
-    [],
-  );
+  const loadPersonEvents = useCallback(async (personId: string) => {
+    setIsLoadingPersonEvents(true);
+    try {
+      const response = await peopleClient.listPersonEvents(personId);
+      if (!response.success) throw new Error(response.error.message);
+      setPersonEvents(response.data);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : t('pages.organizationPeople.loadPersonEventsError');
+      toast.error(message);
+    } finally {
+      setIsLoadingPersonEvents(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (!isLoadingPage && (!isAuthenticated || !canView)) {
@@ -259,6 +276,8 @@ export default function OrganizationPeoplePage() {
     setFormDocument('');
     setFormDocumentType('');
     setFormPhone('');
+    setFormQrCodeValue('');
+    setFormAccessCode('');
     setCreateFaceImageUrl('');
     setCreateFaceImageDataUrl('');
     stopCreateFaceCamera();
@@ -323,6 +342,28 @@ export default function OrganizationPeoplePage() {
     stopCreateFaceCamera();
   }, [stopCreateFaceCamera]);
 
+  const handleCreateFaceFileChange = useCallback(
+    async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const input = event.currentTarget;
+      const file = input.files?.[0];
+      if (!file) {
+        return;
+      }
+
+      try {
+        const dataUrl = await readImageFileAsDataUrl(file);
+        setCreateFaceImageDataUrl(dataUrl);
+        setCreateFaceImageUrl('');
+        stopCreateFaceCamera();
+      } catch {
+        toast.error(t('pages.organizationPeople.capturePhotoError'));
+      } finally {
+        input.value = '';
+      }
+    },
+    [stopCreateFaceCamera, t],
+  );
+
   const openEditModal = useCallback((person: PersonSummaryResponse) => {
     setEditPerson(person);
     setFormName(person.name);
@@ -330,6 +371,8 @@ export default function OrganizationPeoplePage() {
     setFormDocument(person.document ?? '');
     setFormDocumentType((person.documentType as DocumentType | null) ?? '');
     setFormPhone(person.phone ?? '');
+    setFormQrCodeValue(person.qrCodeValue ?? '');
+    setFormAccessCode(person.accessCode ?? '');
   }, []);
 
   const handleCreateOrUpdate = useCallback(
@@ -345,6 +388,8 @@ export default function OrganizationPeoplePage() {
             document: formDocument || null,
             documentType: formDocumentType || null,
             phone: formPhone || null,
+            qrCodeValue: formQrCodeValue.trim() || null,
+            accessCode: formAccessCode.trim().toUpperCase() || null,
           });
 
           if (!response.success) throw new Error(response.error.message);
@@ -357,6 +402,8 @@ export default function OrganizationPeoplePage() {
             document: formDocument || null,
             documentType: formDocumentType || null,
             phone: formPhone || null,
+            qrCodeValue: formQrCodeValue.trim() || null,
+            accessCode: formAccessCode.trim().toUpperCase() || null,
             organizationId,
           });
 
@@ -381,12 +428,12 @@ export default function OrganizationPeoplePage() {
               imageUrl: normalizedFaceImageUrl || undefined,
               imageDataUrl: normalizedFaceImageDataUrl || undefined,
               embedding,
-              embeddingModel: 'Human v3.3.6 face description (SFace/ArcFace compatible)',
+              embeddingModel: 'Transformers.js ArcFace (512d)',
             });
 
             if (!faceResponse.success) {
               const errorMsg = faceResponse.error?.details
-                ? faceResponse.error.details.map((d: any) => d.message).join('; ')
+                ? faceResponse.error.details.map((d) => d.message).join('; ')
                 : faceResponse.error?.message;
               throw new Error(errorMsg || 'Failed to register face');
             }
@@ -413,6 +460,8 @@ export default function OrganizationPeoplePage() {
       formDocument,
       formDocumentType,
       formPhone,
+      formQrCodeValue,
+      formAccessCode,
       createFaceImageUrl,
       createFaceImageDataUrl,
       organizationId,
@@ -660,6 +709,28 @@ export default function OrganizationPeoplePage() {
     stopFaceCamera();
   }, [stopFaceCamera, t('pages.organizationPeople.cameraNotReady'), t('pages.organizationPeople.capturePhotoError')]);
 
+  const handleFaceFileChange = useCallback(
+    async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const input = event.currentTarget;
+      const file = input.files?.[0];
+      if (!file) {
+        return;
+      }
+
+      try {
+        const dataUrl = await readImageFileAsDataUrl(file);
+        setFaceImageDataUrl(dataUrl);
+        setFaceImageUrl('');
+        stopFaceCamera();
+      } catch {
+        toast.error(t('pages.organizationPeople.capturePhotoError'));
+      } finally {
+        input.value = '';
+      }
+    },
+    [stopFaceCamera, t],
+  );
+
   const handleSaveFace = useCallback(async () => {
     if (!manageFacePerson) return;
 
@@ -689,13 +760,13 @@ export default function OrganizationPeoplePage() {
           imageUrl: normalizedImageUrl || undefined,
           imageDataUrl: normalizedImageDataUrl || undefined,
           embedding,
-          embeddingModel: 'Human v3.3.6 face description (SFace/ArcFace compatible)',
+          embeddingModel: 'Transformers.js ArcFace (512d)',
           isActive: true,
         });
 
         if (!response.success) {
           const errorMsg = response.error?.details
-            ? response.error.details.map((d: any) => d.message).join('; ')
+            ? response.error.details.map((d) => d.message).join('; ')
             : response.error?.message;
           throw new Error(errorMsg || 'Failed to update face image');
         }
@@ -705,12 +776,12 @@ export default function OrganizationPeoplePage() {
           imageUrl: normalizedImageUrl || undefined,
           imageDataUrl: normalizedImageDataUrl || undefined,
           embedding,
-          embeddingModel: 'Human v3.3.6 face description (SFace/ArcFace compatible)',
+          embeddingModel: 'Transformers.js ArcFace (512d)',
         });
 
         if (!response.success) {
           const errorMsg = response.error?.details
-            ? response.error.details.map((d: any) => d.message).join('; ')
+            ? response.error.details.map((d) => d.message).join('; ')
             : response.error?.message;
           throw new Error(errorMsg || 'Failed to register face');
         }
@@ -844,6 +915,8 @@ export default function OrganizationPeoplePage() {
                   <TableHead>{t('pages.organizationPeople.thPhone')}</TableHead>
                   <TableHead>{t('pages.organizationPeople.thEvents')}</TableHead>
                   <TableHead>{t('pages.organizationPeople.thFace')}</TableHead>
+                  <TableHead>{t('pages.organizationPeople.thCode')}</TableHead>
+                  <TableHead>{t('pages.organizationPeople.thQR')}</TableHead>
                   <TableHead>{t('pages.organizationPeople.thActions')}</TableHead>
                 </TableRow>
               </TableHeader>
@@ -897,6 +970,8 @@ export default function OrganizationPeoplePage() {
                             : t('pages.organizationPeople.noImage')}
                         </Badge>
                       </TableCell>
+                      <TableCell>{person.accessCode ?? '—'}</TableCell>
+                      <TableCell>{person.qrCodeValue ?? '—'}</TableCell>
                       <TableCell className="flex gap-2">
                         {canManage && (
                           <>
@@ -1087,6 +1162,14 @@ export default function OrganizationPeoplePage() {
               <Label>{t('pages.organizationPeople.labelPhone')}</Label>
               <Input value={formPhone} onChange={(event) => setFormPhone(event.target.value)} />
             </div>
+            <div className="space-y-1">
+              <Label>QR Code</Label>
+              <Input value={formQrCodeValue} onChange={(event) => setFormQrCodeValue(event.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <Label>Código de acesso</Label>
+              <Input value={formAccessCode} onChange={(event) => setFormAccessCode(event.target.value.toUpperCase())} />
+            </div>
 
             <div className="space-y-1">
               <Label>{t('pages.organizationPeople.faceImageUrlOptional')}</Label>
@@ -1100,6 +1183,18 @@ export default function OrganizationPeoplePage() {
                     setCreateFaceImageDataUrl('');
                     stopCreateFaceCamera();
                   }
+                }}
+              />
+            </div>
+
+            <div className="space-y-1">
+              <Label htmlFor="create-face-upload">Upload de imagem (opcional)</Label>
+              <Input
+                id="create-face-upload"
+                type="file"
+                accept="image/*"
+                onChange={(event) => {
+                  void handleCreateFaceFileChange(event);
                 }}
               />
             </div>
@@ -1204,6 +1299,14 @@ export default function OrganizationPeoplePage() {
             <div className="space-y-1">
               <Label>{t('pages.organizationPeople.labelPhone')}</Label>
               <Input value={formPhone} onChange={(event) => setFormPhone(event.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <Label>QR Code</Label>
+              <Input value={formQrCodeValue} onChange={(event) => setFormQrCodeValue(event.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <Label>Código de acesso</Label>
+              <Input value={formAccessCode} onChange={(event) => setFormAccessCode(event.target.value.toUpperCase())} />
             </div>
           </div>
           <DialogFooter>
@@ -1311,6 +1414,18 @@ export default function OrganizationPeoplePage() {
                     setFaceImageDataUrl('');
                     stopFaceCamera();
                   }
+                }}
+              />
+            </div>
+
+            <div className="space-y-1">
+              <Label htmlFor="person-face-upload">Upload de imagem (opcional)</Label>
+              <Input
+                id="person-face-upload"
+                type="file"
+                accept="image/*"
+                onChange={(event) => {
+                  void handleFaceFileChange(event);
                 }}
               />
             </div>

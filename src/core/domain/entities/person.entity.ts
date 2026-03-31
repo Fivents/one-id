@@ -9,6 +9,8 @@ export interface PersonProps {
   document?: string | null;
   documentType?: DocumentType | null;
   phone?: string | null;
+  qrCodeValue?: string | null;
+  accessCode?: string | null;
   organizationId: string;
   createdAt: Date;
   updatedAt: Date;
@@ -42,6 +44,14 @@ export class PersonEntity extends BaseEntity {
 
   get phone(): string | null | undefined {
     return this.props.phone;
+  }
+
+  get qrCodeValue(): string | null | undefined {
+    return this.props.qrCodeValue;
+  }
+
+  get accessCode(): string | null | undefined {
+    return this.props.accessCode;
   }
 
   get organizationId(): string {
@@ -84,6 +94,8 @@ export class PersonEntity extends BaseEntity {
       document: this.props.document,
       documentType: this.props.documentType,
       phone: this.props.phone,
+      qrCodeValue: this.props.qrCodeValue,
+      accessCode: this.props.accessCode,
       organizationId: this.props.organizationId,
       createdAt: this.props.createdAt,
       updatedAt: this.props.updatedAt,

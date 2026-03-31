@@ -3,6 +3,8 @@ import type { EventParticipantEntity } from '../entities/event-participant.entit
 export interface CreateEventParticipantData {
   company?: string | null;
   jobTitle?: string | null;
+  qrCodeValue?: string | null;
+  accessCode?: string | null;
   personId: string;
   eventId: string;
 }
@@ -10,6 +12,8 @@ export interface CreateEventParticipantData {
 export interface UpdateEventParticipantData {
   company?: string | null;
   jobTitle?: string | null;
+  qrCodeValue?: string | null;
+  accessCode?: string | null;
 }
 
 export interface IEventParticipantRepository {

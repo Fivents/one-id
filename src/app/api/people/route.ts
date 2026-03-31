@@ -7,7 +7,9 @@ import { withAuth, withRBAC } from '@/core/infrastructure/http/middlewares';
 import { toNextResponse } from '@/core/infrastructure/http/to-next-response';
 import { getUserAuth } from '@/core/infrastructure/http/types';
 import { prisma } from '@/core/infrastructure/prisma-client';
+import { generateCheckInCredential, resolveTotemAccessCodeLength } from '@/core/utils/checkin-credentials';
 import { parseWithZod } from '@/core/utils/parse-with-zod';
+import { Prisma } from '@/generated/prisma/client';
 
 import { assertOrganizationAccess } from './_lib/access';
 
@@ -96,6 +98,8 @@ export const GET = withAuth(
           document: person.document,
           documentType: person.documentType,
           phone: person.phone,
+          qrCodeValue: person.qrCodeValue,
+          accessCode: person.accessCode,
           organizationId: person.organizationId,
           createdAt: person.createdAt,
           updatedAt: person.updatedAt,
@@ -126,6 +130,10 @@ export const POST = withAuth(
         return accessError;
       }
 
+      const credentialLength = await resolveTotemAccessCodeLength(prisma, data.organizationId);
+      const qrCodeValue = data.qrCodeValue?.trim() || generateCheckInCredential(credentialLength);
+      const accessCode = data.accessCode?.trim().toUpperCase() || generateCheckInCredential(credentialLength);
+
       const existing = await prisma.person.findFirst({
         where: {
           organizationId: data.organizationId,
@@ -141,6 +149,8 @@ export const POST = withAuth(
             document: data.document ?? null,
             documentType: data.documentType ?? null,
             phone: data.phone ?? null,
+            qrCodeValue,
+            accessCode,
             deletedAt: null,
           },
         });
@@ -149,12 +159,23 @@ export const POST = withAuth(
       }
 
       const controller = makeCreatePersonController();
-      const result = await controller.handle(data);
+      const result = await controller.handle({
+        ...data,
+        qrCodeValue,
+        accessCode,
+      });
 
       return toNextResponse(result);
     } catch (error) {
       if (error instanceof AppError) {
         return NextResponse.json({ error: error.message }, { status: error.httpStatus });
+      }
+
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        return NextResponse.json(
+          { error: 'QR code or access code already in use for this organization.' },
+          { status: 409 },
+        );
       }
 
       return NextResponse.json({ error: 'Internal server error.' }, { status: 500 });
