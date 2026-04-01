@@ -381,16 +381,20 @@ export default function EventDetailPage() {
       const normalizedFaceImageUrl = participantFaceImageUrl.trim();
       const normalizedFaceImageDataUrl = participantFaceImageDataUrl.trim();
       if (normalizedFaceImageUrl || normalizedFaceImageDataUrl) {
-        const result = await extractFaceEmbedding({
-          imageDataUrl: normalizedFaceImageDataUrl || undefined,
-          imageUrl: normalizedFaceImageUrl || undefined,
-        });
+        const result = await extractFaceEmbedding(
+          {
+            imageDataUrl: normalizedFaceImageDataUrl || undefined,
+            imageUrl: normalizedFaceImageUrl || undefined,
+          },
+          {
+            requireSingleFace: true,
+            maxFaces: aiConfig.maxFaces,
+            minFaceSize: aiConfig.minFaceSize,
+            minDetectionConfidence: 0.6,
+          },
+        );
 
-        if (!result) {
-          throw new Error(t('pages.eventDetail.embeddingError'));
-        }
-
-        const { embedding } = result;
+        const { embedding, faceDetectionData } = result;
 
         const faceResponse = await participantsClient.registerFace({
           personId: response.data.personId,
@@ -398,6 +402,7 @@ export default function EventDetailPage() {
           imageDataUrl: normalizedFaceImageDataUrl || undefined,
           embedding,
           embeddingModel: 'Transformers.js ArcFace (512d)',
+          faceDetectionData,
         });
 
         if (!faceResponse.success) {
@@ -767,16 +772,20 @@ export default function EventDetailPage() {
 
     setIsRegisteringFace(true);
     try {
-      const result = await extractFaceEmbedding({
-        imageDataUrl: normalizedImageDataUrl || undefined,
-        imageUrl: normalizedImageUrl || undefined,
-      });
+      const result = await extractFaceEmbedding(
+        {
+          imageDataUrl: normalizedImageDataUrl || undefined,
+          imageUrl: normalizedImageUrl || undefined,
+        },
+        {
+          requireSingleFace: true,
+          maxFaces: aiConfig.maxFaces,
+          minFaceSize: aiConfig.minFaceSize,
+          minDetectionConfidence: 0.6,
+        },
+      );
 
-      if (!result) {
-        throw new Error(t('pages.eventDetail.embeddingError'));
-      }
-
-      const { embedding } = result;
+      const { embedding, faceDetectionData } = result;
 
       if (registerFaceParticipant.faceId) {
         await participantsClient.replaceFaceImage(registerFaceParticipant.faceId, {
@@ -784,6 +793,7 @@ export default function EventDetailPage() {
           imageDataUrl: normalizedImageDataUrl || undefined,
           embedding,
           embeddingModel: 'Transformers.js ArcFace (512d)',
+          faceDetectionData,
           isActive: true,
         });
       } else {
@@ -793,6 +803,7 @@ export default function EventDetailPage() {
           imageDataUrl: normalizedImageDataUrl || undefined,
           embedding,
           embeddingModel: 'Transformers.js ArcFace (512d)',
+          faceDetectionData,
         });
       }
 

@@ -16,7 +16,7 @@ import { resolveActiveTotemEventContextByTotemId } from '../_lib/active-totem-co
 const faceCheckInSchema = z.object({
   method: z.literal('FACE'),
   embedding: faceEmbeddingSchema,
-  faceCount: z.number().int().min(0).max(10).default(1),
+  faceCount: z.number().int().min(1).max(10).default(1),
   livenessScore: z.number().min(0).max(1).optional(),
   blinkDetected: z.boolean().optional(),
   trackId: z.string().min(1).optional(),
@@ -27,7 +27,7 @@ const faceCheckInSchema = z.object({
 const legacyFaceCheckInSchema = z
   .object({
     embedding: faceEmbeddingSchema,
-    faceCount: z.number().int().min(0).max(10).default(1),
+    faceCount: z.number().int().min(1).max(10).default(1),
     livenessScore: z.number().min(0).max(1).optional(),
     blinkDetected: z.boolean().optional(),
     trackId: z.string().min(1).optional(),

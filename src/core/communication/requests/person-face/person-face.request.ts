@@ -35,8 +35,8 @@ export const registerFaceRequestSchema = z.object({
   embedding: faceEmbeddingSchema,
   embeddingModel: z.string().min(1).max(120).optional(),
   personId: z.string().min(1, 'Person ID is required.'),
-  // Optional: raw face detection data for quality assessment
-  faceDetectionData: z.record(z.string(), z.unknown()).optional(),
+  // Required: raw face detection data for quality assessment
+  faceDetectionData: z.record(z.string(), z.unknown()),
   // NEW (Phase 2): Template position for multi-pose enrollment
   templatePosition: z.enum(['center', 'left', 'right', 'up', 'down']).optional(),
   // NEW (Phase 2): Group multiple poses in one enrollment session

@@ -9,6 +9,7 @@ type UpdateFaceRequest = {
   imageDataUrl?: string;
   embedding?: number[];
   embeddingModel?: string;
+  faceDetectionData?: Record<string, unknown>;
   isActive?: boolean;
 };
 

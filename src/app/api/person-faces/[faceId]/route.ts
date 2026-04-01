@@ -3,8 +3,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod/v4';
 
 import { makeRemoveFaceController } from '@/core/application/controller-factories';
+import { containerService } from '@/core/application/services/container.service';
 import { faceEmbeddingSchema } from '@/core/communication/requests/person-face';
 import { AppError } from '@/core/errors';
+import { ErrorCode } from '@/core/errors/error-codes';
 import { withAuth, withRBAC } from '@/core/infrastructure/http/middlewares';
 import { toNextResponse } from '@/core/infrastructure/http/to-next-response';
 import type { RouteContext } from '@/core/infrastructure/http/types';
@@ -19,6 +21,7 @@ const updateFaceSchema = z
     imageDataUrl: z.string().min(1).optional(),
     embedding: faceEmbeddingSchema,
     embeddingModel: z.string().min(1).max(120).optional(),
+    faceDetectionData: z.record(z.string(), z.unknown()),
     isActive: z.boolean().optional(),
   })
   .refine((data) => !(data.imageUrl && data.imageDataUrl), {
@@ -48,6 +51,24 @@ export const PATCH = withAuth(
       const body = await req.json();
       const data = parseWithZod(updateFaceSchema, body);
 
+      const faceQualityService = containerService.getFaceQualityService();
+      const qualityScore = faceQualityService.assessQuality(data.faceDetectionData);
+
+      if (!faceQualityService.isQualityAcceptable(qualityScore)) {
+        const feedback = faceQualityService.getQualityFeedback(qualityScore);
+        throw new AppError({
+          code: ErrorCode.INVALID_FACE_QUALITY,
+          message: `Face quality too low. Score: ${qualityScore.overallScore.toFixed(2)}/1.00. ${feedback.join('; ')}`,
+          httpStatus: 400,
+          level: 'warning',
+          context: {
+            qualityScore: qualityScore.overallScore,
+            threshold: 0.65,
+            failures: qualityScore.assessmentDetails.failures,
+          },
+        });
+      }
+
       const storedImageUrl = data.imageUrl ?? (data.imageDataUrl ? 'captured://runtime-embedding' : face.imageUrl);
       const faceFeatures = {
         imageHash: `runtime-embedding-${Date.now()}`,
@@ -65,6 +86,9 @@ export const PATCH = withAuth(
             imageUrl: faceFeatures.storedImageUrl,
             isActive: data.isActive,
             embedding: new Uint8Array(faceFeatures.embedding),
+            faceQualityScore: qualityScore.overallScore,
+            faceQualityMetadata: JSON.parse(JSON.stringify(qualityScore.assessmentDetails)),
+            embeddingModelVersion: data.embeddingModel,
           },
         });
 

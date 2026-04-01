@@ -54,7 +54,10 @@ export const PATCH = withAuth(
       }
 
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
-        return NextResponse.json({ error: 'QR code or access code already in use for this organization.' }, { status: 409 });
+        return NextResponse.json(
+          { error: 'QR code or access code already in use for this organization.' },
+          { status: 409 },
+        );
       }
 
       return NextResponse.json({ error: 'Internal server error.' }, { status: 500 });

@@ -21,6 +21,11 @@ export class FaceQualityService implements IFaceQualityService {
   private readonly MAX_ROLL = Math.PI * 0.15; // ±27 degrees
   private readonly MAX_BLUR = 0.3; // Blurriness score threshold
   private readonly BRIGHTNESS_RANGE = 0.3; // [-0.3, 0.3] is optimal
+  private readonly MIN_LANDMARK_CONFIDENCE = 0.4;
+
+  private clamp(value: number, min: number, max: number): number {
+    return Math.max(min, Math.min(max, value));
+  }
 
   assessQuality(face: Record<string, unknown>): FaceQualityScore {
     const now = new Date();
@@ -72,8 +77,8 @@ export class FaceQualityService implements IFaceQualityService {
       }
 
       // 5. Landmark confidence assessment
-      const landmarkMetrics = this.extractLandmarkConfidence(landmarks);
-      if (landmarkMetrics.meanConfidence < 0.5) {
+      const landmarkMetrics = this.extractLandmarkConfidence(landmarks, description);
+      if (landmarkMetrics.meanConfidence < this.MIN_LANDMARK_CONFIDENCE) {
         failures.push('Face landmarks not clear - ensure good lighting and frontal pose');
       }
 
@@ -133,7 +138,7 @@ export class FaceQualityService implements IFaceQualityService {
     const meetsFaceSize = score.faceSize > this.MIN_FACE_SIZE;
     const meetsBlur = score.blurriness < this.MAX_BLUR;
     const meetsBrightness = Math.abs(score.brightness) < this.BRIGHTNESS_RANGE;
-    const meetsLandmarks = score.landmarks.meanConfidence > 0.5;
+    const meetsLandmarks = score.landmarks.meanConfidence >= this.MIN_LANDMARK_CONFIDENCE;
 
     return meetsOverallScore && meetsHeadPose && meetsFaceSize && meetsBlur && meetsBrightness && meetsLandmarks;
   }
@@ -150,18 +155,20 @@ export class FaceQualityService implements IFaceQualityService {
    * Returns -1 (dark) to 1 (bright), with 0 being optimal.
    */
   private assessBrightness(face: Record<string, unknown>, description?: Record<string, unknown>): number {
-    // Heuristic: use descriptor confidence as brightness indicator
-    // High variance in descriptor values = harsh lighting
-    // Low variance = even lighting (good)
+    const directBrightness = Number(description?.['brightness']);
+    if (Number.isFinite(directBrightness)) {
+      const normalized = this.clamp(directBrightness, 0, 1);
+      return (normalized - 0.5) * 2;
+    }
 
-    const descriptorConfidence = Number(description?.['confidence'] ?? 0.5);
+    const luma = Number((face['imageMetrics'] as Record<string, unknown> | undefined)?.['meanLuma']);
+    if (Number.isFinite(luma)) {
+      const normalized = this.clamp(luma, 0, 1);
+      return (normalized - 0.5) * 2;
+    }
 
-    // Convert confidence to brightness (-1 to 1)
-    // Low confidence (.3) → brightness +0.7 (too bright/washed)
-    // Medium confidence (.5) → brightness 0 (optimal)
-    // High confidence (.8) → brightness -0.2 (slightly dim)
-
-    return (0.5 - descriptorConfidence) * 2; // Range: -1 to 1
+    // Fallback neutral to avoid penalizing good faces when brightness metric is absent.
+    return 0;
   }
 
   /**
@@ -169,16 +176,18 @@ export class FaceQualityService implements IFaceQualityService {
    * Higher variance in embeddings = better focus (lower blur)
    */
   private assessBlurriness(description?: Record<string, unknown>): number {
-    const descriptorConfidence = Number(description?.['confidence'] ?? 0.5);
+    const directBlur = Number(description?.['blur']);
+    if (Number.isFinite(directBlur)) {
+      return this.clamp(directBlur, 0, 1);
+    }
 
-    // Confidence 0.9+ = sharp (blur 0)
-    // Confidence 0.5 = blurry (blur 0.5)
-    // Confidence < 0.3 = very blurry (blur 1)
+    const focusScore = Number(description?.['focusScore']);
+    if (Number.isFinite(focusScore)) {
+      return 1 - this.clamp(focusScore, 0, 1);
+    }
 
-    if (descriptorConfidence > 0.8) return 0; // Sharp
-    if (descriptorConfidence > 0.6) return 0.2; // Slightly blurry
-    if (descriptorConfidence > 0.4) return 0.4; // Blurry
-    return 0.8; // Very blurry
+    // Conservative fallback: slight blur but still acceptable.
+    return 0.2;
   }
 
   /**
@@ -213,7 +222,10 @@ export class FaceQualityService implements IFaceQualityService {
    * Extract landmark confidence from client-provided landmarks array.
    * Returns both individual confidences and mean.
    */
-  private extractLandmarkConfidence(landmarks: unknown): {
+  private extractLandmarkConfidence(
+    landmarks: unknown,
+    description?: Record<string, unknown>,
+  ): {
     confidence: number[];
     meanConfidence: number;
   } {
@@ -229,7 +241,7 @@ export class FaceQualityService implements IFaceQualityService {
         if (Array.isArray(landmark) && landmark.length >= 4) {
           // landmark[3] is typically confidence
           const conf = Number(landmark[3] ?? 0);
-          if (conf >= 0 && conf <= 1) {
+          if (conf > 0 && conf <= 1) {
             confidences.push(conf);
           }
         }
@@ -240,6 +252,15 @@ export class FaceQualityService implements IFaceQualityService {
     }
 
     if (confidences.length === 0) {
+      const detectionConfidence = Number(description?.['confidence']);
+      if (Number.isFinite(detectionConfidence)) {
+        const normalizedConfidence = this.clamp(detectionConfidence, 0, 1);
+        return {
+          confidence: [normalizedConfidence],
+          meanConfidence: normalizedConfidence,
+        };
+      }
+
       return { confidence: [], meanConfidence: 0 };
     }
 

@@ -92,6 +92,17 @@ export class TotemCheckInService {
       }
 
       // ── Validate face count ───────────────────────────────────────
+      if (input.faceCount < 1) {
+        failureReason = 'NO_FACE_DETECTED';
+        return this.deny(
+          'CHECKIN_NO_FACE_DETECTED',
+          'No face detected. Please position your face in front of the camera.',
+          400,
+          context,
+          totemId,
+        );
+      }
+
       if (input.faceCount > context.aiConfig.maxFaces) {
         failureReason = 'MULTIPLE_FACES';
         return this.deny(
@@ -138,7 +149,12 @@ export class TotemCheckInService {
       }
 
       // ── Blink detection ───────────────────────────────────────────
-      if (context.aiConfig.livenessDetection && hasLivenessSignal && input.blinkDetected !== undefined && !input.blinkDetected) {
+      if (
+        context.aiConfig.livenessDetection &&
+        hasLivenessSignal &&
+        input.blinkDetected !== undefined &&
+        !input.blinkDetected
+      ) {
         failureReason = 'LIVENESS_FAILED';
         return this.deny('CHECKIN_NO_BLINK', 'Blink not detected. Please present a live face.', 400, context, totemId, {
           blinkDetected: false,
@@ -221,7 +237,13 @@ export class TotemCheckInService {
 
       if (!bestMatch) {
         failureReason = 'PARTICIPANT_NOT_FOUND';
-        return this.deny('CHECKIN_PARTICIPANT_NOT_FOUND', 'Participant not found.', 404, context, totemId);
+        return this.deny(
+          'CHECKIN_PARTICIPANT_NOT_FOUND',
+          'Face not recognized for this event. Please re-capture enrollment photo and try again.',
+          422,
+          context,
+          totemId,
+        );
       }
 
       // ── Confidence threshold ──────────────────────────────────────

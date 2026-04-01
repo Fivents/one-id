@@ -31,6 +31,7 @@ export default function TotemFacePage() {
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const notRecognizedStreakRef = useRef(0);
 
   const [isCameraReady, setIsCameraReady] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -106,7 +107,7 @@ export default function TotemFacePage() {
   const handleFaceCheckIn = useCallback(
     async (isLoopAttempt = false) => {
       const video = videoRef.current;
-      if (!video || video.videoWidth === 0 || video.videoHeight === 0 || isSubmitting) {
+      if (!session || !video || video.videoWidth === 0 || video.videoHeight === 0 || isSubmitting) {
         return;
       }
 
@@ -125,11 +126,15 @@ export default function TotemFacePage() {
         context.drawImage(video, 0, 0, canvas.width, canvas.height);
         const imageDataUrl = canvas.toDataURL('image/jpeg', 0.92);
 
-        const embeddingResult = await extractFaceEmbedding({ imageDataUrl });
-
-        if (!embeddingResult) {
-          throw new Error('Falha ao processar o rosto.');
-        }
+        const embeddingResult = await extractFaceEmbedding(
+          { imageDataUrl },
+          {
+            requireSingleFace: true,
+            maxFaces: session.activeEvent.faceEnabled ? session.aiConfig.maxFaces : 1,
+            minFaceSize: session.aiConfig.minFaceSize,
+            minDetectionConfidence: 0.6,
+          },
+        );
 
         const response = await sendCheckIn({
           method: 'FACE',
@@ -139,11 +144,24 @@ export default function TotemFacePage() {
 
         if (!response.success) {
           if (isLoopAttempt && response.error.code === 'CHECKIN_PARTICIPANT_NOT_FOUND') {
+            notRecognizedStreakRef.current += 1;
+
+            if (notRecognizedStreakRef.current < 6) {
+              return;
+            }
+
+            setFeedback({
+              type: 'error',
+              title: 'Rosto não reconhecido',
+              description: 'Não encontramos um participante válido com este rosto. Retornando...',
+            });
             return;
           }
 
           throw new Error(response.error.message);
         }
+
+        notRecognizedStreakRef.current = 0;
 
         setFeedback({
           type: 'success',
@@ -155,7 +173,9 @@ export default function TotemFacePage() {
 
         if (
           isLoopAttempt &&
-          (message.includes('No face detected') || message.includes('Detected ') || message.includes('exactly one face'))
+          (message.includes('No face detected') ||
+            message.includes('Detected ') ||
+            message.includes('exactly one face'))
         ) {
           return;
         }
@@ -169,7 +189,7 @@ export default function TotemFacePage() {
         setIsSubmitting(false);
       }
     },
-    [isSubmitting],
+    [isSubmitting, session],
   );
 
   useEffect(() => {

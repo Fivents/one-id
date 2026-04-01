@@ -28,23 +28,32 @@ pnpm prisma generate
 pnpm dev
 ```
 
-## Modelo ArcFace local (obrigatório)
+## Modelos de IA em `public/` (download reproduzível)
 
-A extração facial usa um modelo ArcFace ONNX local.
+Este README documenta somente os modelos de IA salvos localmente em `public/models`.
 
-- Caminho final esperado: `public/models/arcface/onnx/model.onnx`
+Modelos usados hoje:
 
-Baixe o modelo ONNX para o caminho local:
+- `public/models/arcface/onnx/model.onnx` (embedding facial ArcFace, 512d)
+- `public/models/mediapipe/blaze_face_short_range.tflite` (detecção facial MediaPipe no navegador)
+
+### Download automático de todos os modelos
 
 ```bash
-mkdir -p public/models/arcface/onnx
-curl -L "https://huggingface.co/onnx-community/arcface-onnx/resolve/main/arcface.onnx" -o public/models/arcface/onnx/model.onnx
+mkdir -p public/models/arcface/onnx public/models/mediapipe
+
+curl -L "https://huggingface.co/onnx-community/arcface-onnx/resolve/main/arcface.onnx" \
+	-o public/models/arcface/onnx/model.onnx
+
+curl -L "https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite" \
+	-o public/models/mediapipe/blaze_face_short_range.tflite
 ```
 
-Opcionalmente, altere o caminho do arquivo ONNX com:
+### Variáveis opcionais de caminho
 
 ```bash
 NEXT_PUBLIC_ARCFACE_ONNX_PATH=/models/arcface/onnx/model.onnx
+NEXT_PUBLIC_MEDIAPIPE_FACE_DETECTOR_MODEL_PATH=/models/mediapipe/blaze_face_short_range.tflite
 ```
 
 ## Fluxo de Totem

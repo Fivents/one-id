@@ -116,6 +116,8 @@ export class PostgresVectorDbRepository implements IVectorDbRepository {
           AND p.organization_id = ${input.organizationId}
           AND pf.is_active = true
           AND pf.deleted_at IS NULL
+          AND pf.face_quality_score IS NOT NULL
+          AND pf.face_quality_score >= 0.65
           AND p.deleted_at IS NULL
           AND ep.deleted_at IS NULL
           AND pf.embedding_vector IS NOT NULL

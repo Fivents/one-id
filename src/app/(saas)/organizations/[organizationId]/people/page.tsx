@@ -412,16 +412,20 @@ export default function OrganizationPeoplePage() {
           const normalizedFaceImageUrl = createFaceImageUrl.trim();
           const normalizedFaceImageDataUrl = createFaceImageDataUrl.trim();
           if (normalizedFaceImageUrl || normalizedFaceImageDataUrl) {
-            const result = await extractFaceEmbedding({
-              imageDataUrl: normalizedFaceImageDataUrl || undefined,
-              imageUrl: normalizedFaceImageUrl || undefined,
-            });
+            const result = await extractFaceEmbedding(
+              {
+                imageDataUrl: normalizedFaceImageDataUrl || undefined,
+                imageUrl: normalizedFaceImageUrl || undefined,
+              },
+              {
+                requireSingleFace: true,
+                maxFaces: 1,
+                minFaceSize: 80,
+                minDetectionConfidence: 0.6,
+              },
+            );
 
-            if (!result) {
-              throw new Error(t('pages.organizationPeople.embeddingError'));
-            }
-
-            const { embedding } = result;
+            const { embedding, faceDetectionData } = result;
 
             const faceResponse = await participantsClient.registerFace({
               personId: response.data.id,
@@ -429,6 +433,7 @@ export default function OrganizationPeoplePage() {
               imageDataUrl: normalizedFaceImageDataUrl || undefined,
               embedding,
               embeddingModel: 'Transformers.js ArcFace (512d)',
+              faceDetectionData,
             });
 
             if (!faceResponse.success) {
@@ -744,16 +749,20 @@ export default function OrganizationPeoplePage() {
 
     setIsSavingFace(true);
     try {
-      const result = await extractFaceEmbedding({
-        imageDataUrl: normalizedImageDataUrl || undefined,
-        imageUrl: normalizedImageUrl || undefined,
-      });
+      const result = await extractFaceEmbedding(
+        {
+          imageDataUrl: normalizedImageDataUrl || undefined,
+          imageUrl: normalizedImageUrl || undefined,
+        },
+        {
+          requireSingleFace: true,
+          maxFaces: 1,
+          minFaceSize: 80,
+          minDetectionConfidence: 0.6,
+        },
+      );
 
-      if (!result) {
-        throw new Error(t('pages.organizationPeople.embeddingError'));
-      }
-
-      const { embedding } = result;
+      const { embedding, faceDetectionData } = result;
 
       if (manageFacePerson.faceId) {
         const response = await participantsClient.replaceFaceImage(manageFacePerson.faceId, {
@@ -761,6 +770,7 @@ export default function OrganizationPeoplePage() {
           imageDataUrl: normalizedImageDataUrl || undefined,
           embedding,
           embeddingModel: 'Transformers.js ArcFace (512d)',
+          faceDetectionData,
           isActive: true,
         });
 
@@ -777,6 +787,7 @@ export default function OrganizationPeoplePage() {
           imageDataUrl: normalizedImageDataUrl || undefined,
           embedding,
           embeddingModel: 'Transformers.js ArcFace (512d)',
+          faceDetectionData,
         });
 
         if (!response.success) {
