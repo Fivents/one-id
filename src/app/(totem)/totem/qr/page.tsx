@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import jsQR from 'jsqr';
-import { ArrowLeft, CheckCircle2, Keyboard, Loader2, QrCode, Scan, XCircle } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Keyboard, Loader2, QrCode, XCircle } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -319,56 +319,52 @@ export default function TotemQrPage() {
 
       {/* Camera container - fills available space */}
       <div className="relative mx-auto flex w-full max-w-3xl flex-1 flex-col">
-        <div className="absolute -inset-[2px] rounded-3xl bg-gradient-to-br from-cyan-500/60 via-slate-700/40 to-blue-500/40" />
+        {/* Subtle border */}
+        <div className="absolute -inset-[1px] rounded-3xl bg-gradient-to-br from-cyan-500/30 via-slate-700/20 to-cyan-500/30" />
 
         <div className="relative flex-1 overflow-hidden rounded-3xl bg-black">
-          <video ref={videoRef} muted playsInline className="absolute inset-0 h-full w-full object-cover" />
+          <video
+            ref={videoRef}
+            muted
+            playsInline
+            className="absolute inset-0 h-full w-full object-cover"
+            style={{ transform: 'scaleX(-1)' }}
+          />
 
-          {/* Viewfinder corners - larger for touch */}
+          {/* Minimal viewfinder corners */}
           <div className="pointer-events-none absolute inset-0">
-            <div className="absolute top-6 left-6 h-16 w-16 rounded-tl-2xl border-t-4 border-l-4 border-cyan-500" />
-            <div className="absolute top-6 right-6 h-16 w-16 rounded-tr-2xl border-t-4 border-r-4 border-cyan-500" />
-            <div className="absolute bottom-6 left-6 h-16 w-16 rounded-bl-2xl border-b-4 border-l-4 border-cyan-500" />
-            <div className="absolute right-6 bottom-6 h-16 w-16 rounded-br-2xl border-r-4 border-b-4 border-cyan-500" />
+            <div className="absolute left-4 top-4 h-12 w-12 rounded-tl-xl border-l-2 border-t-2 border-white/30" />
+            <div className="absolute right-4 top-4 h-12 w-12 rounded-tr-xl border-r-2 border-t-2 border-white/30" />
+            <div className="absolute bottom-4 left-4 h-12 w-12 rounded-bl-xl border-b-2 border-l-2 border-white/30" />
+            <div className="absolute bottom-4 right-4 h-12 w-12 rounded-br-xl border-b-2 border-r-2 border-white/30" />
           </div>
 
-          {/* Center target - larger */}
+          {/* Center target - subtle */}
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-            <div className="h-56 w-56 rounded-3xl border-2 border-dashed border-white/30" />
+            <div className="h-48 w-48 rounded-2xl border border-dashed border-white/20" />
           </div>
-
-          {/* Scan line */}
-          {isScannerReady && !isSubmitting && (
-            <div className="animate-totem-scan pointer-events-none absolute inset-x-0 h-1 bg-gradient-to-r from-transparent via-cyan-400 to-transparent" />
-          )}
 
           {/* Processing overlay */}
           {isSubmitting && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+            <div className="absolute inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm">
               <div className="flex flex-col items-center gap-4">
-                <div className="relative">
-                  <div className="absolute inset-0 animate-pulse rounded-full bg-cyan-500/30 blur-xl" />
-                  <div className="relative flex h-24 w-24 items-center justify-center rounded-full bg-slate-800/90 ring-2 ring-cyan-500/50">
-                    <Loader2 className="h-12 w-12 animate-spin text-cyan-400" />
-                  </div>
+                <div className="relative flex h-20 w-20 items-center justify-center rounded-full bg-slate-800/90 ring-2 ring-cyan-500/50">
+                  <Loader2 className="h-10 w-10 animate-spin text-cyan-400" />
                 </div>
-                <p className="text-lg font-medium text-white">Validando código...</p>
+                <p className="text-lg font-medium text-white">Validando...</p>
               </div>
             </div>
           )}
 
-          {/* Status indicator */}
+          {/* Status indicator - minimal */}
           {isScannerReady && !isSubmitting && (
-            <div className="absolute bottom-6 left-1/2 -translate-x-1/2">
-              <div className="flex items-center gap-2 rounded-full bg-black/70 px-5 py-3 backdrop-blur-sm">
-                <span className="relative flex h-3 w-3">
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2">
+              <div className="flex items-center gap-2 rounded-full bg-black/60 px-4 py-2">
+                <span className="relative flex h-2 w-2">
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-cyan-400 opacity-75" />
-                  <span className="relative inline-flex h-3 w-3 rounded-full bg-cyan-500" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-cyan-500" />
                 </span>
-                <span className="flex items-center gap-2 text-base text-white">
-                  <Scan className="h-5 w-5" />
-                  Scanner ativo
-                </span>
+                <span className="text-sm text-white/80">Scanner ativo</span>
               </div>
             </div>
           )}
@@ -377,8 +373,8 @@ export default function TotemQrPage() {
           {!isScannerReady && (
             <div className="absolute inset-0 flex items-center justify-center bg-slate-900">
               <div className="flex flex-col items-center gap-4 text-slate-500">
-                <QrCode className="h-24 w-24" />
-                <p className="text-lg">Iniciando scanner...</p>
+                <QrCode className="h-20 w-20" />
+                <p>Iniciando scanner...</p>
               </div>
             </div>
           )}

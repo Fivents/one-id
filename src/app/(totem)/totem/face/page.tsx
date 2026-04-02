@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useRouter } from 'next/navigation';
 
-import { ArrowLeft, Camera, CheckCircle2, Loader2, Scan, User, XCircle } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Loader2, User, XCircle } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { extractFaceEmbedding } from '@/core/application/client-services/totem/face-embedding.client';
@@ -119,11 +119,19 @@ export default function TotemFacePage() {
   const handleFaceCheckIn = useCallback(
     async (isLoopAttempt = false) => {
       const video = videoRef.current;
-      if (!session || !video || video.videoWidth === 0 || video.videoHeight === 0 || isSubmitting) {
+      if (!session || !video || video.videoWidth === 0 || video.videoHeight === 0) {
         return;
       }
 
-      setIsSubmitting(true);
+      // Não bloquear durante tentativas automáticas em background
+      if (isLoopAttempt && isSubmitting) {
+        return;
+      }
+
+      // Só mostrar loading visual em tentativas manuais (botão removido, mas mantemos a lógica)
+      if (!isLoopAttempt) {
+        setIsSubmitting(true);
+      }
 
       try {
         const canvas = document.createElement('canvas');
@@ -148,6 +156,9 @@ export default function TotemFacePage() {
           },
         );
 
+        // Mostrar loading apenas quando detectou rosto e vai verificar no servidor
+        setIsSubmitting(true);
+
         const response = await sendCheckIn({
           method: 'FACE',
           embedding: embeddingResult.embedding,
@@ -158,7 +169,9 @@ export default function TotemFacePage() {
           if (isLoopAttempt && response.error.code === 'CHECKIN_PARTICIPANT_NOT_FOUND') {
             notRecognizedStreakRef.current += 1;
 
-            if (notRecognizedStreakRef.current < 6) {
+            // Dar mais tentativas antes de mostrar erro (10 tentativas = ~15 segundos)
+            if (notRecognizedStreakRef.current < 10) {
+              setIsSubmitting(false);
               return;
             }
 
@@ -184,12 +197,14 @@ export default function TotemFacePage() {
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Falha no check-in facial.';
 
+        // Em tentativas automáticas, ignorar erros de detecção silenciosamente
         if (
           isLoopAttempt &&
           (message.includes('No face detected') ||
             message.includes('Detected ') ||
             message.includes('exactly one face'))
         ) {
+          setIsSubmitting(false);
           return;
         }
 
@@ -213,6 +228,9 @@ export default function TotemFacePage() {
     let cancelled = false;
 
     async function loop() {
+      // Delay inicial para dar tempo do usuário se posicionar
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+
       while (!cancelled) {
         await handleFaceCheckIn(true);
 
@@ -220,7 +238,8 @@ export default function TotemFacePage() {
           break;
         }
 
-        await new Promise((resolve) => setTimeout(resolve, 1200));
+        // Intervalo entre tentativas
+        await new Promise((resolve) => setTimeout(resolve, 1500));
       }
     }
 
@@ -330,10 +349,10 @@ export default function TotemFacePage() {
 
       {/* Camera container - fills available space */}
       <div className="relative mx-auto flex w-full max-w-3xl flex-1 flex-col">
-        {/* Gradient border */}
-        <div className="from-primary/60 absolute -inset-[2px] rounded-3xl bg-gradient-to-br via-slate-700/40 to-cyan-500/40" />
+        {/* Subtle border */}
+        <div className="absolute -inset-[1px] rounded-3xl bg-gradient-to-br from-violet-500/30 via-slate-700/20 to-violet-500/30" />
 
-        {/* Video container - vertical aspect for totem */}
+        {/* Video container */}
         <div className="relative flex-1 overflow-hidden rounded-3xl bg-black">
           <video
             ref={videoRef}
@@ -343,51 +362,35 @@ export default function TotemFacePage() {
             style={{ transform: 'scaleX(-1)' }}
           />
 
-          {/* Viewfinder corners - larger for touch */}
+          {/* Minimal viewfinder corners */}
           <div className="pointer-events-none absolute inset-0">
-            <div className="absolute top-6 left-6 h-16 w-16 rounded-tl-2xl border-t-4 border-l-4 border-violet-500" />
-            <div className="absolute top-6 right-6 h-16 w-16 rounded-tr-2xl border-t-4 border-r-4 border-violet-500" />
-            <div className="absolute bottom-6 left-6 h-16 w-16 rounded-bl-2xl border-b-4 border-l-4 border-violet-500" />
-            <div className="absolute right-6 bottom-6 h-16 w-16 rounded-br-2xl border-r-4 border-b-4 border-violet-500" />
+            <div className="absolute left-4 top-4 h-12 w-12 rounded-tl-xl border-l-2 border-t-2 border-white/30" />
+            <div className="absolute right-4 top-4 h-12 w-12 rounded-tr-xl border-r-2 border-t-2 border-white/30" />
+            <div className="absolute bottom-4 left-4 h-12 w-12 rounded-bl-xl border-b-2 border-l-2 border-white/30" />
+            <div className="absolute bottom-4 right-4 h-12 w-12 rounded-br-xl border-b-2 border-r-2 border-white/30" />
           </div>
-
-          {/* Face guide oval */}
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-            <div className="h-72 w-52 rounded-full border-2 border-dashed border-white/20" />
-          </div>
-
-          {/* Scan line */}
-          {isCameraReady && !isSubmitting && (
-            <div className="via-primary animate-totem-scan pointer-events-none absolute inset-x-0 h-1 bg-gradient-to-r from-transparent to-transparent" />
-          )}
 
           {/* Processing overlay */}
           {isSubmitting && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+            <div className="absolute inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm">
               <div className="flex flex-col items-center gap-4">
-                <div className="relative">
-                  <div className="bg-primary/30 absolute inset-0 animate-pulse rounded-full blur-xl" />
-                  <div className="ring-primary/50 relative flex h-24 w-24 items-center justify-center rounded-full bg-slate-800/90 ring-2">
-                    <Loader2 className="text-primary h-12 w-12 animate-spin" />
-                  </div>
+                <div className="relative flex h-20 w-20 items-center justify-center rounded-full bg-slate-800/90 ring-2 ring-violet-500/50">
+                  <Loader2 className="h-10 w-10 animate-spin text-violet-400" />
                 </div>
-                <p className="text-lg font-medium text-white">Verificando identidade...</p>
+                <p className="text-lg font-medium text-white">Verificando...</p>
               </div>
             </div>
           )}
 
-          {/* Status indicator */}
+          {/* Status indicator - minimal */}
           {isCameraReady && !isSubmitting && (
-            <div className="absolute bottom-6 left-1/2 -translate-x-1/2">
-              <div className="flex items-center gap-2 rounded-full bg-black/70 px-5 py-3 backdrop-blur-sm">
-                <span className="relative flex h-3 w-3">
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2">
+              <div className="flex items-center gap-2 rounded-full bg-black/60 px-4 py-2">
+                <span className="relative flex h-2 w-2">
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                  <span className="relative inline-flex h-3 w-3 rounded-full bg-emerald-500" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
                 </span>
-                <span className="flex items-center gap-2 text-base text-white">
-                  <Scan className="h-5 w-5" />
-                  Escaneando automaticamente
-                </span>
+                <span className="text-sm text-white/80">Câmera ativa</span>
               </div>
             </div>
           )}
@@ -396,26 +399,16 @@ export default function TotemFacePage() {
           {!isCameraReady && (
             <div className="absolute inset-0 flex items-center justify-center bg-slate-900">
               <div className="flex flex-col items-center gap-4 text-slate-500">
-                <User className="h-24 w-24" />
-                <p className="text-lg">Iniciando câmera...</p>
+                <User className="h-20 w-20" />
+                <p>Iniciando câmera...</p>
               </div>
             </div>
           )}
         </div>
       </div>
 
-      {/* Actions - larger touch targets */}
-      <div className="mt-6 flex flex-wrap items-center justify-center gap-4 pb-4">
-        <Button
-          size="lg"
-          className="shadow-primary/25 h-16 min-w-[220px] text-lg shadow-lg"
-          onClick={() => void handleFaceCheckIn()}
-          disabled={!isCameraReady || isSubmitting}
-        >
-          <Camera className="mr-2 h-6 w-6" />
-          {isSubmitting ? 'Validando...' : 'Capturar Agora'}
-        </Button>
-
+      {/* Back button only */}
+      <div className="mt-6 flex justify-center pb-4">
         <Button
           variant="outline"
           size="lg"
