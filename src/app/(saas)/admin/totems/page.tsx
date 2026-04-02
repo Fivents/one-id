@@ -343,18 +343,21 @@ function AdminTotemsPageContent() {
     }
   }, [assignmentsPage, assignmentsTotalPages]);
 
-  const getStatusBadge = useCallback((status: TotemAssignmentHistory['status']) => {
-    if (status === 'ACTIVE') {
-      return <Badge className="bg-emerald-500/15 text-emerald-700">{t('pages.adminTotemsPage.statusActive')}</Badge>;
-    }
-    if (status === 'SCHEDULED') {
-      return <Badge className="bg-sky-500/15 text-sky-700">{t('pages.adminTotemsPage.statusScheduled')}</Badge>;
-    }
-    if (status === 'REVOKED') {
-      return <Badge className="bg-amber-500/20 text-amber-700">{t('pages.adminTotemsPage.statusRevoked')}</Badge>;
-    }
-    return <Badge className="bg-zinc-500/15 text-zinc-700">{t('pages.adminTotemsPage.statusExpired')}</Badge>;
-  }, [t]);
+  const getStatusBadge = useCallback(
+    (status: TotemAssignmentHistory['status']) => {
+      if (status === 'ACTIVE') {
+        return <Badge className="bg-emerald-500/15 text-emerald-700">{t('pages.adminTotemsPage.statusActive')}</Badge>;
+      }
+      if (status === 'SCHEDULED') {
+        return <Badge className="bg-sky-500/15 text-sky-700">{t('pages.adminTotemsPage.statusScheduled')}</Badge>;
+      }
+      if (status === 'REVOKED') {
+        return <Badge className="bg-amber-500/20 text-amber-700">{t('pages.adminTotemsPage.statusRevoked')}</Badge>;
+      }
+      return <Badge className="bg-zinc-500/15 text-zinc-700">{t('pages.adminTotemsPage.statusExpired')}</Badge>;
+    },
+    [t],
+  );
 
   const submitAssignToOrganization = useCallback(
     async (event: React.FormEvent) => {

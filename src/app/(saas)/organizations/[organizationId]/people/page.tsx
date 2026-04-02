@@ -217,19 +217,22 @@ export default function OrganizationPeoplePage() {
     [organizationId, activePage, deletedPage, search, t],
   );
 
-  const loadPersonEvents = useCallback(async (personId: string) => {
-    setIsLoadingPersonEvents(true);
-    try {
-      const response = await peopleClient.listPersonEvents(personId);
-      if (!response.success) throw new Error(response.error.message);
-      setPersonEvents(response.data);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : t('pages.organizationPeople.loadPersonEventsError');
-      toast.error(message);
-    } finally {
-      setIsLoadingPersonEvents(false);
-    }
-  }, [t]);
+  const loadPersonEvents = useCallback(
+    async (personId: string) => {
+      setIsLoadingPersonEvents(true);
+      try {
+        const response = await peopleClient.listPersonEvents(personId);
+        if (!response.success) throw new Error(response.error.message);
+        setPersonEvents(response.data);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : t('pages.organizationPeople.loadPersonEventsError');
+        toast.error(message);
+      } finally {
+        setIsLoadingPersonEvents(false);
+      }
+    },
+    [t],
+  );
 
   useEffect(() => {
     if (!isLoadingPage && (!isAuthenticated || !canView)) {

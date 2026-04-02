@@ -310,36 +310,36 @@ export default function TotemQrPage() {
 
   // Scanner view
   return (
-    <div className="flex flex-1 flex-col">
-      {/* Header */}
-      <div className="mb-6 text-center">
-        <h1 className="text-2xl font-bold text-white">QR Code</h1>
-        <p className="mt-2 text-slate-400">Aponte a câmera para o QR Code do seu ingresso</p>
+    <div className="flex flex-1 flex-col px-4">
+      {/* Header - compact */}
+      <div className="mb-4 text-center">
+        <h1 className="text-xl font-bold text-white">QR Code</h1>
+        <p className="mt-1 text-sm text-slate-400">Aponte a câmera para o QR Code do seu ingresso</p>
       </div>
 
-      {/* Camera container */}
-      <div className="relative mx-auto w-full max-w-2xl">
+      {/* Camera container - fills available space */}
+      <div className="relative mx-auto flex w-full max-w-3xl flex-1 flex-col">
         <div className="absolute -inset-[2px] rounded-3xl bg-gradient-to-br from-cyan-500/60 via-slate-700/40 to-blue-500/40" />
 
-        <div className="relative overflow-hidden rounded-3xl bg-black">
-          <video ref={videoRef} muted playsInline className="aspect-video w-full object-cover" />
+        <div className="relative flex-1 overflow-hidden rounded-3xl bg-black">
+          <video ref={videoRef} muted playsInline className="absolute inset-0 h-full w-full object-cover" />
 
-          {/* Viewfinder corners */}
+          {/* Viewfinder corners - larger for touch */}
           <div className="pointer-events-none absolute inset-0">
-            <div className="absolute top-4 left-4 h-12 w-12 rounded-tl-xl border-t-4 border-l-4 border-cyan-500" />
-            <div className="absolute top-4 right-4 h-12 w-12 rounded-tr-xl border-t-4 border-r-4 border-cyan-500" />
-            <div className="absolute bottom-4 left-4 h-12 w-12 rounded-bl-xl border-b-4 border-l-4 border-cyan-500" />
-            <div className="absolute right-4 bottom-4 h-12 w-12 rounded-br-xl border-r-4 border-b-4 border-cyan-500" />
+            <div className="absolute top-6 left-6 h-16 w-16 rounded-tl-2xl border-t-4 border-l-4 border-cyan-500" />
+            <div className="absolute top-6 right-6 h-16 w-16 rounded-tr-2xl border-t-4 border-r-4 border-cyan-500" />
+            <div className="absolute bottom-6 left-6 h-16 w-16 rounded-bl-2xl border-b-4 border-l-4 border-cyan-500" />
+            <div className="absolute right-6 bottom-6 h-16 w-16 rounded-br-2xl border-r-4 border-b-4 border-cyan-500" />
           </div>
 
-          {/* Center target */}
+          {/* Center target - larger */}
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-            <div className="h-40 w-40 rounded-2xl border-2 border-dashed border-white/30" />
+            <div className="h-56 w-56 rounded-3xl border-2 border-dashed border-white/30" />
           </div>
 
           {/* Scan line */}
           {isScannerReady && !isSubmitting && (
-            <div className="animate-totem-scan pointer-events-none absolute inset-x-0 h-0.5 bg-gradient-to-r from-transparent via-cyan-400 to-transparent" />
+            <div className="animate-totem-scan pointer-events-none absolute inset-x-0 h-1 bg-gradient-to-r from-transparent via-cyan-400 to-transparent" />
           )}
 
           {/* Processing overlay */}
@@ -348,25 +348,25 @@ export default function TotemQrPage() {
               <div className="flex flex-col items-center gap-4">
                 <div className="relative">
                   <div className="absolute inset-0 animate-pulse rounded-full bg-cyan-500/30 blur-xl" />
-                  <div className="relative flex h-20 w-20 items-center justify-center rounded-full bg-slate-800/90 ring-2 ring-cyan-500/50">
-                    <Loader2 className="h-10 w-10 animate-spin text-cyan-400" />
+                  <div className="relative flex h-24 w-24 items-center justify-center rounded-full bg-slate-800/90 ring-2 ring-cyan-500/50">
+                    <Loader2 className="h-12 w-12 animate-spin text-cyan-400" />
                   </div>
                 </div>
-                <p className="font-medium text-white">Validando código...</p>
+                <p className="text-lg font-medium text-white">Validando código...</p>
               </div>
             </div>
           )}
 
           {/* Status indicator */}
           {isScannerReady && !isSubmitting && (
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2">
-              <div className="flex items-center gap-2 rounded-full bg-black/70 px-4 py-2 backdrop-blur-sm">
-                <span className="relative flex h-2.5 w-2.5">
+            <div className="absolute bottom-6 left-1/2 -translate-x-1/2">
+              <div className="flex items-center gap-2 rounded-full bg-black/70 px-5 py-3 backdrop-blur-sm">
+                <span className="relative flex h-3 w-3">
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-cyan-400 opacity-75" />
-                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-cyan-500" />
+                  <span className="relative inline-flex h-3 w-3 rounded-full bg-cyan-500" />
                 </span>
-                <span className="flex items-center gap-1.5 text-sm text-white">
-                  <Scan className="h-4 w-4" />
+                <span className="flex items-center gap-2 text-base text-white">
+                  <Scan className="h-5 w-5" />
                   Scanner ativo
                 </span>
               </div>
@@ -377,8 +377,8 @@ export default function TotemQrPage() {
           {!isScannerReady && (
             <div className="absolute inset-0 flex items-center justify-center bg-slate-900">
               <div className="flex flex-col items-center gap-4 text-slate-500">
-                <QrCode className="h-20 w-20" />
-                <p>Iniciando scanner...</p>
+                <QrCode className="h-24 w-24" />
+                <p className="text-lg">Iniciando scanner...</p>
               </div>
             </div>
           )}
@@ -387,26 +387,26 @@ export default function TotemQrPage() {
 
       {/* Scanner error message */}
       {scannerError && (
-        <div className="mt-4 rounded-lg bg-amber-500/10 px-4 py-3 text-center text-sm text-amber-400">
+        <div className="mt-4 rounded-xl bg-amber-500/10 px-5 py-4 text-center text-base text-amber-400">
           {scannerError}
         </div>
       )}
 
       {/* Manual input toggle */}
-      <div className="mt-6">
+      <div className="mt-5">
         <button
           onClick={() => setShowManualInput(!showManualInput)}
-          className="mx-auto flex items-center gap-2 text-sm text-slate-400 transition-colors hover:text-white"
+          className="mx-auto flex items-center gap-2 rounded-full bg-slate-800/50 px-5 py-3 text-base text-slate-400 transition-colors hover:bg-slate-700/50 hover:text-white"
         >
-          <Keyboard className="h-4 w-4" />
+          <Keyboard className="h-5 w-5" />
           {showManualInput ? 'Ocultar entrada manual' : 'Digitar código manualmente'}
         </button>
       </div>
 
       {/* Manual input */}
       {showManualInput && (
-        <div className="animate-in fade-in slide-in-from-top-2 mx-auto mt-4 w-full max-w-md duration-300">
-          <div className="rounded-2xl bg-slate-800/50 p-4">
+        <div className="animate-in fade-in slide-in-from-top-2 mx-auto mt-4 w-full max-w-lg duration-300">
+          <div className="rounded-2xl bg-slate-800/50 p-5">
             <Input
               value={qrCodeValue}
               onChange={(event) => setQrCodeValue(event.target.value)}
@@ -415,15 +415,15 @@ export default function TotemQrPage() {
                   void handleSubmit();
                 }
               }}
-              className="h-14 border-slate-600/50 bg-slate-900/50 text-center font-mono text-lg tracking-widest uppercase"
+              className="h-16 border-slate-600/50 bg-slate-900/50 text-center font-mono text-xl tracking-widest uppercase"
               placeholder="Digite o código"
             />
             <Button
-              className="mt-3 h-12 w-full"
+              className="mt-4 h-14 w-full text-lg"
               onClick={() => void handleSubmit()}
               disabled={isSubmitting || !qrCodeValue.trim()}
             >
-              <QrCode className="mr-2 h-5 w-5" />
+              <QrCode className="mr-2 h-6 w-6" />
               {isSubmitting ? 'Validando...' : 'Validar Código'}
             </Button>
           </div>
@@ -431,14 +431,14 @@ export default function TotemQrPage() {
       )}
 
       {/* Back button */}
-      <div className="mt-6 flex justify-center">
+      <div className="mt-5 flex justify-center pb-4">
         <Button
           variant="outline"
           size="lg"
-          className="h-14 border-slate-700/50 bg-slate-800/50"
+          className="h-16 border-slate-700/50 bg-slate-800/50 text-lg"
           onClick={() => router.replace('/totem/method')}
         >
-          <ArrowLeft className="mr-2 h-5 w-5" />
+          <ArrowLeft className="mr-2 h-6 w-6" />
           Voltar
         </Button>
       </div>
