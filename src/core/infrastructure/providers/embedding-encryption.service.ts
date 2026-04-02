@@ -170,7 +170,7 @@ export class EmbeddingEncryptionService {
     }
 
     this.alternateKeys.set(version, key);
-    console.log(`[Encryption] Added alternate key version ${version}`);
+    console.info(`[Encryption] Added alternate key version ${version}`);
   }
 
   /**
@@ -193,7 +193,7 @@ export class EmbeddingEncryptionService {
     const newVersion = this.currentKeyVersion + 1;
     this.alternateKeys.set(newVersion, newKey);
 
-    console.log(`[Encryption] Key rotated from version ${oldVersion} to ${newVersion}`);
+    console.info(`[Encryption] Key rotated from version ${oldVersion} to ${newVersion}`);
   }
 
   /**

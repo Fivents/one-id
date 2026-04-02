@@ -324,7 +324,7 @@ function AdminTotemsPageContent() {
         toast.error(message);
       }
     },
-    [assignmentsTotem, confirm],
+    [assignmentsTotem, confirm, t],
   );
 
   const assignmentsTotalPages = useMemo(() => {
@@ -354,7 +354,7 @@ function AdminTotemsPageContent() {
       return <Badge className="bg-amber-500/20 text-amber-700">{t('pages.adminTotemsPage.statusRevoked')}</Badge>;
     }
     return <Badge className="bg-zinc-500/15 text-zinc-700">{t('pages.adminTotemsPage.statusExpired')}</Badge>;
-  }, []);
+  }, [t]);
 
   const submitAssignToOrganization = useCallback(
     async (event: React.FormEvent) => {
@@ -394,7 +394,7 @@ function AdminTotemsPageContent() {
         setIsAssigningOrg(false);
       }
     },
-    [assignEndsAt, assignOrgTotem, assignOrganizationId, assignStartsAt, fetchTotems],
+    [assignEndsAt, assignOrgTotem, assignOrganizationId, assignStartsAt, fetchTotems, t],
   );
 
   if (isLoading || !isAuthenticated || !isSuperAdmin()) {

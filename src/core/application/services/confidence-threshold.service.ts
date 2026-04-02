@@ -44,7 +44,7 @@ export class ConfidenceThresholdService implements IConfidenceThresholdService {
 
   suggestRange(
     enrollmentCount: number,
-    eventParticipantCount: number,
+    _eventParticipantCount: number,
   ): { min: number; recommended: number; max: number } {
     // Conservative: few enrollments = higher threshold (stricter)
     const recommendedThreshold = enrollmentCount < 100 ? 0.75 : 0.7;

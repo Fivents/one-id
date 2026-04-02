@@ -188,7 +188,7 @@ async function flushMetrics(batch: MetricsBatch, totemEventSubscriptionId: strin
       // CheckInMetrics table might not exist yet
     }
 
-    console.log(`[metrics] Flushed ${batch.metrics.length} metrics for totem ${batch.totemId}`);
+    console.info(`[metrics] Flushed ${batch.metrics.length} metrics for totem ${batch.totemId}`);
   } catch (error) {
     console.error('[metrics] Flush error:', error);
   }

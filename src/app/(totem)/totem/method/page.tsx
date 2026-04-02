@@ -5,9 +5,8 @@ import { useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
-import { Camera, ChevronRight, KeyRound, LogOut, QrCode, ShieldCheck, Sparkles } from 'lucide-react';
+import { Camera, ChevronRight, KeyRound, QrCode, ShieldCheck } from 'lucide-react';
 
-import { Button } from '@/components/ui/button';
 import { clearTotemToken } from '@/core/application/client-services/totem';
 
 import { useTotemSession } from '../_lib/use-totem-session';
@@ -32,7 +31,7 @@ export default function TotemMethodPage() {
     }
   }, [isLoading, router, session]);
 
-  function handleLogout() {
+  function _handleLogout() {
     clearTotemToken();
     router.replace('/totem');
   }

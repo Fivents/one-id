@@ -214,7 +214,7 @@ export default function OrganizationPeoplePage() {
         setIsLoading(false);
       }
     },
-    [organizationId, activePage, deletedPage, search],
+    [organizationId, activePage, deletedPage, search, t],
   );
 
   const loadPersonEvents = useCallback(async (personId: string) => {
@@ -229,7 +229,7 @@ export default function OrganizationPeoplePage() {
     } finally {
       setIsLoadingPersonEvents(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     if (!isLoadingPage && (!isAuthenticated || !canView)) {
@@ -314,7 +314,7 @@ export default function OrganizationPeoplePage() {
     } catch {
       toast.error(t('pages.organizationPeople.webcamAccessError'));
     }
-  }, [stopCreateFaceCamera]);
+  }, [stopCreateFaceCamera, t]);
 
   const captureCreateFacePhoto = useCallback(() => {
     const video = createFaceVideoRef.current;
@@ -340,7 +340,7 @@ export default function OrganizationPeoplePage() {
     setCreateFaceImageDataUrl(captured);
     setCreateFaceImageUrl('');
     stopCreateFaceCamera();
-  }, [stopCreateFaceCamera]);
+  }, [stopCreateFaceCamera, t]);
 
   const handleCreateFaceFileChange = useCallback(
     async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -473,10 +473,7 @@ export default function OrganizationPeoplePage() {
       resetForm,
       loadPeople,
       tab,
-      t('pages.organizationPeople.embeddingError'),
-      t('pages.organizationPeople.personCreatedSuccess'),
-      t('pages.organizationPeople.personUpdatedSuccess'),
-      t('pages.organizationPeople.savePersonError'),
+      t,
     ],
   );
 
@@ -503,15 +500,7 @@ export default function OrganizationPeoplePage() {
       await loadPeople('active');
       await loadPeople('deleted');
     },
-    [
-      canManage,
-      confirm,
-      loadPeople,
-      t('pages.organizationPeople.deletePersonConfirm'),
-      t('pages.organizationPeople.deletePersonDescription'),
-      t('pages.organizationPeople.deletePersonTitle'),
-      t('pages.organizationPeople.personDeletedSuccess'),
-    ],
+    [canManage, confirm, loadPeople, t],
   );
 
   const handleHardDelete = useCallback(
@@ -536,15 +525,7 @@ export default function OrganizationPeoplePage() {
       toast.success(t('pages.organizationPeople.personHardDeletedSuccess'));
       await loadPeople('deleted');
     },
-    [
-      canManage,
-      confirm,
-      loadPeople,
-      t('pages.organizationPeople.hardDeletePersonConfirm'),
-      t('pages.organizationPeople.hardDeletePersonDescription'),
-      t('pages.organizationPeople.hardDeletePersonTitle'),
-      t('pages.organizationPeople.personHardDeletedSuccess'),
-    ],
+    [canManage, confirm, loadPeople, t],
   );
 
   const handleBulkSoftDelete = useCallback(async () => {
@@ -571,17 +552,7 @@ export default function OrganizationPeoplePage() {
     toast.success(t('pages.organizationPeople.deleteSelectedSuccess'));
     await loadPeople('active');
     await loadPeople('deleted');
-  }, [
-    canManage,
-    confirm,
-    selectedActiveIds,
-    organizationId,
-    loadPeople,
-    t('pages.organizationPeople.deleteSelectedConfirm'),
-    t('pages.organizationPeople.deleteSelectedDescription'),
-    t('pages.organizationPeople.deleteSelectedSuccess'),
-    t('pages.organizationPeople.deleteSelectedTitle'),
-  ]);
+  }, [canManage, confirm, selectedActiveIds, organizationId, loadPeople, t]);
 
   const handleBulkHardDelete = useCallback(async () => {
     if (!canManage || selectedDeletedIds.size === 0) return;
@@ -606,17 +577,7 @@ export default function OrganizationPeoplePage() {
 
     toast.success(t('pages.organizationPeople.hardDeleteSelectedSuccess'));
     await loadPeople('deleted');
-  }, [
-    canManage,
-    confirm,
-    selectedDeletedIds,
-    organizationId,
-    loadPeople,
-    t('pages.organizationPeople.hardDeleteSelectedConfirm'),
-    t('pages.organizationPeople.hardDeleteSelectedDescription'),
-    t('pages.organizationPeople.hardDeleteSelectedSuccess'),
-    t('pages.organizationPeople.hardDeleteSelectedTitle'),
-  ]);
+  }, [canManage, confirm, selectedDeletedIds, organizationId, loadPeople, t]);
 
   const togglePersonEventLink = useCallback(
     async (event: PersonEventLinkResponse, linked: boolean) => {
@@ -637,13 +598,7 @@ export default function OrganizationPeoplePage() {
       );
       await loadPeople('active');
     },
-    [
-      manageEventsPerson,
-      canManage,
-      loadPeople,
-      t('pages.organizationPeople.linkedToEvent'),
-      t('pages.organizationPeople.unlinkedFromEvent'),
-    ],
+    [manageEventsPerson, canManage, loadPeople, t],
   );
 
   const stopFaceCamera = useCallback(() => {
@@ -676,7 +631,7 @@ export default function OrganizationPeoplePage() {
     } catch {
       toast.error(t('pages.organizationPeople.webcamAccessError'));
     }
-  }, [stopFaceCamera, t('pages.organizationPeople.webcamAccessError')]);
+  }, [stopFaceCamera, t]);
 
   useEffect(() => {
     if (!isFaceCameraOpen || !faceVideoRef.current || !faceCameraStreamRef.current) {
@@ -712,7 +667,7 @@ export default function OrganizationPeoplePage() {
     setFaceImageDataUrl(captured);
     setFaceImageUrl('');
     stopFaceCamera();
-  }, [stopFaceCamera, t('pages.organizationPeople.cameraNotReady'), t('pages.organizationPeople.capturePhotoError')]);
+  }, [stopFaceCamera, t]);
 
   const handleFaceFileChange = useCallback(
     async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -814,7 +769,7 @@ export default function OrganizationPeoplePage() {
     } finally {
       setIsSavingFace(false);
     }
-  }, [manageFacePerson, faceImageUrl, faceImageDataUrl, stopFaceCamera, t, loadPeople, participantsClient]);
+  }, [manageFacePerson, faceImageUrl, faceImageDataUrl, stopFaceCamera, t, loadPeople]);
 
   if (isLoadingPage || !isAuthenticated || !canView) {
     return null;

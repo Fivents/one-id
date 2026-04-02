@@ -75,7 +75,7 @@ const features: Feature[] = [
 export default function Home() {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [_error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchPlans() {

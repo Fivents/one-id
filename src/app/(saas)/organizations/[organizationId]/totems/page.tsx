@@ -9,7 +9,6 @@ import { toast } from 'sonner';
 
 import { TotemStatusBadge } from '@/components/organizations/totems/totem-status-badge';
 import { useConfirm } from '@/components/shared/confirm-dialog';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -120,7 +119,7 @@ export default function OrganizationTotemsPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [organizationId]);
+  }, [organizationId, t]);
 
   useEffect(() => {
     if (!isLoadingPage && (!isAuthenticated || !canView)) {

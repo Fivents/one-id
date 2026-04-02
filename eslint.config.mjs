@@ -57,7 +57,14 @@ const eslintConfig = defineConfig([
 
   eslintConfigPrettier,
 
-  globalIgnores(['.next/**', 'out/**', 'build/**', 'next-env.d.ts']),
+  globalIgnores([
+    '.next/**',
+    'out/**',
+    'build/**',
+    'next-env.d.ts',
+    'public/models/**/*.js', // External WASM/ML libraries
+    'public/wasm/**/*.mjs', // External ONNX Runtime WASM
+  ]),
 ]);
 
 export default eslintConfig;

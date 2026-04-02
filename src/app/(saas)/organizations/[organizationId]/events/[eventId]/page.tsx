@@ -234,7 +234,7 @@ export default function EventDetailPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [eventId]);
+  }, [eventId, t]);
 
   const loadParticipants = useCallback(async () => {
     setIsLoadingParticipants(true);
@@ -253,7 +253,7 @@ export default function EventDetailPage() {
     } finally {
       setIsLoadingParticipants(false);
     }
-  }, [eventId, participantsPage, participantsSearch]);
+  }, [eventId, participantsPage, participantsSearch, t]);
 
   function resetCreateParticipantForm() {
     setParticipantName('');
@@ -438,7 +438,7 @@ export default function EventDetailPage() {
     } finally {
       setIsLoadingTotems(false);
     }
-  }, [eventId]);
+  }, [eventId, t]);
 
   const loadCheckIns = useCallback(async () => {
     setIsLoadingCheckIns(true);
@@ -452,7 +452,7 @@ export default function EventDetailPage() {
     } finally {
       setIsLoadingCheckIns(false);
     }
-  }, [eventId]);
+  }, [eventId, t]);
 
   async function handleManualCheckInSubmit(e: React.FormEvent) {
     e.preventDefault();
