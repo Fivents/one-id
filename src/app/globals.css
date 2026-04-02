@@ -163,4 +163,232 @@
   body {
     @apply bg-background text-foreground;
   }
+  button:not(:disabled),
+  [role='button']:not(:disabled) {
+    cursor: pointer;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   TOTEM SPECIFIC ANIMATIONS & EFFECTS
+   Used in physical check-in kiosks for events
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@layer utilities {
+  /* Camera scan line effect */
+  @keyframes totem-scan {
+    0% {
+      top: 0;
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.6;
+    }
+    100% {
+      top: 100%;
+      opacity: 1;
+    }
+  }
+
+  /* Shake animation for errors */
+  @keyframes totem-shake {
+    0%,
+    100% {
+      transform: translateX(0);
+    }
+    10%,
+    30%,
+    50%,
+    70%,
+    90% {
+      transform: translateX(-6px);
+    }
+    20%,
+    40%,
+    60%,
+    80% {
+      transform: translateX(6px);
+    }
+  }
+
+  /* Gentle floating animation */
+  @keyframes totem-float {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-8px);
+    }
+  }
+
+  /* Pulsing glow effect */
+  @keyframes totem-glow {
+    0%,
+    100% {
+      box-shadow:
+        0 0 20px oklch(0.62 0.228 300 / 0.3),
+        0 0 40px oklch(0.62 0.228 300 / 0.1);
+    }
+    50% {
+      box-shadow:
+        0 0 30px oklch(0.62 0.228 300 / 0.5),
+        0 0 60px oklch(0.62 0.228 300 / 0.2);
+    }
+  }
+
+  /* Success celebration pulse */
+  @keyframes totem-success-pulse {
+    0%,
+    100% {
+      box-shadow:
+        0 0 0 0 oklch(0.68 0.18 155 / 0.7),
+        0 0 20px oklch(0.68 0.18 155 / 0.3);
+    }
+    50% {
+      box-shadow:
+        0 0 0 20px oklch(0.68 0.18 155 / 0),
+        0 0 40px oklch(0.68 0.18 155 / 0.4);
+    }
+  }
+
+  /* Error attention pulse */
+  @keyframes totem-error-pulse {
+    0%,
+    100% {
+      box-shadow:
+        0 0 0 0 oklch(0.65 0.22 22 / 0.7),
+        0 0 20px oklch(0.65 0.22 22 / 0.3);
+    }
+    50% {
+      box-shadow:
+        0 0 0 15px oklch(0.65 0.22 22 / 0),
+        0 0 35px oklch(0.65 0.22 22 / 0.4);
+    }
+  }
+
+  /* Confetti burst animation */
+  @keyframes totem-confetti {
+    0% {
+      transform: translate(-50%, -50%) scale(0) rotate(0deg);
+      opacity: 1;
+    }
+    100% {
+      transform: translate(
+          calc(-50% + cos(var(--confetti-angle)) * var(--confetti-distance)),
+          calc(-50% + sin(var(--confetti-angle)) * var(--confetti-distance))
+        )
+        scale(1) rotate(720deg);
+      opacity: 0;
+    }
+  }
+
+  /* Subtle bounce for icons */
+  @keyframes totem-bounce-subtle {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-4px);
+    }
+  }
+
+  /* Ring expansion */
+  @keyframes totem-ring-expand {
+    0% {
+      transform: scale(0.8);
+      opacity: 0.8;
+    }
+    100% {
+      transform: scale(1.5);
+      opacity: 0;
+    }
+  }
+
+  /* Utility classes */
+  .animate-totem-scan {
+    animation: totem-scan 2.5s ease-in-out infinite;
+  }
+
+  .animate-totem-shake {
+    animation: totem-shake 0.5s ease-in-out;
+  }
+
+  .animate-totem-float {
+    animation: totem-float 3s ease-in-out infinite;
+  }
+
+  .animate-totem-glow {
+    animation: totem-glow 2s ease-in-out infinite;
+  }
+
+  .animate-totem-success-pulse {
+    animation: totem-success-pulse 1.5s ease-in-out infinite;
+  }
+
+  .animate-totem-error-pulse {
+    animation: totem-error-pulse 1s ease-in-out infinite;
+  }
+
+  .animate-totem-confetti {
+    animation: totem-confetti 0.8s ease-out forwards;
+  }
+
+  .animate-totem-bounce-subtle {
+    animation: totem-bounce-subtle 2s ease-in-out infinite;
+  }
+
+  .animate-totem-ring-expand {
+    animation: totem-ring-expand 1s ease-out infinite;
+  }
+
+  /* Gradient backgrounds for totem */
+  .totem-gradient-bg {
+    background: linear-gradient(135deg, oklch(0.12 0.04 280) 0%, oklch(0.1 0.03 300) 50%, oklch(0.08 0.02 320) 100%);
+  }
+
+  .totem-gradient-card {
+    background: linear-gradient(145deg, oklch(0.16 0.05 280 / 0.9) 0%, oklch(0.14 0.04 290 / 0.85) 100%);
+  }
+
+  .totem-gradient-primary {
+    background: linear-gradient(135deg, oklch(0.62 0.228 300) 0%, oklch(0.55 0.22 280) 100%);
+  }
+
+  .totem-gradient-success {
+    background: linear-gradient(135deg, oklch(0.68 0.18 155) 0%, oklch(0.6 0.16 145) 100%);
+  }
+
+  .totem-gradient-error {
+    background: linear-gradient(135deg, oklch(0.65 0.22 22) 0%, oklch(0.58 0.2 15) 100%);
+  }
+
+  /* Glass effect for totem cards */
+  .totem-glass {
+    background: oklch(0.18 0.04 280 / 0.6);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+  }
+
+  /* Camera viewfinder corners */
+  .totem-viewfinder-corner {
+    @apply border-primary absolute h-12 w-12;
+  }
+
+  .totem-viewfinder-corner-tl {
+    @apply top-4 left-4 rounded-tl-xl border-t-4 border-l-4;
+  }
+
+  .totem-viewfinder-corner-tr {
+    @apply top-4 right-4 rounded-tr-xl border-t-4 border-r-4;
+  }
+
+  .totem-viewfinder-corner-bl {
+    @apply bottom-4 left-4 rounded-bl-xl border-b-4 border-l-4;
+  }
+
+  .totem-viewfinder-corner-br {
+    @apply right-4 bottom-4 rounded-br-xl border-r-4 border-b-4;
+  }
 }

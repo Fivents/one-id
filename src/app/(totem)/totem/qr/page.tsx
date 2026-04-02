@@ -5,10 +5,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import jsQR from 'jsqr';
-import { Camera, CameraOff, CheckCircle2, QrCode, RotateCcw, XCircle } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Keyboard, Loader2, QrCode, Scan, XCircle } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { sendCheckIn } from '@/core/application/client-services/totem/totem-client.service';
 
@@ -18,6 +17,7 @@ type Feedback = {
   type: 'success' | 'error';
   title: string;
   description: string;
+  participantName?: string;
 };
 
 export default function TotemQrPage() {
@@ -33,6 +33,8 @@ export default function TotemQrPage() {
   const [scannerError, setScannerError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
+  const [countdown, setCountdown] = useState(3);
+  const [showManualInput, setShowManualInput] = useState(false);
 
   const handleSubmit = useCallback(
     async (scannedValue?: string) => {
@@ -53,7 +55,7 @@ export default function TotemQrPage() {
         setFeedback({
           type: 'error',
           title: 'Check-in não aprovado',
-          description: `${response.error.message} Retornando...`,
+          description: response.error.message,
         });
         setIsSubmitting(false);
         return;
@@ -61,8 +63,9 @@ export default function TotemQrPage() {
 
       setFeedback({
         type: 'success',
-        title: 'Check-in aprovado',
-        description: `Bem-vindo(a), ${response.data.participant.name}. Retornando...`,
+        title: 'Check-in realizado!',
+        description: 'Seja bem-vindo(a) ao evento',
+        participantName: response.data.participant.name,
       });
       setIsSubmitting(false);
     },
@@ -109,7 +112,8 @@ export default function TotemQrPage() {
         setScannerError(null);
       } catch {
         setIsScannerReady(false);
-        setScannerError('Não foi possível iniciar a câmera para leitura de QR.');
+        setScannerError('Câmera indisponível. Use a entrada manual.');
+        setShowManualInput(true);
       }
     }
 
@@ -185,7 +189,7 @@ export default function TotemQrPage() {
             rawValue = detections[0]?.rawValue?.trim() ?? null;
           } catch {
             detector = null;
-            setScannerError('Scanner nativo indisponível. Modo compatível de leitura ativado.');
+            setScannerError('Usando modo de leitura compatível.');
           }
         }
 
@@ -216,79 +220,228 @@ export default function TotemQrPage() {
       return;
     }
 
+    const countdownInterval = window.setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(countdownInterval);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
     const timeout = window.setTimeout(() => {
       router.replace('/totem/method');
     }, 3000);
 
     return () => {
+      clearInterval(countdownInterval);
       clearTimeout(timeout);
     };
   }, [feedback, router]);
 
   if (isLoading || !session) {
-    return <div className="flex flex-1 items-center justify-center text-sm text-slate-400">Carregando sessão...</div>;
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center gap-4">
+        <Loader2 className="text-primary h-8 w-8 animate-spin" />
+        <p className="text-sm text-slate-400">Carregando...</p>
+      </div>
+    );
   }
 
-  return (
-    <div className="flex flex-1 flex-col gap-5">
-      <Card className="border-slate-800 bg-slate-900/80">
-        <CardHeader>
-          <CardTitle>Check-in por QR Code</CardTitle>
-          <CardDescription>Use o leitor de QR ou digite o valor abaixo.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="overflow-hidden rounded-lg border border-slate-700 bg-black">
-            <video ref={videoRef} muted playsInline className="aspect-video w-full object-cover" />
-          </div>
-
-          {scannerError ? <p className="text-xs text-amber-400">{scannerError}</p> : null}
-
-          <Input
-            value={qrCodeValue}
-            autoFocus
-            onChange={(event) => setQrCodeValue(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') {
-                void handleSubmit();
-              }
-            }}
-            className="border-slate-700 bg-slate-950"
-            placeholder="Valor do QR"
-          />
-
-          <div className="flex gap-3">
-            <Button variant="outline" className="border-slate-700" disabled={!isScannerReady}>
-              <Camera className="mr-2 h-4 w-4" />
-              {isScannerReady ? 'Scanner ativo' : 'Scanner indisponível'}
-            </Button>
-            <Button onClick={() => void handleSubmit()} disabled={isSubmitting || !qrCodeValue.trim()}>
-              <QrCode className="mr-2 h-4 w-4" />
-              {isSubmitting ? 'Validando...' : 'Validar QR'}
-            </Button>
-            <Button variant="outline" className="border-slate-700" onClick={() => router.replace('/totem/method')}>
-              <CameraOff className="mr-2 h-4 w-4" />
-              Voltar
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {feedback && (
-        <Card className="border-slate-800 bg-slate-900/80">
-          <CardContent className="flex items-center gap-3 p-4">
-            {feedback.type === 'success' ? (
-              <CheckCircle2 className="h-5 w-5 text-emerald-400" />
-            ) : (
-              <XCircle className="h-5 w-5 text-rose-400" />
-            )}
-            <div>
-              <p className="text-sm font-medium">{feedback.title}</p>
-              <p className="text-sm text-slate-400">{feedback.description}</p>
+  // Success state
+  if (feedback?.type === 'success') {
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center px-4">
+        <div className="relative">
+          <div className="absolute inset-0 animate-pulse rounded-full bg-emerald-500/20 blur-[60px]" />
+          <div className="animate-in zoom-in-75 relative duration-500">
+            <div className="flex flex-col items-center rounded-3xl bg-gradient-to-br from-emerald-500/20 to-emerald-600/10 p-10 ring-1 ring-emerald-500/30">
+              <div className="relative mb-6">
+                <div className="animate-totem-success-pulse absolute inset-0 rounded-full bg-emerald-500/30" />
+                <div className="relative flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-xl shadow-emerald-500/30">
+                  <CheckCircle2 className="animate-in zoom-in h-14 w-14 text-white delay-200 duration-300" />
+                </div>
+              </div>
+              <h1 className="text-3xl font-bold text-white">{feedback.title}</h1>
+              <p className="mt-2 text-slate-400">{feedback.description}</p>
+              {feedback.participantName && (
+                <div className="mt-6">
+                  <p className="text-2xl font-semibold text-emerald-400">{feedback.participantName}</p>
+                </div>
+              )}
+              <div className="mt-8 flex items-center gap-2 text-sm text-slate-500">
+                <span>Retornando em</span>
+                <span className="font-mono text-lg text-slate-400 tabular-nums">{countdown}s</span>
+              </div>
             </div>
-            <RotateCcw className="ml-auto h-4 w-4 text-slate-500" />
-          </CardContent>
-        </Card>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (feedback?.type === 'error') {
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center px-4">
+        <div className="relative">
+          <div className="absolute inset-0 rounded-full bg-rose-500/20 blur-[60px]" />
+          <div className="animate-totem-shake relative">
+            <div className="flex flex-col items-center rounded-3xl bg-gradient-to-br from-rose-500/20 to-rose-600/10 p-10 ring-1 ring-rose-500/30">
+              <div className="relative mb-6">
+                <div className="animate-totem-error-pulse absolute inset-0 rounded-full bg-rose-500/30" />
+                <div className="relative flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-rose-500 to-rose-600 shadow-xl shadow-rose-500/30">
+                  <XCircle className="h-14 w-14 text-white" />
+                </div>
+              </div>
+              <h1 className="text-3xl font-bold text-white">{feedback.title}</h1>
+              <p className="mt-2 max-w-sm text-center text-slate-400">{feedback.description}</p>
+              <div className="mt-8 flex items-center gap-2 text-sm text-slate-500">
+                <span>Retornando em</span>
+                <span className="font-mono text-lg text-slate-400 tabular-nums">{countdown}s</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Scanner view
+  return (
+    <div className="flex flex-1 flex-col">
+      {/* Header */}
+      <div className="mb-6 text-center">
+        <h1 className="text-2xl font-bold text-white">QR Code</h1>
+        <p className="mt-2 text-slate-400">Aponte a câmera para o QR Code do seu ingresso</p>
+      </div>
+
+      {/* Camera container */}
+      <div className="relative mx-auto w-full max-w-2xl">
+        <div className="absolute -inset-[2px] rounded-3xl bg-gradient-to-br from-cyan-500/60 via-slate-700/40 to-blue-500/40" />
+
+        <div className="relative overflow-hidden rounded-3xl bg-black">
+          <video ref={videoRef} muted playsInline className="aspect-video w-full object-cover" />
+
+          {/* Viewfinder corners */}
+          <div className="pointer-events-none absolute inset-0">
+            <div className="absolute top-4 left-4 h-12 w-12 rounded-tl-xl border-t-4 border-l-4 border-cyan-500" />
+            <div className="absolute top-4 right-4 h-12 w-12 rounded-tr-xl border-t-4 border-r-4 border-cyan-500" />
+            <div className="absolute bottom-4 left-4 h-12 w-12 rounded-bl-xl border-b-4 border-l-4 border-cyan-500" />
+            <div className="absolute right-4 bottom-4 h-12 w-12 rounded-br-xl border-r-4 border-b-4 border-cyan-500" />
+          </div>
+
+          {/* Center target */}
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+            <div className="h-40 w-40 rounded-2xl border-2 border-dashed border-white/30" />
+          </div>
+
+          {/* Scan line */}
+          {isScannerReady && !isSubmitting && (
+            <div className="animate-totem-scan pointer-events-none absolute inset-x-0 h-0.5 bg-gradient-to-r from-transparent via-cyan-400 to-transparent" />
+          )}
+
+          {/* Processing overlay */}
+          {isSubmitting && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+              <div className="flex flex-col items-center gap-4">
+                <div className="relative">
+                  <div className="absolute inset-0 animate-pulse rounded-full bg-cyan-500/30 blur-xl" />
+                  <div className="relative flex h-20 w-20 items-center justify-center rounded-full bg-slate-800/90 ring-2 ring-cyan-500/50">
+                    <Loader2 className="h-10 w-10 animate-spin text-cyan-400" />
+                  </div>
+                </div>
+                <p className="font-medium text-white">Validando código...</p>
+              </div>
+            </div>
+          )}
+
+          {/* Status indicator */}
+          {isScannerReady && !isSubmitting && (
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2">
+              <div className="flex items-center gap-2 rounded-full bg-black/70 px-4 py-2 backdrop-blur-sm">
+                <span className="relative flex h-2.5 w-2.5">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-cyan-400 opacity-75" />
+                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-cyan-500" />
+                </span>
+                <span className="flex items-center gap-1.5 text-sm text-white">
+                  <Scan className="h-4 w-4" />
+                  Scanner ativo
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Camera not ready */}
+          {!isScannerReady && (
+            <div className="absolute inset-0 flex items-center justify-center bg-slate-900">
+              <div className="flex flex-col items-center gap-4 text-slate-500">
+                <QrCode className="h-20 w-20" />
+                <p>Iniciando scanner...</p>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Scanner error message */}
+      {scannerError && (
+        <div className="mt-4 rounded-lg bg-amber-500/10 px-4 py-3 text-center text-sm text-amber-400">
+          {scannerError}
+        </div>
       )}
+
+      {/* Manual input toggle */}
+      <div className="mt-6">
+        <button
+          onClick={() => setShowManualInput(!showManualInput)}
+          className="mx-auto flex items-center gap-2 text-sm text-slate-400 transition-colors hover:text-white"
+        >
+          <Keyboard className="h-4 w-4" />
+          {showManualInput ? 'Ocultar entrada manual' : 'Digitar código manualmente'}
+        </button>
+      </div>
+
+      {/* Manual input */}
+      {showManualInput && (
+        <div className="animate-in fade-in slide-in-from-top-2 mx-auto mt-4 w-full max-w-md duration-300">
+          <div className="rounded-2xl bg-slate-800/50 p-4">
+            <Input
+              value={qrCodeValue}
+              onChange={(event) => setQrCodeValue(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  void handleSubmit();
+                }
+              }}
+              className="h-14 border-slate-600/50 bg-slate-900/50 text-center font-mono text-lg tracking-widest uppercase"
+              placeholder="Digite o código"
+            />
+            <Button
+              className="mt-3 h-12 w-full"
+              onClick={() => void handleSubmit()}
+              disabled={isSubmitting || !qrCodeValue.trim()}
+            >
+              <QrCode className="mr-2 h-5 w-5" />
+              {isSubmitting ? 'Validando...' : 'Validar Código'}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Back button */}
+      <div className="mt-6 flex justify-center">
+        <Button
+          variant="outline"
+          size="lg"
+          className="h-14 border-slate-700/50 bg-slate-800/50"
+          onClick={() => router.replace('/totem/method')}
+        >
+          <ArrowLeft className="mr-2 h-5 w-5" />
+          Voltar
+        </Button>
+      </div>
     </div>
   );
 }
