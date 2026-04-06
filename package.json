@@ -16,7 +16,9 @@
     "lint:fix": "eslint . --fix --cache",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "prepare": "husky install"
+    "prepare": "husky install",
+    "postinstall": "prisma generate",
+    "migrate:deploy": "prisma migrate deploy"
   },
   "dependencies": {
     "@hookform/resolvers": "5.2.2",
