@@ -333,10 +333,10 @@ export default function TotemQrPage() {
 
           {/* Minimal viewfinder corners */}
           <div className="pointer-events-none absolute inset-0">
-            <div className="absolute left-4 top-4 h-12 w-12 rounded-tl-xl border-l-2 border-t-2 border-white/30" />
-            <div className="absolute right-4 top-4 h-12 w-12 rounded-tr-xl border-r-2 border-t-2 border-white/30" />
+            <div className="absolute top-4 left-4 h-12 w-12 rounded-tl-xl border-t-2 border-l-2 border-white/30" />
+            <div className="absolute top-4 right-4 h-12 w-12 rounded-tr-xl border-t-2 border-r-2 border-white/30" />
             <div className="absolute bottom-4 left-4 h-12 w-12 rounded-bl-xl border-b-2 border-l-2 border-white/30" />
-            <div className="absolute bottom-4 right-4 h-12 w-12 rounded-br-xl border-b-2 border-r-2 border-white/30" />
+            <div className="absolute right-4 bottom-4 h-12 w-12 rounded-br-xl border-r-2 border-b-2 border-white/30" />
           </div>
 
           {/* Center target - subtle */}

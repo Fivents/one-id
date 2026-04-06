@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
+import Image from 'next/image';
 import Link from 'next/link';
 
 import {
@@ -17,9 +18,12 @@ import {
   Zap,
 } from 'lucide-react';
 
+import { LanguageSwitcher } from '@/components/shared/language-switcher';
+import { ThemeToggle } from '@/components/shared/theme-toggle';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useI18n } from '@/i18n';
 
 interface Plan {
   id: string;
@@ -35,44 +39,45 @@ interface Plan {
 
 interface Feature {
   icon: React.ReactNode;
-  title: string;
-  description: string;
+  titleKey: string;
+  descriptionKey: string;
 }
 
-const features: Feature[] = [
+const featuresList: Feature[] = [
   {
     icon: <Camera className="h-8 w-8 text-blue-500" />,
-    title: 'Reconhecimento Facial Avançado',
-    description: 'Tecnologia AI de ponta com detecção de rosto em tempo real e 99% de precisão',
+    titleKey: 'hotsite.features.faceRecognition.title',
+    descriptionKey: 'hotsite.features.faceRecognition.description',
   },
   {
     icon: <Zap className="h-8 w-8 text-purple-500" />,
-    title: 'Check-in Instantâneo',
-    description: 'Reconhecimento em menos de 1 segundo - sem filas, sem fricção',
+    titleKey: 'hotsite.features.instantCheckin.title',
+    descriptionKey: 'hotsite.features.instantCheckin.description',
   },
   {
     icon: <Users className="h-8 w-8 text-green-500" />,
-    title: 'Gestão de Participantes',
-    description: 'Cadastro simplificado, controle de presença e análise de dados em tempo real',
+    titleKey: 'hotsite.features.participantManagement.title',
+    descriptionKey: 'hotsite.features.participantManagement.description',
   },
   {
     icon: <BarChart3 className="h-8 w-8 text-orange-500" />,
-    title: 'Análise & Relatórios',
-    description: 'Dashboard intuitivo com métricas detalhadas e insights de sua audiência',
+    titleKey: 'hotsite.features.analytics.title',
+    descriptionKey: 'hotsite.features.analytics.description',
   },
   {
     icon: <Shield className="h-8 w-8 text-red-500" />,
-    title: 'Segurança Completa',
-    description: 'Encriptação de dados, compliance LGPD e proteção de privacidade',
+    titleKey: 'hotsite.features.security.title',
+    descriptionKey: 'hotsite.features.security.description',
   },
   {
     icon: <Globe className="h-8 w-8 text-cyan-500" />,
-    title: 'Multi-tenant Platform',
-    description: 'Suporte para múltiplas organizações, eventos e configurações independentes',
+    titleKey: 'hotsite.features.multiTenant.title',
+    descriptionKey: 'hotsite.features.multiTenant.description',
   },
 ];
 
 export default function Home() {
+  const { t } = useI18n();
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
   const [_error, setError] = useState<string | null>(null);
@@ -109,57 +114,65 @@ export default function Home() {
   }, []);
 
   return (
-    <div className="min-h-screen overflow-hidden">
+    <div className="bg-background text-foreground min-h-screen overflow-hidden">
       {/* Navigation */}
-      <nav className="sticky top-0 z-50 border-b border-white/10 bg-black/50 backdrop-blur-md">
+      <nav className="bg-background/80 sticky top-0 z-50 border-b backdrop-blur-md">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex h-16 items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="relative h-8 w-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600" />
-              <span className="text-xl font-bold text-white">Fivents OneID</span>
+              <Image src="/png/logo-blue.png" alt="Fivents Logo" width={32} height={32} className="block dark:hidden" />
+              <Image
+                src="/png/logo-white.png"
+                alt="Fivents Logo"
+                width={32}
+                height={32}
+                className="hidden dark:block"
+              />
+              <span className="text-xl font-bold">Fivents OneID</span>
             </div>
             <div className="hidden gap-8 md:flex">
-              <a href="#features" className="text-sm text-gray-300 transition-colors hover:text-white">
-                Recursos
+              <a href="#features" className="text-muted-foreground hover:text-foreground text-sm transition-colors">
+                {t('hotsite.nav.features')}
               </a>
-              <a href="#pricing" className="text-sm text-gray-300 transition-colors hover:text-white">
-                Preços
+              <a href="#pricing" className="text-muted-foreground hover:text-foreground text-sm transition-colors">
+                {t('hotsite.nav.pricing')}
               </a>
-              <a href="#contact" className="text-sm text-gray-300 transition-colors hover:text-white">
-                Contato
+              <a href="#contact" className="text-muted-foreground hover:text-foreground text-sm transition-colors">
+                {t('hotsite.nav.contact')}
               </a>
             </div>
-            <Link href="/login">
-              <Button variant="outline" size="sm" className="border-white/20 hover:bg-white/10">
-                Entrar
-              </Button>
-            </Link>
+            <div className="flex items-center gap-2">
+              <LanguageSwitcher />
+              <ThemeToggle />
+              <Link href="/login">
+                <Button variant="outline" size="sm">
+                  {t('hotsite.nav.login')}
+                </Button>
+              </Link>
+            </div>
           </div>
         </div>
       </nav>
 
       {/* Hero Section */}
-      <section className="relative overflow-hidden bg-black px-4 py-20 sm:px-6 sm:py-32 lg:px-8">
+      <section className="from-background via-primary/5 to-background relative overflow-hidden bg-gradient-to-b px-4 py-20 sm:px-6 sm:py-32 lg:px-8">
         {/* Animated background gradient */}
         <div className="absolute inset-0">
-          <div className="absolute top-0 left-1/4 h-96 w-96 animate-pulse rounded-full bg-blue-600/20 blur-3xl" />
-          <div className="absolute right-1/4 bottom-0 h-96 w-96 animate-pulse rounded-full bg-purple-600/20 blur-3xl" />
+          <div className="absolute top-0 left-1/4 h-96 w-96 animate-pulse rounded-full bg-blue-600/20 blur-3xl dark:bg-blue-600/10" />
+          <div className="absolute right-1/4 bottom-0 h-96 w-96 animate-pulse rounded-full bg-purple-600/20 blur-3xl dark:bg-purple-600/10" />
         </div>
 
         <div className="relative mx-auto max-w-4xl text-center">
           <Badge className="mb-4 border-0 bg-gradient-to-r from-blue-500 to-purple-600 text-white">
             <Sparkles className="mr-2 h-3 w-3" />
-            Tecnologia de Ponta em Reconhecimento Facial
+            {t('hotsite.hero.badge')}
           </Badge>
 
-          <h1 className="mb-6 text-5xl leading-tight font-bold text-white sm:text-7xl">
-            Credenciamento de Eventos com IA
+          <h1 className="text-foreground mb-6 text-5xl leading-tight font-bold sm:text-7xl">
+            {t('hotsite.hero.title')}
           </h1>
 
-          <p className="mx-auto mb-8 max-w-2xl text-xl text-gray-300">
-            Revolucione seu check-in com reconhecimento facial avançado. Instantâneo, seguro e escalável. A plataforma
-            perfeita para eventos que exigem eficiência.
-          </p>
+          <p className="text-muted-foreground mx-auto mb-8 max-w-2xl text-xl">{t('hotsite.hero.description')}</p>
 
           <div className="mb-12 flex flex-col justify-center gap-4 sm:flex-row">
             <Link href="/login">
@@ -167,26 +180,26 @@ export default function Home() {
                 size="lg"
                 className="border-0 bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700"
               >
-                Começar Grátis <ArrowRight className="ml-2 h-4 w-4" />
+                {t('hotsite.hero.cta')} <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </Link>
-            <Button size="lg" variant="outline" className="border-white/20 text-white hover:bg-white/10">
-              Solicitar Demo
+            <Button size="lg" variant="outline">
+              {t('hotsite.hero.demo')}
             </Button>
           </div>
 
-          <div className="grid grid-cols-3 gap-6 text-sm text-gray-300">
+          <div className="text-muted-foreground grid grid-cols-3 gap-6 text-sm">
             <div>
-              <div className="mb-2 text-3xl font-bold text-white">99%</div>
-              <div>Precisão Facial</div>
+              <div className="text-foreground mb-2 text-3xl font-bold">99%</div>
+              <div>{t('hotsite.hero.stats.accuracy')}</div>
             </div>
             <div>
-              <div className="mb-2 text-3xl font-bold text-white">&lt;1s</div>
-              <div>Tempo de Check-in</div>
+              <div className="text-foreground mb-2 text-3xl font-bold">&lt;1s</div>
+              <div>{t('hotsite.hero.stats.checkinTime')}</div>
             </div>
             <div>
-              <div className="mb-2 text-3xl font-bold text-white">24/7</div>
-              <div>Disponibilidade</div>
+              <div className="text-foreground mb-2 text-3xl font-bold">24/7</div>
+              <div>{t('hotsite.hero.stats.availability')}</div>
             </div>
           </div>
         </div>
@@ -195,28 +208,26 @@ export default function Home() {
       {/* Features Section */}
       <section
         id="features"
-        className="bg-gradient-to-b from-black via-blue-950/10 to-black px-4 py-20 sm:px-6 sm:py-32 lg:px-8"
+        className="from-background via-muted/30 to-background bg-gradient-to-b px-4 py-20 sm:px-6 sm:py-32 lg:px-8"
       >
         <div className="mx-auto max-w-6xl">
           <div className="mb-16 text-center">
-            <h2 className="mb-4 text-4xl font-bold text-white sm:text-5xl">Recursos Poderosos</h2>
-            <p className="mx-auto max-w-2xl text-xl text-gray-400">
-              Tudo que você precisa para gerenciar credenciamento de eventos com segurança e eficiência
-            </p>
+            <h2 className="text-foreground mb-4 text-4xl font-bold sm:text-5xl">{t('hotsite.features.title')}</h2>
+            <p className="text-muted-foreground mx-auto max-w-2xl text-xl">{t('hotsite.features.subtitle')}</p>
           </div>
 
           <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
-            {features.map((feature, index) => (
+            {featuresList.map((feature, index) => (
               <Card
                 key={index}
-                className="border-white/10 bg-white/5 transition-all duration-300 hover:border-white/20 hover:shadow-lg hover:shadow-blue-500/20"
+                className="border-border/50 bg-card/50 hover:border-border transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/10"
               >
                 <CardHeader>
-                  <div className="mb-4 w-fit rounded-lg bg-white/5 p-3">{feature.icon}</div>
-                  <CardTitle className="text-white">{feature.title}</CardTitle>
+                  <div className="bg-muted mb-4 w-fit rounded-lg p-3">{feature.icon}</div>
+                  <CardTitle>{t(feature.titleKey)}</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-gray-400">{feature.description}</p>
+                  <p className="text-muted-foreground">{t(feature.descriptionKey)}</p>
                 </CardContent>
               </Card>
             ))}
@@ -225,47 +236,65 @@ export default function Home() {
       </section>
 
       {/* Use Cases Section */}
-      <section className="bg-black px-4 py-20 sm:px-6 sm:py-32 lg:px-8">
+      <section className="bg-background px-4 py-20 sm:px-6 sm:py-32 lg:px-8">
         <div className="mx-auto max-w-6xl">
-          <h2 className="mb-16 text-center text-4xl font-bold text-white sm:text-5xl">Ideal para Qualquer Evento</h2>
+          <h2 className="text-foreground mb-16 text-center text-4xl font-bold sm:text-5xl">
+            {t('hotsite.useCases.title')}
+          </h2>
 
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
             {[
               {
-                title: 'Conferências Corporativas',
-                description: 'Credenciamento rápido e controle de presença para eventos com centenas de participantes',
-                metrics: ['Até 1.000 check-ins/hora', 'Zero filas', 'Relatórios em tempo real'],
+                titleKey: 'hotsite.useCases.corporate.title',
+                descriptionKey: 'hotsite.useCases.corporate.description',
+                metrics: [
+                  'hotsite.useCases.corporate.metric1',
+                  'hotsite.useCases.corporate.metric2',
+                  'hotsite.useCases.corporate.metric3',
+                ],
               },
               {
-                title: 'Eventos VIP & Premium',
-                description: 'Experiência premium com reconhecimento de dignitários e registro seguro de presença',
-                metrics: ['Segurança reforçada', 'Verificação em 2 níveis', 'Auditoria completa'],
+                titleKey: 'hotsite.useCases.vip.title',
+                descriptionKey: 'hotsite.useCases.vip.description',
+                metrics: [
+                  'hotsite.useCases.vip.metric1',
+                  'hotsite.useCases.vip.metric2',
+                  'hotsite.useCases.vip.metric3',
+                ],
               },
               {
-                title: 'Pré-inscrição & Registro',
-                description: 'Vinculação automática com pré-cadastro de participantes e coleta de dados',
-                metrics: ['Integração com CRM', 'Captura de dados automática', 'Pré-aprovação'],
+                titleKey: 'hotsite.useCases.registration.title',
+                descriptionKey: 'hotsite.useCases.registration.description',
+                metrics: [
+                  'hotsite.useCases.registration.metric1',
+                  'hotsite.useCases.registration.metric2',
+                  'hotsite.useCases.registration.metric3',
+                ],
               },
               {
-                title: 'Networking & Socialização',
-                description: 'Facilite conexões com análise de encontros e estatísticas de rede',
-                metrics: ['Análise de conexões', 'Relatório de networking', 'Matching inteligente'],
+                titleKey: 'hotsite.useCases.networking.title',
+                descriptionKey: 'hotsite.useCases.networking.description',
+                metrics: [
+                  'hotsite.useCases.networking.metric1',
+                  'hotsite.useCases.networking.metric2',
+                  'hotsite.useCases.networking.metric3',
+                ],
               },
             ].map((useCase, index) => (
-              <Card key={index} className="border-white/10 bg-gradient-to-br from-blue-900/30 to-purple-900/30">
+              <Card key={index} className="bg-gradient-to-br from-blue-500/10 to-purple-500/10">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-white">
+                  <CardTitle className="flex items-center gap-2">
                     <CheckCircle className="h-5 w-5 text-green-500" />
-                    {useCase.title}
+                    {t(useCase.titleKey)}
                   </CardTitle>
-                  <CardDescription>{useCase.description}</CardDescription>
+                  <CardDescription>{t(useCase.descriptionKey)}</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <ul className="space-y-2">
-                    {useCase.metrics.map((metric, idx) => (
-                      <li key={idx} className="flex items-center gap-2 text-gray-300">
+                    {useCase.metrics.map((metricKey, idx) => (
+                      <li key={idx} className="text-muted-foreground flex items-center gap-2">
                         <div className="h-1.5 w-1.5 rounded-full bg-blue-500" />
-                        {metric}
+                        {t(metricKey)}
                       </li>
                     ))}
                   </ul>
@@ -277,19 +306,20 @@ export default function Home() {
       </section>
 
       {/* Pricing Section */}
-      <section id="pricing" className="bg-gradient-to-b from-black to-blue-950/20 px-4 py-20 sm:px-6 sm:py-32 lg:px-8">
+      <section
+        id="pricing"
+        className="from-background via-primary/5 to-background bg-gradient-to-b px-4 py-20 sm:px-6 sm:py-32 lg:px-8"
+      >
         <div className="mx-auto max-w-6xl">
           <div className="mb-16 text-center">
-            <h2 className="mb-4 text-4xl font-bold text-white sm:text-5xl">Planos Transparentes</h2>
-            <p className="text-xl text-gray-400">
-              Escolha o plano perfeito para seu evento. Sem surpresas, sem contratos longos.
-            </p>
+            <h2 className="text-foreground mb-4 text-4xl font-bold sm:text-5xl">{t('hotsite.pricing.title')}</h2>
+            <p className="text-muted-foreground text-xl">{t('hotsite.pricing.subtitle')}</p>
           </div>
 
           {loading ? (
             <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
               {[1, 2, 3].map((i) => (
-                <div key={i} className="h-96 animate-pulse rounded-xl border border-white/10 bg-white/5" />
+                <div key={i} className="bg-muted/50 h-96 animate-pulse rounded-xl border" />
               ))}
             </div>
           ) : plans.length > 0 ? (
@@ -297,31 +327,31 @@ export default function Home() {
               {plans.map((plan, index) => (
                 <Card
                   key={plan.id}
-                  className={`flex flex-col border transition-all duration-300 ${
+                  className={`relative flex flex-col transition-all duration-300 ${
                     index === 1
-                      ? 'border-blue-500/50 bg-gradient-to-br from-blue-900/40 to-purple-900/40 ring-2 ring-blue-500/20 md:scale-105'
-                      : 'border-white/10 bg-white/5 hover:border-white/20'
+                      ? 'border-primary/50 ring-primary/20 bg-gradient-to-br from-blue-500/10 to-purple-500/10 ring-2 md:scale-105'
+                      : 'hover:border-border'
                   }`}
                 >
                   {index === 1 && (
                     <div className="absolute -top-3 left-1/2 -translate-x-1/2 transform">
                       <Badge className="border-0 bg-gradient-to-r from-blue-500 to-purple-600 text-white">
-                        Mais Popular
+                        {t('hotsite.pricing.popular')}
                       </Badge>
                     </div>
                   )}
 
                   <CardHeader>
-                    <CardTitle className="text-2xl text-white">{plan.name}</CardTitle>
+                    <CardTitle className="text-2xl">{plan.name}</CardTitle>
                     <CardDescription>{plan.description}</CardDescription>
                   </CardHeader>
 
                   <CardContent className="flex-1">
                     <div className="mb-6">
-                      <span className="text-4xl font-bold text-white">
+                      <span className="text-foreground text-4xl font-bold">
                         {plan.discount ? (
                           <>
-                            <span className="text-2xl text-gray-500 line-through">
+                            <span className="text-muted-foreground text-2xl line-through">
                               R$ {plan.price.toLocaleString('pt-BR')}
                             </span>
                             <br />
@@ -331,7 +361,7 @@ export default function Home() {
                           `R$ ${plan.price.toLocaleString('pt-BR')}`
                         )}
                       </span>
-                      <p className="mt-1 text-sm text-gray-400">/mês</p>
+                      <p className="text-muted-foreground mt-1 text-sm">{t('hotsite.pricing.perMonth')}</p>
                     </div>
 
                     <Button
@@ -343,17 +373,17 @@ export default function Home() {
                       variant={index === 1 ? 'default' : 'outline'}
                       asChild
                     >
-                      <Link href="/login">Escolher Plano</Link>
+                      <Link href="/login">{t('hotsite.pricing.choosePlan')}</Link>
                     </Button>
 
                     <div className="space-y-3">
                       {[
-                        'Check-in facial em tempo real',
-                        'Dashboard completo',
-                        'Relatórios e analytics',
-                        `Até ${plan._count?.planFeatures || 10} participantes`,
+                        t('hotsite.pricing.features.facialCheckin'),
+                        t('hotsite.pricing.features.dashboard'),
+                        t('hotsite.pricing.features.reports'),
+                        t('hotsite.pricing.features.participants', { count: String(plan._count?.planFeatures || 10) }),
                       ].map((feature, idx) => (
-                        <div key={idx} className="flex items-center gap-3 text-sm text-gray-300">
+                        <div key={idx} className="text-muted-foreground flex items-center gap-3 text-sm">
                           <CheckCircle className="h-4 w-4 flex-shrink-0 text-green-500" />
                           {feature}
                         </div>
@@ -368,31 +398,31 @@ export default function Home() {
               {getDefaultPlans().map((plan, index) => (
                 <Card
                   key={plan.id}
-                  className={`flex flex-col border transition-all duration-300 ${
+                  className={`relative flex flex-col transition-all duration-300 ${
                     index === 1
-                      ? 'border-blue-500/50 bg-gradient-to-br from-blue-900/40 to-purple-900/40 ring-2 ring-blue-500/20 md:scale-105'
-                      : 'border-white/10 bg-white/5 hover:border-white/20'
+                      ? 'border-primary/50 ring-primary/20 bg-gradient-to-br from-blue-500/10 to-purple-500/10 ring-2 md:scale-105'
+                      : 'hover:border-border'
                   }`}
                 >
                   {index === 1 && (
                     <div className="absolute -top-3 left-1/2 -translate-x-1/2 transform">
                       <Badge className="border-0 bg-gradient-to-r from-blue-500 to-purple-600 text-white">
-                        Mais Popular
+                        {t('hotsite.pricing.popular')}
                       </Badge>
                     </div>
                   )}
 
                   <CardHeader>
-                    <CardTitle className="text-2xl text-white">{plan.name}</CardTitle>
+                    <CardTitle className="text-2xl">{plan.name}</CardTitle>
                     <CardDescription>{plan.description}</CardDescription>
                   </CardHeader>
 
                   <CardContent className="flex-1">
                     <div className="mb-6">
-                      <span className="text-4xl font-bold text-white">
+                      <span className="text-foreground text-4xl font-bold">
                         R$ {(plan.price * 100).toLocaleString('pt-BR')}
                       </span>
-                      <p className="mt-1 text-sm text-gray-400">/mês</p>
+                      <p className="text-muted-foreground mt-1 text-sm">{t('hotsite.pricing.perMonth')}</p>
                     </div>
 
                     <Button
@@ -404,17 +434,17 @@ export default function Home() {
                       variant={index === 1 ? 'default' : 'outline'}
                       asChild
                     >
-                      <Link href="/login">Escolher Plano</Link>
+                      <Link href="/login">{t('hotsite.pricing.choosePlan')}</Link>
                     </Button>
 
                     <div className="space-y-3">
                       {[
-                        'Check-in facial em tempo real',
-                        'Dashboard completo',
-                        'Relatórios e analytics',
-                        `Até ${plan.features || 10} participantes`,
+                        t('hotsite.pricing.features.facialCheckin'),
+                        t('hotsite.pricing.features.dashboard'),
+                        t('hotsite.pricing.features.reports'),
+                        t('hotsite.pricing.features.participants', { count: String(plan.features || 10) }),
                       ].map((feature, idx) => (
-                        <div key={idx} className="flex items-center gap-3 text-sm text-gray-300">
+                        <div key={idx} className="text-muted-foreground flex items-center gap-3 text-sm">
                           <CheckCircle className="h-4 w-4 flex-shrink-0 text-green-500" />
                           {feature}
                         </div>
@@ -426,69 +456,78 @@ export default function Home() {
             </div>
           )}
 
-          <div className="mt-16 text-center text-gray-400">
-            <p>Planos personalizados para eventos maiores? </p>
-            <Button variant="link" className="h-auto px-0 text-blue-400 hover:text-blue-300" id="contact">
-              Entre em contato com nosso time de vendas
+          <div className="text-muted-foreground mt-16 text-center">
+            <p>{t('hotsite.pricing.customPlans')}</p>
+            <Button variant="link" className="text-primary h-auto px-0" id="contact">
+              {t('hotsite.pricing.contactSales')}
             </Button>
           </div>
         </div>
       </section>
 
       {/* Call to Action Section */}
-      <section className="relative overflow-hidden bg-gradient-to-r from-blue-950 to-purple-950 px-4 py-20 sm:px-6 sm:py-32 lg:px-8">
-        <div className="absolute top-0 right-0 h-96 w-96 rounded-full bg-blue-500/10 blur-3xl" />
+      <section className="relative overflow-hidden bg-gradient-to-r from-blue-600 to-purple-600 px-4 py-20 sm:px-6 sm:py-32 lg:px-8 dark:from-blue-950 dark:to-purple-950">
+        <div className="absolute top-0 right-0 h-96 w-96 rounded-full bg-white/10 blur-3xl" />
 
         <div className="relative mx-auto max-w-3xl text-center">
-          <h2 className="mb-6 text-4xl font-bold text-white sm:text-5xl">Pronto para transformar seu evento?</h2>
-          <p className="mb-8 text-xl text-gray-300">
-            Milhares de eventos já usam Fivents para revolucionar o credenciamento. Junte-se a eles hoje.
-          </p>
+          <h2 className="mb-6 text-4xl font-bold text-white sm:text-5xl">{t('hotsite.cta.title')}</h2>
+          <p className="mb-8 text-xl text-white/80">{t('hotsite.cta.description')}</p>
 
           <div className="flex flex-col justify-center gap-4 sm:flex-row">
             <Link href="/login">
               <Button size="lg" className="border-0 bg-white font-semibold text-blue-600 hover:bg-gray-100">
-                Começar Grátis <ArrowRight className="ml-2 h-4 w-4" />
+                {t('hotsite.cta.start')} <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </Link>
-            <Button size="lg" variant="outline" className="border-white/20 text-white hover:bg-white/10">
-              Agendar Demo
+            <Button size="lg" variant="outline" className="border-white/30 text-white hover:bg-white/10">
+              {t('hotsite.cta.demo')}
             </Button>
           </div>
 
-          <p className="mt-8 text-sm text-gray-400">Sem cartão de crédito necessário • Configuração em 5 minutos</p>
+          <p className="mt-8 text-sm text-white/60">{t('hotsite.cta.noCard')}</p>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-white/10 bg-black px-4 py-12 sm:px-6 lg:px-8">
+      <footer className="bg-muted/50 border-t px-4 py-12 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-7xl">
           <div className="mb-8 grid grid-cols-1 gap-8 md:grid-cols-4">
             <div>
               <div className="mb-4 flex items-center gap-2">
-                <div className="relative h-6 w-6 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600" />
-                <span className="font-bold text-white">Fivents</span>
+                <Image
+                  src="/png/logo-blue.png"
+                  alt="Fivents Logo"
+                  width={24}
+                  height={24}
+                  className="block dark:hidden"
+                />
+                <Image
+                  src="/png/logo-white.png"
+                  alt="Fivents Logo"
+                  width={24}
+                  height={24}
+                  className="hidden dark:block"
+                />
+                <span className="font-bold">Fivents</span>
               </div>
-              <p className="text-sm text-gray-400">
-                Plataforma de credenciamento inteligente com reconhecimento facial de ponta.
-              </p>
+              <p className="text-muted-foreground text-sm">{t('hotsite.footer.description')}</p>
             </div>
 
             <div>
-              <h4 className="mb-4 font-semibold text-white">Produto</h4>
-              <ul className="space-y-2 text-sm text-gray-400">
+              <h4 className="mb-4 font-semibold">{t('hotsite.footer.product')}</h4>
+              <ul className="text-muted-foreground space-y-2 text-sm">
                 <li>
-                  <a href="#features" className="transition-colors hover:text-white">
-                    Recursos
+                  <a href="#features" className="hover:text-foreground transition-colors">
+                    {t('hotsite.nav.features')}
                   </a>
                 </li>
                 <li>
-                  <a href="#pricing" className="transition-colors hover:text-white">
-                    Preços
+                  <a href="#pricing" className="hover:text-foreground transition-colors">
+                    {t('hotsite.nav.pricing')}
                   </a>
                 </li>
                 <li>
-                  <a href="#" className="transition-colors hover:text-white">
+                  <a href="#" className="hover:text-foreground transition-colors">
                     API Docs
                   </a>
                 </li>
@@ -496,55 +535,55 @@ export default function Home() {
             </div>
 
             <div>
-              <h4 className="mb-4 font-semibold text-white">Empresa</h4>
-              <ul className="space-y-2 text-sm text-gray-400">
+              <h4 className="mb-4 font-semibold">{t('hotsite.footer.company')}</h4>
+              <ul className="text-muted-foreground space-y-2 text-sm">
                 <li>
-                  <a href="#" className="transition-colors hover:text-white">
-                    Sobre
+                  <a href="#" className="hover:text-foreground transition-colors">
+                    {t('hotsite.footer.about')}
                   </a>
                 </li>
                 <li>
-                  <a href="#" className="transition-colors hover:text-white">
+                  <a href="#" className="hover:text-foreground transition-colors">
                     Blog
                   </a>
                 </li>
                 <li>
-                  <a href="#" className="transition-colors hover:text-white">
-                    Carreiras
+                  <a href="#" className="hover:text-foreground transition-colors">
+                    {t('hotsite.footer.careers')}
                   </a>
                 </li>
               </ul>
             </div>
 
             <div>
-              <h4 className="mb-4 font-semibold text-white">Legal</h4>
-              <ul className="space-y-2 text-sm text-gray-400">
+              <h4 className="mb-4 font-semibold">{t('hotsite.footer.legal')}</h4>
+              <ul className="text-muted-foreground space-y-2 text-sm">
                 <li>
-                  <a href="#" className="transition-colors hover:text-white">
-                    Privacidade
+                  <a href="#" className="hover:text-foreground transition-colors">
+                    {t('hotsite.footer.privacy')}
                   </a>
                 </li>
                 <li>
-                  <a href="#" className="transition-colors hover:text-white">
-                    Termos de Uso
+                  <a href="#" className="hover:text-foreground transition-colors">
+                    {t('hotsite.footer.terms')}
                   </a>
                 </li>
                 <li>
-                  <a href="#" className="transition-colors hover:text-white">
-                    Contato
+                  <a href="#" className="hover:text-foreground transition-colors">
+                    {t('hotsite.nav.contact')}
                   </a>
                 </li>
               </ul>
             </div>
           </div>
 
-          <div className="flex flex-col items-center justify-between border-t border-white/10 pt-8 sm:flex-row">
-            <p className="text-sm text-gray-400">© 2024 Fivents. Todos os direitos reservados.</p>
+          <div className="flex flex-col items-center justify-between border-t pt-8 sm:flex-row">
+            <p className="text-muted-foreground text-sm">© 2026 Fivents. {t('hotsite.footer.rights')}</p>
             <div className="mt-4 flex gap-6 sm:mt-0">
-              <a href="#" className="text-gray-400 transition-colors hover:text-white">
+              <a href="#" className="text-muted-foreground hover:text-foreground transition-colors">
                 <Smartphone className="h-5 w-5" />
               </a>
-              <a href="#" className="text-gray-400 transition-colors hover:text-white">
+              <a href="#" className="text-muted-foreground hover:text-foreground transition-colors">
                 <Globe className="h-5 w-5" />
               </a>
             </div>

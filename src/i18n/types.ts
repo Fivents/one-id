@@ -237,6 +237,16 @@ export type TranslationSchema = {
       checkIns: string;
       checkInPoints: string;
       addParticipant: string;
+      linkPerson: string;
+      linkPersonTitle: string;
+      linkPersonDescription: string;
+      linkPersonSearchPlaceholder: string;
+      linkPersonEmpty: string;
+      linkPersonSuccess: string;
+      linkPersonError: string;
+      loadPeopleError: string;
+      linking: string;
+      linkAction: string;
       exportParticipants: string;
       exportCheckIns: string;
       noParticipants: string;
@@ -1072,6 +1082,35 @@ export type TranslationSchema = {
       eventUpdated: string;
       invalidate: string;
       preview: string;
+      // Link person
+      linkPerson: string;
+      linkPersonTitle: string;
+      linkPersonDescription: string;
+      linkPersonSearchPlaceholder: string;
+      linkPersonSuccess: string;
+      linkPersonError: string;
+      linkPersonEmpty: string;
+      loadPeopleError: string;
+      // Public link
+      publicLinkTitle: string;
+      publicLinkDescription: string;
+      publicLinkGenerated: string;
+      publicLinkRemoved: string;
+      publicLinkError: string;
+      publicLinkGenerate: string;
+      publicLinkRemove: string;
+      publicLinkCopied: string;
+      noPublicLink: string;
+      generatePublicLink: string;
+      removePublicLink: string;
+      copyLink: string;
+      openLink: string;
+      linkCopied: string;
+      copyError: string;
+      generating: string;
+      removing: string;
+      linking: string;
+      linkAction: string;
     };
     adminOrganizations: Record<string, string>;
     adminOrganizationsTable: Record<string, string>;
@@ -1127,6 +1166,125 @@ export type TranslationSchema = {
     credentialingPlaceholder: string;
     credentialingComingSoon: string;
     logout: string;
+  };
+  hotsite: {
+    nav: {
+      features: string;
+      pricing: string;
+      contact: string;
+      login: string;
+    };
+    hero: {
+      badge: string;
+      title: string;
+      description: string;
+      cta: string;
+      demo: string;
+      stats: {
+        accuracy: string;
+        checkinTime: string;
+        availability: string;
+      };
+    };
+    features: {
+      title: string;
+      subtitle: string;
+      faceRecognition: {
+        title: string;
+        description: string;
+      };
+      instantCheckin: {
+        title: string;
+        description: string;
+      };
+      participantManagement: {
+        title: string;
+        description: string;
+      };
+      analytics: {
+        title: string;
+        description: string;
+      };
+      security: {
+        title: string;
+        description: string;
+      };
+      multiTenant: {
+        title: string;
+        description: string;
+      };
+    };
+    useCases: {
+      title: string;
+      corporate: {
+        title: string;
+        description: string;
+        metric1: string;
+        metric2: string;
+        metric3: string;
+      };
+      vip: {
+        title: string;
+        description: string;
+        metric1: string;
+        metric2: string;
+        metric3: string;
+      };
+      registration: {
+        title: string;
+        description: string;
+        metric1: string;
+        metric2: string;
+        metric3: string;
+      };
+      entertainment: {
+        title: string;
+        description: string;
+        metric1: string;
+        metric2: string;
+        metric3: string;
+      };
+      networking: {
+        title: string;
+        description: string;
+        metric1: string;
+        metric2: string;
+        metric3: string;
+      };
+    };
+    pricing: {
+      title: string;
+      subtitle: string;
+      popular: string;
+      perMonth: string;
+      choosePlan: string;
+      customPlans: string;
+      contactSales: string;
+      features: {
+        facialCheckin: string;
+        dashboard: string;
+        reports: string;
+        participants: string;
+      };
+    };
+    cta: {
+      title: string;
+      description: string;
+      start: string;
+      demo: string;
+      noCard: string;
+    };
+    footer: {
+      description: string;
+      product: string;
+      company: string;
+      about: string;
+      careers: string;
+      legal: string;
+      privacy: string;
+      terms: string;
+      rights: string;
+    };
   };
 };
 

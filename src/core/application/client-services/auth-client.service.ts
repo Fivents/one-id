@@ -23,7 +23,7 @@ class AuthClientService extends BaseClient {
     return this.post('/auth/check-email', data);
   }
 
-  async setupPassword(data: SetupPasswordRequest): Promise<ApiResponse<{ success: true }>> {
+  async setupPassword(data: SetupPasswordRequest): Promise<ApiResponse<{ user: AuthUserResponse }>> {
     return this.post('/auth/setup-password', data);
   }
 

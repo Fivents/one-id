@@ -20,6 +20,7 @@ export const GET = withAuth(
     const organizationId = req.nextUrl.searchParams.get('organizationId') ?? auth.organizationId ?? '';
     const search = req.nextUrl.searchParams.get('search')?.trim() ?? '';
     const eventId = req.nextUrl.searchParams.get('eventId')?.trim() ?? '';
+    const excludeEventId = req.nextUrl.searchParams.get('excludeEventId')?.trim() ?? '';
     const includeDeleted = req.nextUrl.searchParams.get('deleted') === 'true';
     const page = Math.max(Number(req.nextUrl.searchParams.get('page') ?? '1') || 1, 1);
     const pageSizeRaw = Number(req.nextUrl.searchParams.get('pageSize') ?? '20') || 20;
@@ -53,6 +54,18 @@ export const GET = withAuth(
               some: {
                 eventId,
                 deletedAt: null,
+              },
+            },
+          }
+        : {}),
+      ...(excludeEventId
+        ? {
+            NOT: {
+              eventParticipants: {
+                some: {
+                  eventId: excludeEventId,
+                  deletedAt: null,
+                },
               },
             },
           }

@@ -10,17 +10,18 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { authClient } from '@/core/application/client-services';
+import { useAuth } from '@/core/application/contexts';
 import { useI18n } from '@/i18n';
 
 export function SetPasswordForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { t } = useI18n();
+  const { refreshSession } = useAuth();
 
   const token = searchParams.get('token');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
 
   if (!token) {
     return (
@@ -58,27 +59,19 @@ export function SetPasswordForm() {
 
       if (!result.success) {
         setError(result.error.message || t('auth.setPassword.invalidToken'));
+        setLoading(false);
         return;
       }
 
-      setSuccess(true);
-      setTimeout(() => router.push('/login'), 2000);
+      // Refresh session to load the user data into auth context
+      await refreshSession();
+
+      // Redirect directly to dashboard (user is now authenticated)
+      router.push('/dashboard');
     } catch {
       setError(t('auth.login.connectionError'));
-    } finally {
       setLoading(false);
     }
-  }
-
-  if (success) {
-    return (
-      <Card className="w-full max-w-md">
-        <CardContent className="pt-6 text-center">
-          <p className="text-success font-medium">{t('auth.setPassword.success')}</p>
-          <p className="text-muted-foreground mt-2 text-sm">{t('auth.setPassword.redirecting')}</p>
-        </CardContent>
-      </Card>
-    );
   }
 
   return (

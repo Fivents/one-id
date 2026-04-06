@@ -240,6 +240,18 @@ class EventsClientService extends BaseClient {
   ): Promise<ApiResponse<EventAIConfigResponse>> {
     return this.patch(`/events/${encodeURIComponent(eventId)}/ai-config`, data);
   }
+
+  async getPublicLink(eventId: string): Promise<ApiResponse<{ publicSlug: string | null; publicUrl: string | null }>> {
+    return this.get(`/events/${encodeURIComponent(eventId)}/public-link`);
+  }
+
+  async generatePublicLink(eventId: string): Promise<ApiResponse<{ publicSlug: string; publicUrl: string }>> {
+    return this.post(`/events/${encodeURIComponent(eventId)}/public-link`, {});
+  }
+
+  async removePublicLink(eventId: string): Promise<ApiResponse<{ success: boolean }>> {
+    return this.delete(`/events/${encodeURIComponent(eventId)}/public-link`);
+  }
 }
 
 export const eventsClient = new EventsClientService();

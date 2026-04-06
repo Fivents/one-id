@@ -254,6 +254,8 @@ model Event {
 
   status EventStatus @default(DRAFT)
 
+  publicSlug String? @unique @map("public_slug")
+
   startsAt DateTime @map("starts_at")
   endsAt   DateTime @map("ends_at")
 

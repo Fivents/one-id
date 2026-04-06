@@ -1,16 +1,27 @@
+import type { AuthTokenResponse } from '@/core/communication/responses/auth';
 import { AppError } from '@/core/errors';
 
 import { SetupClientPasswordUseCase } from '../../use-cases/auth';
 import { type ControllerResponse, ok, serverError, unauthorized } from '../controller-response';
 
+export interface SetupPasswordRequestMeta {
+  ipAddress: string;
+  userAgent: string;
+  deviceId: string;
+}
+
 export class SetupPasswordController {
   constructor(private readonly setupPasswordUseCase: SetupClientPasswordUseCase) {}
 
-  async handle(token: string, password: string): Promise<ControllerResponse<{ success: true }>> {
+  async handle(
+    token: string,
+    password: string,
+    meta: SetupPasswordRequestMeta,
+  ): Promise<ControllerResponse<AuthTokenResponse>> {
     try {
-      await this.setupPasswordUseCase.execute(token, password);
+      const result = await this.setupPasswordUseCase.execute(token, password, meta);
 
-      return ok({ success: true as const });
+      return ok(result);
     } catch (error) {
       if (error instanceof AppError) {
         return { statusCode: error.httpStatus, body: { error: error.message } };

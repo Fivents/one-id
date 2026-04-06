@@ -8,11 +8,17 @@ import { SetupClientPasswordUseCase } from '@/core/application/use-cases/auth/se
  * - tokenProvider (singleton)
  * - authIdentityRepository (singleton)
  * - passwordHasher (singleton)
+ * - userRepository (singleton)
+ * - membershipRepository (singleton)
+ * - sessionRepository (singleton)
  */
 export function makeSetupClientPasswordUseCase(): SetupClientPasswordUseCase {
   return new SetupClientPasswordUseCase(
     containerService.getTokenProvider(),
     containerService.getAuthIdentityRepository(),
     containerService.getPasswordHasher(),
+    containerService.getUserRepository(),
+    containerService.getMembershipRepository(),
+    containerService.getSessionRepository(),
   );
 }

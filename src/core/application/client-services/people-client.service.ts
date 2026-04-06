@@ -47,6 +47,7 @@ class PeopleClientService extends BaseClient {
     pageSize?: number;
     search?: string;
     eventId?: string;
+    excludeEventId?: string;
     deleted?: boolean;
   }): Promise<ApiResponse<PaginatedPeopleResponse>> {
     const searchParams = new URLSearchParams();
@@ -55,6 +56,7 @@ class PeopleClientService extends BaseClient {
     if (params.pageSize) searchParams.set('pageSize', String(params.pageSize));
     if (params.search) searchParams.set('search', params.search);
     if (params.eventId) searchParams.set('eventId', params.eventId);
+    if (params.excludeEventId) searchParams.set('excludeEventId', params.excludeEventId);
     if (params.deleted) searchParams.set('deleted', 'true');
 
     return this.get(`/people?${searchParams.toString()}`);

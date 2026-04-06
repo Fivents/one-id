@@ -7,6 +7,10 @@ import { useParams, useRouter } from 'next/navigation';
 import {
   Calendar,
   CheckCircle2,
+  Copy,
+  ExternalLink,
+  Globe,
+  Link2,
   MapPin,
   MonitorSmartphone,
   Pencil,
@@ -38,7 +42,12 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
-import { eventCheckinsClient, eventsClient, participantsClient } from '@/core/application/client-services';
+import {
+  eventCheckinsClient,
+  eventsClient,
+  participantsClient,
+  peopleClient,
+} from '@/core/application/client-services';
 import type {
   EventAIConfigResponse,
   EventCheckInDetailResponse,
@@ -48,6 +57,10 @@ import type {
   PaginatedEventParticipantsResponse,
   PrintConfigSummaryResponse,
 } from '@/core/application/client-services/events/events-client.service';
+import type {
+  PaginatedPeopleResponse,
+  PersonSummaryResponse,
+} from '@/core/application/client-services/people-client.service';
 import { extractFaceEmbedding } from '@/core/application/client-services/totem/face-embedding.client';
 import { useApp, useAuth, usePermissions } from '@/core/application/contexts';
 import type { EventResponse } from '@/core/communication/responses/event';
@@ -191,6 +204,19 @@ export default function EventDetailPage() {
   });
   const [isSavingAIConfig, setIsSavingAIConfig] = useState(false);
 
+  // Link existing person state
+  const [linkPersonOpen, setLinkPersonOpen] = useState(false);
+  const [linkPersonSearch, setLinkPersonSearch] = useState('');
+  const [linkPersonPage, setLinkPersonPage] = useState(1);
+  const [linkPersonResults, setLinkPersonResults] = useState<PaginatedPeopleResponse | null>(null);
+  const [isLoadingLinkPeople, setIsLoadingLinkPeople] = useState(false);
+  const [isLinkingPerson, setIsLinkingPerson] = useState(false);
+
+  // Public link state
+  const [publicLinkUrl, setPublicLinkUrl] = useState<string | null>(null);
+  const [isLoadingPublicLink, setIsLoadingPublicLink] = useState(false);
+  const [isTogglingPublicLink, setIsTogglingPublicLink] = useState(false);
+
   const isLoadingPage = isAppLoading || isAuthLoading;
 
   const canView = isSuperAdmin() || hasPermission('EVENT_VIEW');
@@ -254,6 +280,49 @@ export default function EventDetailPage() {
       setIsLoadingParticipants(false);
     }
   }, [eventId, participantsPage, participantsSearch, t]);
+
+  const loadPeopleForLinking = useCallback(async () => {
+    if (!event?.organizationId) return;
+
+    setIsLoadingLinkPeople(true);
+    try {
+      const response = await peopleClient.listPeople({
+        organizationId: event.organizationId,
+        page: linkPersonPage,
+        pageSize: 10,
+        search: linkPersonSearch,
+        excludeEventId: eventId,
+      });
+      if (!response.success) throw new Error(response.error.message);
+      setLinkPersonResults(response.data);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : t('pages.eventDetail.loadPeopleError');
+      toast.error(message);
+    } finally {
+      setIsLoadingLinkPeople(false);
+    }
+  }, [event?.organizationId, eventId, linkPersonPage, linkPersonSearch, t]);
+
+  async function handleLinkPerson(person: PersonSummaryResponse) {
+    setIsLinkingPerson(true);
+    try {
+      const response = await peopleClient.linkPersonToEvent(person.id, eventId);
+      if (!response.success) {
+        throw new Error((response.error as { message: string }).message);
+      }
+      toast.success(t('pages.eventDetail.linkPersonSuccess').replace('{name}', person.name));
+      setLinkPersonOpen(false);
+      setLinkPersonSearch('');
+      setLinkPersonPage(1);
+      setLinkPersonResults(null);
+      loadParticipants();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : t('pages.eventDetail.linkPersonError');
+      toast.error(message);
+    } finally {
+      setIsLinkingPerson(false);
+    }
+  }
 
   function resetCreateParticipantForm() {
     setParticipantName('');
@@ -522,6 +591,20 @@ export default function EventDetailPage() {
     }
   }, [eventId]);
 
+  const loadPublicLink = useCallback(async () => {
+    setIsLoadingPublicLink(true);
+    try {
+      const response = await eventsClient.getPublicLink(eventId);
+      if (response.success) {
+        setPublicLinkUrl(response.data.publicUrl);
+      }
+    } catch {
+      // Silently fail - public link is optional
+    } finally {
+      setIsLoadingPublicLink(false);
+    }
+  }, [eventId]);
+
   useEffect(() => {
     if (!isLoadingPage && (!isAuthenticated || !canView)) {
       router.replace('/dashboard');
@@ -536,8 +619,19 @@ export default function EventDetailPage() {
       loadCheckIns();
       loadPrintConfigs();
       loadAIConfig();
+      loadPublicLink();
     }
-  }, [isAuthenticated, canView, loadEvent, loadParticipants, loadTotems, loadCheckIns, loadPrintConfigs, loadAIConfig]);
+  }, [
+    isAuthenticated,
+    canView,
+    loadEvent,
+    loadParticipants,
+    loadTotems,
+    loadCheckIns,
+    loadPrintConfigs,
+    loadAIConfig,
+    loadPublicLink,
+  ]);
 
   useEffect(() => {
     if (editParticipant) {
@@ -579,6 +673,12 @@ export default function EventDetailPage() {
     video.srcObject = faceCameraStreamRef.current;
     void video.play().catch(() => null);
   }, [isFaceCameraOpen]);
+
+  useEffect(() => {
+    if (linkPersonOpen) {
+      loadPeopleForLinking();
+    }
+  }, [linkPersonOpen, linkPersonPage, linkPersonSearch, loadPeopleForLinking]);
 
   async function openFaceCamera() {
     try {
@@ -893,6 +993,38 @@ export default function EventDetailPage() {
     }
   }
 
+  async function handleTogglePublicLink() {
+    setIsTogglingPublicLink(true);
+    try {
+      if (publicLinkUrl) {
+        const response = await eventsClient.removePublicLink(eventId);
+        if (!response.success) throw new Error('Failed to remove link');
+        setPublicLinkUrl(null);
+        toast.success(t('pages.eventDetail.publicLinkRemoved'));
+      } else {
+        const response = await eventsClient.generatePublicLink(eventId);
+        if (!response.success) throw new Error('Failed to generate link');
+        setPublicLinkUrl(response.data.publicUrl);
+        toast.success(t('pages.eventDetail.publicLinkGenerated'));
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : t('pages.eventDetail.publicLinkError');
+      toast.error(message);
+    } finally {
+      setIsTogglingPublicLink(false);
+    }
+  }
+
+  async function handleCopyPublicLink() {
+    if (!publicLinkUrl) return;
+    try {
+      await navigator.clipboard.writeText(publicLinkUrl);
+      toast.success(t('pages.eventDetail.linkCopied'));
+    } catch {
+      toast.error(t('pages.eventDetail.copyError'));
+    }
+  }
+
   async function handleSaveAIConfig(e: React.FormEvent) {
     e.preventDefault();
 
@@ -1014,10 +1146,16 @@ export default function EventDetailPage() {
                     {t('pages.eventDetail.participantsDescription').replace('{count}', String(participantsMeta.total))}
                   </CardDescription>
                 </div>
-                <Button size="sm" onClick={() => setCreateParticipantOpen(true)}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  {t('pages.eventDetail.addParticipant')}
-                </Button>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" onClick={() => setLinkPersonOpen(true)}>
+                    <Link2 className="mr-2 h-4 w-4" />
+                    {t('pages.eventDetail.linkPerson')}
+                  </Button>
+                  <Button size="sm" onClick={() => setCreateParticipantOpen(true)}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    {t('pages.eventDetail.addParticipant')}
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent>
@@ -1411,6 +1549,62 @@ export default function EventDetailPage() {
                   </Button>
                 </div>
               </form>
+            </CardContent>
+          </Card>
+
+          {/* Public Link Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Globe className="h-5 w-5" />
+                {t('pages.eventDetail.publicLinkTitle')}
+              </CardTitle>
+              <CardDescription>{t('pages.eventDetail.publicLinkDescription')}</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {isLoadingPublicLink ? (
+                <Skeleton className="h-10 w-full" />
+              ) : publicLinkUrl ? (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Input value={publicLinkUrl} readOnly className="flex-1 font-mono text-sm" />
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={handleCopyPublicLink}
+                      title={t('pages.eventDetail.copyLink')}
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => window.open(publicLinkUrl, '_blank')}
+                      title={t('pages.eventDetail.openLink')}
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={handleTogglePublicLink}
+                    disabled={isTogglingPublicLink}
+                  >
+                    {isTogglingPublicLink ? t('pages.eventDetail.removing') : t('pages.eventDetail.removePublicLink')}
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-muted-foreground text-sm">{t('pages.eventDetail.noPublicLink')}</p>
+                  <Button onClick={handleTogglePublicLink} disabled={isTogglingPublicLink}>
+                    <Globe className="mr-2 h-4 w-4" />
+                    {isTogglingPublicLink
+                      ? t('pages.eventDetail.generating')
+                      : t('pages.eventDetail.generatePublicLink')}
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -2039,6 +2233,92 @@ export default function EventDetailPage() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Link Existing Person Dialog */}
+      <Dialog
+        open={linkPersonOpen}
+        onOpenChange={(open) => {
+          setLinkPersonOpen(open);
+          if (!open) {
+            setLinkPersonSearch('');
+            setLinkPersonPage(1);
+            setLinkPersonResults(null);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{t('pages.eventDetail.linkPersonTitle')}</DialogTitle>
+            <DialogDescription>{t('pages.eventDetail.linkPersonDescription')}</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <Input
+              placeholder={t('pages.eventDetail.linkPersonSearchPlaceholder')}
+              value={linkPersonSearch}
+              onChange={(e) => {
+                setLinkPersonSearch(e.target.value);
+                setLinkPersonPage(1);
+              }}
+            />
+
+            {isLoadingLinkPeople ? (
+              <div className="space-y-2">
+                <Skeleton className="h-12 w-full" />
+                <Skeleton className="h-12 w-full" />
+                <Skeleton className="h-12 w-full" />
+              </div>
+            ) : linkPersonResults && linkPersonResults.items.length > 0 ? (
+              <div className="space-y-2">
+                {linkPersonResults.items.map((person) => (
+                  <div key={person.id} className="flex items-center justify-between gap-3 rounded-md border p-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium">{person.name}</p>
+                      <p className="text-muted-foreground truncate text-sm">{person.email}</p>
+                    </div>
+                    <Button size="sm" onClick={() => handleLinkPerson(person)} disabled={isLinkingPerson}>
+                      {isLinkingPerson ? t('pages.eventDetail.linking') : t('pages.eventDetail.linkAction')}
+                    </Button>
+                  </div>
+                ))}
+
+                {/* Pagination */}
+                {linkPersonResults.totalPages > 1 && (
+                  <div className="flex items-center justify-center gap-2 pt-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={linkPersonPage <= 1}
+                      onClick={() => setLinkPersonPage((p) => Math.max(1, p - 1))}
+                    >
+                      {t('pages.eventDetail.previous')}
+                    </Button>
+                    <span className="text-muted-foreground text-sm">
+                      {linkPersonPage} / {linkPersonResults.totalPages}
+                    </span>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={linkPersonPage >= linkPersonResults.totalPages}
+                      onClick={() => setLinkPersonPage((p) => p + 1)}
+                    >
+                      {t('pages.eventDetail.next')}
+                    </Button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p className="text-muted-foreground py-4 text-center text-sm">{t('pages.eventDetail.linkPersonEmpty')}</p>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setLinkPersonOpen(false)}>
+              {t('pages.eventDetail.cancel')}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

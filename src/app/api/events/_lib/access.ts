@@ -9,6 +9,7 @@ interface EventScope {
   faceEnabled: boolean;
   qrEnabled: boolean;
   codeEnabled: boolean;
+  publicSlug: string | null;
 }
 
 export async function assertOrganizationAccess(req: NextRequest, organizationId: string): Promise<NextResponse | null> {
@@ -43,6 +44,7 @@ export async function getAuthorizedEvent(req: NextRequest, eventId: string): Pro
       faceEnabled: true,
       qrEnabled: true,
       codeEnabled: true,
+      publicSlug: true,
     },
   });
 
