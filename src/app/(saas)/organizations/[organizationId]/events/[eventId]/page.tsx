@@ -65,10 +65,7 @@ import type {
   PersonSummaryResponse,
 } from '@/core/application/client-services/people-client.service';
 import { extractFaceEmbedding } from '@/core/application/client-services/totem/face-embedding.client';
-import {
-  generateBadgeHtml,
-  type PrintParticipantData,
-} from '@/core/application/client-services/totem/print.client';
+import { generateBadgeHtml, type PrintParticipantData } from '@/core/application/client-services/totem/print.client';
 import { useApp, useAuth, usePermissions } from '@/core/application/contexts';
 import type { EventResponse } from '@/core/communication/responses/event';
 import { AI_CONFIG_CONSTRAINTS, DEFAULT_AI_CONFIG } from '@/core/domain/constants/ai-config.constants';
@@ -175,7 +172,10 @@ function toEditablePrintConfig(config: PrintConfigFullResponse): EditablePrintCo
   };
 }
 
-function normalizePrintPosition(value: string, fallback: 'top' | 'center' | 'bottom' = 'center'): 'top' | 'center' | 'bottom' {
+function normalizePrintPosition(
+  value: string,
+  fallback: 'top' | 'center' | 'bottom' = 'center',
+): 'top' | 'center' | 'bottom' {
   if (value === 'top' || value === 'center' || value === 'bottom') {
     return value;
   }
@@ -735,16 +735,7 @@ export default function EventDetailPage() {
       loadAIConfig();
       loadPublicLink();
     }
-  }, [
-    isAuthenticated,
-    canView,
-    loadEvent,
-    loadParticipants,
-    loadTotems,
-    loadCheckIns,
-    loadAIConfig,
-    loadPublicLink,
-  ]);
+  }, [isAuthenticated, canView, loadEvent, loadParticipants, loadTotems, loadCheckIns, loadAIConfig, loadPublicLink]);
 
   useEffect(() => {
     if (editParticipant) {
@@ -1173,10 +1164,7 @@ export default function EventDetailPage() {
     }
   }
 
-  function updatePrintConfigField<Key extends keyof EditablePrintConfig>(
-    key: Key,
-    value: EditablePrintConfig[Key],
-  ) {
+  function updatePrintConfigField<Key extends keyof EditablePrintConfig>(key: Key, value: EditablePrintConfig[Key]) {
     setPrintConfigDraft((current) => ({
       ...current,
       [key]: value,
@@ -1392,7 +1380,6 @@ export default function EventDetailPage() {
               />
             </CardContent>
           </Card>
-
         </TabsContent>
 
         <TabsContent value="participants" className="space-y-4">
@@ -1875,9 +1862,7 @@ export default function EventDetailPage() {
                         }))
                       }
                     />
-                    <p className="text-muted-foreground text-xs">
-                      {t('pages.eventDetail.confidenceThresholdHint')}
-                    </p>
+                    <p className="text-muted-foreground text-xs">{t('pages.eventDetail.confidenceThresholdHint')}</p>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="ai-interval">{t('pages.eventDetail.detectionInterval')}</Label>
@@ -1895,9 +1880,7 @@ export default function EventDetailPage() {
                         }))
                       }
                     />
-                    <p className="text-muted-foreground text-xs">
-                      {t('pages.eventDetail.detectionIntervalHint')}
-                    </p>
+                    <p className="text-muted-foreground text-xs">{t('pages.eventDetail.detectionIntervalHint')}</p>
                   </div>
                 </div>
 
@@ -1935,9 +1918,7 @@ export default function EventDetailPage() {
                         }))
                       }
                     />
-                    <p className="text-muted-foreground text-xs">
-                      {t('pages.eventDetail.minFaceSizeHint')}
-                    </p>
+                    <p className="text-muted-foreground text-xs">{t('pages.eventDetail.minFaceSizeHint')}</p>
                   </div>
                 </div>
 
@@ -1956,19 +1937,12 @@ export default function EventDetailPage() {
                   />
                   <Label htmlFor="ai-liveness" className="flex-1 cursor-pointer">
                     {t('pages.eventDetail.enableLiveness')}
-                    <span className="text-muted-foreground ml-2 text-xs">
-                      ({t('pages.eventDetail.experimental')})
-                    </span>
+                    <span className="text-muted-foreground ml-2 text-xs">({t('pages.eventDetail.experimental')})</span>
                   </Label>
                 </div>
 
                 <div className="flex justify-between gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={handleResetAIConfig}
-                    disabled={isSavingAIConfig}
-                  >
+                  <Button type="button" variant="outline" onClick={handleResetAIConfig} disabled={isSavingAIConfig}>
                     <RotateCcw className="mr-2 h-4 w-4" />
                     {t('pages.eventDetail.resetToDefaults')}
                   </Button>
@@ -2066,9 +2040,7 @@ export default function EventDetailPage() {
                           min={0}
                           max={50}
                           value={printConfigDraft.marginRight}
-                          onChange={(e) =>
-                            updatePrintConfigField('marginRight', parseNumber(e.currentTarget.value, 5))
-                          }
+                          onChange={(e) => updatePrintConfigField('marginRight', parseNumber(e.currentTarget.value, 5))}
                         />
                       </div>
                       <div className="space-y-2">
@@ -2218,7 +2190,9 @@ export default function EventDetailPage() {
                           min={5}
                           max={100}
                           value={printConfigDraft.orgLogoSize}
-                          onChange={(e) => updatePrintConfigField('orgLogoSize', parseNumber(e.currentTarget.value, 25))}
+                          onChange={(e) =>
+                            updatePrintConfigField('orgLogoSize', parseNumber(e.currentTarget.value, 25))
+                          }
                         />
 
                         <div className="flex items-center justify-between">
@@ -2239,7 +2213,10 @@ export default function EventDetailPage() {
                         <Select
                           value={printConfigDraft.qrCodeContent}
                           onValueChange={(value) =>
-                            updatePrintConfigField('qrCodeContent', value as 'participant_id' | 'check_in_url' | 'custom')
+                            updatePrintConfigField(
+                              'qrCodeContent',
+                              value as 'participant_id' | 'check_in_url' | 'custom',
+                            )
                           }
                         >
                           <SelectTrigger>
@@ -2280,7 +2257,9 @@ export default function EventDetailPage() {
                           min={72}
                           max={1200}
                           value={printConfigDraft.printerDpi}
-                          onChange={(e) => updatePrintConfigField('printerDpi', parseNumber(e.currentTarget.value, 203))}
+                          onChange={(e) =>
+                            updatePrintConfigField('printerDpi', parseNumber(e.currentTarget.value, 203))
+                          }
                         />
                       </div>
                       <div className="space-y-2">
@@ -2398,7 +2377,6 @@ export default function EventDetailPage() {
               </form>
             </CardContent>
           </Card>
-
         </TabsContent>
       </Tabs>
 
