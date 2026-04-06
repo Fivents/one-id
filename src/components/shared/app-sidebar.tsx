@@ -2,6 +2,7 @@
 
 import { ComponentType } from 'react';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 
@@ -13,7 +14,6 @@ import {
   LayoutDashboard,
   LogOut,
   Monitor,
-  ScanFace,
   Settings,
   Shield,
   Users,
@@ -74,9 +74,10 @@ export function AppSidebar() {
 
   const { isSuperAdmin } = usePermissions();
 
-  const organizationEventsHref = activeOrganization ? `/organizations/${activeOrganization.id}/events` : null;
-  const organizationPeopleHref = activeOrganization ? `/organizations/${activeOrganization.id}/people` : null;
-  const organizationTotemsHref = activeOrganization ? `/organizations/${activeOrganization.id}/totems` : null;
+  const organizationId = activeOrganization?.id ?? user?.organizationId ?? null;
+  const organizationEventsHref = organizationId ? `/organizations/${organizationId}/events` : null;
+  const organizationPeopleHref = organizationId ? `/organizations/${organizationId}/people` : null;
+  const organizationTotemsHref = organizationId ? `/organizations/${organizationId}/totems` : null;
 
   const filteredNavItems = navItems.filter((item) => role && item.roles.includes(role));
 
@@ -91,8 +92,9 @@ export function AppSidebar() {
     <Sidebar>
       <SidebarHeader className="border-sidebar-border border-b px-4 py-3">
         <Link href="/dashboard" className="flex items-center gap-2">
-          <div className="bg-primary flex h-8 w-8 items-center justify-center rounded-lg">
-            <ScanFace className="text-primary-foreground h-4 w-4" />
+          <div className="bg-primary/10 ring-primary/20 flex h-8 w-8 items-center justify-center rounded-lg ring-1">
+            <Image src="/png/logo-blue.png" alt="Fivents Logo" width={20} height={20} className="block dark:hidden" />
+            <Image src="/png/logo-white.png" alt="Fivents Logo" width={20} height={20} className="hidden dark:block" />
           </div>
           <div className="flex flex-col">
             <span className="text-sm font-semibold">OneID</span>
@@ -121,7 +123,7 @@ export function AppSidebar() {
         </SidebarGroup>
 
         <SidebarGroup>
-          <SidebarGroupLabel>Organization</SidebarGroupLabel>
+          <SidebarGroupLabel>{t('nav.sidebar.organizationSection')}</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
@@ -129,13 +131,13 @@ export function AppSidebar() {
                   <SidebarMenuButton asChild isActive={pathname.startsWith(organizationPeopleHref)}>
                     <Link href={organizationPeopleHref}>
                       <Users className="h-4 w-4" />
-                      <span>People</span>
+                      <span>{t('nav.sidebar.people')}</span>
                     </Link>
                   </SidebarMenuButton>
                 ) : (
                   <SidebarMenuButton disabled aria-disabled>
                     <Users className="h-4 w-4" />
-                    <span>People</span>
+                    <span>{t('nav.sidebar.people')}</span>
                   </SidebarMenuButton>
                 )}
               </SidebarMenuItem>
@@ -144,13 +146,13 @@ export function AppSidebar() {
                   <SidebarMenuButton asChild isActive={pathname.startsWith(organizationEventsHref)}>
                     <Link href={organizationEventsHref}>
                       <Calendar className="h-4 w-4" />
-                      <span>Events</span>
+                      <span>{t('nav.sidebar.events')}</span>
                     </Link>
                   </SidebarMenuButton>
                 ) : (
                   <SidebarMenuButton disabled aria-disabled>
                     <Calendar className="h-4 w-4" />
-                    <span>Events</span>
+                    <span>{t('nav.sidebar.events')}</span>
                   </SidebarMenuButton>
                 )}
               </SidebarMenuItem>
@@ -159,13 +161,13 @@ export function AppSidebar() {
                   <SidebarMenuButton asChild isActive={pathname.startsWith(organizationTotemsHref)}>
                     <Link href={organizationTotemsHref}>
                       <Monitor className="h-4 w-4" />
-                      <span>Totems</span>
+                      <span>{t('nav.sidebar.totems')}</span>
                     </Link>
                   </SidebarMenuButton>
                 ) : (
                   <SidebarMenuButton disabled aria-disabled>
                     <Monitor className="h-4 w-4" />
-                    <span>Totems</span>
+                    <span>{t('nav.sidebar.totems')}</span>
                   </SidebarMenuButton>
                 )}
               </SidebarMenuItem>
@@ -175,7 +177,7 @@ export function AppSidebar() {
 
         {isSuperAdmin() && (
           <SidebarGroup>
-            <SidebarGroupLabel>Admin</SidebarGroupLabel>
+            <SidebarGroupLabel>{t('nav.sidebar.adminSection')}</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
                 <SidebarMenuItem>

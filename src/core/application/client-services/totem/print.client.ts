@@ -27,11 +27,15 @@ export interface PrintResult {
 /**
  * Generate badge HTML based on print configuration and participant data.
  */
-function generateBadgeHtml(config: PrintConfigResponse, participant: PrintParticipantData): string {
+export function generateBadgeHtml(config: PrintConfigResponse, participant: PrintParticipantData): string {
   const mmToPx = (mm: number) => Math.round(mm * (config.printerDpi / 25.4));
 
-  const width = mmToPx(config.paperWidth);
-  const height = mmToPx(config.paperHeight);
+  const isLandscape = config.orientation === 'LANDSCAPE';
+  const pageWidthMm = isLandscape ? config.paperHeight : config.paperWidth;
+  const pageHeightMm = isLandscape ? config.paperWidth : config.paperHeight;
+
+  const width = mmToPx(pageWidthMm);
+  const height = mmToPx(pageHeightMm);
   const margins = {
     top: mmToPx(config.marginTop),
     right: mmToPx(config.marginRight),
@@ -42,7 +46,34 @@ function generateBadgeHtml(config: PrintConfigResponse, participant: PrintPartic
   const contentWidth = width - margins.left - margins.right;
   const contentHeight = height - margins.top - margins.bottom;
 
-  const items: { type: string; html: string }[] = [];
+  const items: { type: string; position: 'top' | 'center' | 'bottom'; html: string }[] = [];
+
+  const normalizePosition = (value: string): 'top' | 'center' | 'bottom' => {
+    if (value === 'top' || value === 'center' || value === 'bottom') {
+      return value;
+    }
+
+    return 'center';
+  };
+
+  const getItemPosition = (itemType: string): 'top' | 'center' | 'bottom' => {
+    switch (itemType) {
+      case 'fiventsLogo':
+        return config.fiventsLogoPosition === 'bottom' ? 'bottom' : 'top';
+      case 'orgLogo':
+        return config.orgLogoPosition === 'bottom' ? 'bottom' : 'top';
+      case 'name':
+        return normalizePosition(config.namePosition);
+      case 'company':
+        return normalizePosition(config.companyPosition);
+      case 'jobTitle':
+        return normalizePosition(config.jobTitlePosition);
+      case 'qrCode':
+        return normalizePosition(config.qrCodePosition);
+      default:
+        return 'center';
+    }
+  };
 
   for (const itemType of config.itemsOrder) {
     switch (itemType) {
@@ -51,8 +82,9 @@ function generateBadgeHtml(config: PrintConfigResponse, participant: PrintPartic
           const logoHeight = mmToPx(config.fiventsLogoSize);
           items.push({
             type: 'fiventsLogo',
+            position: getItemPosition('fiventsLogo'),
             html: `<div style="text-align: center; height: ${logoHeight}px;">
-              <img src="/images/fivents-logo.png" alt="Fivents" style="max-height: 100%; max-width: 100%; object-fit: contain;" />
+              <img src="/png/logo-blue.png" alt="Fivents" style="max-height: 100%; max-width: 100%; object-fit: contain;" />
             </div>`,
           });
         }
@@ -63,6 +95,7 @@ function generateBadgeHtml(config: PrintConfigResponse, participant: PrintPartic
           const logoHeight = mmToPx(config.orgLogoSize);
           items.push({
             type: 'orgLogo',
+            position: getItemPosition('orgLogo'),
             html: `<div style="text-align: center; height: ${logoHeight}px;">
               <img src="/api/organizations/current/logo" alt="Organization" style="max-height: 100%; max-width: 100%; object-fit: contain;" onerror="this.style.display='none'" />
             </div>`,
@@ -74,6 +107,7 @@ function generateBadgeHtml(config: PrintConfigResponse, participant: PrintPartic
         if (config.showName) {
           items.push({
             type: 'name',
+            position: getItemPosition('name'),
             html: `<div style="text-align: center; font-size: ${config.nameFontSize}px; font-weight: ${config.nameBold ? 'bold' : 'normal'}; word-break: break-word;">
               ${escapeHtml(participant.name)}
             </div>`,
@@ -85,6 +119,7 @@ function generateBadgeHtml(config: PrintConfigResponse, participant: PrintPartic
         if (config.showCompany && participant.company) {
           items.push({
             type: 'company',
+            position: getItemPosition('company'),
             html: `<div style="text-align: center; font-size: ${config.companyFontSize}px;">
               ${escapeHtml(participant.company)}
             </div>`,
@@ -96,6 +131,7 @@ function generateBadgeHtml(config: PrintConfigResponse, participant: PrintPartic
         if (config.showJobTitle && participant.jobTitle) {
           items.push({
             type: 'jobTitle',
+            position: getItemPosition('jobTitle'),
             html: `<div style="text-align: center; font-size: ${config.jobTitleFontSize}px;">
               ${escapeHtml(participant.jobTitle)}
             </div>`,
@@ -109,6 +145,7 @@ function generateBadgeHtml(config: PrintConfigResponse, participant: PrintPartic
           const qrContent = getQrCodeContent(config, participant);
           items.push({
             type: 'qrCode',
+            position: getItemPosition('qrCode'),
             html: `<div style="text-align: center; height: ${qrSize}px; display: flex; justify-content: center; align-items: center;">
               <img src="https://api.qrserver.com/v1/create-qr-code/?size=${qrSize}x${qrSize}&data=${encodeURIComponent(qrContent)}" alt="QR Code" style="max-height: 100%; max-width: 100%;" />
             </div>`,
@@ -118,6 +155,25 @@ function generateBadgeHtml(config: PrintConfigResponse, participant: PrintPartic
     }
   }
 
+  const positionRank: Record<'top' | 'center' | 'bottom', number> = {
+    top: 0,
+    center: 1,
+    bottom: 2,
+  };
+
+  const orderMap = new Map(config.itemsOrder.map((item, index) => [item, index]));
+
+  items.sort((a, b) => {
+    const byPosition = positionRank[a.position] - positionRank[b.position];
+    if (byPosition !== 0) {
+      return byPosition;
+    }
+
+    const orderA = orderMap.get(a.type) ?? Number.MAX_SAFE_INTEGER;
+    const orderB = orderMap.get(b.type) ?? Number.MAX_SAFE_INTEGER;
+    return orderA - orderB;
+  });
+
   return `
 <!DOCTYPE html>
 <html>
@@ -126,7 +182,7 @@ function generateBadgeHtml(config: PrintConfigResponse, participant: PrintPartic
   <title>Badge - ${escapeHtml(participant.name)}</title>
   <style>
     @page {
-      size: ${config.paperWidth}mm ${config.paperHeight}mm;
+      size: ${pageWidthMm}mm ${pageHeightMm}mm;
       margin: 0;
     }
     @media print {
@@ -310,7 +366,7 @@ export function logPrintAttempt(eventId: string, participantId: string, result: 
     error: result.error,
   };
 
-  console.log('[PrintService] Print attempt:', JSON.stringify(logEntry));
+  console.info('[PrintService] Print attempt:', JSON.stringify(logEntry));
 
   // In a production environment, you might want to send this to an audit endpoint
   // fetch('/api/audit/print', { method: 'POST', body: JSON.stringify(logEntry) }).catch(() => {});

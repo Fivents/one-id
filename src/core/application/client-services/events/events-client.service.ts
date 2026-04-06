@@ -93,6 +93,47 @@ export interface PrintConfigSummaryResponse {
   updatedAt: Date;
 }
 
+export interface PrintConfigFullResponse {
+  id: string;
+  paperWidth: number;
+  paperHeight: number;
+  orientation: 'PORTRAIT' | 'LANDSCAPE';
+  marginTop: number;
+  marginRight: number;
+  marginBottom: number;
+  marginLeft: number;
+  showFiventsLogo: boolean;
+  fiventsLogoPosition: string;
+  fiventsLogoSize: number;
+  showOrgLogo: boolean;
+  orgLogoPosition: string;
+  orgLogoSize: number;
+  showQrCode: boolean;
+  qrCodePosition: string;
+  qrCodeSize: number;
+  qrCodeContent: string;
+  showName: boolean;
+  namePosition: string;
+  nameFontSize: number;
+  nameBold: boolean;
+  showCompany: boolean;
+  companyPosition: string;
+  companyFontSize: number;
+  showJobTitle: boolean;
+  jobTitlePosition: string;
+  jobTitleFontSize: number;
+  itemsOrder: string[];
+  printerDpi: number;
+  printerType: string;
+  printSpeed: number;
+  copies: number;
+  backgroundColor: string;
+  textColor: string;
+  fontFamily: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface EventAIConfigResponse {
   confidenceThreshold: number;
   detectionIntervalMs: number;
@@ -249,6 +290,17 @@ class EventsClientService extends BaseClient {
 
   async removePublicLink(eventId: string): Promise<ApiResponse<{ success: boolean }>> {
     return this.delete(`/events/${encodeURIComponent(eventId)}/public-link`);
+  }
+
+  async getEventPrintConfig(eventId: string): Promise<ApiResponse<PrintConfigFullResponse | null>> {
+    return this.get(`/events/${encodeURIComponent(eventId)}/print-config`);
+  }
+
+  async updateEventPrintConfig(
+    eventId: string,
+    data: Partial<PrintConfigFullResponse>,
+  ): Promise<ApiResponse<PrintConfigFullResponse>> {
+    return this.patch(`/events/${encodeURIComponent(eventId)}/print-config`, data);
   }
 }
 

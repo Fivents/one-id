@@ -107,6 +107,7 @@ export type TranslationSchema = {
   nav: {
     sidebar: {
       dashboard: string;
+      people: string;
       events: string;
       organizations: string;
       plans: string;
@@ -114,6 +115,8 @@ export type TranslationSchema = {
       users: string;
       settings: string;
       totems: string;
+      organizationSection: string;
+      adminSection: string;
     };
     roleLabels: {
       SUPER_ADMIN: string;

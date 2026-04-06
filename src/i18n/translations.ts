@@ -109,6 +109,7 @@ export const translations: Translations = {
     nav: {
       sidebar: {
         dashboard: 'Painel',
+        people: 'Pessoas',
         events: 'Eventos',
         organizations: 'Organizações',
         plans: 'Planos',
@@ -116,6 +117,8 @@ export const translations: Translations = {
         users: 'Usuários',
         settings: 'Configurações',
         totems: 'Totens',
+        organizationSection: 'Organização',
+        adminSection: 'Administração',
       },
       roleLabels: {
         SUPER_ADMIN: 'Super Admin',
@@ -1717,6 +1720,7 @@ export const translations: Translations = {
     nav: {
       sidebar: {
         dashboard: 'Dashboard',
+        people: 'People',
         events: 'Events',
         organizations: 'Organizations',
         plans: 'Plans',
@@ -1724,6 +1728,8 @@ export const translations: Translations = {
         users: 'Users',
         settings: 'Settings',
         totems: 'Totems',
+        organizationSection: 'Organization',
+        adminSection: 'Admin',
       },
       roleLabels: {
         SUPER_ADMIN: 'Super Admin',
@@ -3285,6 +3291,7 @@ export const translations: Translations = {
     nav: {
       sidebar: {
         dashboard: 'Tableau de bord',
+        people: 'Personnes',
         events: 'Événements',
         organizations: 'Organisations',
         plans: 'Plans',
@@ -3292,6 +3299,8 @@ export const translations: Translations = {
         users: 'Utilisateurs',
         settings: 'Paramètres',
         totems: 'Totems',
+        organizationSection: 'Organisation',
+        adminSection: 'Admin',
       },
       roleLabels: {
         SUPER_ADMIN: 'Super Admin',
@@ -4847,6 +4856,7 @@ export const translations: Translations = {
     nav: {
       sidebar: {
         dashboard: 'Panel',
+        people: 'Personas',
         events: 'Eventos',
         organizations: 'Organizaciones',
         plans: 'Planes',
@@ -4854,6 +4864,8 @@ export const translations: Translations = {
         users: 'Usuarios',
         settings: 'Configuración',
         totems: 'Totems',
+        organizationSection: 'Organización',
+        adminSection: 'Admin',
       },
       roleLabels: {
         SUPER_ADMIN: 'Super Admin',
@@ -6405,6 +6417,7 @@ export const translations: Translations = {
     nav: {
       sidebar: {
         dashboard: '仪表盘',
+        people: '人员',
         events: '活动',
         organizations: '组织',
         plans: '计划',
@@ -6412,6 +6425,8 @@ export const translations: Translations = {
         users: '用户',
         settings: '设置',
         totems: '终端',
+        organizationSection: '组织',
+        adminSection: '管理',
       },
       roleLabels: {
         SUPER_ADMIN: '超级管理员',

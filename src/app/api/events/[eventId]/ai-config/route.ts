@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+import { randomUUID } from 'crypto';
 import { z } from 'zod/v4';
 
 import { AI_CONFIG_CONSTRAINTS, DEFAULT_AI_CONFIG } from '@/core/domain/constants/ai-config.constants';
@@ -83,34 +84,30 @@ export const PATCH = withAuth(
       const body = await req.json();
       const data = aiConfigSchema.parse(body);
 
-      await prisma.$executeRaw`
-        INSERT INTO event_ai_configs (
-          event_id,
-          confidence_threshold,
-          detection_interval_ms,
-          max_faces,
-          liveness_detection,
-          min_face_size,
-          updated_at
-        )
-        VALUES (
-          ${eventId},
-          ${data.confidenceThreshold},
-          ${data.detectionIntervalMs},
-          ${data.maxFaces},
-          ${data.livenessDetection},
-          ${data.minFaceSize},
-          NOW()
-        )
-        ON CONFLICT (event_id)
-        DO UPDATE SET
-          confidence_threshold = EXCLUDED.confidence_threshold,
-          detection_interval_ms = EXCLUDED.detection_interval_ms,
-          max_faces = EXCLUDED.max_faces,
-          liveness_detection = EXCLUDED.liveness_detection,
-          min_face_size = EXCLUDED.min_face_size,
-          updated_at = NOW()
-      `;
+      // Use Prisma's upsert for proper handling with automatic id generation
+      await prisma.eventAIConfig.upsert({
+        where: { eventId },
+        create: {
+          id: randomUUID(),
+          eventId,
+          confidenceThreshold: data.confidenceThreshold,
+          detectionIntervalMs: data.detectionIntervalMs,
+          maxFaces: data.maxFaces,
+          livenessDetection: data.livenessDetection,
+          minFaceSize: data.minFaceSize,
+          livenessThreshold: 0.7,
+          efSearch: 64,
+          topKCandidates: 5,
+          cooldownSeconds: 8,
+        },
+        update: {
+          confidenceThreshold: data.confidenceThreshold,
+          detectionIntervalMs: data.detectionIntervalMs,
+          maxFaces: data.maxFaces,
+          livenessDetection: data.livenessDetection,
+          minFaceSize: data.minFaceSize,
+        },
+      });
 
       return NextResponse.json(data, { status: 200 });
     } catch (error) {

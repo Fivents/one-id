@@ -15,6 +15,7 @@ import {
   MonitorSmartphone,
   Pencil,
   Plus,
+  Printer,
   RotateCcw,
   ScanFace,
   Search,
@@ -40,6 +41,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
@@ -56,13 +58,17 @@ import type {
   EventTotemAvailableResponse,
   EventTotemSubscriptionResponse,
   PaginatedEventParticipantsResponse,
-  PrintConfigSummaryResponse,
+  PrintConfigFullResponse,
 } from '@/core/application/client-services/events/events-client.service';
 import type {
   PaginatedPeopleResponse,
   PersonSummaryResponse,
 } from '@/core/application/client-services/people-client.service';
 import { extractFaceEmbedding } from '@/core/application/client-services/totem/face-embedding.client';
+import {
+  generateBadgeHtml,
+  type PrintParticipantData,
+} from '@/core/application/client-services/totem/print.client';
 import { useApp, useAuth, usePermissions } from '@/core/application/contexts';
 import type { EventResponse } from '@/core/communication/responses/event';
 import { AI_CONFIG_CONSTRAINTS, DEFAULT_AI_CONFIG } from '@/core/domain/constants/ai-config.constants';
@@ -82,8 +88,105 @@ function calculateCheckInRate(total: number, checkedIn: number) {
   return `${Math.round((checkedIn / total) * 100)}%`;
 }
 
-const NONE_PRINT_CONFIG = '__none__';
 const PARTICIPANTS_PAGE_SIZE = 20;
+
+type EditablePrintConfig = Omit<PrintConfigFullResponse, 'id' | 'createdAt' | 'updatedAt'>;
+
+const PRINT_ITEM_KEYS = ['fiventsLogo', 'orgLogo', 'name', 'company', 'jobTitle', 'qrCode'] as const;
+type PrintItemKey = (typeof PRINT_ITEM_KEYS)[number];
+
+function createDefaultPrintConfig(): EditablePrintConfig {
+  return {
+    paperWidth: 62,
+    paperHeight: 100,
+    orientation: 'PORTRAIT',
+    marginTop: 5,
+    marginRight: 5,
+    marginBottom: 5,
+    marginLeft: 5,
+    showFiventsLogo: true,
+    fiventsLogoPosition: 'top',
+    fiventsLogoSize: 20,
+    showOrgLogo: false,
+    orgLogoPosition: 'top',
+    orgLogoSize: 25,
+    showQrCode: true,
+    qrCodePosition: 'bottom',
+    qrCodeSize: 28,
+    qrCodeContent: 'participant_id',
+    showName: true,
+    namePosition: 'center',
+    nameFontSize: 16,
+    nameBold: true,
+    showCompany: true,
+    companyPosition: 'center',
+    companyFontSize: 12,
+    showJobTitle: true,
+    jobTitlePosition: 'center',
+    jobTitleFontSize: 10,
+    itemsOrder: [...PRINT_ITEM_KEYS],
+    printerDpi: 203,
+    printerType: 'thermal',
+    printSpeed: 3,
+    copies: 1,
+    backgroundColor: '#ffffff',
+    textColor: '#000000',
+    fontFamily: 'Arial',
+  };
+}
+
+function toEditablePrintConfig(config: PrintConfigFullResponse): EditablePrintConfig {
+  return {
+    paperWidth: config.paperWidth,
+    paperHeight: config.paperHeight,
+    orientation: config.orientation,
+    marginTop: config.marginTop,
+    marginRight: config.marginRight,
+    marginBottom: config.marginBottom,
+    marginLeft: config.marginLeft,
+    showFiventsLogo: config.showFiventsLogo,
+    fiventsLogoPosition: config.fiventsLogoPosition,
+    fiventsLogoSize: config.fiventsLogoSize,
+    showOrgLogo: config.showOrgLogo,
+    orgLogoPosition: config.orgLogoPosition,
+    orgLogoSize: config.orgLogoSize,
+    showQrCode: config.showQrCode,
+    qrCodePosition: config.qrCodePosition,
+    qrCodeSize: config.qrCodeSize,
+    qrCodeContent: config.qrCodeContent,
+    showName: config.showName,
+    namePosition: config.namePosition,
+    nameFontSize: config.nameFontSize,
+    nameBold: config.nameBold,
+    showCompany: config.showCompany,
+    companyPosition: config.companyPosition,
+    companyFontSize: config.companyFontSize,
+    showJobTitle: config.showJobTitle,
+    jobTitlePosition: config.jobTitlePosition,
+    jobTitleFontSize: config.jobTitleFontSize,
+    itemsOrder: config.itemsOrder,
+    printerDpi: config.printerDpi,
+    printerType: config.printerType,
+    printSpeed: config.printSpeed,
+    copies: config.copies,
+    backgroundColor: config.backgroundColor,
+    textColor: config.textColor,
+    fontFamily: config.fontFamily,
+  };
+}
+
+function normalizePrintPosition(value: string, fallback: 'top' | 'center' | 'bottom' = 'center'): 'top' | 'center' | 'bottom' {
+  if (value === 'top' || value === 'center' || value === 'bottom') {
+    return value;
+  }
+
+  return fallback;
+}
+
+function parseNumber(value: string, fallback: number): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
 
 async function readImageFileAsDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -151,7 +254,6 @@ export default function EventDetailPage() {
   const [manualParticipantId, setManualParticipantId] = useState('');
   const [isSubmittingManualCheckIn, setIsSubmittingManualCheckIn] = useState(false);
   const [invalidatingCheckInId, setInvalidatingCheckInId] = useState<string | null>(null);
-  const [printConfigs, setPrintConfigs] = useState<PrintConfigSummaryResponse[]>([]);
 
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingParticipants, setIsLoadingParticipants] = useState(false);
@@ -193,9 +295,7 @@ export default function EventDetailPage() {
   const [settingsStartsAt, setSettingsStartsAt] = useState('');
   const [settingsEndsAt, setSettingsEndsAt] = useState('');
   const [settingsStatus, setSettingsStatus] = useState<EventResponse['status']>('DRAFT');
-  const [settingsPrintConfigId, setSettingsPrintConfigId] = useState<string>(NONE_PRINT_CONFIG);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
-  const [isCreatingPrintConfig, setIsCreatingPrintConfig] = useState(false);
   const [aiConfig, setAiConfig] = useState<EventAIConfigResponse>({
     confidenceThreshold: DEFAULT_AI_CONFIG.confidenceThreshold,
     detectionIntervalMs: DEFAULT_AI_CONFIG.detectionIntervalMs,
@@ -204,6 +304,10 @@ export default function EventDetailPage() {
     minFaceSize: DEFAULT_AI_CONFIG.minFaceSize,
   });
   const [isSavingAIConfig, setIsSavingAIConfig] = useState(false);
+  const [printConfigEnabled, setPrintConfigEnabled] = useState(false);
+  const [printConfigDraft, setPrintConfigDraft] = useState<EditablePrintConfig>(() => createDefaultPrintConfig());
+  const [isLoadingPrintConfig, setIsLoadingPrintConfig] = useState(false);
+  const [isSavingPrintConfig, setIsSavingPrintConfig] = useState(false);
 
   // Link existing person state
   const [linkPersonOpen, setLinkPersonOpen] = useState(false);
@@ -254,7 +358,24 @@ export default function EventDetailPage() {
       setSettingsStartsAt(new Date(response.data.startsAt).toISOString().slice(0, 16));
       setSettingsEndsAt(new Date(response.data.endsAt).toISOString().slice(0, 16));
       setSettingsStatus(response.data.status);
-      setSettingsPrintConfigId(response.data.printConfigId ?? NONE_PRINT_CONFIG);
+      setPrintConfigEnabled(Boolean(response.data.printConfigId));
+
+      if (response.data.printConfigId) {
+        setIsLoadingPrintConfig(true);
+        try {
+          const printConfigResponse = await eventsClient.getEventPrintConfig(eventId);
+
+          if (printConfigResponse.success && printConfigResponse.data) {
+            setPrintConfigDraft(toEditablePrintConfig(printConfigResponse.data));
+          } else {
+            toast.error(t('pages.eventDetail.printConfigError'));
+          }
+        } finally {
+          setIsLoadingPrintConfig(false);
+        }
+      } else {
+        setPrintConfigDraft(createDefaultPrintConfig());
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : t('pages.eventDetail.loadEventError');
       toast.error(message);
@@ -578,13 +699,6 @@ export default function EventDetailPage() {
     }
   }
 
-  const loadPrintConfigs = useCallback(async () => {
-    const response = await eventsClient.listPrintConfigs();
-    if (response.success) {
-      setPrintConfigs(response.data);
-    }
-  }, []);
-
   const loadAIConfig = useCallback(async () => {
     const response = await eventsClient.getEventAIConfig(eventId);
     if (response.success) {
@@ -618,7 +732,6 @@ export default function EventDetailPage() {
       loadParticipants();
       loadTotems();
       loadCheckIns();
-      loadPrintConfigs();
       loadAIConfig();
       loadPublicLink();
     }
@@ -629,7 +742,6 @@ export default function EventDetailPage() {
     loadParticipants,
     loadTotems,
     loadCheckIns,
-    loadPrintConfigs,
     loadAIConfig,
     loadPublicLink,
   ]);
@@ -946,7 +1058,6 @@ export default function EventDetailPage() {
         address: settingsAddress.trim() || null,
         startsAt: startDate,
         endsAt: endDate,
-        printConfigId: settingsPrintConfigId === NONE_PRINT_CONFIG ? null : settingsPrintConfigId,
       });
 
       if (settingsStatus !== event.status) {
@@ -975,22 +1086,6 @@ export default function EventDetailPage() {
       toast.error(message);
     } finally {
       setIsSavingSettings(false);
-    }
-  }
-
-  async function handleCreatePrintConfig() {
-    setIsCreatingPrintConfig(true);
-    try {
-      const response = await eventsClient.createDefaultPrintConfig();
-      if (!response.success) throw new Error(response.error.message);
-      setPrintConfigs((prev) => [response.data, ...prev]);
-      setSettingsPrintConfigId(response.data.id);
-      toast.success(t('pages.eventDetail.printConfigCreated'));
-    } catch (error) {
-      const message = error instanceof Error ? error.message : t('pages.eventDetail.printConfigError');
-      toast.error(message);
-    } finally {
-      setIsCreatingPrintConfig(false);
     }
   }
 
@@ -1075,6 +1170,135 @@ export default function EventDetailPage() {
       toast.error(message);
     } finally {
       setIsSavingAIConfig(false);
+    }
+  }
+
+  function updatePrintConfigField<Key extends keyof EditablePrintConfig>(
+    key: Key,
+    value: EditablePrintConfig[Key],
+  ) {
+    setPrintConfigDraft((current) => ({
+      ...current,
+      [key]: value,
+    }));
+  }
+
+  function movePrintItem(item: PrintItemKey, direction: 'up' | 'down') {
+    setPrintConfigDraft((current) => {
+      const order = [...current.itemsOrder] as PrintItemKey[];
+      const index = order.indexOf(item);
+
+      if (index === -1) {
+        return current;
+      }
+
+      const nextIndex = direction === 'up' ? index - 1 : index + 1;
+      if (nextIndex < 0 || nextIndex >= order.length) {
+        return current;
+      }
+
+      [order[index], order[nextIndex]] = [order[nextIndex], order[index]];
+
+      return {
+        ...current,
+        itemsOrder: order,
+      };
+    });
+  }
+
+  const previewParticipant = useMemo<PrintParticipantData>(() => {
+    const previewEventName = event?.name ?? 'Evento';
+    const previewEventId = event?.id ?? 'preview-event';
+
+    const latestCheckIn = checkIns[0];
+    const latestParticipant = latestCheckIn
+      ? participants.find((participant) => participant.id === latestCheckIn.eventParticipantId)
+      : null;
+
+    if (latestCheckIn) {
+      return {
+        name: latestCheckIn.participantName,
+        company: latestParticipant?.company ?? null,
+        jobTitle: latestParticipant?.jobTitle ?? null,
+        participantId: latestCheckIn.eventParticipantId,
+        checkInId: latestCheckIn.id,
+        eventName: previewEventName,
+        eventId: previewEventId,
+      };
+    }
+
+    return {
+      name: 'Participante Exemplo',
+      company: 'Empresa Exemplo',
+      jobTitle: 'Cargo Exemplo',
+      participantId: 'preview-participant',
+      checkInId: 'preview-checkin',
+      eventName: previewEventName,
+      eventId: previewEventId,
+    };
+  }, [checkIns, participants, event?.id, event?.name]);
+
+  const printPreviewHtml = useMemo(() => {
+    const previewConfig: PrintConfigFullResponse = {
+      id: event?.printConfigId ?? 'preview',
+      ...printConfigDraft,
+      createdAt: new Date(0).toISOString(),
+      updatedAt: new Date(0).toISOString(),
+    };
+
+    return generateBadgeHtml(previewConfig, previewParticipant);
+  }, [event?.printConfigId, previewParticipant, printConfigDraft]);
+
+  async function handleSavePrintConfig(e: React.FormEvent) {
+    e.preventDefault();
+
+    if (!event) {
+      return;
+    }
+
+    setIsSavingPrintConfig(true);
+
+    try {
+      if (!printConfigEnabled) {
+        if (event.printConfigId) {
+          const response = await eventsClient.updateEvent(event.id, {
+            printConfigId: null,
+          });
+
+          if (!response.success) {
+            throw new Error(response.error.message);
+          }
+
+          setEvent(response.data);
+        }
+
+        toast.success(t('pages.eventDetail.saveSettings'));
+        return;
+      }
+
+      const response = await eventsClient.updateEventPrintConfig(event.id, printConfigDraft);
+      if (!response.success) {
+        throw new Error(response.error.message);
+      }
+
+      setPrintConfigDraft(toEditablePrintConfig(response.data));
+
+      if (event.printConfigId !== response.data.id) {
+        setEvent((current) => {
+          if (!current) return current;
+          return {
+            ...current,
+            printConfigId: response.data.id,
+          };
+        });
+      }
+
+      toast.success(t('pages.eventDetail.printConfigCreated'));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : t('pages.eventDetail.printConfigError');
+      toast.error(message);
+    } finally {
+      setIsSavingPrintConfig(false);
     }
   }
 
@@ -1168,6 +1392,7 @@ export default function EventDetailPage() {
               />
             </CardContent>
           </Card>
+
         </TabsContent>
 
         <TabsContent value="participants" className="space-y-4">
@@ -1457,6 +1682,61 @@ export default function EventDetailPage() {
               )}
             </CardContent>
           </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Globe className="h-5 w-5" />
+                {t('pages.eventDetail.publicLinkTitle')}
+              </CardTitle>
+              <CardDescription>{t('pages.eventDetail.publicLinkDescription')}</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {isLoadingPublicLink ? (
+                <Skeleton className="h-10 w-full" />
+              ) : publicLinkUrl ? (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Input value={publicLinkUrl} readOnly className="flex-1 font-mono text-sm" />
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={handleCopyPublicLink}
+                      title={t('pages.eventDetail.copyLink')}
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => window.open(publicLinkUrl, '_blank')}
+                      title={t('pages.eventDetail.openLink')}
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={handleTogglePublicLink}
+                    disabled={isTogglingPublicLink}
+                  >
+                    {isTogglingPublicLink ? t('pages.eventDetail.removing') : t('pages.eventDetail.removePublicLink')}
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-muted-foreground text-sm">{t('pages.eventDetail.noPublicLink')}</p>
+                  <Button onClick={handleTogglePublicLink} disabled={isTogglingPublicLink}>
+                    <Globe className="mr-2 h-4 w-4" />
+                    {isTogglingPublicLink
+                      ? t('pages.eventDetail.generating')
+                      : t('pages.eventDetail.generatePublicLink')}
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="settings" className="space-y-4">
@@ -1555,33 +1835,6 @@ export default function EventDetailPage() {
                       onChange={(e) => setSettingsEndsAt(e.target.value)}
                       required
                     />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>{t('pages.eventDetail.printConfig')}</Label>
-                  <div className="flex gap-2">
-                    <Select value={settingsPrintConfigId} onValueChange={setSettingsPrintConfigId}>
-                      <SelectTrigger>
-                        <SelectValue placeholder={t('pages.eventDetail.selectPrintConfig')} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value={NONE_PRINT_CONFIG}>{t('pages.eventDetail.none')}</SelectItem>
-                        {printConfigs.map((config) => (
-                          <SelectItem key={config.id} value={config.id}>
-                            {config.id}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={handleCreatePrintConfig}
-                      disabled={isCreatingPrintConfig}
-                    >
-                      {isCreatingPrintConfig ? t('pages.eventDetail.creating') : t('pages.eventDetail.createNew')}
-                    </Button>
                   </div>
                 </div>
 
@@ -1727,61 +1980,425 @@ export default function EventDetailPage() {
             </CardContent>
           </Card>
 
-          {/* Public Link Card */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Globe className="h-5 w-5" />
-                {t('pages.eventDetail.publicLinkTitle')}
+                <Printer className="h-5 w-5" />
+                {t('pages.eventDetail.printConfig')}
               </CardTitle>
-              <CardDescription>{t('pages.eventDetail.publicLinkDescription')}</CardDescription>
+              <CardDescription>Configure o ticket impresso e visualize um preview fiel da impressão.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              {isLoadingPublicLink ? (
-                <Skeleton className="h-10 w-full" />
-              ) : publicLinkUrl ? (
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <Input value={publicLinkUrl} readOnly className="flex-1 font-mono text-sm" />
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={handleCopyPublicLink}
-                      title={t('pages.eventDetail.copyLink')}
-                    >
-                      <Copy className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => window.open(publicLinkUrl, '_blank')}
-                      title={t('pages.eventDetail.openLink')}
-                    >
-                      <ExternalLink className="h-4 w-4" />
-                    </Button>
+            <CardContent>
+              <form onSubmit={handleSavePrintConfig} className="space-y-6">
+                <div className="flex items-center justify-between rounded-lg border p-4">
+                  <div>
+                    <p className="text-sm font-medium">Impressão automática</p>
+                    <p className="text-muted-foreground text-xs">
+                      Ao ativar, o ticket será impresso após qualquer check-in (facial, QR ou código).
+                    </p>
                   </div>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={handleTogglePublicLink}
-                    disabled={isTogglingPublicLink}
-                  >
-                    {isTogglingPublicLink ? t('pages.eventDetail.removing') : t('pages.eventDetail.removePublicLink')}
+                  <Switch checked={printConfigEnabled} onCheckedChange={setPrintConfigEnabled} />
+                </div>
+
+                {printConfigEnabled ? (
+                  <>
+                    <div className="grid gap-4 md:grid-cols-3">
+                      <div className="space-y-2">
+                        <Label htmlFor="print-paper-width">{t('labelConfig.paper.width')}</Label>
+                        <Input
+                          id="print-paper-width"
+                          type="number"
+                          min={20}
+                          max={300}
+                          value={printConfigDraft.paperWidth}
+                          onChange={(e) => updatePrintConfigField('paperWidth', parseNumber(e.currentTarget.value, 62))}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="print-paper-height">{t('labelConfig.paper.height')}</Label>
+                        <Input
+                          id="print-paper-height"
+                          type="number"
+                          min={20}
+                          max={500}
+                          value={printConfigDraft.paperHeight}
+                          onChange={(e) =>
+                            updatePrintConfigField('paperHeight', parseNumber(e.currentTarget.value, 100))
+                          }
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="print-orientation">{t('labelConfig.paper.orientation')}</Label>
+                        <Select
+                          value={printConfigDraft.orientation}
+                          onValueChange={(value) =>
+                            updatePrintConfigField('orientation', value as 'PORTRAIT' | 'LANDSCAPE')
+                          }
+                        >
+                          <SelectTrigger id="print-orientation">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="PORTRAIT">{t('labelConfig.paper.portrait')}</SelectItem>
+                            <SelectItem value="LANDSCAPE">{t('labelConfig.paper.landscape')}</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div className="grid gap-4 md:grid-cols-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="print-margin-top">Top (mm)</Label>
+                        <Input
+                          id="print-margin-top"
+                          type="number"
+                          min={0}
+                          max={50}
+                          value={printConfigDraft.marginTop}
+                          onChange={(e) => updatePrintConfigField('marginTop', parseNumber(e.currentTarget.value, 5))}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="print-margin-right">Right (mm)</Label>
+                        <Input
+                          id="print-margin-right"
+                          type="number"
+                          min={0}
+                          max={50}
+                          value={printConfigDraft.marginRight}
+                          onChange={(e) =>
+                            updatePrintConfigField('marginRight', parseNumber(e.currentTarget.value, 5))
+                          }
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="print-margin-bottom">Bottom (mm)</Label>
+                        <Input
+                          id="print-margin-bottom"
+                          type="number"
+                          min={0}
+                          max={50}
+                          value={printConfigDraft.marginBottom}
+                          onChange={(e) =>
+                            updatePrintConfigField('marginBottom', parseNumber(e.currentTarget.value, 5))
+                          }
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="print-margin-left">Left (mm)</Label>
+                        <Input
+                          id="print-margin-left"
+                          type="number"
+                          min={0}
+                          max={50}
+                          value={printConfigDraft.marginLeft}
+                          onChange={(e) => updatePrintConfigField('marginLeft', parseNumber(e.currentTarget.value, 5))}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="space-y-4 rounded-lg border p-4">
+                        <div className="flex items-center justify-between">
+                          <Label htmlFor="print-show-name">{t('labelConfig.items.name')}</Label>
+                          <Switch
+                            id="print-show-name"
+                            checked={printConfigDraft.showName}
+                            onCheckedChange={(checked) => updatePrintConfigField('showName', checked)}
+                          />
+                        </div>
+                        <div className="grid gap-3 md:grid-cols-2">
+                          <div className="space-y-2">
+                            <Label htmlFor="print-name-size">Size</Label>
+                            <Input
+                              id="print-name-size"
+                              type="number"
+                              min={8}
+                              max={32}
+                              value={printConfigDraft.nameFontSize}
+                              onChange={(e) =>
+                                updatePrintConfigField('nameFontSize', parseNumber(e.currentTarget.value, 16))
+                              }
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="print-name-position">Position</Label>
+                            <Select
+                              value={normalizePrintPosition(printConfigDraft.namePosition)}
+                              onValueChange={(value) =>
+                                updatePrintConfigField('namePosition', value as 'top' | 'center' | 'bottom')
+                              }
+                            >
+                              <SelectTrigger id="print-name-position">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="top">Top</SelectItem>
+                                <SelectItem value="center">Center</SelectItem>
+                                <SelectItem value="bottom">Bottom</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <Label htmlFor="print-name-bold">{t('labelConfig.position.bold')}</Label>
+                          <Switch
+                            id="print-name-bold"
+                            checked={printConfigDraft.nameBold}
+                            onCheckedChange={(checked) => updatePrintConfigField('nameBold', checked)}
+                          />
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                          <Label htmlFor="print-show-company">{t('labelConfig.items.company')}</Label>
+                          <Switch
+                            id="print-show-company"
+                            checked={printConfigDraft.showCompany}
+                            onCheckedChange={(checked) => updatePrintConfigField('showCompany', checked)}
+                          />
+                        </div>
+                        <Input
+                          type="number"
+                          min={6}
+                          max={24}
+                          value={printConfigDraft.companyFontSize}
+                          onChange={(e) =>
+                            updatePrintConfigField('companyFontSize', parseNumber(e.currentTarget.value, 12))
+                          }
+                        />
+
+                        <div className="flex items-center justify-between">
+                          <Label htmlFor="print-show-job">{t('labelConfig.items.jobTitle')}</Label>
+                          <Switch
+                            id="print-show-job"
+                            checked={printConfigDraft.showJobTitle}
+                            onCheckedChange={(checked) => updatePrintConfigField('showJobTitle', checked)}
+                          />
+                        </div>
+                        <Input
+                          type="number"
+                          min={6}
+                          max={24}
+                          value={printConfigDraft.jobTitleFontSize}
+                          onChange={(e) =>
+                            updatePrintConfigField('jobTitleFontSize', parseNumber(e.currentTarget.value, 10))
+                          }
+                        />
+                      </div>
+
+                      <div className="space-y-4 rounded-lg border p-4">
+                        <div className="flex items-center justify-between">
+                          <Label htmlFor="print-show-fivents">{t('labelConfig.items.fiventsLogo')}</Label>
+                          <Switch
+                            id="print-show-fivents"
+                            checked={printConfigDraft.showFiventsLogo}
+                            onCheckedChange={(checked) => updatePrintConfigField('showFiventsLogo', checked)}
+                          />
+                        </div>
+                        <Input
+                          type="number"
+                          min={5}
+                          max={100}
+                          value={printConfigDraft.fiventsLogoSize}
+                          onChange={(e) =>
+                            updatePrintConfigField('fiventsLogoSize', parseNumber(e.currentTarget.value, 20))
+                          }
+                        />
+
+                        <div className="flex items-center justify-between">
+                          <Label htmlFor="print-show-org">{t('labelConfig.items.orgLogo')}</Label>
+                          <Switch
+                            id="print-show-org"
+                            checked={printConfigDraft.showOrgLogo}
+                            onCheckedChange={(checked) => updatePrintConfigField('showOrgLogo', checked)}
+                          />
+                        </div>
+                        <Input
+                          type="number"
+                          min={5}
+                          max={100}
+                          value={printConfigDraft.orgLogoSize}
+                          onChange={(e) => updatePrintConfigField('orgLogoSize', parseNumber(e.currentTarget.value, 25))}
+                        />
+
+                        <div className="flex items-center justify-between">
+                          <Label htmlFor="print-show-qr">{t('labelConfig.items.qrCode')}</Label>
+                          <Switch
+                            id="print-show-qr"
+                            checked={printConfigDraft.showQrCode}
+                            onCheckedChange={(checked) => updatePrintConfigField('showQrCode', checked)}
+                          />
+                        </div>
+                        <Input
+                          type="number"
+                          min={10}
+                          max={120}
+                          value={printConfigDraft.qrCodeSize}
+                          onChange={(e) => updatePrintConfigField('qrCodeSize', parseNumber(e.currentTarget.value, 28))}
+                        />
+                        <Select
+                          value={printConfigDraft.qrCodeContent}
+                          onValueChange={(value) =>
+                            updatePrintConfigField('qrCodeContent', value as 'participant_id' | 'check_in_url' | 'custom')
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="participant_id">ID do participante</SelectItem>
+                            <SelectItem value="check_in_url">URL do check-in</SelectItem>
+                            <SelectItem value="custom">Customizado</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div className="grid gap-4 md:grid-cols-4">
+                      <div className="space-y-2">
+                        <Label>{t('labelConfig.printer.type')}</Label>
+                        <Select
+                          value={printConfigDraft.printerType}
+                          onValueChange={(value) =>
+                            updatePrintConfigField('printerType', value as 'thermal' | 'inkjet' | 'laser')
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="thermal">{t('labelConfig.printer.thermal')}</SelectItem>
+                            <SelectItem value="inkjet">{t('labelConfig.printer.inkjet')}</SelectItem>
+                            <SelectItem value="laser">{t('labelConfig.printer.laser')}</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>DPI</Label>
+                        <Input
+                          type="number"
+                          min={72}
+                          max={1200}
+                          value={printConfigDraft.printerDpi}
+                          onChange={(e) => updatePrintConfigField('printerDpi', parseNumber(e.currentTarget.value, 203))}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>{t('labelConfig.printer.speed')}</Label>
+                        <Input
+                          type="number"
+                          min={1}
+                          max={5}
+                          value={printConfigDraft.printSpeed}
+                          onChange={(e) => updatePrintConfigField('printSpeed', parseNumber(e.currentTarget.value, 3))}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>{t('labelConfig.printer.copies')}</Label>
+                        <Input
+                          type="number"
+                          min={1}
+                          max={10}
+                          value={printConfigDraft.copies}
+                          onChange={(e) => updatePrintConfigField('copies', parseNumber(e.currentTarget.value, 1))}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid gap-4 md:grid-cols-3">
+                      <div className="space-y-2">
+                        <Label>{t('labelConfig.paper.font')}</Label>
+                        <Input
+                          value={printConfigDraft.fontFamily}
+                          onChange={(e) => updatePrintConfigField('fontFamily', e.currentTarget.value || 'Arial')}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>{t('labelConfig.paper.bgColor')}</Label>
+                        <Input
+                          type="color"
+                          value={printConfigDraft.backgroundColor}
+                          onChange={(e) => updatePrintConfigField('backgroundColor', e.currentTarget.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>{t('labelConfig.paper.textColor')}</Label>
+                        <Input
+                          type="color"
+                          value={printConfigDraft.textColor}
+                          onChange={(e) => updatePrintConfigField('textColor', e.currentTarget.value)}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-3 rounded-lg border p-4">
+                      <p className="text-sm font-medium">Ordem dos elementos</p>
+                      {(printConfigDraft.itemsOrder as PrintItemKey[]).map((item, index) => (
+                        <div key={item} className="flex items-center justify-between rounded border px-3 py-2">
+                          <span className="text-sm">
+                            {item === 'fiventsLogo'
+                              ? t('labelConfig.items.fiventsLogo')
+                              : item === 'orgLogo'
+                                ? t('labelConfig.items.orgLogo')
+                                : item === 'name'
+                                  ? t('labelConfig.items.name')
+                                  : item === 'company'
+                                    ? t('labelConfig.items.company')
+                                    : item === 'jobTitle'
+                                      ? t('labelConfig.items.jobTitle')
+                                      : t('labelConfig.items.qrCode')}
+                          </span>
+                          <div className="flex gap-2">
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              disabled={index === 0}
+                              onClick={() => movePrintItem(item, 'up')}
+                            >
+                              ↑
+                            </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              disabled={index === printConfigDraft.itemsOrder.length - 1}
+                              onClick={() => movePrintItem(item, 'down')}
+                            >
+                              ↓
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="space-y-3">
+                      <p className="text-sm font-medium">Preview exato de impressão</p>
+                      <div className="overflow-hidden rounded-lg border bg-white">
+                        <iframe title="Ticket preview" srcDoc={printPreviewHtml} className="h-130 w-full" />
+                      </div>
+                      <p className="text-muted-foreground text-xs">
+                        {checkIns.length > 0
+                          ? `Baseado no último check-in: ${previewParticipant.name}`
+                          : 'Mostrando participante de exemplo até o primeiro check-in real.'}
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-muted-foreground text-sm">
+                    Impressão desativada. Nenhum ticket será impresso após check-in.
+                  </p>
+                )}
+
+                <div className="flex justify-end">
+                  <Button type="submit" disabled={isSavingPrintConfig || isLoadingPrintConfig}>
+                    {isSavingPrintConfig ? t('pages.eventDetail.saving') : t('pages.eventDetail.saveSettings')}
                   </Button>
                 </div>
-              ) : (
-                <div className="space-y-3">
-                  <p className="text-muted-foreground text-sm">{t('pages.eventDetail.noPublicLink')}</p>
-                  <Button onClick={handleTogglePublicLink} disabled={isTogglingPublicLink}>
-                    <Globe className="mr-2 h-4 w-4" />
-                    {isTogglingPublicLink
-                      ? t('pages.eventDetail.generating')
-                      : t('pages.eventDetail.generatePublicLink')}
-                  </Button>
-                </div>
-              )}
+              </form>
             </CardContent>
           </Card>
+
         </TabsContent>
       </Tabs>
 
