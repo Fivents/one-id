@@ -16,7 +16,7 @@ export class CheckInService {
   ) {}
 
   async performCheckIn(input: {
-    method: 'FACE_RECOGNITION' | 'QR_CODE' | 'MANUAL';
+    method: 'FACE_RECOGNITION' | 'QR_CODE' | 'ACCESS_CODE' | 'MANUAL';
     eventParticipantId: string;
     totemEventSubscriptionId: string;
     confidence?: number;

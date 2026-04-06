@@ -13,7 +13,7 @@ import { buildCheckInWhere, parseCheckInFilters } from './_lib/checkins-filters'
 
 const registerAppCheckInSchema = z.object({
   eventParticipantId: z.string().min(1, 'Event participant ID is required.'),
-  method: z.enum(['MANUAL', 'QR_CODE', 'FACE_RECOGNITION']).default('MANUAL'),
+  method: z.enum(['MANUAL', 'QR_CODE', 'FACE_RECOGNITION', 'ACCESS_CODE']).default('MANUAL'),
   confidence: z.number().min(0).max(1).nullable().optional(),
 });
 

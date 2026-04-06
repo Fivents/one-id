@@ -1,5 +1,7 @@
 import { AppError, ErrorCode } from '@/core/errors';
 
+import type { EventAddress } from '../value-objects';
+
 import { BaseEntity } from './base.entity';
 
 export type EventStatus = 'DRAFT' | 'PUBLISHED' | 'ACTIVE' | 'COMPLETED' | 'CANCELED';
@@ -11,6 +13,7 @@ export interface EventProps {
   description?: string | null;
   timezone: string;
   address?: string | null;
+  addressDetails?: EventAddress | null;
   status: EventStatus;
   faceEnabled: boolean;
   qrEnabled: boolean;
@@ -77,6 +80,10 @@ export class EventEntity extends BaseEntity {
 
   get address(): string | null | undefined {
     return this.props.address;
+  }
+
+  get addressDetails(): EventAddress | null | undefined {
+    return this.props.addressDetails;
   }
 
   get status(): EventStatus {
@@ -182,7 +189,8 @@ export class EventEntity extends BaseEntity {
       slug: this.props.slug,
       description: this.props.description,
       timezone: this.props.timezone,
-      address: this.props.address,
+      address: this.props.address ?? null,
+      addressDetails: this.props.addressDetails ?? null,
       status: this.props.status,
       faceEnabled: this.props.faceEnabled,
       qrEnabled: this.props.qrEnabled,

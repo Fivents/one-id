@@ -2,13 +2,71 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { z } from 'zod/v4';
 
-import { type PrintConfigResponse, updatePrintConfigRequestSchema } from '@/core/communication/requests/print-config';
+import {
+  PRINT_ITEM_KEYS,
+  type PrintConfigResponse,
+  type PrintElementsLayout,
+  updatePrintConfigRequestSchema,
+} from '@/core/communication/requests/print-config';
 import { withAuth, withRBAC } from '@/core/infrastructure/http/middlewares';
 import type { RouteContext } from '@/core/infrastructure/http/types';
 import { prisma } from '@/core/infrastructure/prisma-client';
 import { Prisma } from '@/generated/prisma/client';
 
 import { getAuthorizedEvent } from '../../_lib/access';
+
+function parseItemsOrder(input: unknown): string[] {
+  if (Array.isArray(input)) {
+    const parsed = input.filter((item): item is string => typeof item === 'string');
+    return parsed.length > 0 ? parsed : [...PRINT_ITEM_KEYS];
+  }
+
+  if (typeof input === 'string') {
+    try {
+      const parsed = JSON.parse(input) as unknown;
+      if (Array.isArray(parsed)) {
+        const parsedItems = parsed.filter((item): item is string => typeof item === 'string');
+        return parsedItems.length > 0 ? parsedItems : [...PRINT_ITEM_KEYS];
+      }
+    } catch {
+      return [...PRINT_ITEM_KEYS];
+    }
+  }
+
+  return [...PRINT_ITEM_KEYS];
+}
+
+function parseElementsLayout(input: unknown): PrintElementsLayout {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) {
+    return null;
+  }
+
+  const value = input as Record<string, unknown>;
+  const layout: NonNullable<PrintElementsLayout> = {};
+
+  for (const key of PRINT_ITEM_KEYS) {
+    const item = value[key];
+
+    if (!item || typeof item !== 'object' || Array.isArray(item)) {
+      continue;
+    }
+
+    const position = item as Record<string, unknown>;
+    const x = Number(position.x);
+    const y = Number(position.y);
+
+    if (!Number.isFinite(x) || !Number.isFinite(y)) {
+      continue;
+    }
+
+    layout[key] = {
+      x,
+      y,
+    };
+  }
+
+  return Object.keys(layout).length > 0 ? layout : null;
+}
 
 function mapPrintConfigToResponse(config: Prisma.PrintConfigGetPayload<Record<string, never>>): PrintConfigResponse {
   return {
@@ -40,7 +98,7 @@ function mapPrintConfigToResponse(config: Prisma.PrintConfigGetPayload<Record<st
     showJobTitle: config.showJobTitle,
     jobTitlePosition: config.jobTitlePosition,
     jobTitleFontSize: config.jobTitleFontSize,
-    itemsOrder: typeof config.itemsOrder === 'string' ? JSON.parse(config.itemsOrder || '[]') : config.itemsOrder || [],
+    itemsOrder: parseItemsOrder(config.itemsOrder),
     printerDpi: config.printerDpi,
     printerType: config.printerType,
     printSpeed: config.printSpeed,
@@ -48,6 +106,7 @@ function mapPrintConfigToResponse(config: Prisma.PrintConfigGetPayload<Record<st
     backgroundColor: config.backgroundColor,
     textColor: config.textColor,
     fontFamily: config.fontFamily,
+    elementsLayout: parseElementsLayout(config.elementsLayout),
     createdAt: config.createdAt.toISOString(),
     updatedAt: config.updatedAt.toISOString(),
   };
@@ -153,6 +212,9 @@ export const PATCH = withAuth(
             backgroundColor: data.backgroundColor ?? '#ffffff',
             textColor: data.textColor ?? '#000000',
             fontFamily: data.fontFamily ?? 'Arial',
+            elementsLayout: data.elementsLayout
+              ? (data.elementsLayout as unknown as Prisma.InputJsonValue)
+              : Prisma.JsonNull,
           },
         });
 
@@ -202,6 +264,11 @@ export const PATCH = withAuth(
       if (data.backgroundColor !== undefined) updateData.backgroundColor = data.backgroundColor;
       if (data.textColor !== undefined) updateData.textColor = data.textColor;
       if (data.fontFamily !== undefined) updateData.fontFamily = data.fontFamily;
+      if (data.elementsLayout !== undefined) {
+        updateData.elementsLayout = data.elementsLayout
+          ? (data.elementsLayout as unknown as Prisma.InputJsonValue)
+          : Prisma.JsonNull;
+      }
 
       const config = await prisma.printConfig.update({
         where: { id: printConfigId },

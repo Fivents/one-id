@@ -138,7 +138,7 @@ async function logApprovedAttempt(
   totemId: string,
   checkInId: string,
   eventParticipantId: string,
-  method: 'QR_CODE' | 'MANUAL',
+  method: 'QR_CODE' | 'ACCESS_CODE',
 ) {
   const auditRepo = new PrismaAuditLogRepository(prisma);
 
@@ -245,7 +245,7 @@ async function executeCredentialCheckIn(
 
   const checkIn = await prisma.checkIn.create({
     data: {
-      method: input.method === 'QR' ? 'QR_CODE' : 'MANUAL',
+      method: input.method === 'QR' ? 'QR_CODE' : 'ACCESS_CODE',
       confidence: null,
       checkedInAt: new Date(),
       eventParticipantId: participant.id,
@@ -253,7 +253,13 @@ async function executeCredentialCheckIn(
     },
   });
 
-  await logApprovedAttempt(context, totemId, checkIn.id, participant.id, input.method === 'QR' ? 'QR_CODE' : 'MANUAL');
+  await logApprovedAttempt(
+    context,
+    totemId,
+    checkIn.id,
+    participant.id,
+    input.method === 'QR' ? 'QR_CODE' : 'ACCESS_CODE',
+  );
 
   return NextResponse.json(
     {

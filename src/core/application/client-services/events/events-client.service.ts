@@ -1,4 +1,5 @@
 import type { CreateEventRequest, UpdateEventRequest } from '@/core/communication/requests/event';
+import type { PrintElementsLayout } from '@/core/communication/requests/print-config';
 import type {
   LinkTotemToEventRequest,
   SetTotemLocationRequest,
@@ -130,6 +131,7 @@ export interface PrintConfigFullResponse {
   backgroundColor: string;
   textColor: string;
   fontFamily: string;
+  elementsLayout: PrintElementsLayout;
   createdAt: string;
   updatedAt: string;
 }

@@ -104,9 +104,11 @@ export default function PublicLivePage({ params }: PageProps) {
   const getMethodLabel = (method: string) => {
     switch (method) {
       case 'FACE_RECOGNITION':
-        return 'Face';
+        return 'Face Recognition';
       case 'QR_CODE':
         return 'QR Code';
+      case 'ACCESS_CODE':
+        return 'Access Code';
       case 'MANUAL':
         return 'Manual';
       default:

@@ -2,7 +2,7 @@ import { AppError, ErrorCode } from '@/core/errors';
 
 import { BaseEntity } from './base.entity';
 
-export type CheckInMethod = 'FACE_RECOGNITION' | 'QR_CODE' | 'MANUAL';
+export type CheckInMethod = 'FACE_RECOGNITION' | 'QR_CODE' | 'ACCESS_CODE' | 'MANUAL';
 
 const HIGH_CONFIDENCE_THRESHOLD = 0.85;
 
@@ -62,6 +62,10 @@ export class CheckInEntity extends BaseEntity {
 
   isManual(): boolean {
     return this.props.method === 'MANUAL';
+  }
+
+  isAccessCode(): boolean {
+    return this.props.method === 'ACCESS_CODE';
   }
 
   hasConfidenceScore(): boolean {

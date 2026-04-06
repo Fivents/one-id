@@ -1,6 +1,25 @@
 import type { CreateEventData, IEventRepository, UpdateEventData } from '@/core/domain/contracts';
 import { EventEntity, type EventStatus } from '@/core/domain/entities';
-import type { PrismaClient } from '@/generated/prisma/client';
+import { type EventAddress, normalizeEventAddress } from '@/core/domain/value-objects';
+import { Prisma, type PrismaClient } from '@/generated/prisma/client';
+
+function mapAddressDetails(value: unknown): EventAddress | null {
+  return normalizeEventAddress(value);
+}
+
+function toAddressJsonValue(
+  value: EventAddress | null | undefined,
+): Prisma.InputJsonValue | Prisma.NullableJsonNullValueInput | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (value === null) {
+    return Prisma.JsonNull;
+  }
+
+  return value as unknown as Prisma.InputJsonValue;
+}
 
 export class PrismaEventRepository implements IEventRepository {
   constructor(private readonly db: PrismaClient) {}
@@ -19,6 +38,7 @@ export class PrismaEventRepository implements IEventRepository {
       description: event.description,
       timezone: event.timezone,
       address: event.address,
+      addressDetails: mapAddressDetails(event.addressDetails),
       status: event.status as EventStatus,
       faceEnabled: event.faceEnabled,
       qrEnabled: event.qrEnabled,
@@ -47,6 +67,7 @@ export class PrismaEventRepository implements IEventRepository {
         description: event.description,
         timezone: event.timezone,
         address: event.address,
+        addressDetails: mapAddressDetails(event.addressDetails),
         status: event.status as EventStatus,
         faceEnabled: event.faceEnabled,
         qrEnabled: event.qrEnabled,
@@ -70,6 +91,7 @@ export class PrismaEventRepository implements IEventRepository {
         description: data.description,
         timezone: data.timezone,
         address: data.address,
+        addressDetails: toAddressJsonValue(data.addressDetails),
         status: data.status,
         faceEnabled: data.faceEnabled,
         qrEnabled: data.qrEnabled,
@@ -88,6 +110,7 @@ export class PrismaEventRepository implements IEventRepository {
       description: event.description,
       timezone: event.timezone,
       address: event.address,
+      addressDetails: mapAddressDetails(event.addressDetails),
       status: event.status as EventStatus,
       faceEnabled: event.faceEnabled,
       qrEnabled: event.qrEnabled,
@@ -111,6 +134,7 @@ export class PrismaEventRepository implements IEventRepository {
         description: data.description,
         timezone: data.timezone,
         address: data.address,
+        addressDetails: toAddressJsonValue(data.addressDetails),
         status: data.status,
         faceEnabled: data.faceEnabled,
         qrEnabled: data.qrEnabled,
@@ -128,6 +152,7 @@ export class PrismaEventRepository implements IEventRepository {
       description: event.description,
       timezone: event.timezone,
       address: event.address,
+      addressDetails: mapAddressDetails(event.addressDetails),
       status: event.status as EventStatus,
       faceEnabled: event.faceEnabled,
       qrEnabled: event.qrEnabled,

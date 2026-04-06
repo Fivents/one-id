@@ -2,6 +2,22 @@ import { z } from 'zod/v4';
 
 const eventStatusSchema = z.enum(['DRAFT', 'PUBLISHED', 'ACTIVE', 'COMPLETED', 'CANCELED']);
 
+const eventAddressDetailsSchema = z.object({
+  formattedAddress: z.string().min(1),
+  placeId: z.string().nullable().optional(),
+  street: z.string().nullable().optional(),
+  number: z.string().nullable().optional(),
+  complement: z.string().nullable().optional(),
+  neighborhood: z.string().nullable().optional(),
+  city: z.string().nullable().optional(),
+  state: z.string().nullable().optional(),
+  postalCode: z.string().nullable().optional(),
+  country: z.string().nullable().optional(),
+  latitude: z.number().nullable().optional(),
+  longitude: z.number().nullable().optional(),
+  source: z.enum(['nominatim', 'manual']).optional(),
+});
+
 export const createEventRequestSchema = z
   .object({
     name: z.string().min(1, 'Name is required.'),
@@ -9,6 +25,7 @@ export const createEventRequestSchema = z
     description: z.string().nullable().optional(),
     timezone: z.string().min(1, 'Timezone is required.'),
     address: z.string().nullable().optional(),
+    addressDetails: eventAddressDetailsSchema.nullable().optional(),
     status: eventStatusSchema.default('DRAFT'),
     faceEnabled: z.boolean().default(true),
     qrEnabled: z.boolean().default(false),
@@ -32,6 +49,7 @@ export const updateEventRequestSchema = z
     description: z.string().nullable().optional(),
     timezone: z.string().min(1).optional(),
     address: z.string().nullable().optional(),
+    addressDetails: eventAddressDetailsSchema.nullable().optional(),
     status: eventStatusSchema.optional(),
     faceEnabled: z.boolean().optional(),
     qrEnabled: z.boolean().optional(),

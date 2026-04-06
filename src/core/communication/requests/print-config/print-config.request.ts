@@ -1,5 +1,28 @@
 import { z } from 'zod/v4';
 
+export const PRINT_ITEM_KEYS = ['fiventsLogo', 'orgLogo', 'name', 'company', 'jobTitle', 'qrCode'] as const;
+export type PrintItemKey = (typeof PRINT_ITEM_KEYS)[number];
+
+export const printElementLayoutSchema = z.object({
+  x: z.number().min(0).max(500),
+  y: z.number().min(0).max(500),
+});
+
+export const printElementsLayoutSchema = z
+  .object({
+    fiventsLogo: printElementLayoutSchema.optional(),
+    orgLogo: printElementLayoutSchema.optional(),
+    name: printElementLayoutSchema.optional(),
+    company: printElementLayoutSchema.optional(),
+    jobTitle: printElementLayoutSchema.optional(),
+    qrCode: printElementLayoutSchema.optional(),
+  })
+  .nullable()
+  .optional();
+
+export type PrintElementLayout = z.infer<typeof printElementLayoutSchema>;
+export type PrintElementsLayout = z.infer<typeof printElementsLayoutSchema>;
+
 export const createPrintConfigRequestSchema = z.object({
   paperWidth: z.number().positive().max(300),
   paperHeight: z.number().positive().max(500),
@@ -28,7 +51,7 @@ export const createPrintConfigRequestSchema = z.object({
   showJobTitle: z.boolean(),
   jobTitlePosition: z.enum(['top', 'center', 'bottom']),
   jobTitleFontSize: z.number().min(6).max(24),
-  itemsOrder: z.array(z.string()),
+  itemsOrder: z.array(z.enum(PRINT_ITEM_KEYS)),
   printerDpi: z.number().int().min(72).max(1200),
   printerType: z.enum(['thermal', 'inkjet', 'laser']),
   printSpeed: z.number().int().min(1).max(5),
@@ -36,6 +59,7 @@ export const createPrintConfigRequestSchema = z.object({
   backgroundColor: z.string().regex(/^#[0-9A-F]{6}$/i),
   textColor: z.string().regex(/^#[0-9A-F]{6}$/i),
   fontFamily: z.string().min(1).max(50),
+  elementsLayout: printElementsLayoutSchema,
 });
 
 export type CreatePrintConfigRequest = z.infer<typeof createPrintConfigRequestSchema>;
@@ -81,6 +105,7 @@ export interface PrintConfigResponse {
   backgroundColor: string;
   textColor: string;
   fontFamily: string;
+  elementsLayout: PrintElementsLayout;
   createdAt: string;
   updatedAt: string;
 }

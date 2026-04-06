@@ -26,6 +26,7 @@ enum EventStatus {
 enum CheckInMethod {
   FACE_RECOGNITION
   QR_CODE
+  ACCESS_CODE
   MANUAL
 }
 
@@ -247,6 +248,7 @@ model Event {
   description String?
   timezone    String
   address     String?
+  addressDetails Json? @map("address_details")
 
   faceEnabled Boolean @default(true) @map("face_enabled")
   qrEnabled   Boolean @default(false) @map("qr_enabled")
@@ -599,6 +601,8 @@ model PrintConfig {
 
   // Items ordering (JSON array of item keys in display order)
   itemsOrder String @default("[\"fiventsLogo\",\"orgLogo\",\"name\",\"company\",\"jobTitle\",\"qrCode\"]") @map("items_order")
+  // Absolute coordinates in mm for draggable layout editor
+  elementsLayout Json? @map("elements_layout")
 
   // Printer settings
   printerDpi  Int    @default(203) @map("printer_dpi")

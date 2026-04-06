@@ -1,6 +1,6 @@
 import { z } from 'zod/v4';
 
-const checkInMethodSchema = z.enum(['FACE_RECOGNITION', 'QR_CODE', 'MANUAL']);
+const checkInMethodSchema = z.enum(['FACE_RECOGNITION', 'QR_CODE', 'ACCESS_CODE', 'MANUAL']);
 
 export const registerCheckInRequestSchema = z.object({
   method: checkInMethodSchema,

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 
 import { toast } from 'sonner';
 
+import { EventAddressEditor } from '@/components/organizations/events/event-address-editor';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -17,6 +18,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useEvents } from '@/core/application/contexts';
+import type { EventAddress } from '@/core/domain/value-objects';
 import { useI18n } from '@/i18n';
 
 interface CreateEventModalProps {
@@ -44,6 +46,7 @@ export function CreateEventModal({ open, onOpenChange, organizationId }: CreateE
   const [description, setDescription] = useState('');
   const [timezone, setTimezone] = useState('America/Sao_Paulo');
   const [address, setAddress] = useState('');
+  const [addressDetails, setAddressDetails] = useState<EventAddress | null>(null);
   const [startsAt, setStartsAt] = useState('');
   const [endsAt, setEndsAt] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -61,8 +64,31 @@ export function CreateEventModal({ open, onOpenChange, organizationId }: CreateE
     setDescription('');
     setTimezone('America/Sao_Paulo');
     setAddress('');
+    setAddressDetails(null);
     setStartsAt('');
     setEndsAt('');
+  }
+
+  function buildAddressPayload(): { address: string | null; addressDetails: EventAddress | null } {
+    const finalAddress = (addressDetails?.formattedAddress ?? address).trim();
+
+    if (!finalAddress) {
+      return {
+        address: null,
+        addressDetails: null,
+      };
+    }
+
+    const details: EventAddress = {
+      ...(addressDetails ?? {}),
+      formattedAddress: finalAddress,
+      source: addressDetails?.source ?? 'manual',
+    };
+
+    return {
+      address: finalAddress,
+      addressDetails: details,
+    };
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -86,12 +112,15 @@ export function CreateEventModal({ open, onOpenChange, organizationId }: CreateE
     setIsSubmitting(true);
 
     try {
+      const addressPayload = buildAddressPayload();
+
       await createEvent({
         name: name.trim(),
         slug: slug.trim(),
         description: description.trim() || null,
         timezone: timezone.trim(),
-        address: address.trim() || null,
+        address: addressPayload.address,
+        addressDetails: addressPayload.addressDetails,
         faceEnabled: true,
         qrEnabled: true,
         codeEnabled: true,
@@ -155,10 +184,15 @@ export function CreateEventModal({ open, onOpenChange, organizationId }: CreateE
             <Input id="event-timezone" value={timezone} onChange={(e) => setTimezone(e.target.value)} required />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="event-address">{t('common.labels.address')}</Label>
-            <Input id="event-address" value={address} onChange={(e) => setAddress(e.target.value)} />
-          </div>
+          <EventAddressEditor
+            idPrefix="event-address"
+            label={t('common.labels.address')}
+            placeholder={t('pages.organizationEvents.addressPlaceholder')}
+            address={address}
+            addressDetails={addressDetails}
+            onAddressChange={setAddress}
+            onAddressDetailsChange={setAddressDetails}
+          />
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">

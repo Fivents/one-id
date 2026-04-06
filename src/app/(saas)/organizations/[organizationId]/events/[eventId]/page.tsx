@@ -24,7 +24,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 
-import { EventStatusBadge } from '@/components/organizations/events';
+import { EventAddressEditor, EventStatusBadge, PrintLayoutEditor } from '@/components/organizations/events';
 import { useConfirm } from '@/components/shared/confirm-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -65,11 +65,16 @@ import type {
   PersonSummaryResponse,
 } from '@/core/application/client-services/people-client.service';
 import { extractFaceEmbedding } from '@/core/application/client-services/totem/face-embedding.client';
-import { generateBadgeHtml, type PrintParticipantData } from '@/core/application/client-services/totem/print.client';
+import {
+  buildDefaultElementsLayout,
+  type PrintParticipantData,
+} from '@/core/application/client-services/totem/print.client';
 import { useApp, useAuth, usePermissions } from '@/core/application/contexts';
+import { PRINT_ITEM_KEYS, type PrintItemKey } from '@/core/communication/requests/print-config';
 import type { EventResponse } from '@/core/communication/responses/event';
 import { AI_CONFIG_CONSTRAINTS, DEFAULT_AI_CONFIG } from '@/core/domain/constants/ai-config.constants';
 import { getValidTransitions, isFinalStatus } from '@/core/domain/constants/event-transitions.constants';
+import type { EventAddress } from '@/core/domain/value-objects';
 import { useI18n } from '@/i18n';
 
 function formatDateTime(value: Date | string, locale: string) {
@@ -88,9 +93,6 @@ function calculateCheckInRate(total: number, checkedIn: number) {
 const PARTICIPANTS_PAGE_SIZE = 20;
 
 type EditablePrintConfig = Omit<PrintConfigFullResponse, 'id' | 'createdAt' | 'updatedAt'>;
-
-const PRINT_ITEM_KEYS = ['fiventsLogo', 'orgLogo', 'name', 'company', 'jobTitle', 'qrCode'] as const;
-type PrintItemKey = (typeof PRINT_ITEM_KEYS)[number];
 
 function createDefaultPrintConfig(): EditablePrintConfig {
   return {
@@ -129,6 +131,7 @@ function createDefaultPrintConfig(): EditablePrintConfig {
     backgroundColor: '#ffffff',
     textColor: '#000000',
     fontFamily: 'Arial',
+    elementsLayout: null,
   };
 }
 
@@ -169,18 +172,8 @@ function toEditablePrintConfig(config: PrintConfigFullResponse): EditablePrintCo
     backgroundColor: config.backgroundColor,
     textColor: config.textColor,
     fontFamily: config.fontFamily,
+    elementsLayout: config.elementsLayout,
   };
-}
-
-function normalizePrintPosition(
-  value: string,
-  fallback: 'top' | 'center' | 'bottom' = 'center',
-): 'top' | 'center' | 'bottom' {
-  if (value === 'top' || value === 'center' || value === 'bottom') {
-    return value;
-  }
-
-  return fallback;
 }
 
 function parseNumber(value: string, fallback: number): number {
@@ -292,6 +285,7 @@ export default function EventDetailPage() {
   const [settingsDescription, setSettingsDescription] = useState('');
   const [settingsTimezone, setSettingsTimezone] = useState('');
   const [settingsAddress, setSettingsAddress] = useState('');
+  const [settingsAddressDetails, setSettingsAddressDetails] = useState<EventAddress | null>(null);
   const [settingsStartsAt, setSettingsStartsAt] = useState('');
   const [settingsEndsAt, setSettingsEndsAt] = useState('');
   const [settingsStatus, setSettingsStatus] = useState<EventResponse['status']>('DRAFT');
@@ -343,6 +337,24 @@ export default function EventDetailPage() {
     [participants],
   );
 
+  const getCheckInMethodLabel = useCallback(
+    (method: string) => {
+      switch (method) {
+        case 'FACE_RECOGNITION':
+          return 'Reconhecimento Facial';
+        case 'QR_CODE':
+          return t('pages.eventDetail.qrCode');
+        case 'ACCESS_CODE':
+          return t('pages.eventDetail.accessCode');
+        case 'MANUAL':
+          return t('pages.eventDetail.manualCheckinTitle');
+        default:
+          return method;
+      }
+    },
+    [t],
+  );
+
   const loadEvent = useCallback(async () => {
     setIsLoading(true);
     try {
@@ -355,6 +367,7 @@ export default function EventDetailPage() {
       setSettingsDescription(response.data.description ?? '');
       setSettingsTimezone(response.data.timezone);
       setSettingsAddress(response.data.address ?? '');
+      setSettingsAddressDetails(response.data.addressDetails ?? null);
       setSettingsStartsAt(new Date(response.data.startsAt).toISOString().slice(0, 16));
       setSettingsEndsAt(new Date(response.data.endsAt).toISOString().slice(0, 16));
       setSettingsStatus(response.data.status);
@@ -1042,11 +1055,21 @@ export default function EventDetailPage() {
 
     setIsSavingSettings(true);
     try {
+      const finalAddress = (settingsAddressDetails?.formattedAddress ?? settingsAddress).trim();
+      const normalizedAddressDetails: EventAddress | null = finalAddress
+        ? {
+            ...(settingsAddressDetails ?? {}),
+            formattedAddress: finalAddress,
+            source: settingsAddressDetails?.source ?? 'manual',
+          }
+        : null;
+
       await eventsClient.updateEvent(event.id, {
         name: settingsName.trim(),
         description: settingsDescription.trim() || null,
         timezone: settingsTimezone.trim(),
-        address: settingsAddress.trim() || null,
+        address: finalAddress || null,
+        addressDetails: normalizedAddressDetails,
         startsAt: startDate,
         endsAt: endDate,
       });
@@ -1197,6 +1220,8 @@ export default function EventDetailPage() {
   const previewParticipant = useMemo<PrintParticipantData>(() => {
     const previewEventName = event?.name ?? 'Evento';
     const previewEventId = event?.id ?? 'preview-event';
+    const fallbackCompany = 'Empresa Exemplo';
+    const fallbackJobTitle = 'Cargo Exemplo';
 
     const latestCheckIn = checkIns[0];
     const latestParticipant = latestCheckIn
@@ -1206,8 +1231,8 @@ export default function EventDetailPage() {
     if (latestCheckIn) {
       return {
         name: latestCheckIn.participantName,
-        company: latestParticipant?.company ?? null,
-        jobTitle: latestParticipant?.jobTitle ?? null,
+        company: latestParticipant?.company || fallbackCompany,
+        jobTitle: latestParticipant?.jobTitle || fallbackJobTitle,
         participantId: latestCheckIn.eventParticipantId,
         checkInId: latestCheckIn.id,
         eventName: previewEventName,
@@ -1217,8 +1242,8 @@ export default function EventDetailPage() {
 
     return {
       name: 'Participante Exemplo',
-      company: 'Empresa Exemplo',
-      jobTitle: 'Cargo Exemplo',
+      company: fallbackCompany,
+      jobTitle: fallbackJobTitle,
       participantId: 'preview-participant',
       checkInId: 'preview-checkin',
       eventName: previewEventName,
@@ -1226,16 +1251,23 @@ export default function EventDetailPage() {
     };
   }, [checkIns, participants, event?.id, event?.name]);
 
-  const printPreviewHtml = useMemo(() => {
-    const previewConfig: PrintConfigFullResponse = {
+  const previewPrintConfig = useMemo<PrintConfigFullResponse>(() => {
+    return {
       id: event?.printConfigId ?? 'preview',
       ...printConfigDraft,
       createdAt: new Date(0).toISOString(),
       updatedAt: new Date(0).toISOString(),
     };
+  }, [event?.printConfigId, printConfigDraft]);
 
-    return generateBadgeHtml(previewConfig, previewParticipant);
-  }, [event?.printConfigId, previewParticipant, printConfigDraft]);
+  function handlePrintLayoutChange(layout: Record<PrintItemKey, { x: number; y: number }>) {
+    updatePrintConfigField('elementsLayout', layout);
+  }
+
+  function handleResetPrintLayout() {
+    const defaultLayout = buildDefaultElementsLayout(previewPrintConfig, previewParticipant);
+    updatePrintConfigField('elementsLayout', defaultLayout);
+  }
 
   async function handleSavePrintConfig(e: React.FormEvent) {
     e.preventDefault();
@@ -1375,7 +1407,7 @@ export default function EventDetailPage() {
               />
               <InfoRow
                 label={t('pages.eventDetail.location')}
-                value={event.address ?? '—'}
+                value={event.addressDetails?.formattedAddress ?? event.address ?? '—'}
                 icon={<MapPin className="h-4 w-4" />}
               />
             </CardContent>
@@ -1641,7 +1673,7 @@ export default function EventDetailPage() {
                       {checkIns.map((checkIn) => (
                         <TableRow key={checkIn.id}>
                           <TableCell className="font-medium">{checkIn.participantName}</TableCell>
-                          <TableCell className="text-muted-foreground">{checkIn.method}</TableCell>
+                          <TableCell className="text-muted-foreground">{getCheckInMethodLabel(checkIn.method)}</TableCell>
                           <TableCell className="text-muted-foreground">
                             {checkIn.confidence ? `${Math.round(checkIn.confidence * 100)}%` : '—'}
                           </TableCell>
@@ -1782,25 +1814,25 @@ export default function EventDetailPage() {
                   />
                 </div>
 
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="settings-timezone">{t('pages.eventDetail.timezone')} *</Label>
-                    <Input
-                      id="settings-timezone"
-                      value={settingsTimezone}
-                      onChange={(e) => setSettingsTimezone(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="settings-address">{t('pages.eventDetail.address')}</Label>
-                    <Input
-                      id="settings-address"
-                      value={settingsAddress}
-                      onChange={(e) => setSettingsAddress(e.target.value)}
-                    />
-                  </div>
+                <div className="space-y-2">
+                  <Label htmlFor="settings-timezone">{t('pages.eventDetail.timezone')} *</Label>
+                  <Input
+                    id="settings-timezone"
+                    value={settingsTimezone}
+                    onChange={(e) => setSettingsTimezone(e.target.value)}
+                    required
+                  />
                 </div>
+
+                <EventAddressEditor
+                  idPrefix="settings-event-address"
+                  label={t('pages.eventDetail.address')}
+                  placeholder={t('pages.organizationEvents.addressPlaceholder')}
+                  address={settingsAddress}
+                  addressDetails={settingsAddressDetails}
+                  onAddressChange={setSettingsAddress}
+                  onAddressDetailsChange={setSettingsAddressDetails}
+                />
 
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
@@ -2079,7 +2111,7 @@ export default function EventDetailPage() {
                             onCheckedChange={(checked) => updatePrintConfigField('showName', checked)}
                           />
                         </div>
-                        <div className="grid gap-3 md:grid-cols-2">
+                        <div className="grid gap-3">
                           <div className="space-y-2">
                             <Label htmlFor="print-name-size">Size</Label>
                             <Input
@@ -2092,24 +2124,6 @@ export default function EventDetailPage() {
                                 updatePrintConfigField('nameFontSize', parseNumber(e.currentTarget.value, 16))
                               }
                             />
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="print-name-position">Position</Label>
-                            <Select
-                              value={normalizePrintPosition(printConfigDraft.namePosition)}
-                              onValueChange={(value) =>
-                                updatePrintConfigField('namePosition', value as 'top' | 'center' | 'bottom')
-                              }
-                            >
-                              <SelectTrigger id="print-name-position">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="top">Top</SelectItem>
-                                <SelectItem value="center">Center</SelectItem>
-                                <SelectItem value="bottom">Bottom</SelectItem>
-                              </SelectContent>
-                            </Select>
                           </div>
                         </div>
                         <div className="flex items-center justify-between">
@@ -2351,16 +2365,21 @@ export default function EventDetailPage() {
                       ))}
                     </div>
 
-                    <div className="space-y-3">
-                      <p className="text-sm font-medium">Preview exato de impressão</p>
-                      <div className="overflow-hidden rounded-lg border bg-white">
-                        <iframe title="Ticket preview" srcDoc={printPreviewHtml} className="h-130 w-full" />
+                    <div className="space-y-3 rounded-lg border p-4">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-sm font-medium">Layout livre e coordenadas reais de impressao</p>
+                        <Button type="button" variant="outline" size="sm" onClick={handleResetPrintLayout}>
+                          Resetar layout
+                        </Button>
                       </div>
                       <p className="text-muted-foreground text-xs">
-                        {checkIns.length > 0
-                          ? `Baseado no último check-in: ${previewParticipant.name}`
-                          : 'Mostrando participante de exemplo até o primeiro check-in real.'}
+                        O editor usa unidade em milimetros (mm) e reflete o layout final do ticket impresso.
                       </p>
+                      <PrintLayoutEditor
+                        config={previewPrintConfig}
+                        participant={previewParticipant}
+                        onLayoutChange={handlePrintLayoutChange}
+                      />
                     </div>
                   </>
                 ) : (

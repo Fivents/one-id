@@ -1,7 +1,7 @@
 import type { ApiResponse } from '../base/api-response';
 import { BaseClient } from '../base/base-client';
 
-export type CheckInMethod = 'FACE_RECOGNITION' | 'QR_CODE' | 'MANUAL';
+export type CheckInMethod = 'FACE_RECOGNITION' | 'QR_CODE' | 'ACCESS_CODE' | 'MANUAL';
 export type CheckInSource = 'TOTEM' | 'APP';
 
 export interface EventCheckInItemResponse {
@@ -35,9 +35,11 @@ export interface EventCheckInStatsResponse {
   total: number;
   faceCount: number;
   qrCount: number;
+  accessCodeCount: number;
   manualCount: number;
   facePercentage: number;
   qrPercentage: number;
+  accessCodePercentage: number;
   manualPercentage: number;
   averageConfidence: number | null;
   totemUsage: Array<{

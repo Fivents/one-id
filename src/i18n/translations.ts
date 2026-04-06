@@ -936,6 +936,7 @@ export const translations: Translations = {
         updateSuccess: 'Evento atualizado com sucesso.',
         updateError: 'Falha ao atualizar evento.',
         timezoneLabel: 'Fuso Horário',
+        addressPlaceholder: 'Av. Paulista, 1000',
       },
       organizationPeople: {
         title: 'Pessoas',
@@ -2543,6 +2544,7 @@ export const translations: Translations = {
         updateSuccess: 'Event updated successfully.',
         updateError: 'Failed to update event.',
         timezoneLabel: 'Timezone',
+        addressPlaceholder: '123 Main Street',
       },
       organizationPeople: {
         title: 'People',
@@ -4122,6 +4124,7 @@ export const translations: Translations = {
         updateSuccess: 'Événement mis à jour avec succès.',
         updateError: "Échec de la mise à jour de l'événement.",
         timezoneLabel: 'Fuseau horaire',
+        addressPlaceholder: '12 Rue de la Paix',
       },
       organizationPeople: {
         title: 'Personnes',
@@ -5684,6 +5687,7 @@ export const translations: Translations = {
         updateSuccess: 'Evento actualizado exitosamente.',
         updateError: 'Error al actualizar el evento.',
         timezoneLabel: 'Zona horaria',
+        addressPlaceholder: 'Calle Principal, 1000',
       },
       organizationPeople: {
         title: 'Personas',
@@ -7232,6 +7236,7 @@ export const translations: Translations = {
         updateSuccess: '事件更新成功。',
         updateError: '更新事件失败。',
         timezoneLabel: '时区',
+        addressPlaceholder: '北京市朝阳区建国路1号',
       },
       organizationPeople: {
         title: '人员',

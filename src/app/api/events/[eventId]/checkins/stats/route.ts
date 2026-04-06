@@ -20,10 +20,11 @@ export const GET = withAuth(
       const filters = parseCheckInFilters(req.nextUrl.searchParams);
       const where = buildCheckInWhere(eventId, filters);
 
-      const [total, faceCount, qrCount, manualCount, confidenceAgg, totemUsage] = await Promise.all([
+      const [total, faceCount, qrCount, accessCodeCount, manualCount, confidenceAgg, totemUsage] = await Promise.all([
         prisma.checkIn.count({ where }),
         prisma.checkIn.count({ where: { ...where, method: 'FACE_RECOGNITION' } }),
         prisma.checkIn.count({ where: { ...where, method: 'QR_CODE' } }),
+        prisma.checkIn.count({ where: { ...where, method: 'ACCESS_CODE' } }),
         prisma.checkIn.count({ where: { ...where, method: 'MANUAL' } }),
         prisma.checkIn.aggregate({ where, _avg: { confidence: true } }),
         prisma.checkIn.groupBy({
@@ -68,9 +69,11 @@ export const GET = withAuth(
           total,
           faceCount,
           qrCount,
+          accessCodeCount,
           manualCount,
           facePercentage: total > 0 ? Math.round((faceCount / total) * 100) : 0,
           qrPercentage: total > 0 ? Math.round((qrCount / total) * 100) : 0,
+          accessCodePercentage: total > 0 ? Math.round((accessCodeCount / total) * 100) : 0,
           manualPercentage: total > 0 ? Math.round((manualCount / total) * 100) : 0,
           averageConfidence: confidenceAgg._avg?.confidence ?? null,
           totemUsage: usageWithNames,

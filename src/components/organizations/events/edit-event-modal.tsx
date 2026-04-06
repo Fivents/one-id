@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 
 import { toast } from 'sonner';
 
+import { EventAddressEditor } from '@/components/organizations/events/event-address-editor';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -18,6 +19,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useEvents } from '@/core/application/contexts';
 import type { EventSummaryResponse } from '@/core/communication/responses/event';
+import type { EventAddress } from '@/core/domain/value-objects';
 import { useI18n } from '@/i18n';
 
 interface EditEventModalProps {
@@ -34,6 +36,7 @@ export function EditEventModal({ event, open, onOpenChange }: EditEventModalProp
   const [description, setDescription] = useState('');
   const [timezone, setTimezone] = useState('');
   const [address, setAddress] = useState('');
+  const [addressDetails, setAddressDetails] = useState<EventAddress | null>(null);
   const [startsAt, setStartsAt] = useState('');
   const [endsAt, setEndsAt] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -44,10 +47,33 @@ export function EditEventModal({ event, open, onOpenChange }: EditEventModalProp
       setDescription(event.description ?? '');
       setTimezone(event.timezone);
       setAddress(event.address ?? '');
+      setAddressDetails(event.addressDetails ?? null);
       setStartsAt(new Date(event.startsAt).toISOString().slice(0, 16));
       setEndsAt(new Date(event.endsAt).toISOString().slice(0, 16));
     }
   }, [event]);
+
+  function buildAddressPayload(): { address: string | null; addressDetails: EventAddress | null } {
+    const finalAddress = (addressDetails?.formattedAddress ?? address).trim();
+
+    if (!finalAddress) {
+      return {
+        address: null,
+        addressDetails: null,
+      };
+    }
+
+    const details: EventAddress = {
+      ...(addressDetails ?? {}),
+      formattedAddress: finalAddress,
+      source: addressDetails?.source ?? 'manual',
+    };
+
+    return {
+      address: finalAddress,
+      addressDetails: details,
+    };
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -70,11 +96,14 @@ export function EditEventModal({ event, open, onOpenChange }: EditEventModalProp
     setIsSubmitting(true);
 
     try {
+      const addressPayload = buildAddressPayload();
+
       await updateEvent(event.id, {
         name: name.trim(),
         description: description.trim() || null,
         timezone: timezone.trim(),
-        address: address.trim() || null,
+        address: addressPayload.address,
+        addressDetails: addressPayload.addressDetails,
         startsAt: startDate,
         endsAt: endDate,
       });
@@ -124,10 +153,15 @@ export function EditEventModal({ event, open, onOpenChange }: EditEventModalProp
             <Input id="edit-event-timezone" value={timezone} onChange={(e) => setTimezone(e.target.value)} required />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="edit-event-address">{t('common.labels.address')}</Label>
-            <Input id="edit-event-address" value={address} onChange={(e) => setAddress(e.target.value)} />
-          </div>
+          <EventAddressEditor
+            idPrefix="edit-event-address"
+            label={t('common.labels.address')}
+            placeholder={t('pages.organizationEvents.addressPlaceholder')}
+            address={address}
+            addressDetails={addressDetails}
+            onAddressChange={setAddress}
+            onAddressDetailsChange={setAddressDetails}
+          />
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">

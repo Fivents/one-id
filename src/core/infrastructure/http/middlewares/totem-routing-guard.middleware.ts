@@ -11,6 +11,8 @@ import { getAuthContext } from '../types';
  * - /api/totem/login (pre-auth, no guard needed)
  * - /api/totem/session (explicitly allowed, called from credentialing page)
  * - /api/totem/checkin (explicitly allowed, called from credentialing page)
+ * - /api/totem/event-config (totem runtime event/AI settings)
+ * - /api/totem/print-config (totem runtime print settings)
  */
 export function withTotemRoutingGuard(handler: RouteHandler): RouteHandler {
   return async (req: NextRequest, context: RouteContext): Promise<Response> => {
@@ -28,6 +30,8 @@ export function withTotemRoutingGuard(handler: RouteHandler): RouteHandler {
     const allowedPaths = [
       '/api/totem/session', // Get session info
       '/api/totem/checkin', // Perform check-in
+      '/api/totem/event-config', // Get active event + AI config
+      '/api/totem/print-config', // Get active event print config
     ];
 
     const isAllowed = allowedPaths.some((path) => pathname === path);

@@ -1,6 +1,6 @@
 import { z } from 'zod/v4';
 
-const METHOD_VALUES = ['FACE_RECOGNITION', 'QR_CODE', 'MANUAL'] as const;
+const METHOD_VALUES = ['FACE_RECOGNITION', 'QR_CODE', 'ACCESS_CODE', 'MANUAL'] as const;
 const SOURCE_VALUES = ['TOTEM', 'APP'] as const;
 
 export type CheckInMethodFilter = (typeof METHOD_VALUES)[number];

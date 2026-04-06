@@ -21,6 +21,7 @@ export class DuplicateEventUseCase {
       description: event.description ?? undefined,
       timezone: event.timezone,
       address: event.address ?? undefined,
+      addressDetails: event.addressDetails ?? undefined,
       status: 'DRAFT',
       startsAt: overrides.startsAt,
       endsAt: overrides.endsAt,
