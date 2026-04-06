@@ -1,4 +1,11 @@
 export {
+  fetchPrintConfig,
+  logPrintAttempt,
+  printBadge,
+  type PrintParticipantData,
+  type PrintResult,
+} from './print.client';
+export {
   clearTotemToken,
   getEventAIConfig,
   getTotemSession,

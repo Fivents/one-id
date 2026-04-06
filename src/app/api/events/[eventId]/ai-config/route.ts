@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { z } from 'zod/v4';
 
+import { AI_CONFIG_CONSTRAINTS, DEFAULT_AI_CONFIG } from '@/core/domain/constants/ai-config.constants';
 import { withAuth, withRBAC } from '@/core/infrastructure/http/middlewares';
 import type { RouteContext } from '@/core/infrastructure/http/types';
 import { prisma } from '@/core/infrastructure/prisma-client';
@@ -9,22 +10,19 @@ import { prisma } from '@/core/infrastructure/prisma-client';
 import { getAuthorizedEvent } from '../../_lib/access';
 
 const aiConfigSchema = z.object({
-  confidenceThreshold: z.number().min(0.3).max(0.99),
-  detectionIntervalMs: z.number().int().min(100).max(5000),
-  maxFaces: z.number().int().min(1).max(5),
+  confidenceThreshold: z
+    .number()
+    .min(AI_CONFIG_CONSTRAINTS.confidenceThreshold.min)
+    .max(AI_CONFIG_CONSTRAINTS.confidenceThreshold.max),
+  detectionIntervalMs: z
+    .number()
+    .int()
+    .min(AI_CONFIG_CONSTRAINTS.detectionIntervalMs.min)
+    .max(AI_CONFIG_CONSTRAINTS.detectionIntervalMs.max),
+  maxFaces: z.number().int().min(AI_CONFIG_CONSTRAINTS.maxFaces.min).max(AI_CONFIG_CONSTRAINTS.maxFaces.max),
   livenessDetection: z.boolean(),
-  minFaceSize: z.number().int().min(32).max(600).default(80),
+  minFaceSize: z.number().int().min(AI_CONFIG_CONSTRAINTS.minFaceSize.min).max(AI_CONFIG_CONSTRAINTS.minFaceSize.max),
 });
-
-const DEFAULT_AI_CONFIG = {
-  confidenceThreshold: 0.72,
-  detectionIntervalMs: 500,
-  maxFaces: 1,
-  livenessDetection: false,
-  minFaceSize: 85,
-  recommendedEmbeddingModel: 'Transformers.js ArcFace (512d)',
-  recommendedDetectorModel: 'Browser FaceDetector API',
-};
 
 export const GET = withAuth(
   withRBAC(['EVENT_VIEW'], async (req: NextRequest, context: RouteContext) => {
@@ -65,8 +63,6 @@ export const GET = withAuth(
             maxFaces: row.max_faces,
             livenessDetection: row.liveness_detection,
             minFaceSize: row.min_face_size,
-            recommendedEmbeddingModel: DEFAULT_AI_CONFIG.recommendedEmbeddingModel,
-            recommendedDetectorModel: DEFAULT_AI_CONFIG.recommendedDetectorModel,
           }
         : DEFAULT_AI_CONFIG,
       { status: 200 },
@@ -116,14 +112,7 @@ export const PATCH = withAuth(
           updated_at = NOW()
       `;
 
-      return NextResponse.json(
-        {
-          ...data,
-          recommendedEmbeddingModel: DEFAULT_AI_CONFIG.recommendedEmbeddingModel,
-          recommendedDetectorModel: DEFAULT_AI_CONFIG.recommendedDetectorModel,
-        },
-        { status: 200 },
-      );
+      return NextResponse.json(data, { status: 200 });
     } catch (error) {
       if (error instanceof z.ZodError) {
         return NextResponse.json({ error: error.issues[0]?.message ?? 'Invalid payload.' }, { status: 400 });

@@ -99,8 +99,6 @@ export interface EventAIConfigResponse {
   maxFaces: number;
   livenessDetection: boolean;
   minFaceSize: number;
-  recommendedEmbeddingModel: string;
-  recommendedDetectorModel: string;
 }
 
 export interface UpdateEventAIConfigRequest {

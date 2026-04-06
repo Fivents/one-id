@@ -905,6 +905,7 @@ export type TranslationSchema = {
       checkinsTitle: string;
       settingsTitle: string;
       aiTitle: string;
+      facialRecognitionTitle: string;
       participantDetailsTitle: string;
       // Descriptions
       eventDetailsDescription: string;
@@ -913,6 +914,7 @@ export type TranslationSchema = {
       checkinsDescription: string;
       settingsDescription: string;
       aiDescription: string;
+      facialRecognitionDescription: string;
       participantDetailsDescription: string;
       addParticipantDescription: string;
       changeLocationDescription: string;
@@ -938,13 +940,17 @@ export type TranslationSchema = {
       description: string;
       status: string;
       statusSelect: string;
+      statusFinal: string;
       method: string;
       detector: string;
       confidence: string;
       confidenceThreshold: string;
+      confidenceThresholdHint: string;
       minFaceSize: string;
+      minFaceSizeHint: string;
       maxFaces: string;
       detectionInterval: string;
+      detectionIntervalHint: string;
       embedding: string;
       facePreview: string;
       imageUrl: string;
@@ -958,6 +964,9 @@ export type TranslationSchema = {
       lastHeartbeat: string;
       printConfig: string;
       recommendedStack: string;
+      experimental: string;
+      resetToDefaults: string;
+      aiResetSuccess: string;
       // Statuses
       checkedIn: string;
       pending: string;

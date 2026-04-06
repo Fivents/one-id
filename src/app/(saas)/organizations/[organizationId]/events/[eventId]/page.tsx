@@ -15,6 +15,7 @@ import {
   MonitorSmartphone,
   Pencil,
   Plus,
+  RotateCcw,
   ScanFace,
   Search,
   Trash2,
@@ -64,6 +65,8 @@ import type {
 import { extractFaceEmbedding } from '@/core/application/client-services/totem/face-embedding.client';
 import { useApp, useAuth, usePermissions } from '@/core/application/contexts';
 import type { EventResponse } from '@/core/communication/responses/event';
+import { AI_CONFIG_CONSTRAINTS, DEFAULT_AI_CONFIG } from '@/core/domain/constants/ai-config.constants';
+import { getValidTransitions, isFinalStatus } from '@/core/domain/constants/event-transitions.constants';
 import { useI18n } from '@/i18n';
 
 function formatDateTime(value: Date | string, locale: string) {
@@ -194,13 +197,11 @@ export default function EventDetailPage() {
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [isCreatingPrintConfig, setIsCreatingPrintConfig] = useState(false);
   const [aiConfig, setAiConfig] = useState<EventAIConfigResponse>({
-    confidenceThreshold: 0.75,
-    detectionIntervalMs: 500,
-    maxFaces: 1,
-    livenessDetection: false,
-    minFaceSize: 80,
-    recommendedEmbeddingModel: 'Transformers.js ArcFace (512d)',
-    recommendedDetectorModel: 'Browser FaceDetector API',
+    confidenceThreshold: DEFAULT_AI_CONFIG.confidenceThreshold,
+    detectionIntervalMs: DEFAULT_AI_CONFIG.detectionIntervalMs,
+    maxFaces: DEFAULT_AI_CONFIG.maxFaces,
+    livenessDetection: DEFAULT_AI_CONFIG.livenessDetection,
+    minFaceSize: DEFAULT_AI_CONFIG.minFaceSize,
   });
   const [isSavingAIConfig, setIsSavingAIConfig] = useState(false);
 
@@ -1052,6 +1053,40 @@ export default function EventDetailPage() {
     }
   }
 
+  async function handleResetAIConfig() {
+    setIsSavingAIConfig(true);
+    try {
+      const response = await eventsClient.updateEventAIConfig(eventId, {
+        confidenceThreshold: DEFAULT_AI_CONFIG.confidenceThreshold,
+        detectionIntervalMs: DEFAULT_AI_CONFIG.detectionIntervalMs,
+        maxFaces: DEFAULT_AI_CONFIG.maxFaces,
+        livenessDetection: DEFAULT_AI_CONFIG.livenessDetection,
+        minFaceSize: DEFAULT_AI_CONFIG.minFaceSize,
+      });
+
+      if (!response.success) {
+        throw new Error(response.error.message);
+      }
+
+      setAiConfig(response.data);
+      toast.success(t('pages.eventDetail.aiResetSuccess'));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : t('pages.eventDetail.aiUpdateError');
+      toast.error(message);
+    } finally {
+      setIsSavingAIConfig(false);
+    }
+  }
+
+  // Calculate valid status transitions
+  const validStatusTransitions = useMemo(() => {
+    return getValidTransitions(event?.status ?? 'DRAFT');
+  }, [event?.status]);
+
+  const isStatusFinal = useMemo(() => {
+    return isFinalStatus(event?.status ?? 'DRAFT');
+  }, [event?.status]);
+
   if (isLoadingPage || !isAuthenticated || !canView) {
     return null;
   }
@@ -1078,7 +1113,6 @@ export default function EventDetailPage() {
           <TabsTrigger value="participants">{t('pages.eventDetail.tabParticipants')}</TabsTrigger>
           <TabsTrigger value="totems">{t('pages.eventDetail.tabTotems')}</TabsTrigger>
           <TabsTrigger value="checkins">{t('pages.eventDetail.tabCheckins')}</TabsTrigger>
-          <TabsTrigger value="ai">{t('pages.eventDetail.tabAi')}</TabsTrigger>
           <TabsTrigger value="settings">{t('pages.eventDetail.tabSettings')}</TabsTrigger>
         </TabsList>
 
@@ -1444,20 +1478,28 @@ export default function EventDetailPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="settings-status">{t('pages.eventDetail.statusSelect')}</Label>
+                    <Label htmlFor="settings-status">
+                      {t('pages.eventDetail.statusSelect')}
+                      {isStatusFinal && (
+                        <span className="text-muted-foreground ml-2 text-xs">
+                          ({t('pages.eventDetail.statusFinal')})
+                        </span>
+                      )}
+                    </Label>
                     <Select
                       value={settingsStatus}
                       onValueChange={(value) => setSettingsStatus(value as EventResponse['status'])}
+                      disabled={isStatusFinal}
                     >
                       <SelectTrigger id="settings-status">
                         <SelectValue placeholder={t('pages.eventDetail.selectStatus')} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="DRAFT">DRAFT</SelectItem>
-                        <SelectItem value="PUBLISHED">PUBLISHED</SelectItem>
-                        <SelectItem value="ACTIVE">ACTIVE</SelectItem>
-                        <SelectItem value="COMPLETED">COMPLETED</SelectItem>
-                        <SelectItem value="CANCELED">CANCELED</SelectItem>
+                        {validStatusTransitions.map((status) => (
+                          <SelectItem key={status} value={status}>
+                            {status}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -1552,6 +1594,139 @@ export default function EventDetailPage() {
             </CardContent>
           </Card>
 
+          {/* Facial Recognition Settings Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <ScanFace className="h-5 w-5" />
+                {t('pages.eventDetail.facialRecognitionTitle')}
+              </CardTitle>
+              <CardDescription>{t('pages.eventDetail.facialRecognitionDescription')}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleSaveAIConfig} className="space-y-4">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="ai-threshold">{t('pages.eventDetail.confidenceThreshold')}</Label>
+                    <Input
+                      id="ai-threshold"
+                      type="number"
+                      min={AI_CONFIG_CONSTRAINTS.confidenceThreshold.min}
+                      max={AI_CONFIG_CONSTRAINTS.confidenceThreshold.max}
+                      step={AI_CONFIG_CONSTRAINTS.confidenceThreshold.step}
+                      value={aiConfig.confidenceThreshold}
+                      onChange={(e) =>
+                        setAiConfig((current) => ({
+                          ...current,
+                          confidenceThreshold: Number(e.target.value),
+                        }))
+                      }
+                    />
+                    <p className="text-muted-foreground text-xs">
+                      {t('pages.eventDetail.confidenceThresholdHint')}
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="ai-interval">{t('pages.eventDetail.detectionInterval')}</Label>
+                    <Input
+                      id="ai-interval"
+                      type="number"
+                      min={AI_CONFIG_CONSTRAINTS.detectionIntervalMs.min}
+                      max={AI_CONFIG_CONSTRAINTS.detectionIntervalMs.max}
+                      step={AI_CONFIG_CONSTRAINTS.detectionIntervalMs.step}
+                      value={aiConfig.detectionIntervalMs}
+                      onChange={(e) =>
+                        setAiConfig((current) => ({
+                          ...current,
+                          detectionIntervalMs: Number(e.target.value),
+                        }))
+                      }
+                    />
+                    <p className="text-muted-foreground text-xs">
+                      {t('pages.eventDetail.detectionIntervalHint')}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="ai-max-faces">{t('pages.eventDetail.maxFaces')}</Label>
+                    <Input
+                      id="ai-max-faces"
+                      type="number"
+                      min={AI_CONFIG_CONSTRAINTS.maxFaces.min}
+                      max={AI_CONFIG_CONSTRAINTS.maxFaces.max}
+                      step={AI_CONFIG_CONSTRAINTS.maxFaces.step}
+                      value={aiConfig.maxFaces}
+                      onChange={(e) =>
+                        setAiConfig((current) => ({
+                          ...current,
+                          maxFaces: Number(e.target.value),
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="ai-min-face-size">{t('pages.eventDetail.minFaceSize')}</Label>
+                    <Input
+                      id="ai-min-face-size"
+                      type="number"
+                      min={AI_CONFIG_CONSTRAINTS.minFaceSize.min}
+                      max={AI_CONFIG_CONSTRAINTS.minFaceSize.max}
+                      step={AI_CONFIG_CONSTRAINTS.minFaceSize.step}
+                      value={aiConfig.minFaceSize}
+                      onChange={(e) =>
+                        setAiConfig((current) => ({
+                          ...current,
+                          minFaceSize: Number(e.target.value),
+                        }))
+                      }
+                    />
+                    <p className="text-muted-foreground text-xs">
+                      {t('pages.eventDetail.minFaceSizeHint')}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 rounded-lg border p-3">
+                  <input
+                    id="ai-liveness"
+                    type="checkbox"
+                    checked={aiConfig.livenessDetection}
+                    onChange={(e) =>
+                      setAiConfig((current) => ({
+                        ...current,
+                        livenessDetection: e.target.checked,
+                      }))
+                    }
+                    className="h-4 w-4"
+                  />
+                  <Label htmlFor="ai-liveness" className="flex-1 cursor-pointer">
+                    {t('pages.eventDetail.enableLiveness')}
+                    <span className="text-muted-foreground ml-2 text-xs">
+                      ({t('pages.eventDetail.experimental')})
+                    </span>
+                  </Label>
+                </div>
+
+                <div className="flex justify-between gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleResetAIConfig}
+                    disabled={isSavingAIConfig}
+                  >
+                    <RotateCcw className="mr-2 h-4 w-4" />
+                    {t('pages.eventDetail.resetToDefaults')}
+                  </Button>
+                  <Button type="submit" disabled={isSavingAIConfig}>
+                    {isSavingAIConfig ? t('pages.eventDetail.saving') : t('pages.eventDetail.saveAiSettings')}
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+
           {/* Public Link Card */}
           <Card>
             <CardHeader>
@@ -1605,123 +1780,6 @@ export default function EventDetailPage() {
                   </Button>
                 </div>
               )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="ai" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>{t('pages.eventDetail.aiTitle')}</CardTitle>
-              <CardDescription>{t('pages.eventDetail.aiDescription')}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSaveAIConfig} className="space-y-4">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="ai-threshold">{t('pages.eventDetail.confidenceThreshold')}</Label>
-                    <Input
-                      id="ai-threshold"
-                      type="number"
-                      min={0.3}
-                      max={0.99}
-                      step={0.01}
-                      value={aiConfig.confidenceThreshold}
-                      onChange={(e) =>
-                        setAiConfig((current) => ({
-                          ...current,
-                          confidenceThreshold: Number(e.target.value),
-                        }))
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="ai-interval">{t('pages.eventDetail.detectionInterval')}</Label>
-                    <Input
-                      id="ai-interval"
-                      type="number"
-                      min={100}
-                      max={5000}
-                      step={50}
-                      value={aiConfig.detectionIntervalMs}
-                      onChange={(e) =>
-                        setAiConfig((current) => ({
-                          ...current,
-                          detectionIntervalMs: Number(e.target.value),
-                        }))
-                      }
-                    />
-                  </div>
-                </div>
-
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="ai-max-faces">{t('pages.eventDetail.maxFaces')}</Label>
-                    <Input
-                      id="ai-max-faces"
-                      type="number"
-                      min={1}
-                      max={5}
-                      step={1}
-                      value={aiConfig.maxFaces}
-                      onChange={(e) =>
-                        setAiConfig((current) => ({
-                          ...current,
-                          maxFaces: Number(e.target.value),
-                        }))
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="ai-min-face-size">{t('pages.eventDetail.minFaceSize')}</Label>
-                    <Input
-                      id="ai-min-face-size"
-                      type="number"
-                      min={32}
-                      max={600}
-                      step={1}
-                      value={aiConfig.minFaceSize}
-                      onChange={(e) =>
-                        setAiConfig((current) => ({
-                          ...current,
-                          minFaceSize: Number(e.target.value),
-                        }))
-                      }
-                    />
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3 rounded-lg border p-3">
-                  <input
-                    id="ai-liveness"
-                    type="checkbox"
-                    checked={aiConfig.livenessDetection}
-                    onChange={(e) =>
-                      setAiConfig((current) => ({
-                        ...current,
-                        livenessDetection: e.target.checked,
-                      }))
-                    }
-                  />
-                  <Label htmlFor="ai-liveness">{t('pages.eventDetail.enableLiveness')}</Label>
-                </div>
-
-                <div className="bg-muted/30 rounded-lg border p-3 text-sm">
-                  <p className="font-medium">{t('pages.eventDetail.recommendedStack')}</p>
-                  <p className="text-muted-foreground mt-1">
-                    {t('pages.eventDetail.detector')}: {aiConfig.recommendedDetectorModel}
-                  </p>
-                  <p className="text-muted-foreground">
-                    {t('pages.eventDetail.embedding')}: {aiConfig.recommendedEmbeddingModel}
-                  </p>
-                </div>
-
-                <div className="flex justify-end">
-                  <Button type="submit" disabled={isSavingAIConfig}>
-                    {isSavingAIConfig ? t('pages.eventDetail.saving') : t('pages.eventDetail.saveAiSettings')}
-                  </Button>
-                </div>
-              </form>
             </CardContent>
           </Card>
         </TabsContent>

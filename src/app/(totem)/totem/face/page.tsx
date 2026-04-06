@@ -8,6 +8,12 @@ import { ArrowLeft, CheckCircle2, Loader2, User, XCircle } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { extractFaceEmbedding } from '@/core/application/client-services/totem/face-embedding.client';
+import {
+  fetchPrintConfig,
+  logPrintAttempt,
+  printBadge,
+  type PrintParticipantData,
+} from '@/core/application/client-services/totem/print.client';
 import { sendCheckIn } from '@/core/application/client-services/totem/totem-client.service';
 
 import { useTotemSession } from '../_lib/use-totem-session';
@@ -187,6 +193,28 @@ export default function TotemFacePage() {
         }
 
         notRecognizedStreakRef.current = 0;
+
+        // Trigger print in background (non-blocking)
+        void (async () => {
+          try {
+            const printConfig = await fetchPrintConfig(session.activeEvent.id);
+            if (printConfig) {
+              const participantData: PrintParticipantData = {
+                name: response.data.participant.name,
+                company: response.data.participant.company,
+                jobTitle: response.data.participant.jobTitle,
+                participantId: response.data.eventParticipantId,
+                checkInId: response.data.id,
+                eventName: session.activeEvent.name,
+                eventId: session.activeEvent.id,
+              };
+              const result = await printBadge(printConfig, participantData);
+              logPrintAttempt(session.activeEvent.id, response.data.eventParticipantId, result);
+            }
+          } catch (printError) {
+            console.error('[TotemFace] Print error (non-blocking):', printError);
+          }
+        })();
 
         setFeedback({
           type: 'success',

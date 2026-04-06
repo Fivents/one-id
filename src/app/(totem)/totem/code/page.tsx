@@ -7,6 +7,12 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft, CheckCircle2, Hash, KeyRound, Loader2, XCircle } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import {
+  fetchPrintConfig,
+  logPrintAttempt,
+  printBadge,
+  type PrintParticipantData,
+} from '@/core/application/client-services/totem/print.client';
 import { sendCheckIn } from '@/core/application/client-services/totem/totem-client.service';
 
 import { useTotemSession } from '../_lib/use-totem-session';
@@ -88,6 +94,30 @@ export default function TotemCodePage() {
       });
       setIsSubmitting(false);
       return;
+    }
+
+    // Trigger print in background (non-blocking)
+    if (session) {
+      void (async () => {
+        try {
+          const printConfig = await fetchPrintConfig(session.activeEvent.id);
+          if (printConfig) {
+            const participantData: PrintParticipantData = {
+              name: response.data.participant.name,
+              company: response.data.participant.company,
+              jobTitle: response.data.participant.jobTitle,
+              participantId: response.data.eventParticipantId,
+              checkInId: response.data.id,
+              eventName: session.activeEvent.name,
+              eventId: session.activeEvent.id,
+            };
+            const result = await printBadge(printConfig, participantData);
+            logPrintAttempt(session.activeEvent.id, response.data.eventParticipantId, result);
+          }
+        } catch (printError) {
+          console.error('[TotemCode] Print error (non-blocking):', printError);
+        }
+      })();
     }
 
     setFeedback({
