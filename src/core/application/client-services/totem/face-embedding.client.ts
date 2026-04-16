@@ -1,6 +1,15 @@
-import { env } from '@huggingface/transformers';
 import { FaceDetector, FilesetResolver } from '@mediapipe/tasks-vision';
 import * as ort from 'onnxruntime-web';
+
+import {
+  activateFallbackArcFaceModel,
+  activatePrimaryArcFaceModel,
+  getArcFaceModelState,
+  getArcFaceSession,
+  prepareArcFaceModels,
+  subscribeArcFaceModelState,
+  type ArcFaceModelRuntimeState,
+} from './arcface-model-manager.client';
 
 import {
   adaptAndNormalizeFaceEmbedding,
@@ -8,7 +17,6 @@ import {
   isSupportedFaceEmbeddingDimension,
 } from '@/core/utils/face-embedding';
 
-const ARCFACE_MODEL_PATH = process.env.NEXT_PUBLIC_ARCFACE_ONNX_PATH ?? '/models/arcface/onnx/model.onnx';
 const ARCFACE_INPUT_SIZE = 112;
 const MEDIAPIPE_WASM_PATH =
   process.env.NEXT_PUBLIC_MEDIAPIPE_WASM_PATH ?? 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.34/wasm';
@@ -21,7 +29,6 @@ const QUALITY_CANVAS_SIZE = 128;
 const LAPLACIAN_LOW_VARIANCE = 120;
 const LAPLACIAN_HIGH_VARIANCE = 900;
 
-let arcFaceSessionPromise: Promise<ort.InferenceSession> | null = null;
 let faceDetectorPromise: Promise<FaceDetector> | null = null;
 
 type TensorLayout = 'NCHW' | 'NHWC';
@@ -52,33 +59,6 @@ type ExtractedFaceEmbedding = {
   faceCount: number;
   faceDetectionData: Record<string, unknown>;
 };
-
-function configureRuntime() {
-  env.allowRemoteModels = false;
-  env.allowLocalModels = true;
-  env.localModelPath = '/models';
-
-  if (env.backends.onnx.wasm) {
-    env.backends.onnx.wasm.wasmPaths = '/wasm/';
-  }
-
-  ort.env.wasm.wasmPaths = '/wasm/';
-  ort.env.wasm.proxy = false;
-  ort.env.wasm.simd = true;
-}
-
-async function getArcFaceSession(): Promise<ort.InferenceSession> {
-  if (!arcFaceSessionPromise) {
-    configureRuntime();
-
-    arcFaceSessionPromise = ort.InferenceSession.create(ARCFACE_MODEL_PATH, {
-      executionProviders: ['wasm'],
-      graphOptimizationLevel: 'all',
-    });
-  }
-
-  return arcFaceSessionPromise;
-}
 
 async function getFaceDetector(): Promise<FaceDetector> {
   if (!faceDetectorPromise) {
@@ -560,3 +540,12 @@ export async function extractFaceEmbedding(
     bitmap.close();
   }
 }
+
+export {
+  activateFallbackArcFaceModel,
+  activatePrimaryArcFaceModel,
+  getArcFaceModelState,
+  prepareArcFaceModels,
+  subscribeArcFaceModelState,
+  type ArcFaceModelRuntimeState,
+};

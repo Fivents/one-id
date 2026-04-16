@@ -4,10 +4,26 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useRouter } from 'next/navigation';
 
-import { ArrowLeft, CheckCircle2, Loader2, User, XCircle } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, CloudDownload, Cpu, Loader2, ShieldAlert, User, XCircle } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { extractFaceEmbedding } from '@/core/application/client-services/totem/face-embedding.client';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  activateFallbackArcFaceModel,
+  activatePrimaryArcFaceModel,
+  extractFaceEmbedding,
+  getArcFaceModelState,
+  prepareArcFaceModels,
+  subscribeArcFaceModelState,
+  type ArcFaceModelRuntimeState,
+} from '@/core/application/client-services/totem/face-embedding.client';
 import {
   fetchPrintConfig,
   logPrintAttempt,
@@ -31,6 +47,10 @@ type Feedback =
       description: string;
     };
 
+function formatMegabytes(bytes: number): string {
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 export default function TotemFacePage() {
   const router = useRouter();
   const { session, isLoading } = useTotemSession();
@@ -43,6 +63,88 @@ export default function TotemFacePage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [countdown, setCountdown] = useState(3);
+  const [modelState, setModelState] = useState<ArcFaceModelRuntimeState>(() => getArcFaceModelState());
+  const [showFallbackConfirm, setShowFallbackConfirm] = useState(false);
+  const [showPrimaryReadyPrompt, setShowPrimaryReadyPrompt] = useState(false);
+  const [isSwitchingModel, setIsSwitchingModel] = useState(false);
+
+  const isModelReadyForCapture =
+    modelState.activeVariant === 'primary'
+      ? modelState.primary.status === 'ready'
+      : modelState.fallback.status === 'ready';
+
+  const shouldBlockForPrimaryModel =
+    !feedback && modelState.activeVariant === 'primary' && modelState.primary.status !== 'ready';
+
+  const hasModelLoadError = modelState.primary.status === 'error';
+  const canUseFallback = modelState.fallback.status !== 'error';
+  const isPrimaryDownloading = modelState.primary.status === 'downloading';
+  const hasKnownPrimarySize = typeof modelState.primary.totalBytes === 'number' && modelState.primary.totalBytes > 0;
+
+  const primaryProgressDetail = hasKnownPrimarySize
+    ? `${modelState.primary.progressPercent}% • ${formatMegabytes(modelState.primary.downloadedBytes)} / ${formatMegabytes(modelState.primary.totalBytes ?? 0)}`
+    : `${formatMegabytes(modelState.primary.downloadedBytes)} baixados`;
+
+  useEffect(() => {
+    const unsubscribe = subscribeArcFaceModelState((nextState) => {
+      setModelState(nextState);
+    });
+
+    prepareArcFaceModels({ preloadFallback: true });
+
+    return () => {
+      unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (modelState.activeVariant === 'primary') {
+      setShowPrimaryReadyPrompt(false);
+      return;
+    }
+
+    if (modelState.primary.status === 'ready') {
+      setShowPrimaryReadyPrompt(true);
+    }
+  }, [modelState.activeVariant, modelState.primary.status]);
+
+  const handleFallbackActivation = useCallback(async () => {
+    setIsSwitchingModel(true);
+
+    try {
+      await activateFallbackArcFaceModel();
+      setShowFallbackConfirm(false);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Não foi possível ativar a 2ª opção de reconhecimento.';
+
+      setFeedback({
+        type: 'error',
+        title: 'Falha ao ativar a 2ª opção',
+        description: message,
+      });
+    } finally {
+      setIsSwitchingModel(false);
+    }
+  }, []);
+
+  const handlePrimaryActivation = useCallback(async () => {
+    setIsSwitchingModel(true);
+
+    try {
+      await activatePrimaryArcFaceModel();
+      setShowPrimaryReadyPrompt(false);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Não foi possível trocar para o modelo principal.';
+
+      setFeedback({
+        type: 'error',
+        title: 'Falha ao ativar modelo principal',
+        description: message,
+      });
+    } finally {
+      setIsSwitchingModel(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (!session || isLoading) {
@@ -125,7 +227,7 @@ export default function TotemFacePage() {
   const handleFaceCheckIn = useCallback(
     async (isLoopAttempt = false) => {
       const video = videoRef.current;
-      if (!session || !video || video.videoWidth === 0 || video.videoHeight === 0) {
+      if (!session || !video || video.videoWidth === 0 || video.videoHeight === 0 || !isModelReadyForCapture) {
         return;
       }
 
@@ -245,11 +347,11 @@ export default function TotemFacePage() {
         setIsSubmitting(false);
       }
     },
-    [isSubmitting, session],
+    [isModelReadyForCapture, isSubmitting, session],
   );
 
   useEffect(() => {
-    if (!isCameraReady || isSubmitting || feedback) {
+    if (!isCameraReady || isSubmitting || feedback || !isModelReadyForCapture) {
       return;
     }
 
@@ -276,7 +378,7 @@ export default function TotemFacePage() {
     return () => {
       cancelled = true;
     };
-  }, [feedback, handleFaceCheckIn, isCameraReady, isSubmitting]);
+  }, [feedback, handleFaceCheckIn, isCameraReady, isModelReadyForCapture, isSubmitting]);
 
   if (isLoading || !session) {
     return (
@@ -375,6 +477,58 @@ export default function TotemFacePage() {
         <p className="mt-1 text-sm text-slate-400">Posicione seu rosto no centro da câmera</p>
       </div>
 
+      {modelState.activeVariant === 'fallback' && (
+        <div className="animate-in fade-in mx-auto mb-4 w-full max-w-3xl rounded-2xl border border-amber-400/30 bg-gradient-to-r from-amber-500/20 to-amber-400/10 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-400/20">
+                <Cpu className="h-5 w-5 text-amber-200" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-amber-100">2ª opção em uso</p>
+                <p className="text-xs text-amber-100/80">
+                  {modelState.primary.status === 'ready'
+                    ? 'Modelo principal disponível para troca.'
+                    : `Baixando modelo principal em segundo plano (${primaryProgressDetail})`}
+                </p>
+              </div>
+            </div>
+
+            {showPrimaryReadyPrompt && modelState.primary.status === 'ready' && (
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="lg"
+                  className="h-12 border-amber-300/50 bg-transparent text-amber-100 hover:bg-amber-400/20"
+                  onClick={() => setShowPrimaryReadyPrompt(false)}
+                >
+                  Manter 2ª opção
+                </Button>
+                <Button
+                  type="button"
+                  size="lg"
+                  className="h-12 bg-emerald-500 text-white hover:bg-emerald-500/90"
+                  onClick={() => {
+                    void handlePrimaryActivation();
+                  }}
+                  disabled={isSwitchingModel}
+                >
+                  {isSwitchingModel ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Trocando...
+                    </>
+                  ) : (
+                    'Usar modelo principal'
+                  )}
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Camera container - fills available space */}
       <div className="relative mx-auto flex w-full max-w-3xl flex-1 flex-col">
         {/* Subtle border */}
@@ -406,6 +560,73 @@ export default function TotemFacePage() {
                   <Loader2 className="h-10 w-10 animate-spin text-violet-400" />
                 </div>
                 <p className="text-lg font-medium text-white">Verificando...</p>
+              </div>
+            </div>
+          )}
+
+          {shouldBlockForPrimaryModel && (
+            <div className="absolute inset-0 z-20 flex items-center justify-center bg-slate-950/88 p-4 backdrop-blur-md">
+              <div className="w-full max-w-lg rounded-3xl border border-violet-400/30 bg-gradient-to-br from-slate-900/95 to-slate-800/95 p-6 shadow-2xl shadow-black/50">
+                <div className="mb-5 flex items-start gap-4">
+                  <div className="relative mt-1 flex h-12 w-12 items-center justify-center rounded-full bg-violet-500/20 ring-1 ring-violet-400/40">
+                    <CloudDownload className="h-6 w-6 text-violet-300" />
+                    {isPrimaryDownloading && <Loader2 className="absolute -right-1 -bottom-1 h-4 w-4 animate-spin text-violet-200" />}
+                  </div>
+                  <div className="flex-1">
+                    <h2 className="text-xl font-semibold text-white">Preparando modelo principal de reconhecimento</h2>
+                    <p className="mt-1 text-sm text-slate-300">
+                      O download é feito em runtime para garantir qualidade máxima no check-in facial.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mb-2 flex items-center justify-between text-xs text-slate-300">
+                  <span>{hasModelLoadError ? 'Falha ao carregar modelo principal' : 'Progresso do download'}</span>
+                  <span className="font-mono tabular-nums">{primaryProgressDetail}</span>
+                </div>
+                <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-700/70">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-violet-500 via-fuchsia-400 to-cyan-300 transition-all duration-200"
+                    style={{ width: `${Math.max(2, modelState.primary.progressPercent)}%` }}
+                  />
+                </div>
+
+                {hasModelLoadError && (
+                  <div className="mt-4 rounded-2xl border border-rose-400/30 bg-rose-500/10 p-3 text-sm text-rose-100">
+                    <div className="mb-1 flex items-center gap-2 font-medium">
+                      <ShieldAlert className="h-4 w-4" />
+                      Falha no modelo principal
+                    </div>
+                    <p className="text-xs text-rose-100/90">{modelState.primary.errorMessage ?? 'Sem detalhes adicionais.'}</p>
+                  </div>
+                )}
+
+                <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <Button
+                    type="button"
+                    size="lg"
+                    className="h-14 bg-emerald-500 text-base text-white hover:bg-emerald-500/90"
+                    onClick={() => {
+                      setShowFallbackConfirm(true);
+                    }}
+                    disabled={!canUseFallback || isSwitchingModel}
+                  >
+                    {isSwitchingModel ? (
+                      <>
+                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                        Ativando...
+                      </>
+                    ) : (
+                      'Usar 2ª opção'
+                    )}
+                  </Button>
+
+                  <div className="flex h-14 items-center justify-center rounded-xl border border-slate-700/70 bg-slate-900/60 px-4 text-center text-xs text-slate-300">
+                    {canUseFallback
+                      ? 'Você pode continuar imediatamente com a 2ª opção enquanto o principal baixa em segundo plano.'
+                      : 'A 2ª opção não está disponível agora. Aguarde o modelo principal terminar.'}
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -447,6 +668,60 @@ export default function TotemFacePage() {
           Voltar
         </Button>
       </div>
+
+      <Dialog
+        open={showFallbackConfirm}
+        onOpenChange={(open) => {
+          if (isSwitchingModel) {
+            return;
+          }
+
+          setShowFallbackConfirm(open);
+        }}
+      >
+        <DialogContent className="border-amber-400/30 bg-gradient-to-br from-slate-900 to-slate-800 text-white" showCloseButton={false}>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-amber-200">
+              <ShieldAlert className="h-5 w-5" />
+              Confirmar uso da 2ª opção
+            </DialogTitle>
+            <DialogDescription className="text-slate-300">
+              A 2ª opção inicia mais rápido, mas o modelo principal continuará baixando em segundo plano para máxima precisão.
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter className="sm:justify-between">
+            <Button
+              type="button"
+              variant="outline"
+              size="lg"
+              className="h-12 border-slate-600 bg-slate-900/50 text-slate-100 hover:bg-slate-800"
+              onClick={() => setShowFallbackConfirm(false)}
+              disabled={isSwitchingModel}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              size="lg"
+              className="h-12 bg-emerald-500 text-white hover:bg-emerald-500/90"
+              onClick={() => {
+                void handleFallbackActivation();
+              }}
+              disabled={isSwitchingModel}
+            >
+              {isSwitchingModel ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Ativando 2ª opção...
+                </>
+              ) : (
+                'Confirmar 2ª opção'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
