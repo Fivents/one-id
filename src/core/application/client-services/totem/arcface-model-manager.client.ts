@@ -1,7 +1,8 @@
 import * as ort from 'onnxruntime-web';
 
-const DEFAULT_PRIMARY_REMOTE_MODEL_URL = 'https://huggingface.co/onnx-community/arcface-onnx/resolve/main/arcface.onnx';
+const DEFAULT_PRIMARY_REMOTE_MODEL_URL = '/models/arcface/onnx/arcfaceresnet100-11-int8.onnx';
 const DEFAULT_FALLBACK_MODEL_PATH = '/models/arcface/onnx/arcfaceresnet100-11-int8.onnx';
+const DEFAULT_PRIMARY_REMOTE_TIMEOUT_MS = 25_000;
 const PRIMARY_MODEL_CACHE_NAME = 'one-id-arcface-model-cache';
 const PRIMARY_MODEL_CACHE_KEY = process.env.NEXT_PUBLIC_ARCFACE_ONNX_CACHE_KEY?.trim() || 'arcface-primary-v1';
 
@@ -12,6 +13,11 @@ const PRIMARY_REMOTE_MODEL_URL =
     ? LEGACY_PRIMARY_MODEL_PATH
     : DEFAULT_PRIMARY_REMOTE_MODEL_URL);
 const FALLBACK_MODEL_PATH = process.env.NEXT_PUBLIC_ARCFACE_FALLBACK_ONNX_PATH?.trim() || DEFAULT_FALLBACK_MODEL_PATH;
+const parsedPrimaryRemoteTimeout = Number.parseInt(process.env.NEXT_PUBLIC_ARCFACE_ONNX_REMOTE_TIMEOUT_MS ?? '', 10);
+const PRIMARY_REMOTE_TIMEOUT_MS =
+  Number.isFinite(parsedPrimaryRemoteTimeout) && parsedPrimaryRemoteTimeout > 0
+    ? parsedPrimaryRemoteTimeout
+    : DEFAULT_PRIMARY_REMOTE_TIMEOUT_MS;
 
 type ArcFaceModelStatus = 'idle' | 'downloading' | 'ready' | 'error';
 type ArcFaceFallbackStatus = 'idle' | 'loading' | 'ready' | 'error';
@@ -173,37 +179,113 @@ async function clearPrimaryModelCache(): Promise<void> {
 }
 
 async function downloadPrimaryModelFromRemote(): Promise<ArrayBuffer> {
-  const response = await fetch(PRIMARY_REMOTE_MODEL_URL, {
-    method: 'GET',
-    cache: 'no-store',
-    headers: {
-      Accept: 'application/octet-stream',
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to download primary ArcFace model (status ${response.status}).`);
-  }
-
-  const totalHeader = response.headers.get('content-length');
-  const totalBytesParsed = Number.parseInt(totalHeader ?? '', 10);
-  const totalBytes = Number.isFinite(totalBytesParsed) && totalBytesParsed > 0 ? totalBytesParsed : null;
-
   setState((current) => ({
     ...current,
     primary: {
       ...current.primary,
       status: 'downloading',
-      totalBytes,
       source: 'remote',
       downloadedBytes: 0,
+      totalBytes: null,
       progressPercent: 0,
       errorMessage: null,
     },
   }));
 
-  if (!response.body) {
-    const buffer = await response.arrayBuffer();
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => {
+    controller.abort();
+  }, PRIMARY_REMOTE_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(PRIMARY_REMOTE_MODEL_URL, {
+      method: 'GET',
+      cache: 'no-store',
+      headers: {
+        Accept: 'application/octet-stream',
+      },
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to download primary ArcFace model (status ${response.status}).`);
+    }
+
+    const totalHeader = response.headers.get('content-length');
+    const totalBytesParsed = Number.parseInt(totalHeader ?? '', 10);
+    const totalBytes = Number.isFinite(totalBytesParsed) && totalBytesParsed > 0 ? totalBytesParsed : null;
+
+    setState((current) => ({
+      ...current,
+      primary: {
+        ...current.primary,
+        status: 'downloading',
+        totalBytes,
+        source: 'remote',
+        downloadedBytes: 0,
+        progressPercent: 0,
+        errorMessage: null,
+      },
+    }));
+
+    if (!response.body) {
+      const buffer = await response.arrayBuffer();
+
+      setState((current) => ({
+        ...current,
+        primary: {
+          ...current.primary,
+          status: 'ready',
+          source: 'remote',
+          downloadedBytes: buffer.byteLength,
+          totalBytes: buffer.byteLength,
+          progressPercent: 100,
+        },
+      }));
+
+      return buffer;
+    }
+
+    const reader = response.body.getReader();
+    const chunks: Uint8Array[] = [];
+    let downloadedBytes = 0;
+
+    while (true) {
+      const { value, done } = await reader.read();
+
+      if (done) {
+        break;
+      }
+
+      if (!value) {
+        continue;
+      }
+
+      chunks.push(value);
+      downloadedBytes += value.byteLength;
+
+      setState((current) => ({
+        ...current,
+        primary: {
+          ...current.primary,
+          status: 'downloading',
+          source: 'remote',
+          downloadedBytes,
+          totalBytes,
+          progressPercent: totalBytes ? Math.max(1, Math.min(99, Math.round((downloadedBytes / totalBytes) * 100))) : 0,
+        },
+      }));
+    }
+
+    const completeBuffer = new Uint8Array(downloadedBytes);
+    let offset = 0;
+
+    chunks.forEach((chunk) => {
+      completeBuffer.set(chunk, offset);
+      offset += chunk.byteLength;
+    });
+
+    const modelBuffer = completeBuffer.buffer;
 
     setState((current) => ({
       ...current,
@@ -211,70 +293,25 @@ async function downloadPrimaryModelFromRemote(): Promise<ArrayBuffer> {
         ...current.primary,
         status: 'ready',
         source: 'remote',
-        downloadedBytes: buffer.byteLength,
-        totalBytes: buffer.byteLength,
-        progressPercent: 100,
-      },
-    }));
-
-    return buffer;
-  }
-
-  const reader = response.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let downloadedBytes = 0;
-
-  while (true) {
-    const { value, done } = await reader.read();
-
-    if (done) {
-      break;
-    }
-
-    if (!value) {
-      continue;
-    }
-
-    chunks.push(value);
-    downloadedBytes += value.byteLength;
-
-    setState((current) => ({
-      ...current,
-      primary: {
-        ...current.primary,
-        status: 'downloading',
-        source: 'remote',
         downloadedBytes,
-        totalBytes,
-        progressPercent: totalBytes ? Math.max(1, Math.min(99, Math.round((downloadedBytes / totalBytes) * 100))) : 0,
+        totalBytes: totalBytes ?? downloadedBytes,
+        progressPercent: 100,
+        errorMessage: null,
       },
     }));
+
+    return modelBuffer;
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw new Error(
+        `Primary ArcFace model download timed out after ${Math.ceil(PRIMARY_REMOTE_TIMEOUT_MS / 1000)}s.`,
+      );
+    }
+
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
   }
-
-  const completeBuffer = new Uint8Array(downloadedBytes);
-  let offset = 0;
-
-  chunks.forEach((chunk) => {
-    completeBuffer.set(chunk, offset);
-    offset += chunk.byteLength;
-  });
-
-  const modelBuffer = completeBuffer.buffer;
-
-  setState((current) => ({
-    ...current,
-    primary: {
-      ...current.primary,
-      status: 'ready',
-      source: 'remote',
-      downloadedBytes,
-      totalBytes: totalBytes ?? downloadedBytes,
-      progressPercent: 100,
-      errorMessage: null,
-    },
-  }));
-
-  return modelBuffer;
 }
 
 async function ensurePrimaryModelBuffer(options?: { forceRemoteDownload?: boolean }): Promise<ArrayBuffer> {

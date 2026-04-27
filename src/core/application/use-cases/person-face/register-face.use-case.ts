@@ -46,7 +46,7 @@ export class RegisterFaceUseCase {
           level: 'warning',
           context: {
             qualityScore: qualityScore.overallScore,
-            threshold: 0.65,
+            threshold: 0.52,
             failures: qualityScore.assessmentDetails.failures,
           },
         });

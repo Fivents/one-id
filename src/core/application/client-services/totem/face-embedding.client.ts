@@ -2,28 +2,28 @@ import { FaceDetector, FilesetResolver } from '@mediapipe/tasks-vision';
 import * as ort from 'onnxruntime-web';
 
 import {
-  activateFallbackArcFaceModel,
-  activatePrimaryArcFaceModel,
-  getArcFaceModelState,
-  getArcFaceSession,
-  prepareArcFaceModels,
-  subscribeArcFaceModelState,
-  type ArcFaceModelRuntimeState,
-} from './arcface-model-manager.client';
-
-import {
   adaptAndNormalizeFaceEmbedding,
   formatSupportedFaceEmbeddingDimensions,
   isSupportedFaceEmbeddingDimension,
 } from '@/core/utils/face-embedding';
+
+import {
+  activateFallbackArcFaceModel,
+  activatePrimaryArcFaceModel,
+  type ArcFaceModelRuntimeState,
+  getArcFaceModelState,
+  getArcFaceSession,
+  prepareArcFaceModels,
+  subscribeArcFaceModelState,
+} from './arcface-model-manager.client';
 
 const ARCFACE_INPUT_SIZE = 112;
 const MEDIAPIPE_WASM_PATH =
   process.env.NEXT_PUBLIC_MEDIAPIPE_WASM_PATH ?? 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.34/wasm';
 const MEDIAPIPE_FACE_DETECTOR_MODEL_PATH =
   process.env.NEXT_PUBLIC_MEDIAPIPE_FACE_DETECTOR_MODEL_PATH ?? '/models/mediapipe/blaze_face_short_range.tflite';
-const DEFAULT_MIN_DETECTION_CONFIDENCE = 0.6;
-const DEFAULT_MIN_FACE_SIZE_PX = 80;
+const DEFAULT_MIN_DETECTION_CONFIDENCE = 0.45;
+const DEFAULT_MIN_FACE_SIZE_PX = 56;
 const FACE_CROP_EXPANSION_RATIO = 0.2;
 const QUALITY_CANVAS_SIZE = 128;
 const LAPLACIAN_LOW_VARIANCE = 120;
@@ -544,8 +544,8 @@ export async function extractFaceEmbedding(
 export {
   activateFallbackArcFaceModel,
   activatePrimaryArcFaceModel,
+  type ArcFaceModelRuntimeState,
   getArcFaceModelState,
   prepareArcFaceModels,
   subscribeArcFaceModelState,
-  type ArcFaceModelRuntimeState,
 };

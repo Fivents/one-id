@@ -3,6 +3,7 @@
 import { ThemeProvider as NextThemesProvider } from 'next-themes';
 
 import { ConfirmProvider } from '@/components/shared/confirm-dialog';
+import { SyncProvider } from '@/components/shared/sync-provider';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { AppProviders } from '@/core/application/contexts';
@@ -15,7 +16,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
         <AppProviders>
           <TooltipProvider>
             <ConfirmProvider>
-              {children}
+              <SyncProvider>
+                {children}
+              </SyncProvider>
               <Toaster richColors position="top-right" />
             </ConfirmProvider>
           </TooltipProvider>

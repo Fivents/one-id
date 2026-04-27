@@ -7,7 +7,7 @@ export const DEFAULT_AI_CONFIG = {
   detectionIntervalMs: 500,
   maxFaces: 1,
   livenessDetection: false,
-  minFaceSize: 85,
+  minFaceSize: 56,
 } as const;
 
 /**

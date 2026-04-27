@@ -18,11 +18,11 @@ import {
 import {
   activateFallbackArcFaceModel,
   activatePrimaryArcFaceModel,
+  type ArcFaceModelRuntimeState,
   extractFaceEmbedding,
   getArcFaceModelState,
   prepareArcFaceModels,
   subscribeArcFaceModelState,
-  type ArcFaceModelRuntimeState,
 } from '@/core/application/client-services/totem/face-embedding.client';
 import {
   fetchPrintConfig,
@@ -259,8 +259,8 @@ export default function TotemFacePage() {
           {
             requireSingleFace: true,
             maxFaces: session.activeEvent.faceEnabled ? session.aiConfig.maxFaces : 1,
-            minFaceSize: session.aiConfig.minFaceSize,
-            minDetectionConfidence: 0.6,
+            minFaceSize: Math.max(48, Math.min(session.aiConfig.minFaceSize, 64)),
+            minDetectionConfidence: 0.45,
           },
         );
 

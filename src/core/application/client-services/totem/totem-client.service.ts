@@ -94,6 +94,10 @@ interface RequestOptions {
   timeoutMs?: number;
 }
 
+function isTimeoutError(response: ApiResponse<unknown>): boolean {
+  return !response.success && response.error.code === 'REQUEST_TIMEOUT';
+}
+
 function mapFailure(error: unknown): ApiResponse<never> {
   const message = error instanceof Error ? error.message : 'Unexpected error.';
   return {
@@ -197,7 +201,7 @@ export async function getTotemSession(token?: string): Promise<ApiResponse<Totem
     };
   }
 
-  return request<TotemSessionResponse>(
+  const firstAttempt = await request<TotemSessionResponse>(
     '/api/totem/session',
     {
       method: 'GET',
@@ -207,6 +211,24 @@ export async function getTotemSession(token?: string): Promise<ApiResponse<Totem
     },
     {
       timeoutMs: 8000,
+    },
+  );
+
+  if (!isTimeoutError(firstAttempt)) {
+    return firstAttempt;
+  }
+
+  // Retry once with a slightly longer timeout to tolerate cold starts/network jitter.
+  return request<TotemSessionResponse>(
+    '/api/totem/session',
+    {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${activeToken}`,
+      },
+    },
+    {
+      timeoutMs: 12000,
     },
   );
 }

@@ -14,14 +14,14 @@ import type { FaceQualityScore, IFaceQualityService } from '@/core/domain/contra
  */
 export class FaceQualityService implements IFaceQualityService {
   // Configurable thresholds
-  private readonly QUALITY_THRESHOLD = 0.65; // Overall score threshold
+  private readonly QUALITY_THRESHOLD = 0.52; // Overall score threshold
   private readonly MIN_FACE_SIZE = 40; // Minimum face width in pixels (reduced for very close-range detection)
-  private readonly MAX_YAW = Math.PI * 0.2; // ±36 degrees
-  private readonly MAX_PITCH = Math.PI * 0.2; // ±36 degrees
-  private readonly MAX_ROLL = Math.PI * 0.15; // ±27 degrees
-  private readonly MAX_BLUR = 0.3; // Blurriness score threshold
-  private readonly BRIGHTNESS_RANGE = 0.3; // [-0.3, 0.3] is optimal
-  private readonly MIN_LANDMARK_CONFIDENCE = 0.4;
+  private readonly MAX_YAW = Math.PI * 0.25; // ±45 degrees
+  private readonly MAX_PITCH = Math.PI * 0.25; // ±45 degrees
+  private readonly MAX_ROLL = Math.PI * 0.2; // ±36 degrees
+  private readonly MAX_BLUR = 0.45; // Blurriness score threshold
+  private readonly BRIGHTNESS_RANGE = 0.45; // [-0.45, 0.45] is optimal
+  private readonly MIN_LANDMARK_CONFIDENCE = 0.3;
 
   private clamp(value: number, min: number, max: number): number {
     return Math.max(min, Math.min(max, value));
@@ -129,18 +129,21 @@ export class FaceQualityService implements IFaceQualityService {
   isQualityAcceptable(score: FaceQualityScore, threshold?: number): boolean {
     const acceptanceThreshold = threshold ?? this.QUALITY_THRESHOLD;
 
-    // Check all individual dimensions (hard requirements)
+    // Keep hard requirements for fundamental quality dimensions.
     const meetsOverallScore = score.overallScore >= acceptanceThreshold;
     const meetsHeadPose =
       Math.abs(score.headPose.yaw) < this.MAX_YAW &&
       Math.abs(score.headPose.pitch) < this.MAX_PITCH &&
       Math.abs(score.headPose.roll) < this.MAX_ROLL;
-    const meetsFaceSize = score.faceSize > this.MIN_FACE_SIZE;
+    const meetsFaceSize = score.faceSize >= this.MIN_FACE_SIZE;
     const meetsBlur = score.blurriness < this.MAX_BLUR;
     const meetsBrightness = Math.abs(score.brightness) < this.BRIGHTNESS_RANGE;
     const meetsLandmarks = score.landmarks.meanConfidence >= this.MIN_LANDMARK_CONFIDENCE;
 
-    return meetsOverallScore && meetsHeadPose && meetsFaceSize && meetsBlur && meetsBrightness && meetsLandmarks;
+    // Allow one non-critical miss (pose OR blur OR brightness) to reduce false rejections.
+    const nonCriticalFailures = [meetsHeadPose, meetsBlur, meetsBrightness].filter((passed) => !passed).length;
+
+    return meetsOverallScore && meetsFaceSize && meetsLandmarks && nonCriticalFailures <= 1;
   }
 
   getQualityFeedback(score: FaceQualityScore): string[] {

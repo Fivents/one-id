@@ -47,6 +47,7 @@ function EventsPageContent() {
 
   const isLoadingPage = isAppLoading || isAuthLoading || isOrganizationsLoading;
   const hasOrganizationAccess = organizations.some((organization) => organization.id === organizationId);
+  const shouldUseCurrentOrganization = hasOrganizationAccess || organizations.length === 0;
 
   useEffect(() => {
     if (!isLoadingPage && (!isAuthenticated || (!isSuperAdmin() && !hasPermission('EVENT_VIEW')))) {
@@ -56,21 +57,21 @@ function EventsPageContent() {
 
   useEffect(() => {
     if (isAuthenticated && organizationId && (isSuperAdmin() || hasPermission('EVENT_VIEW'))) {
-      if (!hasOrganizationAccess) {
-        if (organizations.length > 0) {
+      if (!shouldUseCurrentOrganization) {
+        if (organizations.length > 0 && organizations[0] && organizations[0].id !== organizationId) {
           router.replace(`/organizations/${organizations[0].id}/events`);
         }
         return;
       }
 
-      fetchEvents(organizationId);
+      void fetchEvents(organizationId);
     }
   }, [
     isAuthenticated,
     organizationId,
     fetchEvents,
     hasPermission,
-    hasOrganizationAccess,
+    shouldUseCurrentOrganization,
     isSuperAdmin,
     organizations,
     router,

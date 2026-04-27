@@ -63,6 +63,7 @@ curl -L "https://storage.googleapis.com/mediapipe-models/face_detector/blaze_fac
 
 ```bash
 NEXT_PUBLIC_ARCFACE_ONNX_REMOTE_URL=https://huggingface.co/onnx-community/arcface-onnx/resolve/main/arcface.onnx
+NEXT_PUBLIC_ARCFACE_ONNX_REMOTE_TIMEOUT_MS=25000
 NEXT_PUBLIC_ARCFACE_FALLBACK_ONNX_PATH=/models/arcface/onnx/arcfaceresnet100-11-int8.onnx
 NEXT_PUBLIC_MEDIAPIPE_FACE_DETECTOR_MODEL_PATH=/models/mediapipe/blaze_face_short_range.tflite
 NEXT_PUBLIC_MEDIAPIPE_WASM_PATH=https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.34/wasm

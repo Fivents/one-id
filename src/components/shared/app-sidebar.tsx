@@ -69,12 +69,16 @@ export function AppSidebar() {
   const router = useRouter();
   const { t } = useI18n();
   const { user, logout } = useAuth();
-  const { activeOrganization } = useOrganization();
+  const { activeOrganization, organizations } = useOrganization();
   const { role } = usePermissions();
 
   const { isSuperAdmin } = usePermissions();
 
-  const organizationId = activeOrganization?.id ?? user?.organizationId ?? null;
+  const pathOrganizationIdMatch = pathname.match(/^\/organizations\/([^/]+)/);
+  const pathOrganizationId = pathOrganizationIdMatch?.[1] ?? null;
+  const organizationId =
+    activeOrganization?.id ?? organizations[0]?.id ?? pathOrganizationId ?? user?.organizationId ?? null;
+  const organizationName = activeOrganization?.name ?? organizations[0]?.name ?? user?.email;
   const organizationEventsHref = organizationId ? `/organizations/${organizationId}/events` : null;
   const organizationPeopleHref = organizationId ? `/organizations/${organizationId}/people` : null;
   const organizationTotemsHref = organizationId ? `/organizations/${organizationId}/totems` : null;
@@ -238,7 +242,7 @@ export function AppSidebar() {
                   </Avatar>
                   <div className="flex flex-1 flex-col text-left text-xs">
                     <span className="font-medium">{user.name}</span>
-                    <span className="text-muted-foreground">{activeOrganization?.name ?? user.email}</span>
+                    <span className="text-muted-foreground">{organizationName}</span>
                   </div>
                   <ChevronUp className="ml-auto h-4 w-4" />
                 </SidebarMenuButton>

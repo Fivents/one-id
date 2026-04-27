@@ -24,6 +24,8 @@ import type { PrismaClient } from '@/generated/prisma/client';
 export class PostgresVectorDbRepository implements IVectorDbRepository {
   constructor(private readonly db: PrismaClient) {}
 
+  private readonly MIN_QUALITY_SCORE = 0.52;
+
   /**
    * Insert or update embedding vector with metadata.
    * Handles conversion from Float32Array/Buffer to vector format.
@@ -117,7 +119,7 @@ export class PostgresVectorDbRepository implements IVectorDbRepository {
           AND pf.is_active = true
           AND pf.deleted_at IS NULL
           AND pf.face_quality_score IS NOT NULL
-          AND pf.face_quality_score >= 0.65
+            AND pf.face_quality_score >= ${this.MIN_QUALITY_SCORE}
           AND p.deleted_at IS NULL
           AND ep.deleted_at IS NULL
           AND pf.embedding_vector IS NOT NULL

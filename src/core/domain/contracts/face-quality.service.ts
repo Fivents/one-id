@@ -7,7 +7,7 @@
  * Quality scoring is based on NIST FRVT recommendations:
  * - Total of 5 dimensions analyzed
  * - Weighted average: 0-1 score
- * - Threshold 0.65 balances UX with accuracy
+ * - Threshold 0.52 balances UX with accuracy
  */
 
 export interface FaceQualityScore {
@@ -55,7 +55,7 @@ export interface IFaceQualityService {
    * Runs multiple threshold checks on individual dimensions.
    *
    * @param score Quality score from assessQuality()
-   * @param threshold Minimum overall score (default: 0.65)
+  * @param threshold Minimum overall score (default: 0.52)
    * @returns true if all checks pass, false otherwise
    */
   isQualityAcceptable(score: FaceQualityScore, threshold?: number): boolean;

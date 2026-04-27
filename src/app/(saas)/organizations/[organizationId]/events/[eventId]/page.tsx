@@ -202,6 +202,7 @@ async function readImageFileAsDataUrl(file: File): Promise<string> {
 export default function EventDetailPage() {
   const router = useRouter();
   const params = useParams();
+  const organizationId = params.organizationId as string;
   const eventId = params.eventId as string;
 
   const { isAuthenticated, isLoading: isAuthLoading } = useAuth();
@@ -249,6 +250,7 @@ export default function EventDetailPage() {
   const [invalidatingCheckInId, setInvalidatingCheckInId] = useState<string | null>(null);
 
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [isLoadingParticipants, setIsLoadingParticipants] = useState(false);
   const [isLoadingTotems, setIsLoadingTotems] = useState(false);
   const [isLoadingCheckIns, setIsLoadingCheckIns] = useState(false);
@@ -357,11 +359,16 @@ export default function EventDetailPage() {
 
   const loadEvent = useCallback(async () => {
     setIsLoading(true);
+    setLoadError(null);
+
     try {
       const response = await eventsClient.getEventById(eventId);
       if (!response.success) {
-        throw new Error(response.error.message);
+        setEvent(null);
+        setLoadError(response.error.message);
+        return;
       }
+
       setEvent(response.data);
       setSettingsName(response.data.name);
       setSettingsDescription(response.data.description ?? '');
@@ -391,6 +398,8 @@ export default function EventDetailPage() {
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : t('pages.eventDetail.loadEventError');
+      setEvent(null);
+      setLoadError(message);
       toast.error(message);
     } finally {
       setIsLoading(false);
@@ -741,14 +750,19 @@ export default function EventDetailPage() {
 
   useEffect(() => {
     if (isAuthenticated && canView) {
-      loadEvent();
-      loadParticipants();
-      loadTotems();
-      loadCheckIns();
-      loadAIConfig();
-      loadPublicLink();
+      void loadEvent();
+      void loadTotems();
+      void loadCheckIns();
+      void loadAIConfig();
+      void loadPublicLink();
     }
-  }, [isAuthenticated, canView, loadEvent, loadParticipants, loadTotems, loadCheckIns, loadAIConfig, loadPublicLink]);
+  }, [isAuthenticated, canView, loadEvent, loadTotems, loadCheckIns, loadAIConfig, loadPublicLink]);
+
+  useEffect(() => {
+    if (isAuthenticated && canView) {
+      void loadParticipants();
+    }
+  }, [isAuthenticated, canView, loadParticipants]);
 
   useEffect(() => {
     if (editParticipant) {
@@ -1335,8 +1349,17 @@ export default function EventDetailPage() {
     return null;
   }
 
-  if (isLoading || !event) {
+  if (isLoading) {
     return <DetailSkeleton />;
+  }
+
+  if (!event) {
+    return (
+      <DetailUnavailable
+        message={loadError ?? t('pages.eventDetail.loadEventError')}
+        onBack={() => router.replace(`/organizations/${organizationId}/events`)}
+      />
+    );
   }
 
   return (
@@ -1673,7 +1696,9 @@ export default function EventDetailPage() {
                       {checkIns.map((checkIn) => (
                         <TableRow key={checkIn.id}>
                           <TableCell className="font-medium">{checkIn.participantName}</TableCell>
-                          <TableCell className="text-muted-foreground">{getCheckInMethodLabel(checkIn.method)}</TableCell>
+                          <TableCell className="text-muted-foreground">
+                            {getCheckInMethodLabel(checkIn.method)}
+                          </TableCell>
                           <TableCell className="text-muted-foreground">
                             {checkIn.confidence ? `${Math.round(checkIn.confidence * 100)}%` : '—'}
                           </TableCell>
@@ -3020,6 +3045,23 @@ function InfoRow({ label, value, icon }: { label: string; value: string; icon?: 
       </div>
       <div className="text-sm font-medium">{value}</div>
     </div>
+  );
+}
+
+function DetailUnavailable({ message, onBack }: { message: string; onBack: () => void }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Nao foi possivel carregar os detalhes do evento</CardTitle>
+        <CardDescription>Verifique suas permissoes e tente novamente.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <p className="text-sm text-rose-600">{message}</p>
+        <div className="flex gap-2">
+          <Button onClick={onBack}>Voltar para eventos</Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 

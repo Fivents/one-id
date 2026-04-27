@@ -38,14 +38,24 @@ function organizationReducer(state: OrganizationState, action: OrganizationActio
   switch (action.type) {
     case 'ORGS_LOADING':
       return { ...state, isLoading: true };
-    case 'ORGS_LOADED':
+    case 'ORGS_LOADED': {
+      const nextActiveOrganization =
+        action.organizations.find((organization) => organization.id === state.activeOrganization?.id) ??
+        action.organizations[0] ??
+        null;
+
       return {
         organizations: action.organizations,
-        activeOrganization: state.activeOrganization ?? action.organizations[0] ?? null,
+        activeOrganization: nextActiveOrganization,
         isLoading: false,
       };
+    }
     case 'ORGS_FAILURE':
-      return { ...state, isLoading: false };
+      return {
+        organizations: [],
+        activeOrganization: null,
+        isLoading: false,
+      };
     case 'SET_ACTIVE':
       return { ...state, activeOrganization: action.organization };
     default:

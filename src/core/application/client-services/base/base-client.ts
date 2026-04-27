@@ -4,6 +4,7 @@ import { httpClient } from './http-client';
 interface RequestOptions {
   headers?: Record<string, string>;
   signal?: AbortSignal;
+  timeoutMs?: number;
 }
 
 export abstract class BaseClient {

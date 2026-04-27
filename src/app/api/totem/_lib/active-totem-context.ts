@@ -40,7 +40,7 @@ const DEFAULT_AI_CONFIG: EventAIConfigDTO = {
   maxFaces: 1,
   livenessDetection: true,
   livenessThreshold: 0.7,
-  minFaceSize: 80,
+  minFaceSize: 56,
   cooldownSeconds: 8,
   efSearch: 64,
   topKCandidates: 5,

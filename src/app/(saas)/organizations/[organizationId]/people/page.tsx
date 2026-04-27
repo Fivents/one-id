@@ -114,6 +114,7 @@ export default function OrganizationPeoplePage() {
 
   const isLoadingPage = isAppLoading || isAuthLoading || isOrganizationsLoading;
   const hasOrganizationAccess = organizations.some((organization) => organization.id === organizationId);
+  const shouldUseCurrentOrganization = hasOrganizationAccess || organizations.length === 0;
 
   const confirm = useConfirm();
 
@@ -243,15 +244,15 @@ export default function OrganizationPeoplePage() {
   useEffect(() => {
     if (!isAuthenticated || !canView) return;
 
-    if (!hasOrganizationAccess) {
-      if (organizations.length > 0) {
+    if (!shouldUseCurrentOrganization) {
+      if (organizations.length > 0 && organizations[0] && organizations[0].id !== organizationId) {
         router.replace(`/organizations/${organizations[0].id}/people`);
       }
       return;
     }
 
-    loadPeople(tab);
-  }, [isAuthenticated, canView, hasOrganizationAccess, organizations, router, tab, loadPeople]);
+    void loadPeople(tab);
+  }, [isAuthenticated, canView, shouldUseCurrentOrganization, organizations, organizationId, router, tab, loadPeople]);
 
   const handleOrganizationChange = useCallback(
     (nextOrganizationId: string) => {
@@ -423,8 +424,8 @@ export default function OrganizationPeoplePage() {
               {
                 requireSingleFace: true,
                 maxFaces: 1,
-                minFaceSize: 80,
-                minDetectionConfidence: 0.6,
+                minFaceSize: 56,
+                minDetectionConfidence: 0.45,
               },
             );
 
@@ -715,8 +716,8 @@ export default function OrganizationPeoplePage() {
         {
           requireSingleFace: true,
           maxFaces: 1,
-          minFaceSize: 80,
-          minDetectionConfidence: 0.6,
+          minFaceSize: 56,
+          minDetectionConfidence: 0.45,
         },
       );
 
