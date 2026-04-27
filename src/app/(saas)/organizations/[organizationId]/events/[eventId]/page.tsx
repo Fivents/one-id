@@ -2824,8 +2824,8 @@ export default function EventDetailPage() {
               <Label htmlFor="edit-access-code">Código de acesso</Label>
               <Input
                 id="edit-access-code"
-                disabled={editUseDocumentAsAccessCode && Boolean(editParticipant.document?.trim())}
-                value={editUseDocumentAsAccessCode && editParticipant.document?.trim() ? editParticipant.document.trim() : editAccessCode}
+                disabled={editUseDocumentAsAccessCode && Boolean(editParticipant?.document?.trim())}
+                value={editUseDocumentAsAccessCode && editParticipant?.document?.trim() ? (editParticipant?.document?.trim() ?? '') : editAccessCode}
                 onChange={(e) => setEditAccessCode(e.target.value.toUpperCase())}
                 maxLength={8}
               />
@@ -2842,7 +2842,7 @@ export default function EventDetailPage() {
               </Label>
             </div>
             
-            {editUseDocumentAsAccessCode && !editParticipant.document?.trim() && (
+            {editUseDocumentAsAccessCode && !editParticipant?.document?.trim() && (
               <p className="text-xs text-amber-500 font-medium">
                 Documento não informado, usando código padrão editável na UI.
               </p>

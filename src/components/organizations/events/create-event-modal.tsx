@@ -124,6 +124,8 @@ export function CreateEventModal({ open, onOpenChange, organizationId }: CreateE
         faceEnabled: true,
         qrEnabled: true,
         codeEnabled: true,
+        labelPrintPromptEnabled: true,
+        labelPrintPromptTimeoutSeconds: 15,
         startsAt: startDate,
         endsAt: endDate,
         organizationId,
