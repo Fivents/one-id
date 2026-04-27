@@ -13,6 +13,11 @@ import { Prisma } from '@/generated/prisma/client';
 
 import { getAuthorizedEvent } from '../../_lib/access';
 
+function normalizeDocumentAsAccessCode(document: string | null | undefined): string | null {
+  const normalized = document?.trim();
+  return normalized ? normalized.toUpperCase() : null;
+}
+
 export const GET = withAuth(
   withRBAC(['PARTICIPANT_VIEW'], async (req: NextRequest, context: RouteContext) => {
     const { eventId } = await context.params;
@@ -52,6 +57,7 @@ export const GET = withAuth(
               id: true,
               name: true,
               email: true,
+              document: true,
               faces: {
                 where: { deletedAt: null, isActive: true },
                 select: { id: true, imageUrl: true },
@@ -60,7 +66,11 @@ export const GET = withAuth(
               },
             },
           },
-          checkIns: { select: { id: true } },
+          checkIns: {
+            select: { id: true },
+            orderBy: { checkedInAt: 'desc' },
+            take: 1,
+          },
         },
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * pageSize,
@@ -75,13 +85,16 @@ export const GET = withAuth(
       personId: participant.personId,
       name: participant.person.name,
       email: participant.person.email,
+      document: participant.person.document,
       company: participant.company,
       jobTitle: participant.jobTitle,
       qrCodeValue: participant.qrCodeValue,
       accessCode: participant.accessCode,
+      useDocumentAsAccessCode: participant.useDocumentAsAccessCode,
       eventId: participant.eventId,
       registeredAt: participant.createdAt,
       hasCheckIn: participant.checkIns.length > 0,
+      lastCheckInId: participant.checkIns[0]?.id ?? null,
       faceId: participant.person.faces[0]?.id ?? null,
       faceImageUrl: participant.person.faces[0]?.imageUrl ?? null,
     }));
@@ -106,26 +119,29 @@ export const POST = withAuth(
       const data = parseWithZod(registerParticipantRequestSchema, { ...body, eventId });
       const credentialLength = await resolveTotemAccessCodeLength(prisma, event.organizationId);
       const qrCodeValue = data.qrCodeValue?.trim() || generateCheckInCredential(credentialLength);
-      const accessCode = data.accessCode?.trim().toUpperCase() || generateCheckInCredential(credentialLength);
+      const requestedUseDocumentAsAccessCode = Boolean(data.useDocumentAsAccessCode);
 
       let personId = data.personId;
+      let personDocument: string | null = null;
 
       if (personId) {
         const person = await prisma.person.findUnique({
           where: { id: personId, deletedAt: null },
-          select: { organizationId: true },
+          select: { organizationId: true, document: true },
         });
 
         if (!person || person.organizationId !== event.organizationId) {
           return NextResponse.json({ error: 'Person not found for this organization.' }, { status: 404 });
         }
+
+        personDocument = person.document;
       } else {
         const person = await prisma.person.findFirst({
           where: {
             organizationId: event.organizationId,
             email: data.email!,
           },
-          select: { id: true, deletedAt: true },
+          select: { id: true, deletedAt: true, document: true },
         });
 
         if (person) {
@@ -138,15 +154,16 @@ export const POST = withAuth(
                 documentType: data.documentType ?? null,
                 phone: data.phone ?? null,
                 qrCodeValue,
-                accessCode,
                 deletedAt: null,
               },
-              select: { id: true },
+              select: { id: true, document: true },
             });
 
             personId = restoredPerson.id;
+            personDocument = restoredPerson.document;
           } else {
             personId = person.id;
+            personDocument = person.document;
           }
         } else {
           const createdPerson = await prisma.person.create({
@@ -157,15 +174,19 @@ export const POST = withAuth(
               documentType: data.documentType ?? null,
               phone: data.phone ?? null,
               qrCodeValue,
-              accessCode,
               organizationId: event.organizationId,
             },
-            select: { id: true },
+            select: { id: true, document: true },
           });
 
           personId = createdPerson.id;
+          personDocument = createdPerson.document;
         }
       }
+
+      const documentAccessCode = normalizeDocumentAsAccessCode(personDocument);
+      const fallbackAccessCode = data.accessCode?.trim().toUpperCase() || generateCheckInCredential(credentialLength);
+      const accessCode = requestedUseDocumentAsAccessCode && documentAccessCode ? documentAccessCode : fallbackAccessCode;
 
       const existing = await prisma.eventParticipant.findFirst({
         where: {
@@ -183,6 +204,7 @@ export const POST = withAuth(
             jobTitle: data.jobTitle ?? null,
             qrCodeValue,
             accessCode,
+            useDocumentAsAccessCode: requestedUseDocumentAsAccessCode,
             deletedAt: null,
           },
         });
@@ -198,6 +220,7 @@ export const POST = withAuth(
         jobTitle: data.jobTitle,
         qrCodeValue,
         accessCode,
+        useDocumentAsAccessCode: requestedUseDocumentAsAccessCode,
       });
 
       return toNextResponse(result);

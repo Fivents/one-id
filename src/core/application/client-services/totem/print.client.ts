@@ -660,6 +660,161 @@ export async function printBadge(config: PrintConfigResponse, participant: Print
   }
 }
 
+type SilentPrintPayload = {
+  html: string;
+  copies?: number;
+  printerDpi?: number;
+  paperWidthMm?: number;
+  paperHeightMm?: number;
+};
+
+type SilentPrintResult = {
+  success: boolean;
+  error?: string;
+};
+
+type SilentPrinterBridge = {
+  isAvailable?: () => boolean | Promise<boolean>;
+  isPrinterConnected?: () => boolean | Promise<boolean>;
+  printHtml?: (payload: SilentPrintPayload) => SilentPrintResult | boolean | Promise<SilentPrintResult | boolean>;
+};
+
+export type SilentPrinterAvailability = {
+  available: boolean;
+  message?: string;
+};
+
+function getSilentPrinterBridge(): SilentPrinterBridge | null {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  const candidates = [
+    (window as Window & { oneIdPrinter?: SilentPrinterBridge }).oneIdPrinter,
+    (window as Window & { OneIDPrinter?: SilentPrinterBridge }).OneIDPrinter,
+    (window as Window & { androidPrinter?: SilentPrinterBridge }).androidPrinter,
+  ];
+
+  for (const candidate of candidates) {
+    if (candidate) {
+      return candidate;
+    }
+  }
+
+  return null;
+}
+
+export async function getSilentPrinterAvailability(): Promise<SilentPrinterAvailability> {
+  const bridge = getSilentPrinterBridge();
+
+  if (!bridge) {
+    return {
+      available: false,
+      message: 'Integracao de impressao silenciosa nao encontrada neste dispositivo.',
+    };
+  }
+
+  if (bridge.isAvailable) {
+    const isAvailable = await bridge.isAvailable();
+    if (!isAvailable) {
+      return {
+        available: false,
+        message: 'Servico de impressao silenciosa indisponivel no momento.',
+      };
+    }
+  }
+
+  if (bridge.isPrinterConnected) {
+    const isPrinterConnected = await bridge.isPrinterConnected();
+    if (!isPrinterConnected) {
+      return {
+        available: false,
+        message: 'Nenhuma impressora conectada.',
+      };
+    }
+  }
+
+  if (!bridge.printHtml) {
+    return {
+      available: false,
+      message: 'Metodo de impressao silenciosa nao suportado neste dispositivo.',
+    };
+  }
+
+  return { available: true };
+}
+
+export async function printBadgeSilently(
+  config: PrintConfigResponse,
+  participant: PrintParticipantData,
+): Promise<PrintResult> {
+  try {
+    const availability = await getSilentPrinterAvailability();
+    if (!availability.available) {
+      return {
+        success: false,
+        error: availability.message,
+        timestamp: new Date(),
+      };
+    }
+
+    const bridge = getSilentPrinterBridge();
+    if (!bridge?.printHtml) {
+      return {
+        success: false,
+        error: 'Metodo de impressao silenciosa indisponivel.',
+        timestamp: new Date(),
+      };
+    }
+
+    const html = generateBadgeHtml(config, participant);
+    const printResult = await bridge.printHtml({
+      html,
+      copies: config.copies,
+      printerDpi: config.printerDpi,
+      paperWidthMm: config.paperWidth,
+      paperHeightMm: config.paperHeight,
+    });
+
+    if (typeof printResult === 'boolean') {
+      if (!printResult) {
+        return {
+          success: false,
+          error: 'A impressao foi recusada pelo dispositivo.',
+          timestamp: new Date(),
+        };
+      }
+
+      return {
+        success: true,
+        timestamp: new Date(),
+      };
+    }
+
+    if (!printResult.success) {
+      return {
+        success: false,
+        error: printResult.error || 'Falha na impressao silenciosa.',
+        timestamp: new Date(),
+      };
+    }
+
+    return {
+      success: true,
+      timestamp: new Date(),
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown silent print error';
+    console.error('[PrintService] Silent print failed:', message);
+
+    return {
+      success: false,
+      error: message,
+      timestamp: new Date(),
+    };
+  }
+}
+
 /**
  * Fetch print configuration for an event.
  * Returns null if no print config is associated or if fetch fails.

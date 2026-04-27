@@ -26,6 +26,7 @@ import { toast } from 'sonner';
 
 import { EventAddressEditor, EventStatusBadge, PrintLayoutEditor } from '@/components/organizations/events';
 import { useConfirm } from '@/components/shared/confirm-dialog';
+import { LabelPrintConfirmationModal } from '@/components/shared/label-print-confirmation-modal';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -67,6 +68,9 @@ import type {
 import { extractFaceEmbedding } from '@/core/application/client-services/totem/face-embedding.client';
 import {
   buildDefaultElementsLayout,
+  getSilentPrinterAvailability,
+  logPrintAttempt,
+  printBadgeSilently,
   type PrintParticipantData,
 } from '@/core/application/client-services/totem/print.client';
 import { useApp, useAuth, usePermissions } from '@/core/application/contexts';
@@ -235,6 +239,7 @@ export default function EventDetailPage() {
   const [participantJobTitle, setParticipantJobTitle] = useState('');
   const [participantQrCodeValue, setParticipantQrCodeValue] = useState('');
   const [participantAccessCode, setParticipantAccessCode] = useState('');
+  const [participantUseDocumentAsAccessCode, setParticipantUseDocumentAsAccessCode] = useState(false);
   const [participantFaceImageUrl, setParticipantFaceImageUrl] = useState('');
   const [participantFaceImageDataUrl, setParticipantFaceImageDataUrl] = useState('');
   const [isCreateFaceCameraOpen, setIsCreateFaceCameraOpen] = useState(false);
@@ -270,7 +275,10 @@ export default function EventDetailPage() {
   const [editJobTitle, setEditJobTitle] = useState('');
   const [editQrCodeValue, setEditQrCodeValue] = useState('');
   const [editAccessCode, setEditAccessCode] = useState('');
+  const [editUseDocumentAsAccessCode, setEditUseDocumentAsAccessCode] = useState(false);
   const [isSavingParticipant, setIsSavingParticipant] = useState(false);
+  const [printLabelParticipant, setPrintLabelParticipant] = useState<EventParticipantDetailResponse | null>(null);
+  const [isPrintingParticipantLabel, setIsPrintingParticipantLabel] = useState(false);
 
   const [faceImageUrl, setFaceImageUrl] = useState('');
   const [faceImageDataUrl, setFaceImageDataUrl] = useState('');
@@ -302,6 +310,8 @@ export default function EventDetailPage() {
   const [isSavingAIConfig, setIsSavingAIConfig] = useState(false);
   const [printConfigEnabled, setPrintConfigEnabled] = useState(false);
   const [printConfigDraft, setPrintConfigDraft] = useState<EditablePrintConfig>(() => createDefaultPrintConfig());
+  const [printPromptEnabled, setPrintPromptEnabled] = useState(true);
+  const [printPromptTimeoutSeconds, setPrintPromptTimeoutSeconds] = useState(15);
   const [isLoadingPrintConfig, setIsLoadingPrintConfig] = useState(false);
   const [isSavingPrintConfig, setIsSavingPrintConfig] = useState(false);
 
@@ -379,6 +389,8 @@ export default function EventDetailPage() {
       setSettingsEndsAt(new Date(response.data.endsAt).toISOString().slice(0, 16));
       setSettingsStatus(response.data.status);
       setPrintConfigEnabled(Boolean(response.data.printConfigId));
+      setPrintPromptEnabled(response.data.labelPrintPromptEnabled);
+      setPrintPromptTimeoutSeconds(response.data.labelPrintPromptTimeoutSeconds);
 
       if (response.data.printConfigId) {
         setIsLoadingPrintConfig(true);
@@ -478,6 +490,7 @@ export default function EventDetailPage() {
     setParticipantJobTitle('');
     setParticipantQrCodeValue('');
     setParticipantAccessCode('');
+    setParticipantUseDocumentAsAccessCode(false);
     setParticipantFaceImageUrl('');
     setParticipantFaceImageDataUrl('');
     stopCreateFaceCamera();
@@ -584,7 +597,9 @@ export default function EventDetailPage() {
         company: participantCompany.trim() || null,
         jobTitle: participantJobTitle.trim() || null,
         qrCodeValue: participantQrCodeValue.trim() || null,
-        accessCode: participantAccessCode.trim().toUpperCase() || null,
+        accessCode: participantUseDocumentAsAccessCode
+          ? (participantDocument.trim() || participantAccessCode.trim().toUpperCase() || Math.random().toString(36).substring(2, 10).toUpperCase())
+          : (participantAccessCode.trim().toUpperCase() || null),
       });
 
       if (!response.success) {
@@ -956,7 +971,9 @@ export default function EventDetailPage() {
         company: editCompany.trim() || null,
         jobTitle: editJobTitle.trim() || null,
         qrCodeValue: editQrCodeValue.trim() || null,
-        accessCode: editAccessCode.trim().toUpperCase() || null,
+        accessCode: editUseDocumentAsAccessCode
+          ? (editParticipant.document?.trim() || editAccessCode.trim().toUpperCase() || Math.random().toString(36).substring(2, 10).toUpperCase())
+          : (editAccessCode.trim().toUpperCase() || null),
       });
       toast.success(t('pages.eventDetail.participantUpdatedSuccess'));
       setEditParticipant(null);
@@ -1543,6 +1560,15 @@ export default function EventDetailPage() {
                             </Button>
                             <Button variant="ghost" size="icon" onClick={() => setRegisterFaceParticipant(participant)}>
                               <ScanFace className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              disabled={!participant.hasCheckIn || !printConfigEnabled}
+                              onClick={() => setPrintLabelParticipant(participant)}
+                              title={!printConfigEnabled ? 'Impressão não configurada' : !participant.hasCheckIn ? 'Participante sem check-in' : 'Imprimir etiqueta'}
+                            >
+                              <Printer className="h-4 w-4" />
                             </Button>
                             <Button variant="ghost" size="icon" onClick={() => handleDeleteParticipant(participant)}>
                               <Trash2 className="text-destructive h-4 w-4" />
@@ -2650,11 +2676,30 @@ export default function EventDetailPage() {
                 <Label htmlFor="participant-access-code">Código de acesso</Label>
                 <Input
                   id="participant-access-code"
-                  value={participantAccessCode}
+                  disabled={participantUseDocumentAsAccessCode && Boolean(participantDocument.trim())}
+                  value={participantUseDocumentAsAccessCode && participantDocument.trim() ? participantDocument.trim() : participantAccessCode}
                   onChange={(e) => setParticipantAccessCode(e.target.value.toUpperCase())}
+                  maxLength={8}
                 />
               </div>
             </div>
+
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="participant-use-document"
+                checked={participantUseDocumentAsAccessCode}
+                onCheckedChange={setParticipantUseDocumentAsAccessCode}
+              />
+              <Label htmlFor="participant-use-document" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                Usar documento como código de acesso
+              </Label>
+            </div>
+            
+            {participantUseDocumentAsAccessCode && !participantDocument.trim() && (
+              <p className="text-xs text-amber-500 font-medium pb-2">
+                Documento não informado, será usado um código de acesso padrão.
+              </p>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="participant-face-url">{t('pages.eventDetail.faceImageUrlOptional')}</Label>
@@ -2779,10 +2824,30 @@ export default function EventDetailPage() {
               <Label htmlFor="edit-access-code">Código de acesso</Label>
               <Input
                 id="edit-access-code"
-                value={editAccessCode}
+                disabled={editUseDocumentAsAccessCode && Boolean(editParticipant.document?.trim())}
+                value={editUseDocumentAsAccessCode && editParticipant.document?.trim() ? editParticipant.document.trim() : editAccessCode}
                 onChange={(e) => setEditAccessCode(e.target.value.toUpperCase())}
+                maxLength={8}
               />
             </div>
+            
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="edit-use-document"
+                checked={editUseDocumentAsAccessCode}
+                onCheckedChange={setEditUseDocumentAsAccessCode}
+              />
+              <Label htmlFor="edit-use-document" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                Usar documento como código de acesso
+              </Label>
+            </div>
+            
+            {editUseDocumentAsAccessCode && !editParticipant.document?.trim() && (
+              <p className="text-xs text-amber-500 font-medium">
+                Documento não informado, usando código padrão editável na UI.
+              </p>
+            )}
+            
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setEditParticipant(null)}>
                 {t('pages.eventDetail.cancel')}
@@ -3018,6 +3083,45 @@ export default function EventDetailPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      
+      <LabelPrintConfirmationModal
+        open={!!printLabelParticipant}
+        participantName={printLabelParticipant?.name}
+        timeoutSeconds={printPromptTimeoutSeconds || 15}
+        isPrinting={isPrintingParticipantLabel}
+        onCancel={() => setPrintLabelParticipant(null)}
+        onConfirm={async () => {
+          if (!printLabelParticipant || !event) return;
+          setIsPrintingParticipantLabel(true);
+          try {
+            const printConfigResponse = await eventsClient.getEventPrintConfig(event.id);
+            if (!printConfigResponse.success || !printConfigResponse.data) {
+              throw new Error('Configuração de impressão não encontrada');
+            }
+            const printData = {
+              name: printLabelParticipant.name,
+              company: printLabelParticipant.company,
+              jobTitle: printLabelParticipant.jobTitle,
+              participantId: printLabelParticipant.id,
+              checkInId: '', // CheckIn ID can be omitted or retrieved differently if needed
+              eventName: event.name,
+              eventId: event.id,
+            };
+            const result = await printBadgeSilently(printConfigResponse.data, printData);
+            logPrintAttempt(event.id, printLabelParticipant.id, result);
+            if (result.success) {
+               toast.success('Impressão concluída com sucesso');
+               setPrintLabelParticipant(null);
+            } else {
+               toast.error(result.error || 'Ocorreu um erro durante a impressão.');
+            }
+          } catch (e) {
+            toast.error(e instanceof Error ? e.message : 'Erro ao imprimir etiqueta');
+          } finally {
+            setIsPrintingParticipantLabel(false);
+          }
+        }}
+      />
     </div>
   );
 }

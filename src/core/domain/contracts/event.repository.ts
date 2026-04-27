@@ -12,6 +12,8 @@ export interface CreateEventData {
   faceEnabled?: boolean;
   qrEnabled?: boolean;
   codeEnabled?: boolean;
+  labelPrintPromptEnabled?: boolean;
+  labelPrintPromptTimeoutSeconds?: number;
   startsAt: Date;
   endsAt: Date;
   organizationId: string;
@@ -29,6 +31,8 @@ export interface UpdateEventData {
   faceEnabled?: boolean;
   qrEnabled?: boolean;
   codeEnabled?: boolean;
+  labelPrintPromptEnabled?: boolean;
+  labelPrintPromptTimeoutSeconds?: number;
   startsAt?: Date;
   endsAt?: Date;
   printConfigId?: string | null;

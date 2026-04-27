@@ -18,6 +18,8 @@ export interface EventProps {
   faceEnabled: boolean;
   qrEnabled: boolean;
   codeEnabled: boolean;
+  labelPrintPromptEnabled: boolean;
+  labelPrintPromptTimeoutSeconds: number;
   startsAt: Date;
   endsAt: Date;
   organizationId: string;
@@ -54,6 +56,15 @@ export class EventEntity extends BaseEntity {
       throw new AppError({
         code: ErrorCode.ENTITY_INVARIANT_VIOLATION,
         message: 'Event must have at least one check-in method enabled',
+        httpStatus: 400,
+        level: 'error',
+      });
+    }
+
+    if (props.labelPrintPromptTimeoutSeconds < 10 || props.labelPrintPromptTimeoutSeconds > 60) {
+      throw new AppError({
+        code: ErrorCode.ENTITY_INVARIANT_VIOLATION,
+        message: 'Label print confirmation timeout must be between 10 and 60 seconds',
         httpStatus: 400,
         level: 'error',
       });
@@ -100,6 +111,14 @@ export class EventEntity extends BaseEntity {
 
   get codeEnabled(): boolean {
     return this.props.codeEnabled;
+  }
+
+  get labelPrintPromptEnabled(): boolean {
+    return this.props.labelPrintPromptEnabled;
+  }
+
+  get labelPrintPromptTimeoutSeconds(): number {
+    return this.props.labelPrintPromptTimeoutSeconds;
   }
 
   get startsAt(): Date {
@@ -195,6 +214,8 @@ export class EventEntity extends BaseEntity {
       faceEnabled: this.props.faceEnabled,
       qrEnabled: this.props.qrEnabled,
       codeEnabled: this.props.codeEnabled,
+      labelPrintPromptEnabled: this.props.labelPrintPromptEnabled,
+      labelPrintPromptTimeoutSeconds: this.props.labelPrintPromptTimeoutSeconds,
       startsAt: this.props.startsAt,
       endsAt: this.props.endsAt,
       organizationId: this.props.organizationId,

@@ -5,6 +5,7 @@ export interface CreateEventParticipantData {
   jobTitle?: string | null;
   qrCodeValue?: string | null;
   accessCode?: string | null;
+  useDocumentAsAccessCode?: boolean;
   personId: string;
   eventId: string;
 }
@@ -14,6 +15,7 @@ export interface UpdateEventParticipantData {
   jobTitle?: string | null;
   qrCodeValue?: string | null;
   accessCode?: string | null;
+  useDocumentAsAccessCode?: boolean;
 }
 
 export interface IEventParticipantRepository {

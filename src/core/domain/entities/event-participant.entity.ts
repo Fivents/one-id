@@ -6,6 +6,7 @@ export interface EventParticipantProps {
   jobTitle?: string | null;
   qrCodeValue?: string | null;
   accessCode?: string | null;
+  useDocumentAsAccessCode: boolean;
   personId: string;
   eventId: string;
   createdAt: Date;
@@ -36,6 +37,10 @@ export class EventParticipantEntity extends BaseEntity {
 
   get accessCode(): string | null | undefined {
     return this.props.accessCode;
+  }
+
+  get useDocumentAsAccessCode(): boolean {
+    return this.props.useDocumentAsAccessCode;
   }
 
   get personId(): string {
@@ -81,6 +86,7 @@ export class EventParticipantEntity extends BaseEntity {
       jobTitle: this.props.jobTitle,
       qrCodeValue: this.props.qrCodeValue,
       accessCode: this.props.accessCode,
+      useDocumentAsAccessCode: this.props.useDocumentAsAccessCode,
       personId: this.props.personId,
       eventId: this.props.eventId,
       createdAt: this.props.createdAt,

@@ -13,6 +13,8 @@ export interface EventResponse {
   faceEnabled: boolean;
   qrEnabled: boolean;
   codeEnabled: boolean;
+  labelPrintPromptEnabled: boolean;
+  labelPrintPromptTimeoutSeconds: number;
   startsAt: Date;
   endsAt: Date;
   organizationId: string;

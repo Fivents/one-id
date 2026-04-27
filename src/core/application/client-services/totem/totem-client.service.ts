@@ -28,6 +28,9 @@ export interface TotemLoginResponse {
     faceEnabled: boolean;
     qrEnabled: boolean;
     codeEnabled: boolean;
+    hasPrintConfig: boolean;
+    labelPrintPromptEnabled: boolean;
+    labelPrintPromptTimeoutSeconds: number;
   };
   totemEventSubscriptionId: string;
   aiConfig: TotemAIConfig;
@@ -48,6 +51,9 @@ export interface TotemSessionResponse {
     faceEnabled: boolean;
     qrEnabled: boolean;
     codeEnabled: boolean;
+    hasPrintConfig: boolean;
+    labelPrintPromptEnabled: boolean;
+    labelPrintPromptTimeoutSeconds: number;
   };
   totemEventSubscriptionId: string;
   aiConfig: TotemAIConfig;

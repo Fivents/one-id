@@ -254,6 +254,9 @@ model Event {
   qrEnabled   Boolean @default(false) @map("qr_enabled")
   codeEnabled Boolean @default(false) @map("code_enabled")
 
+  labelPrintPromptEnabled        Boolean @default(true) @map("label_print_prompt_enabled")
+  labelPrintPromptTimeoutSeconds Int     @default(15) @map("label_print_prompt_timeout_seconds")
+
   status EventStatus @default(DRAFT)
 
   publicSlug String? @unique @map("public_slug")
@@ -484,6 +487,7 @@ model EventParticipant {
   jobTitle String? @map("job_title")
   qrCodeValue String? @map("qr_code_value")
   accessCode  String? @map("access_code")
+  useDocumentAsAccessCode Boolean @default(false) @map("use_document_as_access_code")
 
   personId String @map("person_id")
   eventId  String @map("event_id")

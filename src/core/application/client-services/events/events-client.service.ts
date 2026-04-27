@@ -14,13 +14,16 @@ export interface EventParticipantDetailResponse {
   personId: string;
   name: string;
   email: string;
+  document: string | null;
   company: string | null;
   jobTitle: string | null;
   qrCodeValue: string | null;
   accessCode: string | null;
+  useDocumentAsAccessCode: boolean;
   eventId: string;
   registeredAt: Date;
   hasCheckIn: boolean;
+  lastCheckInId: string | null;
   faceId: string | null;
   faceImageUrl: string | null;
 }

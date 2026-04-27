@@ -6,6 +6,7 @@ export const registerParticipantRequestSchema = z
     jobTitle: z.string().nullable().optional(),
     qrCodeValue: z.string().min(1).nullable().optional(),
     accessCode: z.string().min(1).nullable().optional(),
+    useDocumentAsAccessCode: z.boolean().optional(),
     personId: z.string().min(1, 'Person ID is required.').optional(),
     name: z.string().min(1, 'Name is required.').optional(),
     email: z.email('Invalid email address.').optional(),
@@ -26,6 +27,7 @@ export const updateParticipantRequestSchema = z.object({
   jobTitle: z.string().nullable().optional(),
   qrCodeValue: z.string().min(1).nullable().optional(),
   accessCode: z.string().min(1).nullable().optional(),
+  useDocumentAsAccessCode: z.boolean().optional(),
 });
 
 export type UpdateParticipantRequest = z.infer<typeof updateParticipantRequestSchema>;
