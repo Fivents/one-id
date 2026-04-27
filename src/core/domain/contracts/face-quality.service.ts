@@ -55,7 +55,7 @@ export interface IFaceQualityService {
    * Runs multiple threshold checks on individual dimensions.
    *
    * @param score Quality score from assessQuality()
-  * @param threshold Minimum overall score (default: 0.52)
+   * @param threshold Minimum overall score (default: 0.52)
    * @returns true if all checks pass, false otherwise
    */
   isQualityAcceptable(score: FaceQualityScore, threshold?: number): boolean;

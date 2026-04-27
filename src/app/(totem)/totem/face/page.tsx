@@ -570,7 +570,9 @@ export default function TotemFacePage() {
                 <div className="mb-5 flex items-start gap-4">
                   <div className="relative mt-1 flex h-12 w-12 items-center justify-center rounded-full bg-violet-500/20 ring-1 ring-violet-400/40">
                     <CloudDownload className="h-6 w-6 text-violet-300" />
-                    {isPrimaryDownloading && <Loader2 className="absolute -right-1 -bottom-1 h-4 w-4 animate-spin text-violet-200" />}
+                    {isPrimaryDownloading && (
+                      <Loader2 className="absolute -right-1 -bottom-1 h-4 w-4 animate-spin text-violet-200" />
+                    )}
                   </div>
                   <div className="flex-1">
                     <h2 className="text-xl font-semibold text-white">Preparando modelo principal de reconhecimento</h2>
@@ -597,7 +599,9 @@ export default function TotemFacePage() {
                       <ShieldAlert className="h-4 w-4" />
                       Falha no modelo principal
                     </div>
-                    <p className="text-xs text-rose-100/90">{modelState.primary.errorMessage ?? 'Sem detalhes adicionais.'}</p>
+                    <p className="text-xs text-rose-100/90">
+                      {modelState.primary.errorMessage ?? 'Sem detalhes adicionais.'}
+                    </p>
                   </div>
                 )}
 
@@ -679,14 +683,18 @@ export default function TotemFacePage() {
           setShowFallbackConfirm(open);
         }}
       >
-        <DialogContent className="border-amber-400/30 bg-gradient-to-br from-slate-900 to-slate-800 text-white" showCloseButton={false}>
+        <DialogContent
+          className="border-amber-400/30 bg-gradient-to-br from-slate-900 to-slate-800 text-white"
+          showCloseButton={false}
+        >
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-amber-200">
               <ShieldAlert className="h-5 w-5" />
               Confirmar uso da 2ª opção
             </DialogTitle>
             <DialogDescription className="text-slate-300">
-              A 2ª opção inicia mais rápido, mas o modelo principal continuará baixando em segundo plano para máxima precisão.
+              A 2ª opção inicia mais rápido, mas o modelo principal continuará baixando em segundo plano para máxima
+              precisão.
             </DialogDescription>
           </DialogHeader>
 

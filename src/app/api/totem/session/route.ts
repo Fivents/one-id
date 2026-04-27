@@ -53,10 +53,7 @@ export const GET = withAuth(
     let activeContext: Awaited<ReturnType<typeof resolveActiveTotemEventContextByTotemId>>;
 
     try {
-      activeContext = await withTimeout(
-        resolveActiveTotemEventContextByTotemId(totemId),
-        ACTIVE_CONTEXT_TIMEOUT_MS,
-      );
+      activeContext = await withTimeout(resolveActiveTotemEventContextByTotemId(totemId), ACTIVE_CONTEXT_TIMEOUT_MS);
     } catch {
       return NextResponse.json(
         {
