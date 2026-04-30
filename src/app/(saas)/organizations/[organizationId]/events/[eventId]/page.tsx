@@ -70,6 +70,7 @@ import {
   buildDefaultElementsLayout,
   getSilentPrinterAvailability,
   logPrintAttempt,
+  printBadge,
   printBadgeSilently,
   type PrintParticipantData,
 } from '@/core/application/client-services/totem/print.client';
@@ -2059,6 +2060,124 @@ export default function EventDetailPage() {
 
                 {printConfigEnabled ? (
                   <>
+                    {/* Printer Presets */}
+                    <div className="rounded-lg border border-blue-200/50 bg-blue-50/30 p-4 dark:border-blue-800/50 dark:bg-blue-950/20">
+                      <div className="mb-2 flex items-center gap-2">
+                        <Printer className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                        <p className="text-sm font-medium">Preset de Impressora</p>
+                      </div>
+                      <p className="text-muted-foreground mb-3 text-xs">
+                        Selecione um modelo para preencher automaticamente as configurações otimizadas.
+                      </p>
+                      <Select
+                        value=""
+                        onValueChange={(value) => {
+                          const presets: Record<string, Partial<typeof printConfigDraft>> = {
+                            'brother-ql810w': {
+                              paperWidth: 62,
+                              paperHeight: 100,
+                              printerDpi: 300,
+                              printerType: 'thermal',
+                              orientation: 'PORTRAIT',
+                              marginTop: 3,
+                              marginRight: 3,
+                              marginBottom: 3,
+                              marginLeft: 3,
+                              nameFontSize: 18,
+                              companyFontSize: 11,
+                              jobTitleFontSize: 9,
+                              fiventsLogoSize: 14,
+                              orgLogoSize: 16,
+                              qrCodeSize: 22,
+                            },
+                            'brother-ql800': {
+                              paperWidth: 62,
+                              paperHeight: 100,
+                              printerDpi: 300,
+                              printerType: 'thermal',
+                              orientation: 'PORTRAIT',
+                              marginTop: 3,
+                              marginRight: 3,
+                              marginBottom: 3,
+                              marginLeft: 3,
+                              nameFontSize: 18,
+                              companyFontSize: 11,
+                              jobTitleFontSize: 9,
+                            },
+                            'brother-ql820nwb': {
+                              paperWidth: 62,
+                              paperHeight: 100,
+                              printerDpi: 300,
+                              printerType: 'thermal',
+                              orientation: 'PORTRAIT',
+                              marginTop: 3,
+                              marginRight: 3,
+                              marginBottom: 3,
+                              marginLeft: 3,
+                            },
+                            'zebra-zd420': {
+                              paperWidth: 102,
+                              paperHeight: 76,
+                              printerDpi: 203,
+                              printerType: 'thermal',
+                              orientation: 'LANDSCAPE',
+                              marginTop: 5,
+                              marginRight: 5,
+                              marginBottom: 5,
+                              marginLeft: 5,
+                              nameFontSize: 22,
+                              companyFontSize: 14,
+                              jobTitleFontSize: 11,
+                            },
+                            'generic-thermal': {
+                              paperWidth: 80,
+                              paperHeight: 120,
+                              printerDpi: 203,
+                              printerType: 'thermal',
+                              orientation: 'PORTRAIT',
+                              marginTop: 5,
+                              marginRight: 5,
+                              marginBottom: 5,
+                              marginLeft: 5,
+                            },
+                            'generic-a6': {
+                              paperWidth: 105,
+                              paperHeight: 148,
+                              printerDpi: 300,
+                              printerType: 'inkjet',
+                              orientation: 'PORTRAIT',
+                              marginTop: 8,
+                              marginRight: 8,
+                              marginBottom: 8,
+                              marginLeft: 8,
+                              nameFontSize: 24,
+                              companyFontSize: 14,
+                              jobTitleFontSize: 12,
+                            },
+                          };
+                          const preset = presets[value];
+                          if (preset) {
+                            setPrintConfigDraft((current) => ({
+                              ...current,
+                              ...preset,
+                            }));
+                          }
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecionar modelo de impressora..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="brother-ql810w">⭐ Brother QL-810W (62mm, 300 DPI)</SelectItem>
+                          <SelectItem value="brother-ql800">Brother QL-800 (62mm, 300 DPI)</SelectItem>
+                          <SelectItem value="brother-ql820nwb">Brother QL-820NWB (62mm, 300 DPI)</SelectItem>
+                          <SelectItem value="zebra-zd420">Zebra ZD420 (102mm, 203 DPI)</SelectItem>
+                          <SelectItem value="generic-thermal">Térmica Genérica (80mm, 203 DPI)</SelectItem>
+                          <SelectItem value="generic-a6">Jato de Tinta A6 (105mm, 300 DPI)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
                     <div className="grid gap-4 md:grid-cols-3">
                       <div className="space-y-2">
                         <Label htmlFor="print-paper-width">{t('labelConfig.paper.width')}</Label>
@@ -2439,7 +2558,26 @@ export default function EventDetailPage() {
                   </p>
                 )}
 
-                <div className="flex justify-end">
+                <div className="flex justify-end gap-2">
+                  {printConfigEnabled && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={isSavingPrintConfig || isLoadingPrintConfig}
+                      onClick={async () => {
+                        try {
+                          const { printBadge: testPrint } = await import('@/core/application/client-services/totem/print.client');
+                          await testPrint(previewPrintConfig, previewParticipant);
+                          toast.success('Impressão de teste enviada');
+                        } catch (err) {
+                          toast.error(err instanceof Error ? err.message : 'Erro ao imprimir teste');
+                        }
+                      }}
+                    >
+                      <Printer className="mr-2 h-4 w-4" />
+                      Testar Impressão
+                    </Button>
+                  )}
                   <Button type="submit" disabled={isSavingPrintConfig || isLoadingPrintConfig}>
                     {isSavingPrintConfig ? t('pages.eventDetail.saving') : t('pages.eventDetail.saveSettings')}
                   </Button>
@@ -3098,19 +3236,26 @@ export default function EventDetailPage() {
             if (!printConfigResponse.success || !printConfigResponse.data) {
               throw new Error('Configuração de impressão não encontrada');
             }
-            const printData = {
+            const printData: PrintParticipantData = {
               name: printLabelParticipant.name,
               company: printLabelParticipant.company,
               jobTitle: printLabelParticipant.jobTitle,
               participantId: printLabelParticipant.id,
-              checkInId: '', // CheckIn ID can be omitted or retrieved differently if needed
+              checkInId: '',
               eventName: event.name,
               eventId: event.id,
             };
-            const result = await printBadgeSilently(printConfigResponse.data, printData);
+            // Try silent print first, fallback to browser print dialog
+            const silentAvailability = await getSilentPrinterAvailability();
+            let result;
+            if (silentAvailability.available) {
+              result = await printBadgeSilently(printConfigResponse.data, printData);
+            } else {
+              result = await printBadge(printConfigResponse.data, printData);
+            }
             logPrintAttempt(event.id, printLabelParticipant.id, result);
             if (result.success) {
-               toast.success('Impressão concluída com sucesso');
+               toast.success('Impressão enviada com sucesso');
                setPrintLabelParticipant(null);
             } else {
                toast.error(result.error || 'Ocorreu um erro durante a impressão.');

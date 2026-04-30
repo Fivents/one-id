@@ -269,12 +269,15 @@ export function buildDefaultElementsLayout(
 ): Record<PrintItemKey, PrintElementLayout> {
   const { pageWidthMm, pageHeightMm } = getPrintPageSize(config);
   const keys = visibleItemKeys(config);
-  const gapMm = 2;
+  const gapMm = 2.5;
+
+  // Reserve 6mm for the event name header bar at the top
+  const EVENT_NAME_BAR_HEIGHT = 6;
 
   const totalHeight = keys.reduce((acc, key) => acc + itemHeightMm(config, key), 0) + Math.max(0, keys.length - 1) * gapMm;
 
-  const printableTop = config.marginTop;
-  const printableHeight = Math.max(0, pageHeightMm - config.marginTop - config.marginBottom);
+  const printableTop = config.marginTop + EVENT_NAME_BAR_HEIGHT;
+  const printableHeight = Math.max(0, pageHeightMm - printableTop - config.marginBottom);
   let currentY = printableTop + Math.max((printableHeight - totalHeight) / 2, 0);
 
   const layout: Record<PrintItemKey, PrintElementLayout> = {
@@ -288,9 +291,8 @@ export function buildDefaultElementsLayout(
 
   for (const key of keys) {
     const widthMm = itemWidthMm(config, key, pageWidthMm);
-    const x = key === 'name' || key === 'company' || key === 'jobTitle'
-      ? config.marginLeft
-      : Math.max((pageWidthMm - widthMm) / 2, 0);
+    // Center ALL elements horizontally for a professional look
+    const x = Math.max((pageWidthMm - widthMm) / 2, config.marginLeft);
 
     layout[key] = {
       x,
@@ -461,6 +463,7 @@ export function resolvePrintLayout(config: PrintConfigResponse, participant: Pri
 
 /**
  * Generate badge HTML based on print configuration and participant data.
+ * Produces a professional event badge optimized for thermal printers (Brother QL-810W).
  */
 export function generateBadgeHtml(config: PrintConfigResponse, participant: PrintParticipantData): string {
   const layout = resolvePrintLayout(config, participant);
@@ -477,7 +480,10 @@ export function generateBadgeHtml(config: PrintConfigResponse, participant: Prin
       }
 
       if (item.kind === 'text') {
-        return `<div class="badge-item badge-text" style="left: ${item.x}mm; top: ${item.y}mm; font-size: ${item.fontSizePx}px; font-weight: ${item.bold ? '700' : '400'};">
+        const textAlign = item.key === 'name' ? 'center' : 'center';
+        const letterSpacing = item.key === 'name' ? 'letter-spacing: 0.02em;' : '';
+        const textTransform = item.key === 'name' ? 'text-transform: uppercase;' : '';
+        return `<div class="badge-item badge-text badge-text-${item.key}" style="left: ${item.x}mm; top: ${item.y}mm; font-size: ${item.fontSizePx}px; font-weight: ${item.bold ? '700' : '400'}; text-align: ${textAlign}; ${letterSpacing} ${textTransform}">
           ${escapeHtml(item.text)}
         </div>`;
       }
@@ -488,6 +494,12 @@ export function generateBadgeHtml(config: PrintConfigResponse, participant: Prin
       </div>`;
     })
     .join('\n      ');
+
+  // Render event name as a subtle header bar at the very top
+  const eventNameBarHtml = `<div class="badge-event-name">${escapeHtml(participant.eventName)}</div>`;
+
+  // Decorative separator line between event name and content
+  const separatorHtml = `<div class="badge-separator"></div>`;
 
   return `
 <!DOCTYPE html>
@@ -501,9 +513,10 @@ export function generateBadgeHtml(config: PrintConfigResponse, participant: Prin
       margin: 0;
     }
     @media print {
-      body {
-        -webkit-print-color-adjust: exact;
-        print-color-adjust: exact;
+      html, body {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
       }
     }
     * {
@@ -517,7 +530,7 @@ export function generateBadgeHtml(config: PrintConfigResponse, participant: Prin
       height: ${layout.pageHeightMm}mm;
     }
     body {
-      font-family: ${layout.fontFamily}, sans-serif;
+      font-family: ${layout.fontFamily}, 'Helvetica Neue', Arial, sans-serif;
       background-color: ${layout.backgroundColor};
       color: ${layout.textColor};
       overflow: hidden;
@@ -528,6 +541,35 @@ export function generateBadgeHtml(config: PrintConfigResponse, participant: Prin
       height: ${layout.pageHeightMm}mm;
       overflow: hidden;
     }
+    .badge-event-name {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 5.5mm;
+      background-color: ${layout.textColor};
+      color: ${layout.backgroundColor};
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 7px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      padding: 0 2mm;
+    }
+    .badge-separator {
+      position: absolute;
+      top: 5.5mm;
+      left: ${config.marginLeft}mm;
+      right: ${config.marginRight}mm;
+      height: 0.3mm;
+      background-color: ${layout.textColor};
+      opacity: 0.15;
+    }
     .badge-item {
       position: absolute;
       display: flex;
@@ -536,17 +578,35 @@ export function generateBadgeHtml(config: PrintConfigResponse, participant: Prin
       color: ${layout.textColor};
     }
     .badge-text {
-      max-width: calc(${layout.pageWidthMm}mm - 4mm);
-      line-height: 1.25;
+      max-width: calc(${layout.pageWidthMm}mm - ${config.marginLeft + config.marginRight}mm);
+      line-height: 1.2;
       white-space: pre-wrap;
       word-break: break-word;
-      justify-content: flex-start;
-      align-items: flex-start;
+    }
+    .badge-text-name {
+      justify-content: center;
+      text-align: center;
+      width: calc(${layout.pageWidthMm}mm - ${config.marginLeft + config.marginRight}mm);
+    }
+    .badge-text-company {
+      justify-content: center;
+      text-align: center;
+      width: calc(${layout.pageWidthMm}mm - ${config.marginLeft + config.marginRight}mm);
+      opacity: 0.8;
+    }
+    .badge-text-jobTitle {
+      justify-content: center;
+      text-align: center;
+      width: calc(${layout.pageWidthMm}mm - ${config.marginLeft + config.marginRight}mm);
+      opacity: 0.6;
+      font-style: italic;
     }
   </style>
 </head>
 <body>
   <div class="badge">
+      ${eventNameBarHtml}
+      ${separatorHtml}
       ${itemsHtml}
   </div>
 </body>

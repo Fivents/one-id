@@ -2,7 +2,7 @@
 
 import { type PointerEvent as ReactPointerEvent, useMemo, useRef, useState } from 'react';
 
-import { Grip } from 'lucide-react';
+import { GripVertical, Maximize2 } from 'lucide-react';
 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -20,7 +20,7 @@ function itemLabel(key: PrintItemKey): string {
     case 'fiventsLogo':
       return 'Logo Fivents';
     case 'orgLogo':
-      return 'Logo Organizacao';
+      return 'Logo Org.';
     case 'name':
       return 'Nome';
     case 'company':
@@ -29,6 +29,23 @@ function itemLabel(key: PrintItemKey): string {
       return 'Cargo';
     case 'qrCode':
       return 'QR Code';
+  }
+}
+
+function itemColor(key: PrintItemKey): string {
+  switch (key) {
+    case 'fiventsLogo':
+      return '#3b82f6';
+    case 'orgLogo':
+      return '#8b5cf6';
+    case 'name':
+      return '#059669';
+    case 'company':
+      return '#d97706';
+    case 'jobTitle':
+      return '#dc2626';
+    case 'qrCode':
+      return '#0891b2';
   }
 }
 
@@ -54,6 +71,15 @@ export function PrintLayoutEditor({ config, participant, onLayoutChange }: Print
   const itemsByKey = useMemo(() => {
     return new Map(resolvedLayout.items.map((item) => [item.key, item]));
   }, [resolvedLayout.items]);
+
+  // Calculate a scale that fits the preview nicely
+  const previewScale = useMemo(() => {
+    const maxW = 380;
+    const maxH = 560;
+    const scaleX = maxW / resolvedLayout.pageWidthMm;
+    const scaleY = maxH / resolvedLayout.pageHeightMm;
+    return Math.min(scaleX, scaleY, 5);
+  }, [resolvedLayout.pageWidthMm, resolvedLayout.pageHeightMm]);
 
   function clampToTicket(key: PrintItemKey, x: number, y: number) {
     const item = itemsByKey.get(key);
@@ -162,50 +188,64 @@ export function PrintLayoutEditor({ config, participant, onLayoutChange }: Print
 
   return (
     <div className="space-y-4">
-      <p className="text-sm font-medium">Editor visual (arraste livre em mm)</p>
-
-      <div className="grid gap-3 md:grid-cols-2">
+      {/* Coordinate inputs */}
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
         {resolvedLayout.items.map((item) => {
           const coords = resolvedLayout.elementsLayout[item.key];
           const bounded = clampToTicket(item.key, coords?.x ?? 0, coords?.y ?? 0);
+          const color = itemColor(item.key);
 
           return (
             <div
               key={`${item.key}-coords`}
-              className={`rounded-lg border p-3 ${selectedItem === item.key ? 'border-primary bg-primary/5' : 'bg-card'}`}
+              className={`rounded-lg border p-2.5 transition-all cursor-pointer ${
+                selectedItem === item.key
+                  ? 'ring-2 shadow-sm'
+                  : 'hover:border-foreground/20'
+              }`}
+              style={{
+                borderColor: selectedItem === item.key ? color : undefined,
+                boxShadow: selectedItem === item.key ? `0 0 0 2px ${color}33` : undefined,
+              }}
+              onClick={() => setSelectedItem(item.key)}
             >
-              <div className="mb-2 flex items-center justify-between gap-2">
-                <span className="text-sm font-medium">{itemLabel(item.key)}</span>
-                <span className="text-muted-foreground text-xs">mm</span>
+              <div className="mb-1.5 flex items-center gap-2">
+                <div
+                  className="h-2.5 w-2.5 rounded-full"
+                  style={{ backgroundColor: color }}
+                />
+                <span className="text-xs font-semibold">{itemLabel(item.key)}</span>
               </div>
 
-              <div className="grid gap-2 sm:grid-cols-2">
-                <div className="space-y-1">
-                  <Label className="text-xs" htmlFor={`${item.key}-x`}>
-                    X
+              <div className="grid grid-cols-2 gap-1.5">
+                <div className="space-y-0.5">
+                  <Label className="text-[10px] text-muted-foreground" htmlFor={`${item.key}-x`}>
+                    X (mm)
                   </Label>
                   <Input
                     id={`${item.key}-x`}
                     type="number"
-                    step="0.1"
+                    step="0.5"
                     min={0}
                     max={bounded.maxX}
-                    value={(coords?.x ?? 0).toFixed(2)}
+                    value={(coords?.x ?? 0).toFixed(1)}
                     onChange={(event) => handleCoordinateChange(item.key, 'x', event.currentTarget.value)}
+                    className="h-7 text-xs"
                   />
                 </div>
-                <div className="space-y-1">
-                  <Label className="text-xs" htmlFor={`${item.key}-y`}>
-                    Y
+                <div className="space-y-0.5">
+                  <Label className="text-[10px] text-muted-foreground" htmlFor={`${item.key}-y`}>
+                    Y (mm)
                   </Label>
                   <Input
                     id={`${item.key}-y`}
                     type="number"
-                    step="0.1"
+                    step="0.5"
                     min={0}
                     max={bounded.maxY}
-                    value={(coords?.y ?? 0).toFixed(2)}
+                    value={(coords?.y ?? 0).toFixed(1)}
                     onChange={(event) => handleCoordinateChange(item.key, 'y', event.currentTarget.value)}
+                    className="h-7 text-xs"
                   />
                 </div>
               </div>
@@ -214,28 +254,45 @@ export function PrintLayoutEditor({ config, participant, onLayoutChange }: Print
         })}
       </div>
 
-      <div className="rounded-lg border p-2">
-        <div className="relative flex min-h-[560px] items-center justify-center overflow-auto rounded-md bg-muted/20 p-6">
-          <div
-            className="pointer-events-none absolute inset-0 opacity-30"
-            style={{
-              backgroundImage: 'radial-gradient(currentColor 0.8px, transparent 0.8px)',
-              backgroundSize: '14px 14px',
-            }}
-          />
+      {/* Realistic badge preview */}
+      <div className="rounded-xl border bg-gradient-to-br from-muted/30 via-muted/10 to-muted/30 p-6">
+        {/* Size indicator */}
+        <div className="mb-3 flex items-center justify-between">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Maximize2 className="h-3 w-3" />
+            <span>
+              {resolvedLayout.pageWidthMm}mm × {resolvedLayout.pageHeightMm}mm
+              {config.printerType === 'thermal' && ' · Térmica'}
+              {config.printerDpi > 0 && ` · ${config.printerDpi} DPI`}
+            </span>
+          </div>
+          <span className="text-[10px] text-muted-foreground">Arraste os elementos para reposicionar</span>
+        </div>
+
+        <div className="flex items-center justify-center">
+          {/* Paper simulation with shadow */}
           <div
             className="relative"
             style={{
-              width: `${resolvedLayout.pageWidthMm}mm`,
-              height: `${resolvedLayout.pageHeightMm}mm`,
+              width: `${resolvedLayout.pageWidthMm * previewScale}px`,
+              height: `${resolvedLayout.pageHeightMm * previewScale}px`,
             }}
           >
+            {/* Paper shadow */}
+            <div
+              className="absolute inset-0 rounded-sm"
+              style={{
+                boxShadow: '0 4px 24px rgba(0,0,0,0.12), 0 1px 4px rgba(0,0,0,0.08)',
+              }}
+            />
+
+            {/* The actual label preview */}
             <div
               ref={containerRef}
-              className="relative overflow-hidden rounded-md border shadow-lg"
+              className="relative overflow-hidden rounded-sm"
               style={{
-                width: `${resolvedLayout.pageWidthMm}mm`,
-                height: `${resolvedLayout.pageHeightMm}mm`,
+                width: `${resolvedLayout.pageWidthMm * previewScale}px`,
+                height: `${resolvedLayout.pageHeightMm * previewScale}px`,
                 backgroundColor: resolvedLayout.backgroundColor,
                 color: resolvedLayout.textColor,
                 fontFamily: resolvedLayout.fontFamily,
@@ -245,8 +302,53 @@ export function PrintLayoutEditor({ config, participant, onLayoutChange }: Print
               onPointerCancel={stopDrag}
               onPointerLeave={stopDrag}
             >
+              {/* Event name header bar */}
+              <div
+                className="absolute top-0 left-0 right-0 flex items-center justify-center overflow-hidden"
+                style={{
+                  height: `${5.5 * previewScale}px`,
+                  backgroundColor: resolvedLayout.textColor,
+                  color: resolvedLayout.backgroundColor,
+                  fontSize: `${Math.max(6, 7 * previewScale * 0.26)}px`,
+                  fontWeight: 600,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.12em',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {participant.eventName}
+              </div>
+
+              {/* Separator line */}
+              <div
+                className="absolute"
+                style={{
+                  top: `${5.5 * previewScale}px`,
+                  left: `${config.marginLeft * previewScale}px`,
+                  right: `${config.marginRight * previewScale}px`,
+                  height: `${0.3 * previewScale}px`,
+                  backgroundColor: resolvedLayout.textColor,
+                  opacity: 0.15,
+                }}
+              />
+
+              {/* Center guide lines (subtle) */}
+              <div
+                className="pointer-events-none absolute"
+                style={{
+                  left: `${(resolvedLayout.pageWidthMm / 2) * previewScale}px`,
+                  top: `${6 * previewScale}px`,
+                  bottom: 0,
+                  width: '1px',
+                  borderLeft: '1px dashed',
+                  borderColor: 'rgba(0,0,0,0.06)',
+                }}
+              />
+
+              {/* Render items */}
               {resolvedLayout.items.map((item) => {
                 const isSelected = selectedItem === item.key;
+                const color = itemColor(item.key);
 
                 if (item.kind === 'image') {
                   return (
@@ -254,15 +356,16 @@ export function PrintLayoutEditor({ config, participant, onLayoutChange }: Print
                       key={item.key}
                       role="button"
                       tabIndex={0}
-                      className={`group absolute cursor-move rounded border bg-background/70 p-0.5 backdrop-blur-[1px] ${
-                        isSelected ? 'border-blue-500 ring-2 ring-blue-300' : 'border-slate-300'
-                      }`}
+                      className="group absolute cursor-move"
                       style={{
-                        left: `${item.x}mm`,
-                        top: `${item.y}mm`,
-                        width: `${item.sizeMm}mm`,
-                        height: `${item.sizeMm}mm`,
+                        left: `${item.x * previewScale}px`,
+                        top: `${item.y * previewScale}px`,
+                        width: `${item.sizeMm * previewScale}px`,
+                        height: `${item.sizeMm * previewScale}px`,
                         touchAction: 'none',
+                        outline: isSelected ? `2px solid ${color}` : '1px dashed rgba(0,0,0,0.15)',
+                        outlineOffset: '1px',
+                        borderRadius: '2px',
                       }}
                       onPointerDown={(event) => startDrag(item.key, event)}
                     >
@@ -278,8 +381,11 @@ export function PrintLayoutEditor({ config, participant, onLayoutChange }: Print
                           }
                         }}
                       />
-                      <span className="pointer-events-none absolute -top-2 -right-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-slate-800 text-[10px] text-white opacity-90">
-                        <Grip className="h-3 w-3" />
+                      <span
+                        className="pointer-events-none absolute -top-1.5 -right-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full text-[8px] text-white opacity-0 transition-opacity group-hover:opacity-100"
+                        style={{ backgroundColor: color }}
+                      >
+                        <GripVertical className="h-2.5 w-2.5" />
                       </span>
                     </div>
                   );
@@ -291,27 +397,36 @@ export function PrintLayoutEditor({ config, participant, onLayoutChange }: Print
                       key={item.key}
                       role="button"
                       tabIndex={0}
-                      className={`group absolute cursor-move rounded border px-1 py-0.5 ${
-                        isSelected ? 'border-blue-500 ring-2 ring-blue-300' : 'border-slate-300'
-                      }`}
+                      className="group absolute cursor-move"
                       style={{
-                        left: `${item.x}mm`,
-                        top: `${item.y}mm`,
-                        fontSize: `${item.fontSizePx}px`,
+                        left: `${item.x * previewScale}px`,
+                        top: `${item.y * previewScale}px`,
+                        fontSize: `${item.fontSizePx * previewScale * 0.26}px`,
                         fontWeight: item.bold ? 700 : 400,
-                        lineHeight: 1.25,
-                        maxWidth: `calc(${resolvedLayout.pageWidthMm}mm - 4mm)`,
+                        lineHeight: 1.2,
+                        maxWidth: `${(resolvedLayout.pageWidthMm - config.marginLeft - config.marginRight) * previewScale}px`,
                         whiteSpace: 'pre-wrap',
                         wordBreak: 'break-word',
                         touchAction: 'none',
-                        backgroundColor: 'hsl(var(--background) / 0.7)',
                         color: resolvedLayout.textColor,
+                        textAlign: 'center' as const,
+                        letterSpacing: item.key === 'name' ? '0.02em' : undefined,
+                        textTransform: item.key === 'name' ? 'uppercase' as const : undefined,
+                        fontStyle: item.key === 'jobTitle' ? 'italic' : undefined,
+                        opacity: item.key === 'jobTitle' ? 0.6 : item.key === 'company' ? 0.8 : 1,
+                        outline: isSelected ? `2px solid ${color}` : '1px dashed rgba(0,0,0,0.08)',
+                        outlineOffset: '1px',
+                        borderRadius: '2px',
+                        padding: `${1 * previewScale * 0.3}px ${2 * previewScale * 0.3}px`,
                       }}
                       onPointerDown={(event) => startDrag(item.key, event)}
                     >
                       {item.text}
-                      <span className="pointer-events-none absolute -top-2 -right-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-slate-800 text-[10px] text-white opacity-90">
-                        <Grip className="h-3 w-3" />
+                      <span
+                        className="pointer-events-none absolute -top-1.5 -right-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full text-[8px] text-white opacity-0 transition-opacity group-hover:opacity-100"
+                        style={{ backgroundColor: color }}
+                      >
+                        <GripVertical className="h-2.5 w-2.5" />
                       </span>
                     </div>
                   );
@@ -325,22 +440,26 @@ export function PrintLayoutEditor({ config, participant, onLayoutChange }: Print
                     key={item.key}
                     role="button"
                     tabIndex={0}
-                    className={`group absolute cursor-move rounded border bg-background/70 p-0.5 backdrop-blur-[1px] ${
-                      isSelected ? 'border-blue-500 ring-2 ring-blue-300' : 'border-slate-300'
-                    }`}
+                    className="group absolute cursor-move"
                     style={{
-                      left: `${item.x}mm`,
-                      top: `${item.y}mm`,
-                      width: `${item.sizeMm}mm`,
-                      height: `${item.sizeMm}mm`,
+                      left: `${item.x * previewScale}px`,
+                      top: `${item.y * previewScale}px`,
+                      width: `${item.sizeMm * previewScale}px`,
+                      height: `${item.sizeMm * previewScale}px`,
                       touchAction: 'none',
+                      outline: isSelected ? `2px solid ${color}` : '1px dashed rgba(0,0,0,0.15)',
+                      outlineOffset: '1px',
+                      borderRadius: '2px',
                     }}
                     onPointerDown={(event) => startDrag(item.key, event)}
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={qrSrc} alt="QR Code" className="h-full w-full object-contain" draggable={false} />
-                    <span className="pointer-events-none absolute -top-2 -right-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-slate-800 text-[10px] text-white opacity-90">
-                      <Grip className="h-3 w-3" />
+                    <span
+                      className="pointer-events-none absolute -top-1.5 -right-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full text-[8px] text-white opacity-0 transition-opacity group-hover:opacity-100"
+                      style={{ backgroundColor: color }}
+                    >
+                      <GripVertical className="h-2.5 w-2.5" />
                     </span>
                   </div>
                 );
