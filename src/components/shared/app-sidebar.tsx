@@ -86,8 +86,14 @@ export function AppSidebar() {
   const filteredNavItems = navItems.filter((item) => role && item.roles.includes(role));
 
   async function handleLogout() {
-    await logout();
+    // Navigate immediately to login to avoid blank screen while server logout completes
     router.push('/login');
+    try {
+      await logout();
+    } catch (error) {
+      // Ignore logout errors since user is already being redirected to login
+      console.error('[AppSidebar] logout error:', error);
+    }
   }
 
   if (!user || !role) return null;

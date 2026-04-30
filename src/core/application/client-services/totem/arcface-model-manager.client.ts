@@ -1,4 +1,14 @@
-import * as ort from 'onnxruntime-web';
+import type * as OrtType from 'onnxruntime-web';
+
+let ort: typeof import('onnxruntime-web') | null = null;
+
+async function getOrt(): Promise<typeof import('onnxruntime-web')> {
+  if (!ort) {
+    ort = await import('onnxruntime-web');
+  }
+
+  return ort;
+}
 
 const DEFAULT_PRIMARY_REMOTE_MODEL_URL = '/models/arcface/onnx/arcfaceresnet100-11-int8.onnx';
 const DEFAULT_FALLBACK_MODEL_PATH = '/models/arcface/onnx/arcfaceresnet100-11-int8.onnx';
@@ -43,15 +53,15 @@ export type ArcFaceModelRuntimeState = {
 
 type ArcFaceModelStateListener = (state: ArcFaceModelRuntimeState) => void;
 
-const ARC_FACE_SESSION_OPTIONS: ort.InferenceSession.SessionOptions = {
+const ARC_FACE_SESSION_OPTIONS: OrtType.InferenceSession.SessionOptions = {
   executionProviders: ['wasm'],
   graphOptimizationLevel: 'all',
 };
 
 let primaryModelBuffer: ArrayBuffer | null = null;
 let primaryModelDownloadPromise: Promise<ArrayBuffer> | null = null;
-let primarySessionPromise: Promise<ort.InferenceSession> | null = null;
-let fallbackSessionPromise: Promise<ort.InferenceSession> | null = null;
+let primarySessionPromise: Promise<OrtType.InferenceSession> | null = null;
+let fallbackSessionPromise: Promise<OrtType.InferenceSession> | null = null;
 
 let runtimeConfigured = false;
 
@@ -86,14 +96,15 @@ function getErrorMessage(error: unknown, fallbackMessage: string): string {
   return fallbackMessage;
 }
 
-function configureRuntime() {
+async function configureRuntime() {
   if (runtimeConfigured) {
     return;
   }
 
-  ort.env.wasm.wasmPaths = '/wasm/';
-  ort.env.wasm.proxy = false;
-  ort.env.wasm.simd = true;
+  const ortLib = await getOrt();
+  ortLib.env.wasm.wasmPaths = '/wasm/';
+  ortLib.env.wasm.proxy = false;
+  ortLib.env.wasm.simd = true;
 
   runtimeConfigured = true;
 }
@@ -381,22 +392,25 @@ async function ensurePrimaryModelBuffer(options?: { forceRemoteDownload?: boolea
   }
 }
 
-async function ensurePrimarySession(): Promise<ort.InferenceSession> {
+async function ensurePrimarySession(): Promise<OrtType.InferenceSession> {
   if (!primarySessionPromise) {
     primarySessionPromise = (async () => {
-      configureRuntime();
+      await configureRuntime();
 
       try {
         const initialBuffer = await ensurePrimaryModelBuffer();
 
         try {
-          return await ort.InferenceSession.create(initialBuffer, ARC_FACE_SESSION_OPTIONS);
+          const ortLib = await getOrt();
+
+          return await ortLib.InferenceSession.create(initialBuffer, ARC_FACE_SESSION_OPTIONS);
         } catch {
           await clearPrimaryModelCache();
           primaryModelBuffer = null;
 
           const refreshedBuffer = await ensurePrimaryModelBuffer({ forceRemoteDownload: true });
-          return ort.InferenceSession.create(refreshedBuffer, ARC_FACE_SESSION_OPTIONS);
+          const ortLib = await getOrt();
+          return ortLib.InferenceSession.create(refreshedBuffer, ARC_FACE_SESSION_OPTIONS);
         }
       } catch (error) {
         const errorMessage = getErrorMessage(error, 'Failed to initialize primary ArcFace model.');
@@ -422,7 +436,7 @@ async function ensurePrimarySession(): Promise<ort.InferenceSession> {
   return primarySessionPromise;
 }
 
-async function ensureFallbackSession(): Promise<ort.InferenceSession> {
+async function ensureFallbackSession(): Promise<OrtType.InferenceSession> {
   if (!fallbackSessionPromise) {
     setState((current) => ({
       ...current,
@@ -433,10 +447,12 @@ async function ensureFallbackSession(): Promise<ort.InferenceSession> {
     }));
 
     fallbackSessionPromise = (async () => {
-      configureRuntime();
+
+      await configureRuntime();
 
       try {
-        const session = await ort.InferenceSession.create(FALLBACK_MODEL_PATH, ARC_FACE_SESSION_OPTIONS);
+        const ortLib = await getOrt();
+        const session = await ortLib.InferenceSession.create(FALLBACK_MODEL_PATH, ARC_FACE_SESSION_OPTIONS);
 
         setState((current) => ({
           ...current,
@@ -532,7 +548,7 @@ export async function activatePrimaryArcFaceModel(): Promise<void> {
   }));
 }
 
-export async function getArcFaceSession(): Promise<ort.InferenceSession> {
+export async function getArcFaceSession(): Promise<OrtType.InferenceSession> {
   if (state.preferredVariant === 'fallback') {
     try {
       const fallbackSession = await ensureFallbackSession();

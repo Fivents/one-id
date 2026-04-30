@@ -1,5 +1,13 @@
-import { FaceDetector, FilesetResolver } from '@mediapipe/tasks-vision';
-import * as ort from 'onnxruntime-web';
+import type * as OrtType from 'onnxruntime-web';
+
+let ort: typeof import('onnxruntime-web') | null = null;
+async function getOrt(): Promise<typeof import('onnxruntime-web')> {
+  if (!ort) {
+    ort = await import('onnxruntime-web');
+  }
+
+  return ort;
+}
 
 import {
   adaptAndNormalizeFaceEmbedding,
@@ -30,9 +38,11 @@ const LAPLACIAN_LOW_VARIANCE = 120;
 const LAPLACIAN_HIGH_VARIANCE = 900;
 
 let faceDetectorPromise: Promise<FaceDetector> | null = null;
+// FaceDetector type will be referenced dynamically; declare any to satisfy TS at module scope
+type FaceDetector = any;
 
 type TensorLayout = 'NCHW' | 'NHWC';
-type SessionWithInputMetadata = ort.InferenceSession & {
+type SessionWithInputMetadata = OrtType.InferenceSession & {
   inputMetadata?: Record<string, { dimensions?: Array<number | string> | readonly (number | string)[] }>;
 };
 
@@ -63,9 +73,12 @@ type ExtractedFaceEmbedding = {
 async function getFaceDetector(): Promise<FaceDetector> {
   if (!faceDetectorPromise) {
     faceDetectorPromise = (async () => {
+      const tasks = await import('@mediapipe/tasks-vision');
+      const { FilesetResolver, FaceDetector: MPFaceDetector } = tasks;
+
       const vision = await FilesetResolver.forVisionTasks(MEDIAPIPE_WASM_PATH);
 
-      return FaceDetector.createFromOptions(vision, {
+      return MPFaceDetector.createFromOptions(vision, {
         baseOptions: {
           modelAssetPath: MEDIAPIPE_FACE_DETECTOR_MODEL_PATH,
         },
@@ -94,7 +107,7 @@ function toNumericDimension(value: number | string | undefined): number | null {
   return null;
 }
 
-function inferTensorLayoutFromMetadata(session: ort.InferenceSession, inputName: string): TensorLayout | null {
+function inferTensorLayoutFromMetadata(session: OrtType.InferenceSession, inputName: string): TensorLayout | null {
   const metadata = (session as SessionWithInputMetadata).inputMetadata?.[inputName];
   const dims = metadata?.dimensions;
 
@@ -125,7 +138,7 @@ function isLikelyShapeError(error: unknown): boolean {
   return message.includes('invalid dimensions') || message.includes('expected:') || message.includes('got:');
 }
 
-function buildArcFaceInputTensor(imageBitmap: ImageBitmap, layout: TensorLayout): ort.Tensor {
+async function buildArcFaceInputTensor(imageBitmap: ImageBitmap, layout: TensorLayout): Promise<OrtType.Tensor> {
   const canvas = document.createElement('canvas');
   canvas.width = ARCFACE_INPUT_SIZE;
   canvas.height = ARCFACE_INPUT_SIZE;
@@ -163,7 +176,8 @@ function buildArcFaceInputTensor(imageBitmap: ImageBitmap, layout: TensorLayout)
   const dims =
     layout === 'NCHW' ? [1, 3, ARCFACE_INPUT_SIZE, ARCFACE_INPUT_SIZE] : [1, ARCFACE_INPUT_SIZE, ARCFACE_INPUT_SIZE, 3];
 
-  return new ort.Tensor('float32', inputData, dims);
+  const ortLib = await getOrt();
+  return new ortLib.Tensor('float32', inputData, dims);
 }
 
 async function extractArcFaceEmbedding(bitmap: ImageBitmap): Promise<number[]> {
@@ -175,15 +189,15 @@ async function extractArcFaceEmbedding(bitmap: ImageBitmap): Promise<number[]> {
   const layoutAttempts: TensorLayout[] =
     metadataLayout === 'NHWC' ? ['NHWC', 'NCHW'] : metadataLayout === 'NCHW' ? ['NCHW', 'NHWC'] : ['NCHW', 'NHWC'];
 
-  let result: ort.OnnxValue | undefined;
+  let result: OrtType.OnnxValue | undefined;
 
   for (let index = 0; index < layoutAttempts.length; index += 1) {
     const layout = layoutAttempts[index];
-    const inputTensor = buildArcFaceInputTensor(bitmap, layout);
+    const inputTensor = await buildArcFaceInputTensor(bitmap, layout);
 
     try {
       const output = await session.run({ [inputName]: inputTensor });
-      result = output[outputName];
+        result = output[outputName];
       break;
     } catch (error) {
       const isLastAttempt = index === layoutAttempts.length - 1;
@@ -193,7 +207,7 @@ async function extractArcFaceEmbedding(bitmap: ImageBitmap): Promise<number[]> {
     }
   }
 
-  if (!result || !ArrayBuffer.isView(result.data)) {
+  if (!result || !ArrayBuffer.isView((result as any).data)) {
     throw new Error('ArcFace model returned invalid output tensor.');
   }
 
