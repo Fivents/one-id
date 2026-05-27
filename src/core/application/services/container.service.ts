@@ -15,6 +15,7 @@ import { BcryptPasswordHasher } from '@/core/infrastructure/providers/bcrypt-pas
 import { EmbeddingEncryptionService } from '@/core/infrastructure/providers/embedding-encryption.service';
 import { GoogleOAuthProvider } from '@/core/infrastructure/providers/google-oauth.provider';
 import { JoseTokenProvider } from '@/core/infrastructure/providers/jose-token-provider';
+import { ResendEmailService } from '@/core/infrastructure/providers/resend-email.service';
 import { PrismaAuditLogRepository } from '@/core/infrastructure/repositories/prisma-audit-log.repository';
 import { PrismaAuthIdentityRepository } from '@/core/infrastructure/repositories/prisma-auth-identity.repository';
 import { PrismaCheckInRepository } from '@/core/infrastructure/repositories/prisma-check-in.repository';
@@ -90,6 +91,8 @@ class ContainerService {
   private embeddingEncryptionService: IEmbeddingEncryptionService | null = null;
   // FASE 5: Compliance - Multi-Tenant Audit
   private multiTenantAuditService: IMultiTenantAuditService | null = null;
+  // Email
+  private emailService: ResendEmailService | null = null;
 
   constructor(prismaClient: PrismaClient) {
     this.prismaClient = prismaClient;
@@ -324,6 +327,13 @@ class ContainerService {
       this.multiTenantAuditService = new MultiTenantAuditService();
     }
     return this.multiTenantAuditService;
+  }
+
+  getEmailService(): ResendEmailService {
+    if (!this.emailService) {
+      this.emailService = new ResendEmailService(this.prismaClient);
+    }
+    return this.emailService;
   }
 }
 

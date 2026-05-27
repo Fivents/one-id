@@ -11,6 +11,7 @@ import {
   ExternalLink,
   Globe,
   Link2,
+  Mail,
   MapPin,
   MonitorSmartphone,
   Pencil,
@@ -19,6 +20,7 @@ import {
   RotateCcw,
   ScanFace,
   Search,
+  Send,
   Trash2,
   User,
 } from 'lucide-react';
@@ -280,6 +282,8 @@ export default function EventDetailPage() {
   const [isSavingParticipant, setIsSavingParticipant] = useState(false);
   const [printLabelParticipant, setPrintLabelParticipant] = useState<EventParticipantDetailResponse | null>(null);
   const [isPrintingParticipantLabel, setIsPrintingParticipantLabel] = useState(false);
+  const [sendingEmailParticipantId, setSendingEmailParticipantId] = useState<string | null>(null);
+  const [isSendingBulkEmail, setIsSendingBulkEmail] = useState(false);
 
   const [faceImageUrl, setFaceImageUrl] = useState('');
   const [faceImageDataUrl, setFaceImageDataUrl] = useState('');
@@ -743,6 +747,53 @@ export default function EventDetailPage() {
       setAiConfig(response.data);
     }
   }, [eventId]);
+
+  async function handleSendAccessCode(participantId: string, participantName: string) {
+    setSendingEmailParticipantId(participantId);
+    try {
+      const res = await fetch(`/api/events/${eventId}/participants/send-access-code`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ participantIds: [participantId] }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? 'Erro ao enviar email');
+      if (data.sent > 0) {
+        toast.success(`Código de acesso enviado para ${participantName}`);
+      } else if (data.skipped > 0) {
+        toast.warning('Email não configurado. Configure o Resend nas configurações da organização.');
+      } else {
+        toast.error(`Falha ao enviar email para ${participantName}`);
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Erro ao enviar email');
+    } finally {
+      setSendingEmailParticipantId(null);
+    }
+  }
+
+  async function handleSendBulkAccessCodes() {
+    setIsSendingBulkEmail(true);
+    try {
+      const res = await fetch(`/api/events/${eventId}/participants/send-access-code`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ participantIds: [] }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? 'Erro ao enviar emails');
+      const total = (data.sent ?? 0) + (data.failed ?? 0) + (data.skipped ?? 0);
+      if (data.skipped === total) {
+        toast.warning('Email não configurado. Configure o Resend nas configurações da organização.');
+      } else {
+        toast.success(`Envio concluído: ${data.sent} enviados, ${data.failed} falhas, ${data.skipped} ignorados`);
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Erro ao enviar emails');
+    } finally {
+      setIsSendingBulkEmail(false);
+    }
+  }
 
   const loadPublicLink = useCallback(async () => {
     setIsLoadingPublicLink(true);
@@ -1466,6 +1517,21 @@ export default function EventDetailPage() {
                   </CardDescription>
                 </div>
                 <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleSendBulkAccessCodes}
+                    disabled={isSendingBulkEmail || participantsMeta.total === 0}
+                    title="Enviar código de acesso para todos os participantes"
+                    id="send-all-access-codes"
+                  >
+                    {isSendingBulkEmail ? (
+                      <RotateCcw className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Send className="mr-2 h-4 w-4" />
+                    )}
+                    Enviar códigos (todos)
+                  </Button>
                   <Button size="sm" variant="outline" onClick={() => setLinkPersonOpen(true)}>
                     <Link2 className="mr-2 h-4 w-4" />
                     {t('pages.eventDetail.linkPerson')}
@@ -1552,15 +1618,29 @@ export default function EventDetailPage() {
                                 : t('pages.eventDetail.pending')}
                             </Badge>
                           </TableCell>
-                          <TableCell className="flex gap-2">
-                            <Button variant="ghost" size="icon" onClick={() => setViewParticipant(participant)}>
+                          <TableCell className="flex gap-1">
+                            <Button variant="ghost" size="icon" onClick={() => setViewParticipant(participant)} title="Ver detalhes">
                               <User className="h-4 w-4" />
                             </Button>
-                            <Button variant="ghost" size="icon" onClick={() => setEditParticipant(participant)}>
+                            <Button variant="ghost" size="icon" onClick={() => setEditParticipant(participant)} title="Editar">
                               <Pencil className="h-4 w-4" />
                             </Button>
-                            <Button variant="ghost" size="icon" onClick={() => setRegisterFaceParticipant(participant)}>
+                            <Button variant="ghost" size="icon" onClick={() => setRegisterFaceParticipant(participant)} title="Cadastrar foto">
                               <ScanFace className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              disabled={sendingEmailParticipantId === participant.id}
+                              onClick={() => handleSendAccessCode(participant.id, participant.name)}
+                              title="Enviar código de acesso por email"
+                              id={`send-access-code-${participant.id}`}
+                            >
+                              {sendingEmailParticipantId === participant.id ? (
+                                <RotateCcw className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Mail className="h-4 w-4" />
+                              )}
                             </Button>
                             <Button 
                               variant="ghost" 
@@ -1571,7 +1651,7 @@ export default function EventDetailPage() {
                             >
                               <Printer className="h-4 w-4" />
                             </Button>
-                            <Button variant="ghost" size="icon" onClick={() => handleDeleteParticipant(participant)}>
+                            <Button variant="ghost" size="icon" onClick={() => handleDeleteParticipant(participant)} title="Remover">
                               <Trash2 className="text-destructive h-4 w-4" />
                             </Button>
                           </TableCell>

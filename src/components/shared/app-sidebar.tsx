@@ -13,6 +13,7 @@ import {
   CreditCard,
   LayoutDashboard,
   LogOut,
+  Mail,
   Monitor,
   Settings,
   Shield,
@@ -82,6 +83,7 @@ export function AppSidebar() {
   const organizationEventsHref = organizationId ? `/organizations/${organizationId}/events` : null;
   const organizationPeopleHref = organizationId ? `/organizations/${organizationId}/people` : null;
   const organizationTotemsHref = organizationId ? `/organizations/${organizationId}/totems` : null;
+
 
   const filteredNavItems = navItems.filter((item) => role && item.roles.includes(role));
 
@@ -181,6 +183,7 @@ export function AppSidebar() {
                   </SidebarMenuButton>
                 )}
               </SidebarMenuItem>
+
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
@@ -219,6 +222,14 @@ export function AppSidebar() {
                     <Link href="/admin/totems">
                       <Monitor className="h-4 w-4" />
                       <span>{t('nav.sidebar.totems')}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={pathname.startsWith('/admin/settings/email')}>
+                    <Link href="/admin/settings/email">
+                      <Mail className="h-4 w-4" />
+                      <span>Email Settings</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

@@ -14,6 +14,11 @@ const envSchema = z.object({
     .number()
     .positive()
     .default(8 * 60 * 60 * 1000), // Default: 8 hours
+
+  // ── Email (Resend) — all optional; email is silently skipped when not configured ──
+  RESEND_API_KEY: z.string().min(1).optional(),
+  RESEND_FROM_EMAIL: z.string().optional(),
+  RESEND_FROM_NAME: z.string().optional(),
 });
 
 function validateEnv() {

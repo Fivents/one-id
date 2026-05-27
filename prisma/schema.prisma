@@ -76,6 +76,13 @@ enum NotificationChannel {
   SMS
 }
 
+enum EmailLogStatus {
+  PENDING
+  SENT
+  FAILED
+  SKIPPED
+}
+
 enum DocumentType {
   PASSPORT
   ID_CARD
@@ -158,6 +165,8 @@ model Organization {
   people                         Person[]
   auditLogs                      AuditLog[]
   planChangeRequests             PlanChangeRequest[]
+
+  emailLogs                      EmailLog[]
 
   @@map("organizations")
 }
@@ -822,4 +831,49 @@ model CheckInMetrics {
   @@index([organizationId])
   @@index([hour])
   @@map("check_in_metrics")
+}
+
+// ── Email Integration ───────────────────────────────────────────────
+
+model EmailSettings {
+  id             String  @id @default(uuid())
+
+  /// Optional Resend API key override — falls back to RESEND_API_KEY env var when null.
+  apiKey    String? @map("api_key")
+  fromName  String  @default("OneID") @map("from_name")
+  /// Must be a verified Resend sender domain. Falls back to RESEND_FROM_EMAIL env var.
+  fromEmail String? @map("from_email")
+  replyTo   String? @map("reply_to")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("email_settings")
+}
+
+model EmailLog {
+  id             String         @id @default(uuid())
+  organizationId String         @map("organization_id")
+  eventId        String?        @map("event_id")
+
+  /// Stores the EventParticipant.id — email is always per-participant, not per-person.
+  participantId  String?        @map("participant_id")
+  recipient      String         // email address that was targeted
+  template       String         // e.g. "access-code"
+  status         EmailLogStatus @default(PENDING)
+  providerMsgId  String?        @map("provider_msg_id") // Resend message ID on success
+  error          String?        // error message on failure
+  metadata       Json?
+
+  sentAt    DateTime? @map("sent_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([eventId])
+  @@index([participantId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("email_logs")
 }

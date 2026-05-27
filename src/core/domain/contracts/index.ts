@@ -9,6 +9,7 @@ export type {
 } from './confidence-threshold.service';
 export type { ICooldownService, PersonCooldownState } from './cooldown.service';
 export type { IEmbeddingEncryptionService } from './embedding-encryption.service';
+export type { IEmailService, SendAccessCodePayload, SendEmailResult } from './email.service';
 export type { CreateEventData, IEventRepository, UpdateEventData } from './event.repository';
 export type {
   CreateEventParticipantData,
