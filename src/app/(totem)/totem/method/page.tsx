@@ -8,12 +8,23 @@ import { useRouter } from 'next/navigation';
 import { Camera, ChevronRight, KeyRound, QrCode, ShieldCheck } from 'lucide-react';
 
 import { clearTotemToken } from '@/core/application/client-services/totem';
+import { startFaceModelPreload } from '@/core/application/client-services/totem/face-preloader-manager.client';
 
 import { useTotemSession } from '../_lib/use-totem-session';
 
 export default function TotemMethodPage() {
   const router = useRouter();
   const { session, isLoading } = useTotemSession();
+
+  useEffect(() => {
+    if (!session || isLoading) {
+      return;
+    }
+
+    if (session.activeEvent.faceEnabled) {
+      startFaceModelPreload();
+    }
+  }, [isLoading, session]);
 
   useEffect(() => {
     if (!session || isLoading) {

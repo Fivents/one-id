@@ -1,3 +1,11 @@
+export type { PreloaderManagerState } from './face-preloader-manager.client';
+export {
+  getPreloadedBuffer,
+  getPreloaderState,
+  resetFaceModelPreload,
+  startFaceModelPreload,
+  subscribePreloaderState,
+} from './face-preloader-manager.client';
 export {
   fetchPrintConfig,
   logPrintAttempt,

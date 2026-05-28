@@ -27,8 +27,7 @@ import {
 } from './arcface-model-manager.client';
 
 const ARCFACE_INPUT_SIZE = 112;
-const MEDIAPIPE_WASM_PATH =
-  process.env.NEXT_PUBLIC_MEDIAPIPE_WASM_PATH ?? '/wasm/mediapipe/';
+const MEDIAPIPE_WASM_PATH = process.env.NEXT_PUBLIC_MEDIAPIPE_WASM_PATH ?? '/wasm/mediapipe/';
 const MEDIAPIPE_FACE_DETECTOR_MODEL_PATH =
   process.env.NEXT_PUBLIC_MEDIAPIPE_FACE_DETECTOR_MODEL_PATH ?? '/models/mediapipe/blaze_face_short_range.tflite';
 const DEFAULT_MIN_DETECTION_CONFIDENCE = 0.45;

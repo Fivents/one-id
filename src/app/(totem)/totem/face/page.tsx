@@ -16,7 +16,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { setPreloadedPrimaryModelBuffer } from '@/core/application/client-services/totem/arcface-model-manager.client';
 import {
   activateFallbackArcFaceModel,
   activatePrimaryArcFaceModel,
@@ -24,14 +23,14 @@ import {
   extractFaceEmbedding,
   getArcFaceModelState,
   isFallbackModelDistinct,
-  prepareArcFaceModels,
-  setPreloadedMediaPipeModelBuffer,
   subscribeArcFaceModelState,
 } from '@/core/application/client-services/totem/face-embedding.client';
 import {
-  FaceModelPreloader,
-  type PreloaderProgress,
-} from '@/core/application/client-services/totem/face-model-preloader.client';
+  getPreloaderState,
+  type PreloaderManagerState,
+  startFaceModelPreload,
+  subscribePreloaderState,
+} from '@/core/application/client-services/totem/face-preloader-manager.client';
 import {
   fetchPrintConfig,
   logPrintAttempt,
@@ -80,9 +79,8 @@ export default function TotemFacePage() {
   const [printParticipantData, setPrintParticipantData] = useState<PrintParticipantData | null>(null);
   const [isPrinting, setIsPrinting] = useState(false);
 
-  const [preloaderProgress, setPreloaderProgress] = useState<PreloaderProgress | null>(null);
+  const [preloaderProgress, setPreloaderProgress] = useState<PreloaderManagerState['progress']>(null);
   const [isPreloading, setIsPreloading] = useState(true);
-  const preloaderRef = useRef<FaceModelPreloader | null>(null);
 
   const isFallbackDistinct = isFallbackModelDistinct();
 
@@ -104,40 +102,33 @@ export default function TotemFacePage() {
       setModelState(nextState);
     });
 
-    const preloader = new FaceModelPreloader();
-    preloaderRef.current = preloader;
+    const unsubPreloader = subscribePreloaderState((newState) => {
+      if (newState.progress) {
+        setPreloaderProgress(newState.progress);
+      }
 
-    const unsubProgress = preloader.onProgress((progress) => {
-      setPreloaderProgress(progress);
+      if (newState.status === 'loading') {
+        setIsPreloading(true);
+      } else if (newState.status === 'ready' || newState.status === 'error') {
+        setIsPreloading(false);
+      }
     });
 
-    void (async () => {
-      try {
-        const buffers = await preloader.preloadAll();
-
-        const arcfaceBuffer = buffers.get('arcface-onnx');
-        if (arcfaceBuffer) {
-          setPreloadedPrimaryModelBuffer(arcfaceBuffer);
-        }
-
-        const tfliteBuffer = buffers.get('blaze-face-tflite');
-        if (tfliteBuffer) {
-          setPreloadedMediaPipeModelBuffer(new Uint8Array(tfliteBuffer));
-        }
-
-        prepareArcFaceModels({ preloadFallback: true });
-        setIsPreloading(false);
-      } catch {
-        setIsPreloading(false);
-        prepareArcFaceModels({ preloadFallback: true });
+    const current = getPreloaderState();
+    if (current.status === 'ready') {
+      setIsPreloading(false);
+    } else if (current.status === 'loading') {
+      setIsPreloading(true);
+      if (current.progress) {
+        setPreloaderProgress(current.progress);
       }
-    })();
+    } else {
+      startFaceModelPreload();
+    }
 
     return () => {
       unsubscribeModel();
-      unsubProgress();
-      preloader.abort();
-      preloaderRef.current = null;
+      unsubPreloader();
     };
   }, []);
 
@@ -650,7 +641,7 @@ export default function TotemFacePage() {
           {/* Loading indicator - small, non-blocking */}
           {!feedback && modelState.activeVariant === 'primary' && !isModelReadyForCapture && !hasModelLoadError && (
             <div className="absolute bottom-16 left-1/2 z-20 -translate-x-1/2">
-              <div className="flex items-center gap-3 rounded-2xl bg-slate-900/90 px-5 py-3 backdrop-blur-sm ring-1 ring-violet-500/30">
+              <div className="flex items-center gap-3 rounded-2xl bg-slate-900/90 px-5 py-3 ring-1 ring-violet-500/30 backdrop-blur-sm">
                 <Loader2 className="h-4 w-4 animate-spin text-violet-400" />
                 <div className="flex flex-col">
                   <span className="text-sm text-slate-200">
@@ -674,7 +665,7 @@ export default function TotemFacePage() {
           {/* Error notification - non-blocking */}
           {hasModelLoadError && modelState.activeVariant === 'primary' && !isPreloading && (
             <div className="absolute bottom-16 left-1/2 z-20 -translate-x-1/2">
-              <div className="flex items-center gap-3 rounded-2xl bg-rose-950/90 px-5 py-3 backdrop-blur-sm ring-1 ring-rose-500/40">
+              <div className="flex items-center gap-3 rounded-2xl bg-rose-950/90 px-5 py-3 ring-1 ring-rose-500/40 backdrop-blur-sm">
                 <ShieldAlert className="h-5 w-5 text-rose-300" />
                 <div className="flex flex-col">
                   <span className="text-sm font-medium text-rose-100">Falha no modelo principal</span>
@@ -685,7 +676,7 @@ export default function TotemFacePage() {
                 {canUseFallback && (
                   <Button
                     size="sm"
-                    className="h-9 whitespace-nowrap bg-emerald-500 text-xs text-white hover:bg-emerald-500/90"
+                    className="h-9 bg-emerald-500 text-xs whitespace-nowrap text-white hover:bg-emerald-500/90"
                     onClick={() => setShowFallbackConfirm(true)}
                     disabled={isSwitchingModel}
                   >

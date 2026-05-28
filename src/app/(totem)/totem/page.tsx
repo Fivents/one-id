@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { getTotemSession, loginTotem } from '@/core/application/client-services/totem';
+import { resetFaceModelPreload } from '@/core/application/client-services/totem/face-preloader-manager.client';
 
 export default function TotemLoginPage() {
   const router = useRouter();
@@ -31,6 +32,7 @@ export default function TotemLoginPage() {
         return;
       }
 
+      resetFaceModelPreload();
       setIsCheckingSession(false);
     }
 
