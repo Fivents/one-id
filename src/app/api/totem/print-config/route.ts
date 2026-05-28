@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-import { PRINT_ITEM_KEYS, type PrintConfigResponse, type PrintElementsLayout } from '@/core/communication/requests/print-config';
+import {
+  PRINT_ITEM_KEYS,
+  type PrintConfigResponse,
+  type PrintElementsLayout,
+} from '@/core/communication/requests/print-config';
 import { withAuth, withTotemAuth, withTotemRoutingGuard } from '@/core/infrastructure/http/middlewares';
 import { getTotemAuth } from '@/core/infrastructure/http/types';
 import { prisma } from '@/core/infrastructure/prisma-client';

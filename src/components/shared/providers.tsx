@@ -16,9 +16,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
         <AppProviders>
           <TooltipProvider>
             <ConfirmProvider>
-              <SyncProvider>
-                {children}
-              </SyncProvider>
+              <SyncProvider>{children}</SyncProvider>
               <Toaster richColors position="top-right" />
             </ConfirmProvider>
           </TooltipProvider>

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 
 import { ArrowLeft, CheckCircle2, Hash, KeyRound, Loader2, XCircle } from 'lucide-react';
 
+import { LabelPrintConfirmationModal } from '@/components/shared/label-print-confirmation-modal';
 import { Button } from '@/components/ui/button';
 import {
   fetchPrintConfig,
@@ -15,7 +16,6 @@ import {
 } from '@/core/application/client-services/totem/print.client';
 import { sendCheckIn } from '@/core/application/client-services/totem/totem-client.service';
 
-import { LabelPrintConfirmationModal } from '@/components/shared/label-print-confirmation-modal';
 import { useTotemSession } from '../_lib/use-totem-session';
 
 type Feedback = {
@@ -177,7 +177,7 @@ export default function TotemCodePage() {
             </div>
           </div>
         </div>
-        
+
         <LabelPrintConfirmationModal
           open={isPrintModalOpen}
           variant="totem"

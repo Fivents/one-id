@@ -599,8 +599,10 @@ export default function EventDetailPage() {
         jobTitle: participantJobTitle.trim() || null,
         qrCodeValue: participantQrCodeValue.trim() || null,
         accessCode: participantUseDocumentAsAccessCode
-          ? (participantDocument.trim() || participantAccessCode.trim().toUpperCase() || Math.random().toString(36).substring(2, 10).toUpperCase())
-          : (participantAccessCode.trim().toUpperCase() || null),
+          ? participantDocument.trim() ||
+            participantAccessCode.trim().toUpperCase() ||
+            Math.random().toString(36).substring(2, 10).toUpperCase()
+          : participantAccessCode.trim().toUpperCase() || null,
       });
 
       if (!response.success) {
@@ -973,8 +975,10 @@ export default function EventDetailPage() {
         jobTitle: editJobTitle.trim() || null,
         qrCodeValue: editQrCodeValue.trim() || null,
         accessCode: editUseDocumentAsAccessCode
-          ? (editParticipant.document?.trim() || editAccessCode.trim().toUpperCase() || Math.random().toString(36).substring(2, 10).toUpperCase())
-          : (editAccessCode.trim().toUpperCase() || null),
+          ? editParticipant.document?.trim() ||
+            editAccessCode.trim().toUpperCase() ||
+            Math.random().toString(36).substring(2, 10).toUpperCase()
+          : editAccessCode.trim().toUpperCase() || null,
       });
       toast.success(t('pages.eventDetail.participantUpdatedSuccess'));
       setEditParticipant(null);
@@ -1562,12 +1566,18 @@ export default function EventDetailPage() {
                             <Button variant="ghost" size="icon" onClick={() => setRegisterFaceParticipant(participant)}>
                               <ScanFace className="h-4 w-4" />
                             </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
+                            <Button
+                              variant="ghost"
+                              size="icon"
                               disabled={!participant.hasCheckIn || !printConfigEnabled}
                               onClick={() => setPrintLabelParticipant(participant)}
-                              title={!printConfigEnabled ? 'Impressão não configurada' : !participant.hasCheckIn ? 'Participante sem check-in' : 'Imprimir etiqueta'}
+                              title={
+                                !printConfigEnabled
+                                  ? 'Impressão não configurada'
+                                  : !participant.hasCheckIn
+                                    ? 'Participante sem check-in'
+                                    : 'Imprimir etiqueta'
+                              }
                             >
                               <Printer className="h-4 w-4" />
                             </Button>
@@ -2566,7 +2576,8 @@ export default function EventDetailPage() {
                       disabled={isSavingPrintConfig || isLoadingPrintConfig}
                       onClick={async () => {
                         try {
-                          const { printBadge: testPrint } = await import('@/core/application/client-services/totem/print.client');
+                          const { printBadge: testPrint } =
+                            await import('@/core/application/client-services/totem/print.client');
                           await testPrint(previewPrintConfig, previewParticipant);
                           toast.success('Impressão de teste enviada');
                         } catch (err) {
@@ -2815,7 +2826,11 @@ export default function EventDetailPage() {
                 <Input
                   id="participant-access-code"
                   disabled={participantUseDocumentAsAccessCode && Boolean(participantDocument.trim())}
-                  value={participantUseDocumentAsAccessCode && participantDocument.trim() ? participantDocument.trim() : participantAccessCode}
+                  value={
+                    participantUseDocumentAsAccessCode && participantDocument.trim()
+                      ? participantDocument.trim()
+                      : participantAccessCode
+                  }
                   onChange={(e) => setParticipantAccessCode(e.target.value.toUpperCase())}
                   maxLength={8}
                 />
@@ -2828,13 +2843,16 @@ export default function EventDetailPage() {
                 checked={participantUseDocumentAsAccessCode}
                 onCheckedChange={setParticipantUseDocumentAsAccessCode}
               />
-              <Label htmlFor="participant-use-document" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+              <Label
+                htmlFor="participant-use-document"
+                className="text-sm leading-none font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              >
                 Usar documento como código de acesso
               </Label>
             </div>
-            
+
             {participantUseDocumentAsAccessCode && !participantDocument.trim() && (
-              <p className="text-xs text-amber-500 font-medium pb-2">
+              <p className="pb-2 text-xs font-medium text-amber-500">
                 Documento não informado, será usado um código de acesso padrão.
               </p>
             )}
@@ -2963,29 +2981,36 @@ export default function EventDetailPage() {
               <Input
                 id="edit-access-code"
                 disabled={editUseDocumentAsAccessCode && Boolean(editParticipant?.document?.trim())}
-                value={editUseDocumentAsAccessCode && editParticipant?.document?.trim() ? (editParticipant?.document?.trim() ?? '') : editAccessCode}
+                value={
+                  editUseDocumentAsAccessCode && editParticipant?.document?.trim()
+                    ? (editParticipant?.document?.trim() ?? '')
+                    : editAccessCode
+                }
                 onChange={(e) => setEditAccessCode(e.target.value.toUpperCase())}
                 maxLength={8}
               />
             </div>
-            
+
             <div className="flex items-center space-x-2">
               <Switch
                 id="edit-use-document"
                 checked={editUseDocumentAsAccessCode}
                 onCheckedChange={setEditUseDocumentAsAccessCode}
               />
-              <Label htmlFor="edit-use-document" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+              <Label
+                htmlFor="edit-use-document"
+                className="text-sm leading-none font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              >
                 Usar documento como código de acesso
               </Label>
             </div>
-            
+
             {editUseDocumentAsAccessCode && !editParticipant?.document?.trim() && (
-              <p className="text-xs text-amber-500 font-medium">
+              <p className="text-xs font-medium text-amber-500">
                 Documento não informado, usando código padrão editável na UI.
               </p>
             )}
-            
+
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setEditParticipant(null)}>
                 {t('pages.eventDetail.cancel')}
@@ -3221,7 +3246,7 @@ export default function EventDetailPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      
+
       <LabelPrintConfirmationModal
         open={!!printLabelParticipant}
         participantName={printLabelParticipant?.name}
@@ -3255,10 +3280,10 @@ export default function EventDetailPage() {
             }
             logPrintAttempt(event.id, printLabelParticipant.id, result);
             if (result.success) {
-               toast.success('Impressão enviada com sucesso');
-               setPrintLabelParticipant(null);
+              toast.success('Impressão enviada com sucesso');
+              setPrintLabelParticipant(null);
             } else {
-               toast.error(result.error || 'Ocorreu um erro durante a impressão.');
+              toast.error(result.error || 'Ocorreu um erro durante a impressão.');
             }
           } catch (e) {
             toast.error(e instanceof Error ? e.message : 'Erro ao imprimir etiqueta');

@@ -90,7 +90,8 @@ export const PATCH = withAuth(
           ? data.accessCode?.trim().toUpperCase() || null
           : participant.accessCode || generateCheckInCredential(credentialLength);
 
-      const resolvedAccessCode = requestedUseDocumentAsAccessCode && documentAccessCode ? documentAccessCode : fallbackAccessCode;
+      const resolvedAccessCode =
+        requestedUseDocumentAsAccessCode && documentAccessCode ? documentAccessCode : fallbackAccessCode;
 
       const controller = makeUpdateParticipantController();
       const result = await controller.handle(participantId, {

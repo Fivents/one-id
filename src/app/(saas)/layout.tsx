@@ -5,8 +5,8 @@ import { ReactNode, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { AppSidebar } from '@/components/shared/app-sidebar';
-import { Button } from '@/components/ui/button';
 import { LanguageSwitcher } from '@/components/shared/language-switcher';
+import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { Skeleton } from '@/components/ui/skeleton';

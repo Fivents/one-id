@@ -12,7 +12,8 @@ async function getOrt(): Promise<typeof import('onnxruntime-web')> {
 
 const DEFAULT_PRIMARY_REMOTE_MODEL_URL = '/models/arcface/onnx/arcfaceresnet100-11-int8.onnx';
 const DEFAULT_FALLBACK_MODEL_PATH = '/models/arcface/onnx/arcfaceresnet100-11-int8.onnx';
-const DEFAULT_PRIMARY_REMOTE_TIMEOUT_MS = 25_000;
+const DEFAULT_PRIMARY_REMOTE_STALL_TIMEOUT_MS = 25_000;
+const DEFAULT_PRIMARY_REMOTE_OVERALL_TIMEOUT_MS = 10 * 180 * 1000;
 const PRIMARY_MODEL_CACHE_NAME = 'one-id-arcface-model-cache';
 const PRIMARY_MODEL_CACHE_KEY = process.env.NEXT_PUBLIC_ARCFACE_ONNX_CACHE_KEY?.trim() || 'arcface-primary-v1';
 
@@ -24,10 +25,47 @@ const PRIMARY_REMOTE_MODEL_URL =
     : DEFAULT_PRIMARY_REMOTE_MODEL_URL);
 const FALLBACK_MODEL_PATH = process.env.NEXT_PUBLIC_ARCFACE_FALLBACK_ONNX_PATH?.trim() || DEFAULT_FALLBACK_MODEL_PATH;
 const parsedPrimaryRemoteTimeout = Number.parseInt(process.env.NEXT_PUBLIC_ARCFACE_ONNX_REMOTE_TIMEOUT_MS ?? '', 10);
-const PRIMARY_REMOTE_TIMEOUT_MS =
-  Number.isFinite(parsedPrimaryRemoteTimeout) && parsedPrimaryRemoteTimeout > 0
-    ? parsedPrimaryRemoteTimeout
-    : DEFAULT_PRIMARY_REMOTE_TIMEOUT_MS;
+const parsedPrimaryRemoteStallTimeout = Number.parseInt(
+  process.env.NEXT_PUBLIC_ARCFACE_ONNX_REMOTE_STALL_TIMEOUT_MS ?? '',
+  10,
+);
+const parsedPrimaryRemoteOverallTimeout = Number.parseInt(
+  process.env.NEXT_PUBLIC_ARCFACE_ONNX_REMOTE_OVERALL_TIMEOUT_MS ?? '',
+  10,
+);
+
+const PRIMARY_REMOTE_STALL_TIMEOUT_MS =
+  Number.isFinite(parsedPrimaryRemoteStallTimeout) && parsedPrimaryRemoteStallTimeout > 0
+    ? parsedPrimaryRemoteStallTimeout
+    : Number.isFinite(parsedPrimaryRemoteTimeout) && parsedPrimaryRemoteTimeout > 0
+      ? parsedPrimaryRemoteTimeout
+      : DEFAULT_PRIMARY_REMOTE_STALL_TIMEOUT_MS;
+
+const PRIMARY_REMOTE_OVERALL_TIMEOUT_MS =
+  Number.isFinite(parsedPrimaryRemoteOverallTimeout) && parsedPrimaryRemoteOverallTimeout > 0
+    ? parsedPrimaryRemoteOverallTimeout
+    : DEFAULT_PRIMARY_REMOTE_OVERALL_TIMEOUT_MS;
+
+function normalizeModelUrl(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return trimmed;
+  }
+
+  if (typeof window === 'undefined') {
+    return trimmed;
+  }
+
+  try {
+    return new URL(trimmed, window.location.origin).toString();
+  } catch {
+    return trimmed;
+  }
+}
+
+export function isFallbackModelDistinct(): boolean {
+  return normalizeModelUrl(PRIMARY_REMOTE_MODEL_URL) !== normalizeModelUrl(FALLBACK_MODEL_PATH);
+}
 
 type ArcFaceModelStatus = 'idle' | 'downloading' | 'ready' | 'error';
 type ArcFaceFallbackStatus = 'idle' | 'loading' | 'ready' | 'error';
@@ -62,6 +100,8 @@ let primaryModelBuffer: ArrayBuffer | null = null;
 let primaryModelDownloadPromise: Promise<ArrayBuffer> | null = null;
 let primarySessionPromise: Promise<OrtType.InferenceSession> | null = null;
 let fallbackSessionPromise: Promise<OrtType.InferenceSession> | null = null;
+
+let preloadedPrimaryBuffer: ArrayBuffer | null = null;
 
 let runtimeConfigured = false;
 
@@ -204,9 +244,30 @@ async function downloadPrimaryModelFromRemote(): Promise<ArrayBuffer> {
   }));
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => {
-    controller.abort();
-  }, PRIMARY_REMOTE_TIMEOUT_MS);
+  let stallTimeoutId: ReturnType<typeof setTimeout> | null = null;
+  let overallTimeoutId: ReturnType<typeof setTimeout> | null = null;
+  let stalled = false;
+  let overallTimedOut = false;
+
+  const resetStallTimeout = () => {
+    if (stallTimeoutId) {
+      clearTimeout(stallTimeoutId);
+    }
+
+    stallTimeoutId = setTimeout(() => {
+      stalled = true;
+      controller.abort();
+    }, PRIMARY_REMOTE_STALL_TIMEOUT_MS);
+  };
+
+  resetStallTimeout();
+
+  if (Number.isFinite(PRIMARY_REMOTE_OVERALL_TIMEOUT_MS) && PRIMARY_REMOTE_OVERALL_TIMEOUT_MS > 0) {
+    overallTimeoutId = setTimeout(() => {
+      overallTimedOut = true;
+      controller.abort();
+    }, PRIMARY_REMOTE_OVERALL_TIMEOUT_MS);
+  }
 
   try {
     const response = await fetch(PRIMARY_REMOTE_MODEL_URL, {
@@ -221,6 +282,8 @@ async function downloadPrimaryModelFromRemote(): Promise<ArrayBuffer> {
     if (!response.ok) {
       throw new Error(`Failed to download primary ArcFace model (status ${response.status}).`);
     }
+
+    resetStallTimeout();
 
     const totalHeader = response.headers.get('content-length');
     const totalBytesParsed = Number.parseInt(totalHeader ?? '', 10);
@@ -241,6 +304,8 @@ async function downloadPrimaryModelFromRemote(): Promise<ArrayBuffer> {
 
     if (!response.body) {
       const buffer = await response.arrayBuffer();
+
+      resetStallTimeout();
 
       setState((current) => ({
         ...current,
@@ -274,6 +339,7 @@ async function downloadPrimaryModelFromRemote(): Promise<ArrayBuffer> {
 
       chunks.push(value);
       downloadedBytes += value.byteLength;
+      resetStallTimeout();
 
       setState((current) => ({
         ...current,
@@ -314,18 +380,61 @@ async function downloadPrimaryModelFromRemote(): Promise<ArrayBuffer> {
     return modelBuffer;
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') {
-      throw new Error(
-        `Primary ArcFace model download timed out after ${Math.ceil(PRIMARY_REMOTE_TIMEOUT_MS / 1000)}s.`,
-      );
+      if (overallTimedOut) {
+        throw new Error(
+          `Primary ArcFace model download exceeded overall timeout of ${Math.ceil(PRIMARY_REMOTE_OVERALL_TIMEOUT_MS / 1000)}s.`,
+        );
+      }
+
+      if (stalled) {
+        throw new Error(
+          `Primary ArcFace model download stalled for ${Math.ceil(PRIMARY_REMOTE_STALL_TIMEOUT_MS / 1000)}s without progress.`,
+        );
+      }
+
+      throw new Error('Primary ArcFace model download aborted.');
     }
 
     throw error;
   } finally {
-    clearTimeout(timeoutId);
+    if (stallTimeoutId) {
+      clearTimeout(stallTimeoutId);
+    }
+    if (overallTimeoutId) {
+      clearTimeout(overallTimeoutId);
+    }
   }
 }
 
+export function setPreloadedPrimaryModelBuffer(buffer: ArrayBuffer): void {
+  preloadedPrimaryBuffer = buffer;
+}
+
+export function clearPreloadedPrimaryModelBuffer(): void {
+  preloadedPrimaryBuffer = null;
+}
+
 async function ensurePrimaryModelBuffer(options?: { forceRemoteDownload?: boolean }): Promise<ArrayBuffer> {
+  if (preloadedPrimaryBuffer && !options?.forceRemoteDownload) {
+    primaryModelBuffer = preloadedPrimaryBuffer;
+    preloadedPrimaryBuffer = null;
+
+    setState((current) => ({
+      ...current,
+      primary: {
+        ...current.primary,
+        status: 'ready',
+        source: 'cache',
+        downloadedBytes: primaryModelBuffer!.byteLength,
+        totalBytes: primaryModelBuffer!.byteLength,
+        progressPercent: 100,
+        errorMessage: null,
+      },
+    }));
+
+    return primaryModelBuffer;
+  }
+
   if (primaryModelBuffer && !options?.forceRemoteDownload) {
     return primaryModelBuffer;
   }
@@ -358,8 +467,10 @@ async function ensurePrimaryModelBuffer(options?: { forceRemoteDownload?: boolea
     }
 
     let lastError: unknown;
+    const maxAttempts = 3;
+    const baseDelayMs = 1_500;
 
-    for (let attempt = 1; attempt <= 2; attempt += 1) {
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
       try {
         const downloadedBuffer = await downloadPrimaryModelFromRemote();
         primaryModelBuffer = downloadedBuffer;
@@ -367,6 +478,11 @@ async function ensurePrimaryModelBuffer(options?: { forceRemoteDownload?: boolea
         return downloadedBuffer;
       } catch (error) {
         lastError = error;
+
+        if (attempt < maxAttempts) {
+          const delayMs = Math.min(baseDelayMs * 2 ** (attempt - 1), 10_000);
+          await new Promise((resolve) => setTimeout(resolve, delayMs));
+        }
       }
     }
 
@@ -437,6 +553,20 @@ async function ensurePrimarySession(): Promise<OrtType.InferenceSession> {
 }
 
 async function ensureFallbackSession(): Promise<OrtType.InferenceSession> {
+  if (!isFallbackModelDistinct()) {
+    setState((current) => ({
+      ...current,
+      fallback: {
+        status: 'ready',
+        errorMessage: null,
+      },
+      preferredVariant: 'primary',
+      activeVariant: 'primary',
+    }));
+
+    return ensurePrimarySession();
+  }
+
   if (!fallbackSessionPromise) {
     setState((current) => ({
       ...current,
@@ -447,7 +577,6 @@ async function ensureFallbackSession(): Promise<OrtType.InferenceSession> {
     }));
 
     fallbackSessionPromise = (async () => {
-
       await configureRuntime();
 
       try {
@@ -503,7 +632,7 @@ export function prepareArcFaceModels(options?: { preloadFallback?: boolean }): v
     // The UI may choose fallback; do not throw from background preload.
   });
 
-  if (options?.preloadFallback) {
+  if (options?.preloadFallback && isFallbackModelDistinct()) {
     void ensureFallbackSession().catch(() => {
       // Fallback is optional and should not break startup.
     });
@@ -511,6 +640,17 @@ export function prepareArcFaceModels(options?: { preloadFallback?: boolean }): v
 }
 
 export async function activateFallbackArcFaceModel(): Promise<void> {
+  if (!isFallbackModelDistinct()) {
+    setState((current) => ({
+      ...current,
+      preferredVariant: 'primary',
+      activeVariant: 'primary',
+    }));
+
+    await ensurePrimarySession();
+    return;
+  }
+
   setState((current) => ({
     ...current,
     preferredVariant: 'fallback',

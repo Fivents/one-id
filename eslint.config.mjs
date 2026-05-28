@@ -63,7 +63,7 @@ const eslintConfig = defineConfig([
     'build/**',
     'next-env.d.ts',
     'public/models/**/*.js', // External WASM/ML libraries
-    'public/wasm/**/*.mjs', // External ONNX Runtime WASM
+    'public/wasm/**', // External ONNX Runtime & MediaPipe WASM
   ]),
 ]);
 

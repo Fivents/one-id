@@ -4,8 +4,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useRouter } from 'next/navigation';
 
-import { ArrowLeft, CheckCircle2, CloudDownload, Cpu, Loader2, ShieldAlert, User, XCircle } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Cpu, Loader2, ShieldAlert, User, XCircle } from 'lucide-react';
 
+import { LabelPrintConfirmationModal } from '@/components/shared/label-print-confirmation-modal';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -15,15 +16,22 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { setPreloadedPrimaryModelBuffer } from '@/core/application/client-services/totem/arcface-model-manager.client';
 import {
   activateFallbackArcFaceModel,
   activatePrimaryArcFaceModel,
   type ArcFaceModelRuntimeState,
   extractFaceEmbedding,
   getArcFaceModelState,
+  isFallbackModelDistinct,
   prepareArcFaceModels,
+  setPreloadedMediaPipeModelBuffer,
   subscribeArcFaceModelState,
 } from '@/core/application/client-services/totem/face-embedding.client';
+import {
+  FaceModelPreloader,
+  type PreloaderProgress,
+} from '@/core/application/client-services/totem/face-model-preloader.client';
 import {
   fetchPrintConfig,
   logPrintAttempt,
@@ -32,7 +40,6 @@ import {
 } from '@/core/application/client-services/totem/print.client';
 import { sendCheckIn } from '@/core/application/client-services/totem/totem-client.service';
 
-import { LabelPrintConfirmationModal } from '@/components/shared/label-print-confirmation-modal';
 import { useTotemSession } from '../_lib/use-totem-session';
 
 type Feedback =
@@ -73,17 +80,19 @@ export default function TotemFacePage() {
   const [printParticipantData, setPrintParticipantData] = useState<PrintParticipantData | null>(null);
   const [isPrinting, setIsPrinting] = useState(false);
 
+  const [preloaderProgress, setPreloaderProgress] = useState<PreloaderProgress | null>(null);
+  const [isPreloading, setIsPreloading] = useState(true);
+  const preloaderRef = useRef<FaceModelPreloader | null>(null);
+
+  const isFallbackDistinct = isFallbackModelDistinct();
+
   const isModelReadyForCapture =
     modelState.activeVariant === 'primary'
       ? modelState.primary.status === 'ready'
       : modelState.fallback.status === 'ready';
 
-  const shouldBlockForPrimaryModel =
-    !feedback && modelState.activeVariant === 'primary' && modelState.primary.status !== 'ready';
-
   const hasModelLoadError = modelState.primary.status === 'error';
-  const canUseFallback = modelState.fallback.status !== 'error';
-  const isPrimaryDownloading = modelState.primary.status === 'downloading';
+  const canUseFallback = isFallbackDistinct && modelState.fallback.status !== 'error';
   const hasKnownPrimarySize = typeof modelState.primary.totalBytes === 'number' && modelState.primary.totalBytes > 0;
 
   const primaryProgressDetail = hasKnownPrimarySize
@@ -91,14 +100,44 @@ export default function TotemFacePage() {
     : `${formatMegabytes(modelState.primary.downloadedBytes)} baixados`;
 
   useEffect(() => {
-    const unsubscribe = subscribeArcFaceModelState((nextState) => {
+    const unsubscribeModel = subscribeArcFaceModelState((nextState) => {
       setModelState(nextState);
     });
 
-    prepareArcFaceModels({ preloadFallback: true });
+    const preloader = new FaceModelPreloader();
+    preloaderRef.current = preloader;
+
+    const unsubProgress = preloader.onProgress((progress) => {
+      setPreloaderProgress(progress);
+    });
+
+    void (async () => {
+      try {
+        const buffers = await preloader.preloadAll();
+
+        const arcfaceBuffer = buffers.get('arcface-onnx');
+        if (arcfaceBuffer) {
+          setPreloadedPrimaryModelBuffer(arcfaceBuffer);
+        }
+
+        const tfliteBuffer = buffers.get('blaze-face-tflite');
+        if (tfliteBuffer) {
+          setPreloadedMediaPipeModelBuffer(new Uint8Array(tfliteBuffer));
+        }
+
+        prepareArcFaceModels({ preloadFallback: true });
+        setIsPreloading(false);
+      } catch {
+        setIsPreloading(false);
+        prepareArcFaceModels({ preloadFallback: true });
+      }
+    })();
 
     return () => {
-      unsubscribe();
+      unsubscribeModel();
+      unsubProgress();
+      preloader.abort();
+      preloaderRef.current = null;
     };
   }, []);
 
@@ -608,73 +647,58 @@ export default function TotemFacePage() {
             </div>
           )}
 
-          {shouldBlockForPrimaryModel && (
-            <div className="absolute inset-0 z-20 flex items-center justify-center bg-slate-950/88 p-4 backdrop-blur-md">
-              <div className="w-full max-w-lg rounded-3xl border border-violet-400/30 bg-gradient-to-br from-slate-900/95 to-slate-800/95 p-6 shadow-2xl shadow-black/50">
-                <div className="mb-5 flex items-start gap-4">
-                  <div className="relative mt-1 flex h-12 w-12 items-center justify-center rounded-full bg-violet-500/20 ring-1 ring-violet-400/40">
-                    <CloudDownload className="h-6 w-6 text-violet-300" />
-                    {isPrimaryDownloading && (
-                      <Loader2 className="absolute -right-1 -bottom-1 h-4 w-4 animate-spin text-violet-200" />
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <h2 className="text-xl font-semibold text-white">Preparando modelo principal de reconhecimento</h2>
-                    <p className="mt-1 text-sm text-slate-300">
-                      O download é feito em runtime para garantir qualidade máxima no check-in facial.
-                    </p>
-                  </div>
+          {/* Loading indicator - small, non-blocking */}
+          {!feedback && modelState.activeVariant === 'primary' && !isModelReadyForCapture && !hasModelLoadError && (
+            <div className="absolute bottom-16 left-1/2 z-20 -translate-x-1/2">
+              <div className="flex items-center gap-3 rounded-2xl bg-slate-900/90 px-5 py-3 backdrop-blur-sm ring-1 ring-violet-500/30">
+                <Loader2 className="h-4 w-4 animate-spin text-violet-400" />
+                <div className="flex flex-col">
+                  <span className="text-sm text-slate-200">
+                    {isPreloading && preloaderProgress
+                      ? `Preparando recursos... ${preloaderProgress.overallPercent}%`
+                      : modelState.primary.status === 'downloading'
+                        ? `Baixando modelo principal... ${primaryProgressDetail}`
+                        : 'Inicializando...'}
+                  </span>
+                  {isPreloading && preloaderProgress && (
+                    <span className="text-[11px] text-slate-500">
+                      {formatMegabytes(preloaderProgress.downloadedBytes)} /{' '}
+                      {formatMegabytes(preloaderProgress.totalBytes)}
+                    </span>
+                  )}
                 </div>
+              </div>
+            </div>
+          )}
 
-                <div className="mb-2 flex items-center justify-between text-xs text-slate-300">
-                  <span>{hasModelLoadError ? 'Falha ao carregar modelo principal' : 'Progresso do download'}</span>
-                  <span className="font-mono tabular-nums">{primaryProgressDetail}</span>
+          {/* Error notification - non-blocking */}
+          {hasModelLoadError && modelState.activeVariant === 'primary' && !isPreloading && (
+            <div className="absolute bottom-16 left-1/2 z-20 -translate-x-1/2">
+              <div className="flex items-center gap-3 rounded-2xl bg-rose-950/90 px-5 py-3 backdrop-blur-sm ring-1 ring-rose-500/40">
+                <ShieldAlert className="h-5 w-5 text-rose-300" />
+                <div className="flex flex-col">
+                  <span className="text-sm font-medium text-rose-100">Falha no modelo principal</span>
+                  <span className="text-[11px] text-rose-200/70">
+                    {modelState.primary.errorMessage ?? 'Erro ao carregar modelo de reconhecimento facial.'}
+                  </span>
                 </div>
-                <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-700/70">
-                  <div
-                    className="h-full rounded-full bg-gradient-to-r from-violet-500 via-fuchsia-400 to-cyan-300 transition-all duration-200"
-                    style={{ width: `${Math.max(2, modelState.primary.progressPercent)}%` }}
-                  />
-                </div>
-
-                {hasModelLoadError && (
-                  <div className="mt-4 rounded-2xl border border-rose-400/30 bg-rose-500/10 p-3 text-sm text-rose-100">
-                    <div className="mb-1 flex items-center gap-2 font-medium">
-                      <ShieldAlert className="h-4 w-4" />
-                      Falha no modelo principal
-                    </div>
-                    <p className="text-xs text-rose-100/90">
-                      {modelState.primary.errorMessage ?? 'Sem detalhes adicionais.'}
-                    </p>
-                  </div>
-                )}
-
-                <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {canUseFallback && (
                   <Button
-                    type="button"
-                    size="lg"
-                    className="h-14 bg-emerald-500 text-base text-white hover:bg-emerald-500/90"
-                    onClick={() => {
-                      setShowFallbackConfirm(true);
-                    }}
-                    disabled={!canUseFallback || isSwitchingModel}
+                    size="sm"
+                    className="h-9 whitespace-nowrap bg-emerald-500 text-xs text-white hover:bg-emerald-500/90"
+                    onClick={() => setShowFallbackConfirm(true)}
+                    disabled={isSwitchingModel}
                   >
                     {isSwitchingModel ? (
                       <>
-                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                        <Loader2 className="mr-1 h-3 w-3 animate-spin" />
                         Ativando...
                       </>
                     ) : (
                       'Usar 2ª opção'
                     )}
                   </Button>
-
-                  <div className="flex h-14 items-center justify-center rounded-xl border border-slate-700/70 bg-slate-900/60 px-4 text-center text-xs text-slate-300">
-                    {canUseFallback
-                      ? 'Você pode continuar imediatamente com a 2ª opção enquanto o principal baixa em segundo plano.'
-                      : 'A 2ª opção não está disponível agora. Aguarde o modelo principal terminar.'}
-                  </div>
-                </div>
+                )}
               </div>
             </div>
           )}
@@ -717,63 +741,65 @@ export default function TotemFacePage() {
         </Button>
       </div>
 
-      <Dialog
-        open={showFallbackConfirm}
-        onOpenChange={(open) => {
-          if (isSwitchingModel) {
-            return;
-          }
+      {isFallbackDistinct && (
+        <Dialog
+          open={showFallbackConfirm}
+          onOpenChange={(open) => {
+            if (isSwitchingModel) {
+              return;
+            }
 
-          setShowFallbackConfirm(open);
-        }}
-      >
-        <DialogContent
-          className="border-amber-400/30 bg-gradient-to-br from-slate-900 to-slate-800 text-white"
-          showCloseButton={false}
+            setShowFallbackConfirm(open);
+          }}
         >
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-amber-200">
-              <ShieldAlert className="h-5 w-5" />
-              Confirmar uso da 2ª opção
-            </DialogTitle>
-            <DialogDescription className="text-slate-300">
-              A 2ª opção inicia mais rápido, mas o modelo principal continuará baixando em segundo plano para máxima
-              precisão.
-            </DialogDescription>
-          </DialogHeader>
+          <DialogContent
+            className="border-amber-400/30 bg-gradient-to-br from-slate-900 to-slate-800 text-white"
+            showCloseButton={false}
+          >
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-amber-200">
+                <ShieldAlert className="h-5 w-5" />
+                Confirmar uso da 2ª opção
+              </DialogTitle>
+              <DialogDescription className="text-slate-300">
+                A 2ª opção inicia mais rápido, mas o modelo principal continuará baixando em segundo plano para máxima
+                precisão.
+              </DialogDescription>
+            </DialogHeader>
 
-          <DialogFooter className="sm:justify-between">
-            <Button
-              type="button"
-              variant="outline"
-              size="lg"
-              className="h-12 border-slate-600 bg-slate-900/50 text-slate-100 hover:bg-slate-800"
-              onClick={() => setShowFallbackConfirm(false)}
-              disabled={isSwitchingModel}
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="button"
-              size="lg"
-              className="h-12 bg-emerald-500 text-white hover:bg-emerald-500/90"
-              onClick={() => {
-                void handleFallbackActivation();
-              }}
-              disabled={isSwitchingModel}
-            >
-              {isSwitchingModel ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Ativando 2ª opção...
-                </>
-              ) : (
-                'Confirmar 2ª opção'
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            <DialogFooter className="sm:justify-between">
+              <Button
+                type="button"
+                variant="outline"
+                size="lg"
+                className="h-12 border-slate-600 bg-slate-900/50 text-slate-100 hover:bg-slate-800"
+                onClick={() => setShowFallbackConfirm(false)}
+                disabled={isSwitchingModel}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="button"
+                size="lg"
+                className="h-12 bg-emerald-500 text-white hover:bg-emerald-500/90"
+                onClick={() => {
+                  void handleFallbackActivation();
+                }}
+                disabled={isSwitchingModel}
+              >
+                {isSwitchingModel ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Ativando 2ª opção...
+                  </>
+                ) : (
+                  'Confirmar 2ª opção'
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

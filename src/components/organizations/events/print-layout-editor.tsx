@@ -198,10 +198,8 @@ export function PrintLayoutEditor({ config, participant, onLayoutChange }: Print
           return (
             <div
               key={`${item.key}-coords`}
-              className={`rounded-lg border p-2.5 transition-all cursor-pointer ${
-                selectedItem === item.key
-                  ? 'ring-2 shadow-sm'
-                  : 'hover:border-foreground/20'
+              className={`cursor-pointer rounded-lg border p-2.5 transition-all ${
+                selectedItem === item.key ? 'shadow-sm ring-2' : 'hover:border-foreground/20'
               }`}
               style={{
                 borderColor: selectedItem === item.key ? color : undefined,
@@ -210,16 +208,13 @@ export function PrintLayoutEditor({ config, participant, onLayoutChange }: Print
               onClick={() => setSelectedItem(item.key)}
             >
               <div className="mb-1.5 flex items-center gap-2">
-                <div
-                  className="h-2.5 w-2.5 rounded-full"
-                  style={{ backgroundColor: color }}
-                />
+                <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: color }} />
                 <span className="text-xs font-semibold">{itemLabel(item.key)}</span>
               </div>
 
               <div className="grid grid-cols-2 gap-1.5">
                 <div className="space-y-0.5">
-                  <Label className="text-[10px] text-muted-foreground" htmlFor={`${item.key}-x`}>
+                  <Label className="text-muted-foreground text-[10px]" htmlFor={`${item.key}-x`}>
                     X (mm)
                   </Label>
                   <Input
@@ -234,7 +229,7 @@ export function PrintLayoutEditor({ config, participant, onLayoutChange }: Print
                   />
                 </div>
                 <div className="space-y-0.5">
-                  <Label className="text-[10px] text-muted-foreground" htmlFor={`${item.key}-y`}>
+                  <Label className="text-muted-foreground text-[10px]" htmlFor={`${item.key}-y`}>
                     Y (mm)
                   </Label>
                   <Input
@@ -255,10 +250,10 @@ export function PrintLayoutEditor({ config, participant, onLayoutChange }: Print
       </div>
 
       {/* Realistic badge preview */}
-      <div className="rounded-xl border bg-gradient-to-br from-muted/30 via-muted/10 to-muted/30 p-6">
+      <div className="from-muted/30 via-muted/10 to-muted/30 rounded-xl border bg-gradient-to-br p-6">
         {/* Size indicator */}
         <div className="mb-3 flex items-center justify-between">
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <div className="text-muted-foreground flex items-center gap-2 text-xs">
             <Maximize2 className="h-3 w-3" />
             <span>
               {resolvedLayout.pageWidthMm}mm × {resolvedLayout.pageHeightMm}mm
@@ -266,7 +261,7 @@ export function PrintLayoutEditor({ config, participant, onLayoutChange }: Print
               {config.printerDpi > 0 && ` · ${config.printerDpi} DPI`}
             </span>
           </div>
-          <span className="text-[10px] text-muted-foreground">Arraste os elementos para reposicionar</span>
+          <span className="text-muted-foreground text-[10px]">Arraste os elementos para reposicionar</span>
         </div>
 
         <div className="flex items-center justify-center">
@@ -304,7 +299,7 @@ export function PrintLayoutEditor({ config, participant, onLayoutChange }: Print
             >
               {/* Event name header bar */}
               <div
-                className="absolute top-0 left-0 right-0 flex items-center justify-center overflow-hidden"
+                className="absolute top-0 right-0 left-0 flex items-center justify-center overflow-hidden"
                 style={{
                   height: `${5.5 * previewScale}px`,
                   backgroundColor: resolvedLayout.textColor,
@@ -411,7 +406,7 @@ export function PrintLayoutEditor({ config, participant, onLayoutChange }: Print
                         color: resolvedLayout.textColor,
                         textAlign: 'center' as const,
                         letterSpacing: item.key === 'name' ? '0.02em' : undefined,
-                        textTransform: item.key === 'name' ? 'uppercase' as const : undefined,
+                        textTransform: item.key === 'name' ? ('uppercase' as const) : undefined,
                         fontStyle: item.key === 'jobTitle' ? 'italic' : undefined,
                         opacity: item.key === 'jobTitle' ? 0.6 : item.key === 'company' ? 0.8 : 1,
                         outline: isSelected ? `2px solid ${color}` : '1px dashed rgba(0,0,0,0.08)',

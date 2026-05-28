@@ -88,9 +88,7 @@ export function LabelPrintConfirmationModal({
     <Dialog open={open} onOpenChange={(nextOpen) => !nextOpen && !isPrinting && onCancel()}>
       <DialogContent
         className={
-          isTotem
-            ? 'sm:max-w-xl border-slate-700 bg-slate-950 text-slate-100'
-            : 'sm:max-w-lg border-border/70'
+          isTotem ? 'border-slate-700 bg-slate-950 text-slate-100 sm:max-w-xl' : 'border-border/70 sm:max-w-lg'
         }
       >
         <DialogHeader>
@@ -111,7 +109,9 @@ export function LabelPrintConfirmationModal({
         <div className={isTotem ? 'space-y-4 rounded-xl border border-slate-800 bg-slate-900/70 p-4' : 'space-y-4'}>
           {/* Mini badge preview */}
           {participantName ? (
-            <div className={`rounded-lg border p-4 ${isTotem ? 'border-slate-700 bg-slate-800/50' : 'border-border bg-muted/30'}`}>
+            <div
+              className={`rounded-lg border p-4 ${isTotem ? 'border-slate-700 bg-slate-800/50' : 'border-border bg-muted/30'}`}
+            >
               <div className="flex items-center gap-3">
                 {/* Mini label simulation */}
                 <div
@@ -156,13 +156,11 @@ export function LabelPrintConfirmationModal({
                   </div>
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className={`text-xs ${isTotem ? 'text-slate-400' : 'text-muted-foreground'}`}>
-                    Participante
-                  </p>
-                  <p className={`text-lg font-bold truncate ${isTotem ? 'text-emerald-300' : 'text-foreground'}`}>
+                  <p className={`text-xs ${isTotem ? 'text-slate-400' : 'text-muted-foreground'}`}>Participante</p>
+                  <p className={`truncate text-lg font-bold ${isTotem ? 'text-emerald-300' : 'text-foreground'}`}>
                     {participantName}
                   </p>
-                  <p className={`text-xs mt-0.5 ${isTotem ? 'text-slate-500' : 'text-muted-foreground'}`}>
+                  <p className={`mt-0.5 text-xs ${isTotem ? 'text-slate-500' : 'text-muted-foreground'}`}>
                     Etiqueta pronta para impressão
                   </p>
                 </div>
@@ -171,7 +169,7 @@ export function LabelPrintConfirmationModal({
           ) : null}
 
           <div className="space-y-2">
-            <div className={isTotem ? 'h-2 w-full rounded-full bg-slate-800' : 'h-2 w-full rounded-full bg-muted'}>
+            <div className={isTotem ? 'h-2 w-full rounded-full bg-slate-800' : 'bg-muted h-2 w-full rounded-full'}>
               <div
                 className={`h-full rounded-full transition-all duration-1000 ease-linear ${isTotem ? 'bg-emerald-400' : 'bg-primary'}`}
                 style={{ width: `${progress}%` }}
@@ -182,8 +180,16 @@ export function LabelPrintConfirmationModal({
             </p>
           </div>
 
-          <div className={isTotem ? 'flex items-start gap-2 rounded-lg border border-slate-700 bg-slate-900 p-3' : 'flex items-start gap-2 rounded-lg border p-3'}>
-            <AlertCircle className={isTotem ? 'mt-0.5 h-4 w-4 text-amber-300' : 'text-muted-foreground mt-0.5 h-4 w-4'} />
+          <div
+            className={
+              isTotem
+                ? 'flex items-start gap-2 rounded-lg border border-slate-700 bg-slate-900 p-3'
+                : 'flex items-start gap-2 rounded-lg border p-3'
+            }
+          >
+            <AlertCircle
+              className={isTotem ? 'mt-0.5 h-4 w-4 text-amber-300' : 'text-muted-foreground mt-0.5 h-4 w-4'}
+            />
             <p className={isTotem ? 'text-xs text-slate-300' : 'text-muted-foreground text-xs'}>
               A impressao ocorre de forma silenciosa no dispositivo conectado. Caso nao exista impressora, uma mensagem
               informativa sera exibida.

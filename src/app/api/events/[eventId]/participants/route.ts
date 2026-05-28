@@ -186,7 +186,8 @@ export const POST = withAuth(
 
       const documentAccessCode = normalizeDocumentAsAccessCode(personDocument);
       const fallbackAccessCode = data.accessCode?.trim().toUpperCase() || generateCheckInCredential(credentialLength);
-      const accessCode = requestedUseDocumentAsAccessCode && documentAccessCode ? documentAccessCode : fallbackAccessCode;
+      const accessCode =
+        requestedUseDocumentAsAccessCode && documentAccessCode ? documentAccessCode : fallbackAccessCode;
 
       const existing = await prisma.eventParticipant.findFirst({
         where: {

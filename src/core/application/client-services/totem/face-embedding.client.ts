@@ -21,13 +21,14 @@ import {
   type ArcFaceModelRuntimeState,
   getArcFaceModelState,
   getArcFaceSession,
+  isFallbackModelDistinct,
   prepareArcFaceModels,
   subscribeArcFaceModelState,
 } from './arcface-model-manager.client';
 
 const ARCFACE_INPUT_SIZE = 112;
 const MEDIAPIPE_WASM_PATH =
-  process.env.NEXT_PUBLIC_MEDIAPIPE_WASM_PATH ?? 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.34/wasm';
+  process.env.NEXT_PUBLIC_MEDIAPIPE_WASM_PATH ?? '/wasm/mediapipe/';
 const MEDIAPIPE_FACE_DETECTOR_MODEL_PATH =
   process.env.NEXT_PUBLIC_MEDIAPIPE_FACE_DETECTOR_MODEL_PATH ?? '/models/mediapipe/blaze_face_short_range.tflite';
 const DEFAULT_MIN_DETECTION_CONFIDENCE = 0.45;
@@ -38,6 +39,7 @@ const LAPLACIAN_LOW_VARIANCE = 120;
 const LAPLACIAN_HIGH_VARIANCE = 900;
 
 let faceDetectorPromise: Promise<FaceDetector> | null = null;
+let preloadedMediaPipeModelBuffer: Uint8Array | null = null;
 // FaceDetector type will be referenced dynamically; declare any to satisfy TS at module scope
 type FaceDetector = any;
 
@@ -78,6 +80,16 @@ async function getFaceDetector(): Promise<FaceDetector> {
 
       const vision = await FilesetResolver.forVisionTasks(MEDIAPIPE_WASM_PATH);
 
+      if (preloadedMediaPipeModelBuffer) {
+        const detector = await MPFaceDetector.createFromModelBuffer(vision, preloadedMediaPipeModelBuffer);
+        detector.setOptions({
+          runningMode: 'IMAGE',
+          minDetectionConfidence: 0.5,
+          minSuppressionThreshold: 0.3,
+        });
+        return detector;
+      }
+
       return MPFaceDetector.createFromOptions(vision, {
         baseOptions: {
           modelAssetPath: MEDIAPIPE_FACE_DETECTOR_MODEL_PATH,
@@ -90,6 +102,10 @@ async function getFaceDetector(): Promise<FaceDetector> {
   }
 
   return faceDetectorPromise;
+}
+
+export function setPreloadedMediaPipeModelBuffer(buffer: Uint8Array): void {
+  preloadedMediaPipeModelBuffer = buffer;
 }
 
 function toNumericDimension(value: number | string | undefined): number | null {
@@ -197,7 +213,7 @@ async function extractArcFaceEmbedding(bitmap: ImageBitmap): Promise<number[]> {
 
     try {
       const output = await session.run({ [inputName]: inputTensor });
-        result = output[outputName];
+      result = output[outputName];
       break;
     } catch (error) {
       const isLastAttempt = index === layoutAttempts.length - 1;
@@ -560,6 +576,7 @@ export {
   activatePrimaryArcFaceModel,
   type ArcFaceModelRuntimeState,
   getArcFaceModelState,
+  isFallbackModelDistinct,
   prepareArcFaceModels,
   subscribeArcFaceModelState,
 };

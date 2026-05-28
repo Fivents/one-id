@@ -274,7 +274,8 @@ export function buildDefaultElementsLayout(
   // Reserve 6mm for the event name header bar at the top
   const EVENT_NAME_BAR_HEIGHT = 6;
 
-  const totalHeight = keys.reduce((acc, key) => acc + itemHeightMm(config, key), 0) + Math.max(0, keys.length - 1) * gapMm;
+  const totalHeight =
+    keys.reduce((acc, key) => acc + itemHeightMm(config, key), 0) + Math.max(0, keys.length - 1) * gapMm;
 
   const printableTop = config.marginTop + EVENT_NAME_BAR_HEIGHT;
   const printableHeight = Math.max(0, pageHeightMm - printableTop - config.marginBottom);
@@ -346,7 +347,10 @@ function normalizeElementsLayout(
   return patched;
 }
 
-export function resolvePrintLayout(config: PrintConfigResponse, participant: PrintParticipantData): ResolvedPrintLayout {
+export function resolvePrintLayout(
+  config: PrintConfigResponse,
+  participant: PrintParticipantData,
+): ResolvedPrintLayout {
   const { pageWidthMm, pageHeightMm } = getPrintPageSize(config);
   const layout = normalizeElementsLayout(config, participant);
   const keys = visibleItemKeys(config);
@@ -472,7 +476,7 @@ export function generateBadgeHtml(config: PrintConfigResponse, participant: Prin
   const itemsHtml = layout.items
     .map((item) => {
       if (item.kind === 'image') {
-        const hideOnError = item.key === 'orgLogo' ? " onerror=\"this.style.display='none'\"" : '';
+        const hideOnError = item.key === 'orgLogo' ? ' onerror="this.style.display=\'none\'"' : '';
 
         return `<div class="badge-item badge-image" style="left: ${item.x}mm; top: ${item.y}mm; width: ${item.sizeMm}mm; height: ${item.sizeMm}mm;">
           <img src="${item.src}" alt="${escapeHtml(item.alt)}" style="max-width: 100%; max-height: 100%; object-fit: contain;"${hideOnError} />
@@ -880,7 +884,10 @@ export async function printBadgeSilently(
  * Returns null if no print config is associated or if fetch fails.
  */
 export async function fetchPrintConfig(eventId: string): Promise<PrintConfigResponse | null> {
-  const endpoints = [`/api/totem/print-config?eventId=${encodeURIComponent(eventId)}`, `/api/events/${eventId}/print-config`];
+  const endpoints = [
+    `/api/totem/print-config?eventId=${encodeURIComponent(eventId)}`,
+    `/api/events/${eventId}/print-config`,
+  ];
   const totemToken = getTotemToken();
   const headers = totemToken
     ? {
