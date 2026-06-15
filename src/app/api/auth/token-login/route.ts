@@ -12,8 +12,9 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const data = parseWithZod(loginAccessCodeRequestSchema, body);
+    const normalizedKey = data.accessCode.toUpperCase();
 
-    const activeContext = await resolveActiveTotemEventContextByKey(data.accessCode);
+    const activeContext = await resolveActiveTotemEventContextByKey(normalizedKey);
 
     if (!activeContext) {
       return NextResponse.json(
@@ -26,7 +27,7 @@ export async function POST(request: NextRequest) {
     }
 
     const controller = makeTotemLoginController();
-    const result = await controller.handle(data.accessCode, {
+    const result = await controller.handle(normalizedKey, {
       ipAddress: request.headers.get('x-forwarded-for') ?? 'unknown',
       userAgent: request.headers.get('user-agent') ?? 'unknown',
     });

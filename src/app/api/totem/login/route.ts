@@ -16,8 +16,9 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const data = totemLoginSchema.parse(body);
+    const normalizedKey = data.key.toUpperCase();
 
-    const activeContext = await resolveActiveTotemEventContextByKey(data.key);
+    const activeContext = await resolveActiveTotemEventContextByKey(normalizedKey);
 
     if (!activeContext) {
       return NextResponse.json(
@@ -30,7 +31,7 @@ export async function POST(request: NextRequest) {
     }
 
     const controller = makeTotemLoginController();
-    const result = await controller.handle(data.key, {
+    const result = await controller.handle(normalizedKey, {
       ipAddress: request.headers.get('x-forwarded-for') ?? 'unknown',
       userAgent: request.headers.get('user-agent') ?? 'unknown',
     });

@@ -22,6 +22,11 @@ export async function GET(_req: NextRequest, context: RouteContext) {
       endsAt: true,
       status: true,
       deletedAt: true,
+      organization: {
+        select: {
+          name: true,
+        },
+      },
     },
   });
 
@@ -73,6 +78,7 @@ export async function GET(_req: NextRequest, context: RouteContext) {
   const checkInRate = totalParticipants > 0 ? Math.round((totalCheckIns / totalParticipants) * 100) : 0;
 
   return NextResponse.json({
+    organizationName: event.organization.name,
     event: {
       name: event.name,
       status: event.status,

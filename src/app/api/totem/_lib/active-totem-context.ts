@@ -203,7 +203,7 @@ async function resolveFromWhere(where: { id?: string; accessCode?: string }): Pr
 }
 
 export async function resolveActiveTotemEventContextByKey(key: string): Promise<ActiveTotemContext | null> {
-  return resolveFromWhere({ accessCode: key });
+  return resolveFromWhere({ accessCode: key.toUpperCase() });
 }
 
 export async function resolveActiveTotemEventContextByTotemId(totemId: string): Promise<ActiveTotemContext | null> {
