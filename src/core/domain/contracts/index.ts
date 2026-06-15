@@ -37,6 +37,7 @@ export type {
 } from './plan-change-request.repository';
 export type { CreatePlanFeatureData, IPlanFeatureRepository } from './plan-feature.repository';
 export type { CreatePrintConfigData, IPrintConfigRepository, UpdatePrintConfigData } from './print-config.repository';
+export type { IPrintJobRepository, UpdatePrintJobData } from './print-job.repository';
 export type { CreateSessionData, CreateTotemSessionData, ISessionRepository } from './session.repository';
 export type {
   CreateSubscriptionData,

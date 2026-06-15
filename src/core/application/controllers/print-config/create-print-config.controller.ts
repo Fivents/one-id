@@ -8,13 +8,8 @@ export class CreatePrintConfigController {
 
   async handle(request: CreatePrintConfigRequest): Promise<ControllerResponse<Record<string, unknown>>> {
     try {
-      // Convert itemsOrder array to JSON string for the entity
-      const data = {
-        ...request,
-        itemsOrder: JSON.stringify(request.itemsOrder),
-      };
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const config = await this.createPrintConfigUseCase.execute(data as any);
+      const config = await this.createPrintConfigUseCase.execute(request as any);
 
       return created(config.toJSON());
     } catch {

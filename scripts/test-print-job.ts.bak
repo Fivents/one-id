@@ -1,0 +1,28 @@
+import { PrismaNeon } from '@prisma/adapter-neon';
+import { PrismaClient } from '../src/generated/prisma/client';
+
+async function main() {
+  const adapter = new PrismaNeon({ connectionString: process.env.DATABASE_URL! });
+  const prisma = new PrismaClient({ adapter }) as InstanceType<typeof PrismaClient>;
+
+  try {
+    const printJobDelegate = (prisma as any).printJob;
+    console.log('printJob delegate type:', typeof printJobDelegate);
+
+    if (printJobDelegate) {
+      const count = await prisma.printJob.count();
+      console.log('PrintJob count:', count);
+    } else {
+      const keys = Object.getOwnPropertyNames(Object.getPrototypeOf(prisma))
+        .filter((name) => name !== 'constructor' && !name.startsWith('$') && !name.startsWith('_'));
+      console.log('Available delegates:', keys.filter((d) => d.includes('print')).join(', ') || 'none found');
+      console.log('All delegates count:', keys.length);
+    }
+  } catch (e) {
+    console.error('Error:', e instanceof Error ? e.message : e);
+  } finally {
+    await prisma.$disconnect();
+  }
+}
+
+main();

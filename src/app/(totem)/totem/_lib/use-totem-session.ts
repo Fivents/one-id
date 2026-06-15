@@ -43,6 +43,7 @@ export function useTotemSession(options: UseTotemSessionOptions = {}) {
         return null;
       }
 
+
       hasRedirectedRef.current = false;
       setSession(response.data);
       return response.data;

@@ -14,6 +14,7 @@ export * from './plan.entity';
 export * from './plan-change-request.entity';
 export * from './plan-feature.entity';
 export * from './print-config.entity';
+export * from './print-job.entity';
 export * from './session.entity';
 export * from './subscription.entity';
 export * from './totem.entity';

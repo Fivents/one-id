@@ -31,6 +31,8 @@ export interface CheckInParticipant {
   company: string | null;
   jobTitle: string | null;
   imageUrl: string | null;
+  accessCode: string | null;
+  qrCodeValue: string | null;
 }
 
 export interface CheckInResult {
@@ -49,6 +51,8 @@ type MatchCandidate = {
   jobTitle: string | null;
   faceImageUrl: string | null;
   confidence: number;
+  accessCode: string | null;
+  qrCodeValue: string | null;
 };
 
 export type CheckInError = {
@@ -232,6 +236,8 @@ export class TotemCheckInService {
             jobTitle: topMatch.jobTitle,
             faceImageUrl: topMatch.faceImageUrl,
             confidence: topMatch.confidence,
+            accessCode: null,
+            qrCodeValue: null,
           }
         : undefined;
 
@@ -322,6 +328,16 @@ export class TotemCheckInService {
         }
       }
 
+      // ── Fetch participant print data ─────────────────────────────
+      const participantRecord = await this.db.eventParticipant.findUnique({
+        where: { id: bestMatch.eventParticipantId },
+        select: { accessCode: true, qrCodeValue: true },
+      });
+      if (participantRecord) {
+        bestMatch.accessCode = participantRecord.accessCode;
+        bestMatch.qrCodeValue = participantRecord.qrCodeValue;
+      }
+
       // ── Create check-in ───────────────────────────────────────────
       const checkIn = await this.db.checkIn.create({
         data: {
@@ -389,6 +405,8 @@ export class TotemCheckInService {
             company: bestMatch.company,
             jobTitle: bestMatch.jobTitle,
             imageUrl: bestMatch.faceImageUrl,
+            accessCode: bestMatch.accessCode,
+            qrCodeValue: bestMatch.qrCodeValue,
           },
         },
       };

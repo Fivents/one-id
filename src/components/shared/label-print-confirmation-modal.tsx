@@ -113,46 +113,36 @@ export function LabelPrintConfirmationModal({
               className={`rounded-lg border p-4 ${isTotem ? 'border-slate-700 bg-slate-800/50' : 'border-border bg-muted/30'}`}
             >
               <div className="flex items-center gap-3">
-                {/* Mini label simulation */}
+                {/* Mini label simulation - landscape */}
                 <div
-                  className="flex-shrink-0 rounded-sm border shadow-sm"
+                  className="flex-shrink-0 rounded-sm border shadow-sm flex"
                   style={{
-                    width: '48px',
-                    height: '78px',
+                    width: '78px',
+                    height: '48px',
                     backgroundColor: '#ffffff',
                     overflow: 'hidden',
                   }}
                 >
-                  {/* Event name bar */}
-                  <div
-                    className="flex items-center justify-center"
-                    style={{
-                      height: '7px',
-                      backgroundColor: '#000000',
-                      color: '#ffffff',
-                      fontSize: '3px',
-                      fontWeight: 700,
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.1em',
-                    }}
-                  >
-                    EVENTO
-                  </div>
-                  {/* Name placeholder */}
-                  <div className="flex flex-col items-center justify-center px-0.5" style={{ height: '71px' }}>
-                    <div className="mb-0.5 h-[3px] w-[80%] rounded-full bg-black/80" />
-                    <div className="mb-0.5 h-[3px] w-[60%] rounded-full bg-black/80" />
-                    <div className="mb-1 h-[2px] w-[50%] rounded-full bg-black/40" />
-                    <div className="h-[2px] w-[40%] rounded-full bg-black/30" />
-                    {/* QR placeholder */}
+                  {/* QR side */}
+                  <div className="flex items-center justify-center" style={{ width: '42%', minHeight: '100%' }}>
                     <div
-                      className="mt-1 rounded-sm border border-black/20"
+                      className="rounded-sm border border-black/15"
                       style={{
-                        width: '16px',
-                        height: '16px',
-                        background: 'repeating-conic-gradient(#000 0% 25%, #fff 0% 50%) 50% / 4px 4px',
+                        width: '22px',
+                        height: '22px',
+                        background: 'repeating-conic-gradient(#000 0% 25%, #fff 0% 50%) 50% / 3px 3px',
                       }}
                     />
+                  </div>
+                  {/* Info side */}
+                  <div className="flex flex-col justify-center px-1" style={{ width: '58%', minHeight: '100%' }}>
+                    <div className="mb-0.5 h-[2px] w-[60%] rounded-full bg-indigo-300" />
+                    <div className="mb-0.5 h-[3px] w-[90%] rounded-full bg-black/80" />
+                    <div className="mb-0.5 h-[2px] w-[70%] rounded-full bg-black/50" />
+                    <div className="flex gap-1">
+                      <div className="h-[2px] w-[30%] rounded-full bg-slate-300" />
+                      <div className="h-[2px] w-[40%] rounded-full bg-indigo-300" />
+                    </div>
                   </div>
                 </div>
                 <div className="min-w-0 flex-1">

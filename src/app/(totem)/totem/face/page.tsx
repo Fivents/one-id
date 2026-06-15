@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation';
 
 import { ArrowLeft, CheckCircle2, Cpu, Loader2, ShieldAlert, User, XCircle } from 'lucide-react';
 
-import { LabelPrintConfirmationModal } from '@/components/shared/label-print-confirmation-modal';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -32,10 +31,10 @@ import {
   subscribePreloaderState,
 } from '@/core/application/client-services/totem/face-preloader-manager.client';
 import {
-  fetchPrintConfig,
-  logPrintAttempt,
-  printBadge,
-  type PrintParticipantData,
+  getSilentPrinterAvailability,
+  printBadgeInIframe,
+  printBadgeSilently,
+  triggerTotemPrint,
 } from '@/core/application/client-services/totem/print.client';
 import { sendCheckIn } from '@/core/application/client-services/totem/totem-client.service';
 
@@ -74,10 +73,6 @@ export default function TotemFacePage() {
   const [showFallbackConfirm, setShowFallbackConfirm] = useState(false);
   const [showPrimaryReadyPrompt, setShowPrimaryReadyPrompt] = useState(false);
   const [isSwitchingModel, setIsSwitchingModel] = useState(false);
-
-  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
-  const [printParticipantData, setPrintParticipantData] = useState<PrintParticipantData | null>(null);
-  const [isPrinting, setIsPrinting] = useState(false);
 
   const [preloaderProgress, setPreloaderProgress] = useState<PreloaderManagerState['progress']>(null);
   const [isPreloading, setIsPreloading] = useState(true);
@@ -235,7 +230,7 @@ export default function TotemFacePage() {
   }, [isLoading, router, session]);
 
   useEffect(() => {
-    if (!feedback || isPrintModalOpen) {
+    if (!feedback) {
       return;
     }
 
@@ -257,7 +252,7 @@ export default function TotemFacePage() {
       clearInterval(countdownInterval);
       clearTimeout(timeout);
     };
-  }, [feedback, router, isPrintModalOpen]);
+  }, [feedback, router]);
 
   const handleFaceCheckIn = useCallback(
     async (isLoopAttempt = false) => {
@@ -332,33 +327,27 @@ export default function TotemFacePage() {
         notRecognizedStreakRef.current = 0;
 
         if (session.activeEvent.hasPrintConfig) {
-          const participantData: PrintParticipantData = {
-            name: response.data.participant.name,
-            company: response.data.participant.company,
-            jobTitle: response.data.participant.jobTitle,
-            participantId: response.data.eventParticipantId,
-            checkInId: response.data.id,
-            eventName: session.activeEvent.name,
-            eventId: session.activeEvent.id,
-          };
-
-          if (session.activeEvent.labelPrintPromptEnabled) {
-            setPrintParticipantData(participantData);
-            setIsPrintModalOpen(true);
-          } else {
-            // Trigger print in background (non-blocking)
-            void (async () => {
-              try {
-                const printConfig = await fetchPrintConfig(session.activeEvent.id);
-                if (printConfig) {
-                  const result = await printBadge(printConfig, participantData);
-                  logPrintAttempt(session.activeEvent.id, response.data.eventParticipantId, result);
+          void (async () => {
+            try {
+              const printResult = await triggerTotemPrint(response.data.eventParticipantId, response.data.id);
+              if (printResult) {
+                const availability = await getSilentPrinterAvailability();
+                if (availability.available) {
+                  await printBadgeSilently(
+                    printResult.html,
+                    printResult.copies,
+                    printResult.printerDpi,
+                    printResult.paperWidth,
+                    printResult.paperHeight,
+                  );
+                } else {
+                  printBadgeInIframe(printResult.html, printResult.token);
                 }
-              } catch (printError) {
-                console.error('[TotemFace] Print error (non-blocking):', printError);
               }
-            })();
-          }
+            } catch (printError) {
+              console.error('[TotemFace] Print error (non-blocking):', printError);
+            }
+          })();
         }
 
         setFeedback({
@@ -472,37 +461,6 @@ export default function TotemFacePage() {
             </div>
           </div>
         </div>
-
-        <LabelPrintConfirmationModal
-          open={isPrintModalOpen}
-          variant="totem"
-          participantName={printParticipantData?.name}
-          timeoutSeconds={session?.activeEvent?.labelPrintPromptTimeoutSeconds || 15}
-          isPrinting={isPrinting}
-          onCancel={() => {
-            setIsPrintModalOpen(false);
-            router.replace('/totem/method');
-          }}
-          onConfirm={async () => {
-            if (!printParticipantData || !session?.activeEvent) return;
-            setIsPrinting(true);
-            try {
-              const printConfig = await fetchPrintConfig(session.activeEvent.id);
-              if (printConfig) {
-                const result = await printBadge(printConfig, printParticipantData);
-                logPrintAttempt(session.activeEvent.id, printParticipantData.participantId, result);
-              }
-            } finally {
-              setIsPrinting(false);
-              setIsPrintModalOpen(false);
-              router.replace('/totem/method');
-            }
-          }}
-          onTimeout={() => {
-            setIsPrintModalOpen(false);
-            router.replace('/totem/method');
-          }}
-        />
       </div>
     );
   }

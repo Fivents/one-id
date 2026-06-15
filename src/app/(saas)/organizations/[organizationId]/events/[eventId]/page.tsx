@@ -24,7 +24,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 
-import { EventAddressEditor, EventStatusBadge, PrintLayoutEditor } from '@/components/organizations/events';
+import { EventAddressEditor, EventStatusBadge } from '@/components/organizations/events';
 import { useConfirm } from '@/components/shared/confirm-dialog';
 import { LabelPrintConfirmationModal } from '@/components/shared/label-print-confirmation-modal';
 import { Badge } from '@/components/ui/badge';
@@ -67,15 +67,11 @@ import type {
 } from '@/core/application/client-services/people-client.service';
 import { extractFaceEmbedding } from '@/core/application/client-services/totem/face-embedding.client';
 import {
-  buildDefaultElementsLayout,
   getSilentPrinterAvailability,
   logPrintAttempt,
-  printBadge,
-  printBadgeSilently,
   type PrintParticipantData,
 } from '@/core/application/client-services/totem/print.client';
 import { useApp, useAuth, usePermissions } from '@/core/application/contexts';
-import { PRINT_ITEM_KEYS, type PrintItemKey } from '@/core/communication/requests/print-config';
 import type { EventResponse } from '@/core/communication/responses/event';
 import { AI_CONFIG_CONSTRAINTS, DEFAULT_AI_CONFIG } from '@/core/domain/constants/ai-config.constants';
 import { getValidTransitions, isFinalStatus } from '@/core/domain/constants/event-transitions.constants';
@@ -101,42 +97,16 @@ type EditablePrintConfig = Omit<PrintConfigFullResponse, 'id' | 'createdAt' | 'u
 
 function createDefaultPrintConfig(): EditablePrintConfig {
   return {
-    paperWidth: 62,
-    paperHeight: 100,
-    orientation: 'PORTRAIT',
-    marginTop: 5,
-    marginRight: 5,
-    marginBottom: 5,
-    marginLeft: 5,
-    showFiventsLogo: true,
-    fiventsLogoPosition: 'top',
-    fiventsLogoSize: 20,
-    showOrgLogo: false,
-    orgLogoPosition: 'top',
-    orgLogoSize: 25,
-    showQrCode: true,
-    qrCodePosition: 'bottom',
-    qrCodeSize: 28,
-    qrCodeContent: 'participant_id',
-    showName: true,
-    namePosition: 'center',
-    nameFontSize: 16,
-    nameBold: true,
-    showCompany: true,
-    companyPosition: 'center',
-    companyFontSize: 12,
-    showJobTitle: true,
-    jobTitlePosition: 'center',
-    jobTitleFontSize: 10,
-    itemsOrder: [...PRINT_ITEM_KEYS],
-    printerDpi: 203,
-    printerType: 'thermal',
-    printSpeed: 3,
+    paperWidth: 100,
+    paperHeight: 62,
+    orientation: 'LANDSCAPE',
+    printerDpi: 300,
     copies: 1,
-    backgroundColor: '#ffffff',
-    textColor: '#000000',
-    fontFamily: 'Arial',
-    elementsLayout: null,
+    qrCodeContent: 'qr_code_value',
+    showQrCode: true,
+    showAccessCode: false,
+    fontSizeName: 13,
+    fontSizeMeta: 9,
   };
 }
 
@@ -145,39 +115,13 @@ function toEditablePrintConfig(config: PrintConfigFullResponse): EditablePrintCo
     paperWidth: config.paperWidth,
     paperHeight: config.paperHeight,
     orientation: config.orientation,
-    marginTop: config.marginTop,
-    marginRight: config.marginRight,
-    marginBottom: config.marginBottom,
-    marginLeft: config.marginLeft,
-    showFiventsLogo: config.showFiventsLogo,
-    fiventsLogoPosition: config.fiventsLogoPosition,
-    fiventsLogoSize: config.fiventsLogoSize,
-    showOrgLogo: config.showOrgLogo,
-    orgLogoPosition: config.orgLogoPosition,
-    orgLogoSize: config.orgLogoSize,
-    showQrCode: config.showQrCode,
-    qrCodePosition: config.qrCodePosition,
-    qrCodeSize: config.qrCodeSize,
-    qrCodeContent: config.qrCodeContent,
-    showName: config.showName,
-    namePosition: config.namePosition,
-    nameFontSize: config.nameFontSize,
-    nameBold: config.nameBold,
-    showCompany: config.showCompany,
-    companyPosition: config.companyPosition,
-    companyFontSize: config.companyFontSize,
-    showJobTitle: config.showJobTitle,
-    jobTitlePosition: config.jobTitlePosition,
-    jobTitleFontSize: config.jobTitleFontSize,
-    itemsOrder: config.itemsOrder,
     printerDpi: config.printerDpi,
-    printerType: config.printerType,
-    printSpeed: config.printSpeed,
     copies: config.copies,
-    backgroundColor: config.backgroundColor,
-    textColor: config.textColor,
-    fontFamily: config.fontFamily,
-    elementsLayout: config.elementsLayout,
+    qrCodeContent: config.qrCodeContent,
+    showQrCode: config.showQrCode,
+    showAccessCode: config.showAccessCode,
+    fontSizeName: config.fontSizeName,
+    fontSizeMeta: config.fontSizeMeta,
   };
 }
 
@@ -1230,63 +1174,6 @@ export default function EventDetailPage() {
     }));
   }
 
-  function movePrintItem(item: PrintItemKey, direction: 'up' | 'down') {
-    setPrintConfigDraft((current) => {
-      const order = [...current.itemsOrder] as PrintItemKey[];
-      const index = order.indexOf(item);
-
-      if (index === -1) {
-        return current;
-      }
-
-      const nextIndex = direction === 'up' ? index - 1 : index + 1;
-      if (nextIndex < 0 || nextIndex >= order.length) {
-        return current;
-      }
-
-      [order[index], order[nextIndex]] = [order[nextIndex], order[index]];
-
-      return {
-        ...current,
-        itemsOrder: order,
-      };
-    });
-  }
-
-  const previewParticipant = useMemo<PrintParticipantData>(() => {
-    const previewEventName = event?.name ?? 'Evento';
-    const previewEventId = event?.id ?? 'preview-event';
-    const fallbackCompany = 'Empresa Exemplo';
-    const fallbackJobTitle = 'Cargo Exemplo';
-
-    const latestCheckIn = checkIns[0];
-    const latestParticipant = latestCheckIn
-      ? participants.find((participant) => participant.id === latestCheckIn.eventParticipantId)
-      : null;
-
-    if (latestCheckIn) {
-      return {
-        name: latestCheckIn.participantName,
-        company: latestParticipant?.company || fallbackCompany,
-        jobTitle: latestParticipant?.jobTitle || fallbackJobTitle,
-        participantId: latestCheckIn.eventParticipantId,
-        checkInId: latestCheckIn.id,
-        eventName: previewEventName,
-        eventId: previewEventId,
-      };
-    }
-
-    return {
-      name: 'Participante Exemplo',
-      company: fallbackCompany,
-      jobTitle: fallbackJobTitle,
-      participantId: 'preview-participant',
-      checkInId: 'preview-checkin',
-      eventName: previewEventName,
-      eventId: previewEventId,
-    };
-  }, [checkIns, participants, event?.id, event?.name]);
-
   const previewPrintConfig = useMemo<PrintConfigFullResponse>(() => {
     return {
       id: event?.printConfigId ?? 'preview',
@@ -1295,15 +1182,6 @@ export default function EventDetailPage() {
       updatedAt: new Date(0).toISOString(),
     };
   }, [event?.printConfigId, printConfigDraft]);
-
-  function handlePrintLayoutChange(layout: Record<PrintItemKey, { x: number; y: number }>) {
-    updatePrintConfigField('elementsLayout', layout);
-  }
-
-  function handleResetPrintLayout() {
-    const defaultLayout = buildDefaultElementsLayout(previewPrintConfig, previewParticipant);
-    updatePrintConfigField('elementsLayout', defaultLayout);
-  }
 
   async function handleSavePrintConfig(e: React.FormEvent) {
     e.preventDefault();
@@ -2070,496 +1948,145 @@ export default function EventDetailPage() {
 
                 {printConfigEnabled ? (
                   <>
-                    {/* Printer Presets */}
-                    <div className="rounded-lg border border-blue-200/50 bg-blue-50/30 p-4 dark:border-blue-800/50 dark:bg-blue-950/20">
-                      <div className="mb-2 flex items-center gap-2">
-                        <Printer className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                        <p className="text-sm font-medium">Preset de Impressora</p>
-                      </div>
-                      <p className="text-muted-foreground mb-3 text-xs">
-                        Selecione um modelo para preencher automaticamente as configurações otimizadas.
-                      </p>
+                    <div className="grid gap-4 md:grid-cols-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="print-paper-width">{t('labelConfig.paper.width')}</Label>
+                      <Input
+                        id="print-paper-width"
+                        type="number"
+                        min={20}
+                        max={300}
+                        value={printConfigDraft.paperWidth}
+                        onChange={(e) => updatePrintConfigField('paperWidth', parseNumber(e.currentTarget.value, 100))}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="print-paper-height">{t('labelConfig.paper.height')}</Label>
+                      <Input
+                        id="print-paper-height"
+                        type="number"
+                        min={20}
+                        max={500}
+                        value={printConfigDraft.paperHeight}
+                        onChange={(e) =>
+                          updatePrintConfigField('paperHeight', parseNumber(e.currentTarget.value, 62))
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="print-orientation">{t('labelConfig.paper.orientation')}</Label>
                       <Select
-                        value=""
-                        onValueChange={(value) => {
-                          const presets: Record<string, Partial<typeof printConfigDraft>> = {
-                            'brother-ql810w': {
-                              paperWidth: 62,
-                              paperHeight: 100,
-                              printerDpi: 300,
-                              printerType: 'thermal',
-                              orientation: 'PORTRAIT',
-                              marginTop: 3,
-                              marginRight: 3,
-                              marginBottom: 3,
-                              marginLeft: 3,
-                              nameFontSize: 18,
-                              companyFontSize: 11,
-                              jobTitleFontSize: 9,
-                              fiventsLogoSize: 14,
-                              orgLogoSize: 16,
-                              qrCodeSize: 22,
-                            },
-                            'brother-ql800': {
-                              paperWidth: 62,
-                              paperHeight: 100,
-                              printerDpi: 300,
-                              printerType: 'thermal',
-                              orientation: 'PORTRAIT',
-                              marginTop: 3,
-                              marginRight: 3,
-                              marginBottom: 3,
-                              marginLeft: 3,
-                              nameFontSize: 18,
-                              companyFontSize: 11,
-                              jobTitleFontSize: 9,
-                            },
-                            'brother-ql820nwb': {
-                              paperWidth: 62,
-                              paperHeight: 100,
-                              printerDpi: 300,
-                              printerType: 'thermal',
-                              orientation: 'PORTRAIT',
-                              marginTop: 3,
-                              marginRight: 3,
-                              marginBottom: 3,
-                              marginLeft: 3,
-                            },
-                            'zebra-zd420': {
-                              paperWidth: 102,
-                              paperHeight: 76,
-                              printerDpi: 203,
-                              printerType: 'thermal',
-                              orientation: 'LANDSCAPE',
-                              marginTop: 5,
-                              marginRight: 5,
-                              marginBottom: 5,
-                              marginLeft: 5,
-                              nameFontSize: 22,
-                              companyFontSize: 14,
-                              jobTitleFontSize: 11,
-                            },
-                            'generic-thermal': {
-                              paperWidth: 80,
-                              paperHeight: 120,
-                              printerDpi: 203,
-                              printerType: 'thermal',
-                              orientation: 'PORTRAIT',
-                              marginTop: 5,
-                              marginRight: 5,
-                              marginBottom: 5,
-                              marginLeft: 5,
-                            },
-                            'generic-a6': {
-                              paperWidth: 105,
-                              paperHeight: 148,
-                              printerDpi: 300,
-                              printerType: 'inkjet',
-                              orientation: 'PORTRAIT',
-                              marginTop: 8,
-                              marginRight: 8,
-                              marginBottom: 8,
-                              marginLeft: 8,
-                              nameFontSize: 24,
-                              companyFontSize: 14,
-                              jobTitleFontSize: 12,
-                            },
-                          };
-                          const preset = presets[value];
-                          if (preset) {
-                            setPrintConfigDraft((current) => ({
-                              ...current,
-                              ...preset,
-                            }));
-                          }
-                        }}
+                        value={printConfigDraft.orientation}
+                        onValueChange={(value) =>
+                          updatePrintConfigField('orientation', value as 'PORTRAIT' | 'LANDSCAPE')
+                        }
                       >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecionar modelo de impressora..." />
+                        <SelectTrigger id="print-orientation">
+                          <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="brother-ql810w">⭐ Brother QL-810W (62mm, 300 DPI)</SelectItem>
-                          <SelectItem value="brother-ql800">Brother QL-800 (62mm, 300 DPI)</SelectItem>
-                          <SelectItem value="brother-ql820nwb">Brother QL-820NWB (62mm, 300 DPI)</SelectItem>
-                          <SelectItem value="zebra-zd420">Zebra ZD420 (102mm, 203 DPI)</SelectItem>
-                          <SelectItem value="generic-thermal">Térmica Genérica (80mm, 203 DPI)</SelectItem>
-                          <SelectItem value="generic-a6">Jato de Tinta A6 (105mm, 300 DPI)</SelectItem>
+                          <SelectItem value="PORTRAIT">{t('labelConfig.paper.portrait')}</SelectItem>
+                          <SelectItem value="LANDSCAPE">{t('labelConfig.paper.landscape')}</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
-
-                    <div className="grid gap-4 md:grid-cols-3">
-                      <div className="space-y-2">
-                        <Label htmlFor="print-paper-width">{t('labelConfig.paper.width')}</Label>
-                        <Input
-                          id="print-paper-width"
-                          type="number"
-                          min={20}
-                          max={300}
-                          value={printConfigDraft.paperWidth}
-                          onChange={(e) => updatePrintConfigField('paperWidth', parseNumber(e.currentTarget.value, 62))}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="print-paper-height">{t('labelConfig.paper.height')}</Label>
-                        <Input
-                          id="print-paper-height"
-                          type="number"
-                          min={20}
-                          max={500}
-                          value={printConfigDraft.paperHeight}
-                          onChange={(e) =>
-                            updatePrintConfigField('paperHeight', parseNumber(e.currentTarget.value, 100))
-                          }
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="print-orientation">{t('labelConfig.paper.orientation')}</Label>
-                        <Select
-                          value={printConfigDraft.orientation}
-                          onValueChange={(value) =>
-                            updatePrintConfigField('orientation', value as 'PORTRAIT' | 'LANDSCAPE')
-                          }
-                        >
-                          <SelectTrigger id="print-orientation">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="PORTRAIT">{t('labelConfig.paper.portrait')}</SelectItem>
-                            <SelectItem value="LANDSCAPE">{t('labelConfig.paper.landscape')}</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="print-dpi">DPI</Label>
+                      <Input
+                        id="print-dpi"
+                        type="number"
+                        min={72}
+                        max={1200}
+                        value={printConfigDraft.printerDpi}
+                        onChange={(e) =>
+                          updatePrintConfigField('printerDpi', parseNumber(e.currentTarget.value, 300))
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="print-copies">{t('labelConfig.printer.copies')}</Label>
+                      <Input
+                        id="print-copies"
+                        type="number"
+                        min={1}
+                        max={10}
+                        value={printConfigDraft.copies}
+                        onChange={(e) => updatePrintConfigField('copies', parseNumber(e.currentTarget.value, 1))}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="print-qr-content">Conteúdo do QR Code</Label>
+                      <Select
+                        value={printConfigDraft.qrCodeContent}
+                        onValueChange={(value) =>
+                          updatePrintConfigField(
+                            'qrCodeContent',
+                            value as 'participant_id' | 'access_code' | 'qr_code_value',
+                          )
+                        }
+                      >
+                        <SelectTrigger id="print-qr-content">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="participant_id">ID do participante</SelectItem>
+                          <SelectItem value="access_code">Código de acesso</SelectItem>
+                          <SelectItem value="qr_code_value">Valor do QR Code</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                     </div>
 
-                    <div className="grid gap-4 md:grid-cols-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="print-margin-top">Top (mm)</Label>
-                        <Input
-                          id="print-margin-top"
-                          type="number"
-                          min={0}
-                          max={50}
-                          value={printConfigDraft.marginTop}
-                          onChange={(e) => updatePrintConfigField('marginTop', parseNumber(e.currentTarget.value, 5))}
+                    <div className="flex items-center gap-6">
+                      <div className="flex items-center gap-3 rounded-lg border p-3">
+                        <input
+                          id="print-show-qr"
+                          type="checkbox"
+                          checked={printConfigDraft.showQrCode}
+                          onChange={(e) => updatePrintConfigField('showQrCode', e.target.checked)}
+                          className="h-4 w-4"
                         />
+                        <Label htmlFor="print-show-qr" className="flex-1 cursor-pointer text-sm font-medium">
+                          Mostrar QR Code
+                        </Label>
                       </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="print-margin-right">Right (mm)</Label>
-                        <Input
-                          id="print-margin-right"
-                          type="number"
-                          min={0}
-                          max={50}
-                          value={printConfigDraft.marginRight}
-                          onChange={(e) => updatePrintConfigField('marginRight', parseNumber(e.currentTarget.value, 5))}
+                      <div className="flex items-center gap-3 rounded-lg border p-3">
+                        <input
+                          id="print-show-access-code"
+                          type="checkbox"
+                          checked={printConfigDraft.showAccessCode}
+                          onChange={(e) => updatePrintConfigField('showAccessCode', e.target.checked)}
+                          className="h-4 w-4"
                         />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="print-margin-bottom">Bottom (mm)</Label>
-                        <Input
-                          id="print-margin-bottom"
-                          type="number"
-                          min={0}
-                          max={50}
-                          value={printConfigDraft.marginBottom}
-                          onChange={(e) =>
-                            updatePrintConfigField('marginBottom', parseNumber(e.currentTarget.value, 5))
-                          }
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="print-margin-left">Left (mm)</Label>
-                        <Input
-                          id="print-margin-left"
-                          type="number"
-                          min={0}
-                          max={50}
-                          value={printConfigDraft.marginLeft}
-                          onChange={(e) => updatePrintConfigField('marginLeft', parseNumber(e.currentTarget.value, 5))}
-                        />
+                        <Label htmlFor="print-show-access-code" className="flex-1 cursor-pointer text-sm font-medium">
+                          Mostrar Código de Acesso
+                        </Label>
                       </div>
                     </div>
 
                     <div className="grid gap-4 md:grid-cols-2">
-                      <div className="space-y-4 rounded-lg border p-4">
-                        <div className="flex items-center justify-between">
-                          <Label htmlFor="print-show-name">{t('labelConfig.items.name')}</Label>
-                          <Switch
-                            id="print-show-name"
-                            checked={printConfigDraft.showName}
-                            onCheckedChange={(checked) => updatePrintConfigField('showName', checked)}
-                          />
-                        </div>
-                        <div className="grid gap-3">
-                          <div className="space-y-2">
-                            <Label htmlFor="print-name-size">Size</Label>
-                            <Input
-                              id="print-name-size"
-                              type="number"
-                              min={8}
-                              max={32}
-                              value={printConfigDraft.nameFontSize}
-                              onChange={(e) =>
-                                updatePrintConfigField('nameFontSize', parseNumber(e.currentTarget.value, 16))
-                              }
-                            />
-                          </div>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <Label htmlFor="print-name-bold">{t('labelConfig.position.bold')}</Label>
-                          <Switch
-                            id="print-name-bold"
-                            checked={printConfigDraft.nameBold}
-                            onCheckedChange={(checked) => updatePrintConfigField('nameBold', checked)}
-                          />
-                        </div>
-
-                        <div className="flex items-center justify-between">
-                          <Label htmlFor="print-show-company">{t('labelConfig.items.company')}</Label>
-                          <Switch
-                            id="print-show-company"
-                            checked={printConfigDraft.showCompany}
-                            onCheckedChange={(checked) => updatePrintConfigField('showCompany', checked)}
-                          />
-                        </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="print-font-name">Tamanho do nome (px)</Label>
                         <Input
+                          id="print-font-name"
+                          type="number"
+                          min={8}
+                          max={24}
+                          value={printConfigDraft.fontSizeName}
+                          onChange={(e) => updatePrintConfigField('fontSizeName', parseNumber(e.currentTarget.value, 13))}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="print-font-meta">Tamanho do cargo/empresa (px)</Label>
+                        <Input
+                          id="print-font-meta"
                           type="number"
                           min={6}
-                          max={24}
-                          value={printConfigDraft.companyFontSize}
-                          onChange={(e) =>
-                            updatePrintConfigField('companyFontSize', parseNumber(e.currentTarget.value, 12))
-                          }
-                        />
-
-                        <div className="flex items-center justify-between">
-                          <Label htmlFor="print-show-job">{t('labelConfig.items.jobTitle')}</Label>
-                          <Switch
-                            id="print-show-job"
-                            checked={printConfigDraft.showJobTitle}
-                            onCheckedChange={(checked) => updatePrintConfigField('showJobTitle', checked)}
-                          />
-                        </div>
-                        <Input
-                          type="number"
-                          min={6}
-                          max={24}
-                          value={printConfigDraft.jobTitleFontSize}
-                          onChange={(e) =>
-                            updatePrintConfigField('jobTitleFontSize', parseNumber(e.currentTarget.value, 10))
-                          }
+                          max={18}
+                          value={printConfigDraft.fontSizeMeta}
+                          onChange={(e) => updatePrintConfigField('fontSizeMeta', parseNumber(e.currentTarget.value, 9))}
                         />
                       </div>
-
-                      <div className="space-y-4 rounded-lg border p-4">
-                        <div className="flex items-center justify-between">
-                          <Label htmlFor="print-show-fivents">{t('labelConfig.items.fiventsLogo')}</Label>
-                          <Switch
-                            id="print-show-fivents"
-                            checked={printConfigDraft.showFiventsLogo}
-                            onCheckedChange={(checked) => updatePrintConfigField('showFiventsLogo', checked)}
-                          />
-                        </div>
-                        <Input
-                          type="number"
-                          min={5}
-                          max={100}
-                          value={printConfigDraft.fiventsLogoSize}
-                          onChange={(e) =>
-                            updatePrintConfigField('fiventsLogoSize', parseNumber(e.currentTarget.value, 20))
-                          }
-                        />
-
-                        <div className="flex items-center justify-between">
-                          <Label htmlFor="print-show-org">{t('labelConfig.items.orgLogo')}</Label>
-                          <Switch
-                            id="print-show-org"
-                            checked={printConfigDraft.showOrgLogo}
-                            onCheckedChange={(checked) => updatePrintConfigField('showOrgLogo', checked)}
-                          />
-                        </div>
-                        <Input
-                          type="number"
-                          min={5}
-                          max={100}
-                          value={printConfigDraft.orgLogoSize}
-                          onChange={(e) =>
-                            updatePrintConfigField('orgLogoSize', parseNumber(e.currentTarget.value, 25))
-                          }
-                        />
-
-                        <div className="flex items-center justify-between">
-                          <Label htmlFor="print-show-qr">{t('labelConfig.items.qrCode')}</Label>
-                          <Switch
-                            id="print-show-qr"
-                            checked={printConfigDraft.showQrCode}
-                            onCheckedChange={(checked) => updatePrintConfigField('showQrCode', checked)}
-                          />
-                        </div>
-                        <Input
-                          type="number"
-                          min={10}
-                          max={120}
-                          value={printConfigDraft.qrCodeSize}
-                          onChange={(e) => updatePrintConfigField('qrCodeSize', parseNumber(e.currentTarget.value, 28))}
-                        />
-                        <Select
-                          value={printConfigDraft.qrCodeContent}
-                          onValueChange={(value) =>
-                            updatePrintConfigField(
-                              'qrCodeContent',
-                              value as 'participant_id' | 'check_in_url' | 'custom',
-                            )
-                          }
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="participant_id">ID do participante</SelectItem>
-                            <SelectItem value="check_in_url">URL do check-in</SelectItem>
-                            <SelectItem value="custom">Customizado</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-
-                    <div className="grid gap-4 md:grid-cols-4">
-                      <div className="space-y-2">
-                        <Label>{t('labelConfig.printer.type')}</Label>
-                        <Select
-                          value={printConfigDraft.printerType}
-                          onValueChange={(value) =>
-                            updatePrintConfigField('printerType', value as 'thermal' | 'inkjet' | 'laser')
-                          }
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="thermal">{t('labelConfig.printer.thermal')}</SelectItem>
-                            <SelectItem value="inkjet">{t('labelConfig.printer.inkjet')}</SelectItem>
-                            <SelectItem value="laser">{t('labelConfig.printer.laser')}</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label>DPI</Label>
-                        <Input
-                          type="number"
-                          min={72}
-                          max={1200}
-                          value={printConfigDraft.printerDpi}
-                          onChange={(e) =>
-                            updatePrintConfigField('printerDpi', parseNumber(e.currentTarget.value, 203))
-                          }
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>{t('labelConfig.printer.speed')}</Label>
-                        <Input
-                          type="number"
-                          min={1}
-                          max={5}
-                          value={printConfigDraft.printSpeed}
-                          onChange={(e) => updatePrintConfigField('printSpeed', parseNumber(e.currentTarget.value, 3))}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>{t('labelConfig.printer.copies')}</Label>
-                        <Input
-                          type="number"
-                          min={1}
-                          max={10}
-                          value={printConfigDraft.copies}
-                          onChange={(e) => updatePrintConfigField('copies', parseNumber(e.currentTarget.value, 1))}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid gap-4 md:grid-cols-3">
-                      <div className="space-y-2">
-                        <Label>{t('labelConfig.paper.font')}</Label>
-                        <Input
-                          value={printConfigDraft.fontFamily}
-                          onChange={(e) => updatePrintConfigField('fontFamily', e.currentTarget.value || 'Arial')}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>{t('labelConfig.paper.bgColor')}</Label>
-                        <Input
-                          type="color"
-                          value={printConfigDraft.backgroundColor}
-                          onChange={(e) => updatePrintConfigField('backgroundColor', e.currentTarget.value)}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>{t('labelConfig.paper.textColor')}</Label>
-                        <Input
-                          type="color"
-                          value={printConfigDraft.textColor}
-                          onChange={(e) => updatePrintConfigField('textColor', e.currentTarget.value)}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-3 rounded-lg border p-4">
-                      <p className="text-sm font-medium">Ordem dos elementos</p>
-                      {(printConfigDraft.itemsOrder as PrintItemKey[]).map((item, index) => (
-                        <div key={item} className="flex items-center justify-between rounded border px-3 py-2">
-                          <span className="text-sm">
-                            {item === 'fiventsLogo'
-                              ? t('labelConfig.items.fiventsLogo')
-                              : item === 'orgLogo'
-                                ? t('labelConfig.items.orgLogo')
-                                : item === 'name'
-                                  ? t('labelConfig.items.name')
-                                  : item === 'company'
-                                    ? t('labelConfig.items.company')
-                                    : item === 'jobTitle'
-                                      ? t('labelConfig.items.jobTitle')
-                                      : t('labelConfig.items.qrCode')}
-                          </span>
-                          <div className="flex gap-2">
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              disabled={index === 0}
-                              onClick={() => movePrintItem(item, 'up')}
-                            >
-                              ↑
-                            </Button>
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              disabled={index === printConfigDraft.itemsOrder.length - 1}
-                              onClick={() => movePrintItem(item, 'down')}
-                            >
-                              ↓
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="space-y-3 rounded-lg border p-4">
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="text-sm font-medium">Layout livre e coordenadas reais de impressao</p>
-                        <Button type="button" variant="outline" size="sm" onClick={handleResetPrintLayout}>
-                          Resetar layout
-                        </Button>
-                      </div>
-                      <p className="text-muted-foreground text-xs">
-                        O editor usa unidade em milimetros (mm) e reflete o layout final do ticket impresso.
-                      </p>
-                      <PrintLayoutEditor
-                        config={previewPrintConfig}
-                        participant={previewParticipant}
-                        onLayoutChange={handlePrintLayoutChange}
-                      />
                     </div>
                   </>
                 ) : (
@@ -2576,12 +2103,29 @@ export default function EventDetailPage() {
                       disabled={isSavingPrintConfig || isLoadingPrintConfig}
                       onClick={async () => {
                         try {
-                          const { printBadge: testPrint } =
-                            await import('@/core/application/client-services/totem/print.client');
-                          await testPrint(previewPrintConfig, previewParticipant);
+                          const response = await fetch(`/api/events/${event?.id}/print/test`, { method: 'POST' });
+                          if (!response.ok) {
+                            const err = await response.json().catch(() => ({ error: 'Erro ao testar impressão' }));
+                            throw new Error(err.error);
+                          }
+                          const data = await response.json();
+                          const silent = await getSilentPrinterAvailability();
+                          if (silent.available) {
+                            const { printBadgeSilently } = await import(
+                              '@/core/application/client-services/totem/print.client'
+                            );
+                            await printBadgeSilently(data.html, data.copies, data.printerDpi, data.paperWidth, data.paperHeight);
+                          } else {
+                            const testWindow = window.open('', '_blank');
+                            if (testWindow) {
+                              testWindow.document.write(data.html);
+                              testWindow.document.close();
+                              testWindow.print();
+                            }
+                          }
                           toast.success('Impressão de teste enviada');
                         } catch (err) {
-                          toast.error(err instanceof Error ? err.message : 'Erro ao imprimir teste');
+                          toast.error(err instanceof Error ? err.message : 'Erro ao testar impressão');
                         }
                       }}
                     >
@@ -3257,34 +2801,31 @@ export default function EventDetailPage() {
           if (!printLabelParticipant || !event) return;
           setIsPrintingParticipantLabel(true);
           try {
-            const printConfigResponse = await eventsClient.getEventPrintConfig(event.id);
-            if (!printConfigResponse.success || !printConfigResponse.data) {
-              throw new Error('Configuração de impressão não encontrada');
+            const response = await fetch(`/api/events/${event.id}/print`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ participantIds: [printLabelParticipant.id] }),
+            });
+            if (!response.ok) {
+              const errBody = await response.json().catch(() => ({ error: 'Falha ao criar trabalho de impressão' }));
+              throw new Error(errBody.error || 'Falha ao criar trabalho de impressão');
             }
-            const printData: PrintParticipantData = {
-              name: printLabelParticipant.name,
-              company: printLabelParticipant.company,
-              jobTitle: printLabelParticipant.jobTitle,
-              participantId: printLabelParticipant.id,
-              checkInId: '',
-              eventName: event.name,
-              eventId: event.id,
-            };
-            // Try silent print first, fallback to browser print dialog
+            const data = await response.json();
+            const job = data.jobs?.[0];
+            if (!job?.success || !job?.token) {
+              throw new Error(job?.error || 'Falha ao criar trabalho de impressão');
+            }
             const silentAvailability = await getSilentPrinterAvailability();
-            let result;
             if (silentAvailability.available) {
-              result = await printBadgeSilently(printConfigResponse.data, printData);
+              await import('@/core/application/client-services/totem/print.client').then(
+                ({ printBadgeSilently }) =>
+                  printBadgeSilently(job.html, job.copies, job.printerDpi, job.paperWidth, job.paperHeight),
+              );
             } else {
-              result = await printBadge(printConfigResponse.data, printData);
+              window.open(`/api/print/${job.token}`, '_blank');
             }
-            logPrintAttempt(event.id, printLabelParticipant.id, result);
-            if (result.success) {
-              toast.success('Impressão enviada com sucesso');
-              setPrintLabelParticipant(null);
-            } else {
-              toast.error(result.error || 'Ocorreu um erro durante a impressão.');
-            }
+            toast.success('Impressão enviada com sucesso');
+            setPrintLabelParticipant(null);
           } catch (e) {
             toast.error(e instanceof Error ? e.message : 'Erro ao imprimir etiqueta');
           } finally {

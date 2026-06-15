@@ -1,0 +1,42 @@
+import { PrismaNeon } from '@prisma/adapter-neon';
+import { PrismaClient } from '../src/generated/prisma/client';
+
+async function main() {
+  const adapter = new PrismaNeon({ connectionString: process.env.DATABASE_URL! });
+  const prisma = new PrismaClient({ adapter }) as InstanceType<typeof PrismaClient>;
+
+  try {
+    console.log('=== Testing prisma.printJob delegate ===');
+    const delegate = (prisma as any).printJob;
+    console.log('printJob delegate:', typeof delegate, delegate ? 'exists' : 'undefined');
+    
+    const printConfigDelegate = (prisma as any).printConfig;
+    console.log('printConfig delegate:', typeof printConfigDelegate, printConfigDelegate ? 'exists' : 'undefined');
+    
+    console.log('');
+    console.log('=== Testing with constructor { adapter } ===');
+    
+    if (delegate) {
+      const count = await prisma.printJob.count();
+      console.log('PrintJob count:', count);
+    }
+    
+    console.log('');
+    console.log('=== All prototype keys with "print" ===');
+    const allKeys: string[] = [];
+    for (const key in prisma) {
+      if (key.includes('print')) allKeys.push(key);
+    }
+    console.log(allKeys);
+    
+  } catch (e) {
+    console.error('Error:', e instanceof Error ? e.message : e);
+    if (e instanceof Error && e.stack) {
+      console.error(e.stack.split('\n').slice(0, 3).join('\n'));
+    }
+  } finally {
+    await prisma.$disconnect();
+  }
+}
+
+main();

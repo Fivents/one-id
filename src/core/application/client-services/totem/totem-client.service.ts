@@ -70,6 +70,8 @@ export interface TotemCheckInResponse {
     company: string | null;
     jobTitle: string | null;
     imageUrl: string | null;
+    accessCode: string | null;
+    qrCodeValue: string | null;
   };
 }
 

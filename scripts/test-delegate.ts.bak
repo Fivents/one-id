@@ -1,0 +1,42 @@
+import { PrismaNeon } from '@prisma/adapter-neon';
+import { PrismaClient } from '../src/generated/prisma/client';
+
+// Test 1: WITH adapter
+async function testWithAdapter() {
+  const adapter = new PrismaNeon({ connectionString: process.env.DATABASE_URL! });
+  const prisma = new PrismaClient({ adapter }) as any;
+  
+  console.log('=== WITH Neon adapter ===');
+  console.log('printJob type:', typeof prisma.printJob);
+  console.log('printConfig type:', typeof prisma.printConfig);
+  
+  // Check if the prototype has the getter
+  const proto = Object.getPrototypeOf(prisma);
+  const desc = Object.getOwnPropertyDescriptor(proto, 'printJob');
+  console.log('printJob descriptor on proto:', desc ? 'FOUND' : 'NOT FOUND');
+  
+  await prisma.$disconnect();
+}
+
+// Test 2: WITHOUT adapter
+async function testWithoutAdapter() {
+  const prisma = new PrismaClient({}) as any;
+  
+  console.log('');
+  console.log('=== WITHOUT Neon adapter ===');
+  console.log('printJob type:', typeof prisma.printJob);
+  console.log('printConfig type:', typeof prisma.printConfig);
+  
+  const proto = Object.getPrototypeOf(prisma);
+  const desc = Object.getOwnPropertyDescriptor(proto, 'printJob');
+  console.log('printJob descriptor on proto:', desc ? 'FOUND' : 'NOT FOUND');
+  
+  await prisma.$disconnect();
+}
+
+async function main() {
+  await testWithAdapter();
+  await testWithoutAdapter();
+}
+
+main().catch(console.error);

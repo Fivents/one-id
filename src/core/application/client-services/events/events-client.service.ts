@@ -1,5 +1,4 @@
 import type { CreateEventRequest, UpdateEventRequest } from '@/core/communication/requests/event';
-import type { PrintElementsLayout } from '@/core/communication/requests/print-config';
 import type {
   LinkTotemToEventRequest,
   SetTotemLocationRequest,
@@ -102,39 +101,13 @@ export interface PrintConfigFullResponse {
   paperWidth: number;
   paperHeight: number;
   orientation: 'PORTRAIT' | 'LANDSCAPE';
-  marginTop: number;
-  marginRight: number;
-  marginBottom: number;
-  marginLeft: number;
-  showFiventsLogo: boolean;
-  fiventsLogoPosition: string;
-  fiventsLogoSize: number;
-  showOrgLogo: boolean;
-  orgLogoPosition: string;
-  orgLogoSize: number;
-  showQrCode: boolean;
-  qrCodePosition: string;
-  qrCodeSize: number;
-  qrCodeContent: string;
-  showName: boolean;
-  namePosition: string;
-  nameFontSize: number;
-  nameBold: boolean;
-  showCompany: boolean;
-  companyPosition: string;
-  companyFontSize: number;
-  showJobTitle: boolean;
-  jobTitlePosition: string;
-  jobTitleFontSize: number;
-  itemsOrder: string[];
   printerDpi: number;
-  printerType: string;
-  printSpeed: number;
   copies: number;
-  backgroundColor: string;
-  textColor: string;
-  fontFamily: string;
-  elementsLayout: PrintElementsLayout;
+  qrCodeContent: 'participant_id' | 'access_code' | 'qr_code_value';
+  showQrCode: boolean;
+  showAccessCode: boolean;
+  fontSizeName: number;
+  fontSizeMeta: number;
   createdAt: string;
   updatedAt: string;
 }

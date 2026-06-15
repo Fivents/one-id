@@ -88,6 +88,14 @@ enum PrintOrientation {
   LANDSCAPE
 }
 
+enum PrintJobStatus {
+  PENDING
+  PRINTING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
 enum AuditAction {
   CHECK_IN
   CHECK_IN_APPROVED
@@ -178,6 +186,7 @@ model User {
   notifications        Notification[]
   authIdentities       AuthIdentity[]
   resolvedPlanRequests PlanChangeRequest[] @relation("ResolvedByUser")
+  initiatedPrintJobs   PrintJob[]         @relation("InitiatedPrintJobs")
 
   @@map("users")
 }
@@ -277,6 +286,7 @@ model Event {
   participants            EventParticipant[]
   totemEventSubscriptions TotemEventSubscription[]
   auditLogs               AuditLog[]
+  printJobs               PrintJob[]
 
   @@unique([slug, organizationId])
   @@index([organizationId])
@@ -331,6 +341,7 @@ model Totem {
 
   organizationSubscriptions TotemOrganizationSubscription[]
   sessions                  TotemSession[]
+  printJobs                 PrintJob[]
 
   @@map("totems")
 }
@@ -496,9 +507,10 @@ model EventParticipant {
   updatedAt DateTime  @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
 
-  person   Person    @relation(fields: [personId], references: [id], onDelete: Cascade)
-  event    Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  checkIns CheckIn[]
+  person    Person     @relation(fields: [personId], references: [id], onDelete: Cascade)
+  event     Event      @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  checkIns  CheckIn[]
+  printJobs PrintJob[]
 
   @@unique([personId, eventId])
   @@index([personId])
@@ -521,6 +533,7 @@ model CheckIn {
 
   eventParticipant       EventParticipant       @relation(fields: [eventParticipantId], references: [id], onDelete: Cascade)
   totemEventSubscription TotemEventSubscription? @relation(fields: [totemEventSubscriptionId], references: [id], onDelete: SetNull)
+  printJobs              PrintJob[]
 
   @@index([eventParticipantId])
   @@index([checkedInAt])
@@ -560,71 +573,70 @@ model AuditLog {
 model PrintConfig {
   id String @id @default(cuid())
 
-  // Paper settings
-  paperWidth  Float            @default(62) @map("paper_width") // mm
-  paperHeight Float            @default(100) @map("paper_height") // mm
-  orientation PrintOrientation @default(PORTRAIT) // portrait | landscape
-
-  // Margins
-  marginTop    Float @default(5) @map("margin_top")
-  marginRight  Float @default(5) @map("margin_right")
-  marginBottom Float @default(5) @map("margin_bottom")
-  marginLeft   Float @default(5) @map("margin_left")
-
-  // Fivents logo (always required)
-  showFiventsLogo     Boolean @default(true) @map("show_fivents_logo")
-  fiventsLogoPosition String  @default("top") @map("fivents_logo_position") // top|bottom
-  fiventsLogoSize     Float   @default(20) @map("fivents_logo_size") // mm height
-
-  // Organization logo
-  showOrgLogo     Boolean @default(true) @map("show_org_logo")
-  orgLogoPosition String  @default("top") @map("org_logo_position")
-  orgLogoSize     Float   @default(25) @map("org_logo_size")
-
-  // QR Code
-  showQrCode     Boolean @default(true) @map("show_qr_code")
-  qrCodePosition String  @default("center") @map("qr_code_position")
-  qrCodeSize     Float   @default(30) @map("qr_code_size") // mm
-  qrCodeContent  String  @default("participant_id") @map("qr_code_content") // participant_id|check_in_url|custom
-
-  // Participant name
-  showName     Boolean @default(true) @map("show_name")
-  namePosition String  @default("center") @map("name_position")
-  nameFontSize Float   @default(16) @map("name_font_size") // pt
-  nameBold     Boolean @default(true) @map("name_bold")
-
-  // Company
-  showCompany     Boolean @default(true) @map("show_company")
-  companyPosition String  @default("center") @map("company_position")
-  companyFontSize Float   @default(12) @map("company_font_size")
-
-  // Job title
-  showJobTitle     Boolean @default(true) @map("show_job_title")
-  jobTitlePosition String  @default("center") @map("job_title_position")
-  jobTitleFontSize Float   @default(10) @map("job_title_font_size")
-
-  // Items ordering (JSON array of item keys in display order)
-  itemsOrder String @default("[\"fiventsLogo\",\"orgLogo\",\"name\",\"company\",\"jobTitle\",\"qrCode\"]") @map("items_order")
-  // Absolute coordinates in mm for draggable layout editor
-  elementsLayout Json? @map("elements_layout")
+  // Paper settings (label dimensions in mm)
+  // Brother QL-810W default: 90mm x 62mm landscape
+  paperWidth  Float            @default(90) @map("paper_width")
+  paperHeight Float            @default(62) @map("paper_height")
+  orientation PrintOrientation @default(LANDSCAPE)
 
   // Printer settings
-  printerDpi  Int    @default(203) @map("printer_dpi")
-  printerType String @default("thermal") @map("printer_type") // thermal|inkjet|laser
-  printSpeed  Int    @default(3) @map("print_speed") // 1-5
-  copies      Int    @default(1)
+  printerDpi Int @default(300) @map("printer_dpi")
+  copies     Int @default(1)
 
-  // Styling
-  backgroundColor String @default("#ffffff") @map("background_color")
-  textColor       String @default("#000000") @map("text_color")
-  fontFamily      String @default("Arial") @map("font_family")
+  // QR Code content type on the printed label
+  // Values: "participant_id" | "access_code" | "qr_code_value"
+  qrCodeContent String @default("qr_code_value") @map("qr_code_content")
+
+  // Visibility toggles
+  showQrCode      Boolean @default(true)  @map("show_qr_code")
+  showAccessCode  Boolean @default(false) @map("show_access_code")
+
+  // Font sizes (px)
+  fontSizeName Int @default(13) @map("font_size_name")
+  fontSizeMeta Int @default(9)  @map("font_size_meta")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  events Event[]
+  events    Event[]
+  printJobs PrintJob[]
 
   @@map("print_configs")
+}
+
+model PrintJob {
+  id String @id @default(uuid())
+
+  status       PrintJobStatus @default(PENDING)
+  copies       Int            @default(1)
+  errorMessage String?        @map("error_message")
+  printedAt    DateTime?      @map("printed_at")
+  tokenHash    String?        @map("token_hash")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  eventId            String @map("event_id")
+  eventParticipantId String @map("event_participant_id")
+  checkInId          String? @map("check_in_id")
+  totemId            String? @map("totem_id")
+  printConfigId      String @map("print_config_id")
+  initiatedById      String? @map("initiated_by_id")
+
+  event            Event            @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  eventParticipant EventParticipant @relation(fields: [eventParticipantId], references: [id], onDelete: Cascade)
+  checkIn          CheckIn?         @relation(fields: [checkInId], references: [id], onDelete: SetNull)
+  totem            Totem?           @relation(fields: [totemId], references: [id], onDelete: SetNull)
+  printConfig      PrintConfig      @relation(fields: [printConfigId], references: [id])
+  initiatedBy      User?            @relation("InitiatedPrintJobs", fields: [initiatedById], references: [id], onDelete: SetNull)
+
+  @@index([eventId])
+  @@index([eventParticipantId])
+  @@index([checkInId])
+  @@index([totemId])
+  @@index([printedAt])
+  @@index([status])
+  @@map("print_jobs")
 }
 
 model PlanCategory {

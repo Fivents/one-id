@@ -7,11 +7,15 @@ import type { RouteContext, RouteHandler, TotemAuthContext, UserAuthContext } fr
 import { setAuthContext } from '../types';
 
 function extractToken(req: NextRequest): string | null {
-  const cookie = req.cookies.get('auth-token')?.value;
-  if (cookie) return cookie;
-
+  // Prefer explicit Authorization header over cookie.
+  // This prevents an admin cookie from overriding the totem Authorization header
+  // when both are sent in the same request (e.g., testing totem in a browser
+  // where the user is also logged into the admin panel).
   const header = req.headers.get('authorization');
   if (header?.startsWith('Bearer ')) return header.slice(7);
+
+  const cookie = req.cookies.get('auth-token')?.value;
+  if (cookie) return cookie;
 
   return null;
 }

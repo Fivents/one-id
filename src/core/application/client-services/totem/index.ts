@@ -9,9 +9,10 @@ export {
 export {
   fetchPrintConfig,
   logPrintAttempt,
-  printBadge,
-  type PrintParticipantData,
+  printBadgeInIframe,
   type PrintResult,
+  type TotemPrintResponse,
+  triggerTotemPrint,
 } from './print.client';
 export {
   clearTotemToken,

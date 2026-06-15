@@ -6,13 +6,12 @@ import { useRouter } from 'next/navigation';
 
 import { ArrowLeft, CheckCircle2, Hash, KeyRound, Loader2, XCircle } from 'lucide-react';
 
-import { LabelPrintConfirmationModal } from '@/components/shared/label-print-confirmation-modal';
 import { Button } from '@/components/ui/button';
 import {
-  fetchPrintConfig,
-  logPrintAttempt,
-  printBadge,
-  type PrintParticipantData,
+  getSilentPrinterAvailability,
+  printBadgeInIframe,
+  printBadgeSilently,
+  triggerTotemPrint,
 } from '@/core/application/client-services/totem/print.client';
 import { sendCheckIn } from '@/core/application/client-services/totem/totem-client.service';
 
@@ -35,10 +34,6 @@ export default function TotemCodePage() {
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [countdown, setCountdown] = useState(3);
 
-  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
-  const [printParticipantData, setPrintParticipantData] = useState<PrintParticipantData | null>(null);
-  const [isPrinting, setIsPrinting] = useState(false);
-
   useEffect(() => {
     if (!session || isLoading) {
       return;
@@ -50,7 +45,7 @@ export default function TotemCodePage() {
   }, [isLoading, router, session]);
 
   useEffect(() => {
-    if (!feedback || isPrintModalOpen) {
+    if (!feedback) {
       return;
     }
 
@@ -72,7 +67,7 @@ export default function TotemCodePage() {
       clearInterval(countdownInterval);
       clearTimeout(timeout);
     };
-  }, [feedback, router, isPrintModalOpen]);
+  }, [feedback, router]);
 
   // Focus input on mount
   useEffect(() => {
@@ -102,33 +97,27 @@ export default function TotemCodePage() {
     }
 
     if (session?.activeEvent.hasPrintConfig) {
-      const participantData: PrintParticipantData = {
-        name: response.data.participant.name,
-        company: response.data.participant.company,
-        jobTitle: response.data.participant.jobTitle,
-        participantId: response.data.eventParticipantId,
-        checkInId: response.data.id,
-        eventName: session.activeEvent.name,
-        eventId: session.activeEvent.id,
-      };
-
-      if (session.activeEvent.labelPrintPromptEnabled) {
-        setPrintParticipantData(participantData);
-        setIsPrintModalOpen(true);
-      } else {
-        // Trigger print in background (non-blocking)
-        void (async () => {
-          try {
-            const printConfig = await fetchPrintConfig(session.activeEvent.id);
-            if (printConfig) {
-              const result = await printBadge(printConfig, participantData);
-              logPrintAttempt(session.activeEvent.id, response.data.eventParticipantId, result);
+      void (async () => {
+        try {
+          const printResult = await triggerTotemPrint(response.data.eventParticipantId, response.data.id);
+          if (printResult) {
+            const availability = await getSilentPrinterAvailability();
+            if (availability.available) {
+              await printBadgeSilently(
+                printResult.html,
+                printResult.copies,
+                printResult.printerDpi,
+                printResult.paperWidth,
+                printResult.paperHeight,
+              );
+            } else {
+              printBadgeInIframe(printResult.html, printResult.token);
             }
-          } catch (printError) {
-            console.error('[TotemCode] Print error (non-blocking):', printError);
           }
-        })();
-      }
+        } catch (printError) {
+          console.error('[TotemCode] Print error (non-blocking):', printError);
+        }
+      })();
     }
 
     setFeedback({
@@ -177,37 +166,6 @@ export default function TotemCodePage() {
             </div>
           </div>
         </div>
-
-        <LabelPrintConfirmationModal
-          open={isPrintModalOpen}
-          variant="totem"
-          participantName={printParticipantData?.name}
-          timeoutSeconds={session?.activeEvent?.labelPrintPromptTimeoutSeconds || 15}
-          isPrinting={isPrinting}
-          onCancel={() => {
-            setIsPrintModalOpen(false);
-            router.replace('/totem/method');
-          }}
-          onConfirm={async () => {
-            if (!printParticipantData || !session?.activeEvent) return;
-            setIsPrinting(true);
-            try {
-              const printConfig = await fetchPrintConfig(session.activeEvent.id);
-              if (printConfig) {
-                const result = await printBadge(printConfig, printParticipantData);
-                logPrintAttempt(session.activeEvent.id, printParticipantData.participantId, result);
-              }
-            } finally {
-              setIsPrinting(false);
-              setIsPrintModalOpen(false);
-              router.replace('/totem/method');
-            }
-          }}
-          onTimeout={() => {
-            setIsPrintModalOpen(false);
-            router.replace('/totem/method');
-          }}
-        />
       </div>
     );
   }

@@ -9,13 +9,8 @@ export class UpdatePrintConfigController {
 
   async handle(id: string, request: UpdatePrintConfigRequest): Promise<ControllerResponse<Record<string, unknown>>> {
     try {
-      // Convert itemsOrder array to JSON string for the entity if present
-      const data = {
-        ...request,
-        ...(request.itemsOrder !== undefined && { itemsOrder: JSON.stringify(request.itemsOrder) }),
-      };
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const config = await this.updatePrintConfigUseCase.execute(id, data as any);
+      const config = await this.updatePrintConfigUseCase.execute(id, request as any);
 
       return ok(config.toJSON());
     } catch (error) {

@@ -2,111 +2,41 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { z } from 'zod/v4';
 
-import {
-  PRINT_ITEM_KEYS,
-  type PrintConfigResponse,
-  type PrintElementsLayout,
-  updatePrintConfigRequestSchema,
-} from '@/core/communication/requests/print-config';
+import type { PrintConfigResponse, QrCodeContentOption } from '@/core/communication/requests/print-config';
+import { updatePrintConfigRequestSchema } from '@/core/communication/requests/print-config';
 import { withAuth, withRBAC } from '@/core/infrastructure/http/middlewares';
 import type { RouteContext } from '@/core/infrastructure/http/types';
 import { prisma } from '@/core/infrastructure/prisma-client';
-import { Prisma } from '@/generated/prisma/client';
 
 import { getAuthorizedEvent } from '../../_lib/access';
 
-function parseItemsOrder(input: unknown): string[] {
-  if (Array.isArray(input)) {
-    const parsed = input.filter((item): item is string => typeof item === 'string');
-    return parsed.length > 0 ? parsed : [...PRINT_ITEM_KEYS];
-  }
-
-  if (typeof input === 'string') {
-    try {
-      const parsed = JSON.parse(input) as unknown;
-      if (Array.isArray(parsed)) {
-        const parsedItems = parsed.filter((item): item is string => typeof item === 'string');
-        return parsedItems.length > 0 ? parsedItems : [...PRINT_ITEM_KEYS];
-      }
-    } catch {
-      return [...PRINT_ITEM_KEYS];
-    }
-  }
-
-  return [...PRINT_ITEM_KEYS];
-}
-
-function parseElementsLayout(input: unknown): PrintElementsLayout {
-  if (!input || typeof input !== 'object' || Array.isArray(input)) {
-    return null;
-  }
-
-  const value = input as Record<string, unknown>;
-  const layout: NonNullable<PrintElementsLayout> = {};
-
-  for (const key of PRINT_ITEM_KEYS) {
-    const item = value[key];
-
-    if (!item || typeof item !== 'object' || Array.isArray(item)) {
-      continue;
-    }
-
-    const position = item as Record<string, unknown>;
-    const x = Number(position.x);
-    const y = Number(position.y);
-
-    if (!Number.isFinite(x) || !Number.isFinite(y)) {
-      continue;
-    }
-
-    layout[key] = {
-      x,
-      y,
-    };
-  }
-
-  return Object.keys(layout).length > 0 ? layout : null;
-}
-
-function mapPrintConfigToResponse(config: Prisma.PrintConfigGetPayload<Record<string, never>>): PrintConfigResponse {
+function mapPrintConfigToResponse(config: {
+  id: string;
+  paperWidth: number;
+  paperHeight: number;
+  orientation: string;
+  printerDpi: number;
+  copies: number;
+  qrCodeContent: string;
+  showQrCode: boolean;
+  showAccessCode: boolean;
+  fontSizeName: number;
+  fontSizeMeta: number;
+  createdAt: Date;
+  updatedAt: Date;
+}): PrintConfigResponse {
   return {
     id: config.id,
     paperWidth: config.paperWidth,
     paperHeight: config.paperHeight,
-    orientation: config.orientation,
-    marginTop: config.marginTop,
-    marginRight: config.marginRight,
-    marginBottom: config.marginBottom,
-    marginLeft: config.marginLeft,
-    showFiventsLogo: config.showFiventsLogo,
-    fiventsLogoPosition: config.fiventsLogoPosition,
-    fiventsLogoSize: config.fiventsLogoSize,
-    showOrgLogo: config.showOrgLogo,
-    orgLogoPosition: config.orgLogoPosition,
-    orgLogoSize: config.orgLogoSize,
-    showQrCode: config.showQrCode,
-    qrCodePosition: config.qrCodePosition,
-    qrCodeSize: config.qrCodeSize,
-    qrCodeContent: config.qrCodeContent,
-    showName: config.showName,
-    namePosition: config.namePosition,
-    nameFontSize: config.nameFontSize,
-    nameBold: config.nameBold,
-    showCompany: config.showCompany,
-    companyPosition: config.companyPosition,
-    companyFontSize: config.companyFontSize,
-    showJobTitle: config.showJobTitle,
-    jobTitlePosition: config.jobTitlePosition,
-    jobTitleFontSize: config.jobTitleFontSize,
-    itemsOrder: parseItemsOrder(config.itemsOrder),
+    orientation: config.orientation as 'PORTRAIT' | 'LANDSCAPE',
     printerDpi: config.printerDpi,
-    printerType: config.printerType,
-    printSpeed: config.printSpeed,
     copies: config.copies,
-    backgroundColor: config.backgroundColor,
-    textColor: config.textColor,
-    fontFamily: config.fontFamily,
-    elementsLayout: parseElementsLayout(config.elementsLayout),
+    qrCodeContent: (config.qrCodeContent as QrCodeContentOption) || 'qr_code_value',
+    showQrCode: config.showQrCode,
+    showAccessCode: config.showAccessCode,
+    fontSizeName: config.fontSizeName,
+    fontSizeMeta: config.fontSizeMeta,
     createdAt: config.createdAt.toISOString(),
     updatedAt: config.updatedAt.toISOString(),
   };
@@ -171,56 +101,25 @@ export const PATCH = withAuth(
 
       let printConfigId = event.printConfigId;
 
-      // If no print config exists, create one with defaults
+      // If no print config exists, create one with provided values (or defaults)
       if (!printConfigId) {
         const newConfig = await prisma.printConfig.create({
           data: {
-            paperWidth: data.paperWidth ?? 62,
-            paperHeight: data.paperHeight ?? 100,
-            orientation: data.orientation ?? 'PORTRAIT',
-            marginTop: data.marginTop ?? 5,
-            marginRight: data.marginRight ?? 5,
-            marginBottom: data.marginBottom ?? 5,
-            marginLeft: data.marginLeft ?? 5,
-            showFiventsLogo: data.showFiventsLogo ?? true,
-            fiventsLogoPosition: data.fiventsLogoPosition ?? 'top',
-            fiventsLogoSize: data.fiventsLogoSize ?? 20,
-            showOrgLogo: data.showOrgLogo ?? true,
-            orgLogoPosition: data.orgLogoPosition ?? 'top',
-            orgLogoSize: data.orgLogoSize ?? 25,
-            showQrCode: data.showQrCode ?? true,
-            qrCodePosition: data.qrCodePosition ?? 'center',
-            qrCodeSize: data.qrCodeSize ?? 30,
-            qrCodeContent: data.qrCodeContent ?? 'participant_id',
-            showName: data.showName ?? true,
-            namePosition: data.namePosition ?? 'center',
-            nameFontSize: data.nameFontSize ?? 16,
-            nameBold: data.nameBold ?? true,
-            showCompany: data.showCompany ?? true,
-            companyPosition: data.companyPosition ?? 'center',
-            companyFontSize: data.companyFontSize ?? 12,
-            showJobTitle: data.showJobTitle ?? true,
-            jobTitlePosition: data.jobTitlePosition ?? 'center',
-            jobTitleFontSize: data.jobTitleFontSize ?? 10,
-            itemsOrder: JSON.stringify(
-              data.itemsOrder ?? ['fiventsLogo', 'orgLogo', 'name', 'company', 'jobTitle', 'qrCode'],
-            ),
-            printerDpi: data.printerDpi ?? 203,
-            printerType: data.printerType ?? 'thermal',
-            printSpeed: data.printSpeed ?? 3,
+            paperWidth: data.paperWidth ?? 90,
+            paperHeight: data.paperHeight ?? 62,
+            orientation: data.orientation ?? 'LANDSCAPE',
+            printerDpi: data.printerDpi ?? 300,
             copies: data.copies ?? 1,
-            backgroundColor: data.backgroundColor ?? '#ffffff',
-            textColor: data.textColor ?? '#000000',
-            fontFamily: data.fontFamily ?? 'Arial',
-            elementsLayout: data.elementsLayout
-              ? (data.elementsLayout as unknown as Prisma.InputJsonValue)
-              : Prisma.JsonNull,
+            qrCodeContent: data.qrCodeContent ?? 'qr_code_value',
+            showQrCode: data.showQrCode ?? true,
+            showAccessCode: data.showAccessCode ?? false,
+            fontSizeName: data.fontSizeName ?? 13,
+            fontSizeMeta: data.fontSizeMeta ?? 9,
           },
         });
 
         printConfigId = newConfig.id;
 
-        // Link to event
         await prisma.event.update({
           where: { id: eventId },
           data: { printConfigId },
@@ -228,47 +127,17 @@ export const PATCH = withAuth(
       }
 
       // Update existing print config
-      const updateData: Prisma.PrintConfigUpdateInput = {};
+      const updateData: Record<string, unknown> = {};
       if (data.paperWidth !== undefined) updateData.paperWidth = data.paperWidth;
       if (data.paperHeight !== undefined) updateData.paperHeight = data.paperHeight;
       if (data.orientation !== undefined) updateData.orientation = data.orientation;
-      if (data.marginTop !== undefined) updateData.marginTop = data.marginTop;
-      if (data.marginRight !== undefined) updateData.marginRight = data.marginRight;
-      if (data.marginBottom !== undefined) updateData.marginBottom = data.marginBottom;
-      if (data.marginLeft !== undefined) updateData.marginLeft = data.marginLeft;
-      if (data.showFiventsLogo !== undefined) updateData.showFiventsLogo = data.showFiventsLogo;
-      if (data.fiventsLogoPosition !== undefined) updateData.fiventsLogoPosition = data.fiventsLogoPosition;
-      if (data.fiventsLogoSize !== undefined) updateData.fiventsLogoSize = data.fiventsLogoSize;
-      if (data.showOrgLogo !== undefined) updateData.showOrgLogo = data.showOrgLogo;
-      if (data.orgLogoPosition !== undefined) updateData.orgLogoPosition = data.orgLogoPosition;
-      if (data.orgLogoSize !== undefined) updateData.orgLogoSize = data.orgLogoSize;
-      if (data.showQrCode !== undefined) updateData.showQrCode = data.showQrCode;
-      if (data.qrCodePosition !== undefined) updateData.qrCodePosition = data.qrCodePosition;
-      if (data.qrCodeSize !== undefined) updateData.qrCodeSize = data.qrCodeSize;
-      if (data.qrCodeContent !== undefined) updateData.qrCodeContent = data.qrCodeContent;
-      if (data.showName !== undefined) updateData.showName = data.showName;
-      if (data.namePosition !== undefined) updateData.namePosition = data.namePosition;
-      if (data.nameFontSize !== undefined) updateData.nameFontSize = data.nameFontSize;
-      if (data.nameBold !== undefined) updateData.nameBold = data.nameBold;
-      if (data.showCompany !== undefined) updateData.showCompany = data.showCompany;
-      if (data.companyPosition !== undefined) updateData.companyPosition = data.companyPosition;
-      if (data.companyFontSize !== undefined) updateData.companyFontSize = data.companyFontSize;
-      if (data.showJobTitle !== undefined) updateData.showJobTitle = data.showJobTitle;
-      if (data.jobTitlePosition !== undefined) updateData.jobTitlePosition = data.jobTitlePosition;
-      if (data.jobTitleFontSize !== undefined) updateData.jobTitleFontSize = data.jobTitleFontSize;
-      if (data.itemsOrder !== undefined) updateData.itemsOrder = JSON.stringify(data.itemsOrder);
       if (data.printerDpi !== undefined) updateData.printerDpi = data.printerDpi;
-      if (data.printerType !== undefined) updateData.printerType = data.printerType;
-      if (data.printSpeed !== undefined) updateData.printSpeed = data.printSpeed;
       if (data.copies !== undefined) updateData.copies = data.copies;
-      if (data.backgroundColor !== undefined) updateData.backgroundColor = data.backgroundColor;
-      if (data.textColor !== undefined) updateData.textColor = data.textColor;
-      if (data.fontFamily !== undefined) updateData.fontFamily = data.fontFamily;
-      if (data.elementsLayout !== undefined) {
-        updateData.elementsLayout = data.elementsLayout
-          ? (data.elementsLayout as unknown as Prisma.InputJsonValue)
-          : Prisma.JsonNull;
-      }
+      if (data.qrCodeContent !== undefined) updateData.qrCodeContent = data.qrCodeContent;
+      if (data.showQrCode !== undefined) updateData.showQrCode = data.showQrCode;
+      if (data.showAccessCode !== undefined) updateData.showAccessCode = data.showAccessCode;
+      if (data.fontSizeName !== undefined) updateData.fontSizeName = data.fontSizeName;
+      if (data.fontSizeMeta !== undefined) updateData.fontSizeMeta = data.fontSizeMeta;
 
       const config = await prisma.printConfig.update({
         where: { id: printConfigId },

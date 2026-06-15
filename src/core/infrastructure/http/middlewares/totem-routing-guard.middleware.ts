@@ -30,6 +30,7 @@ export function withTotemRoutingGuard(handler: RouteHandler): RouteHandler {
     const allowedPaths = [
       '/api/totem/session', // Get session info
       '/api/totem/checkin', // Perform check-in
+      '/api/totem/print', // Trigger badge print
       '/api/totem/event-config', // Get active event + AI config
       '/api/totem/print-config', // Get active event print config
     ];

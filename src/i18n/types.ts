@@ -602,67 +602,14 @@ export type TranslationSchema = {
   };
   labelConfig: {
     paper: {
-      title: string;
-      description: string;
-      preset: string;
-      selectSize: string;
       width: string;
       height: string;
       orientation: string;
       portrait: string;
       landscape: string;
-      font: string;
-      bgColor: string;
-      textColor: string;
-    };
-    items: {
-      title: string;
-      description: string;
-      fiventsLogo: string;
-      orgLogo: string;
-      name: string;
-      company: string;
-      jobTitle: string;
-      qrCode: string;
-      required: string;
-      visible: string;
-      hidden: string;
-    };
-    position: {
-      title: string;
-      width: string;
-      height: string;
-      fontSize: string;
-      fontWeight: string;
-      normal: string;
-      bold: string;
-      textAlign: string;
-      left: string;
-      center: string;
-      right: string;
     };
     printer: {
-      title: string;
-      type: string;
-      thermal: string;
-      inkjet: string;
-      laser: string;
-      speed: string;
       copies: string;
-    };
-    preview: {
-      title: string;
-      dragHint: string;
-    };
-    actions: {
-      reset: string;
-    };
-    presets: {
-      thermal62x100: string;
-      thermal80x80: string;
-      thermal57x40: string;
-      badge86x54: string;
-      label100x150: string;
     };
   };
   totemManagement: {

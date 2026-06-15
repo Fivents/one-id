@@ -59,6 +59,8 @@ type CredentialParticipantMatch = {
   id: string;
   company: string | null;
   jobTitle: string | null;
+  accessCode: string | null;
+  qrCodeValue: string | null;
   person: {
     name: string;
     faces: Array<{ imageUrl: string | null }>;
@@ -181,6 +183,8 @@ async function findParticipantByCredential(
       id: true,
       company: true,
       jobTitle: true,
+      accessCode: true,
+      qrCodeValue: true,
       person: {
         select: {
           name: true,
@@ -273,6 +277,8 @@ async function executeCredentialCheckIn(
         company: participant.company,
         jobTitle: participant.jobTitle,
         imageUrl: participant.person.faces[0]?.imageUrl ?? null,
+        accessCode: participant.accessCode,
+        qrCodeValue: participant.qrCodeValue,
       },
     },
     { status: 201 },
