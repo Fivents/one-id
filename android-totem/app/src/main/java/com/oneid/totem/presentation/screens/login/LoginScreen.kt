@@ -2,13 +2,11 @@ package com.oneid.totem.presentation.screens.login
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -164,7 +162,7 @@ fun LoginScreen(
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
                         label = { Text("URL do servidor") },
-                        placeholder = { Text("http://10.0.2.2:3000") },
+                        placeholder = { Text("http://10.0.2.2:3000 ou https://seu-site.com") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
                         shape = RoundedCornerShape(8.dp),
                     )

@@ -1,4 +1,4 @@
-#Mon Jun 15 22:04:40 BRT 2026
+#Mon Jun 15 22:17:03 BRT 2026
 base.0=/home/phelipecript/www/Workspace/Fivents/one-id/android-totem/app/build/intermediates/dex/debug/mergeExtDexDebug/classes.dex
 base.1=/home/phelipecript/www/Workspace/Fivents/one-id/android-totem/app/build/intermediates/dex/debug/mergeProjectDexDebug/0/classes.dex
 base.10=/home/phelipecript/www/Workspace/Fivents/one-id/android-totem/app/build/intermediates/dex/debug/mergeProjectDexDebug/6/classes.dex
