@@ -1,7 +1,7 @@
 package com.oneid.totem.data.repository.impl;
 
-import com.oneid.totem.data.api.TotemApi;
-import com.oneid.totem.data.local.TokenStorage;
+import com.oneid.totem.data.db.ActiveEventResolver;
+import com.oneid.totem.data.local.TotemPreferences;
 import dagger.internal.DaggerGenerated;
 import dagger.internal.Factory;
 import dagger.internal.Provider;
@@ -10,7 +10,7 @@ import dagger.internal.QualifierMetadata;
 import dagger.internal.ScopeMetadata;
 import javax.annotation.processing.Generated;
 
-@ScopeMetadata
+@ScopeMetadata("javax.inject.Singleton")
 @QualifierMetadata
 @DaggerGenerated
 @Generated(
@@ -27,32 +27,35 @@ import javax.annotation.processing.Generated;
     "nullness:initialization.field.uninitialized"
 })
 public final class AuthRepositoryImpl_Factory implements Factory<AuthRepositoryImpl> {
-  private final Provider<TotemApi> apiProvider;
+  private final Provider<ActiveEventResolver> eventResolverProvider;
 
-  private final Provider<TokenStorage> tokenStorageProvider;
+  private final Provider<TotemPreferences> prefsProvider;
 
-  public AuthRepositoryImpl_Factory(Provider<TotemApi> apiProvider,
-      Provider<TokenStorage> tokenStorageProvider) {
-    this.apiProvider = apiProvider;
-    this.tokenStorageProvider = tokenStorageProvider;
+  public AuthRepositoryImpl_Factory(Provider<ActiveEventResolver> eventResolverProvider,
+      Provider<TotemPreferences> prefsProvider) {
+    this.eventResolverProvider = eventResolverProvider;
+    this.prefsProvider = prefsProvider;
   }
 
   @Override
   public AuthRepositoryImpl get() {
-    return newInstance(apiProvider.get(), tokenStorageProvider.get());
+    return newInstance(eventResolverProvider.get(), prefsProvider.get());
   }
 
-  public static AuthRepositoryImpl_Factory create(javax.inject.Provider<TotemApi> apiProvider,
-      javax.inject.Provider<TokenStorage> tokenStorageProvider) {
-    return new AuthRepositoryImpl_Factory(Providers.asDaggerProvider(apiProvider), Providers.asDaggerProvider(tokenStorageProvider));
+  public static AuthRepositoryImpl_Factory create(
+      javax.inject.Provider<ActiveEventResolver> eventResolverProvider,
+      javax.inject.Provider<TotemPreferences> prefsProvider) {
+    return new AuthRepositoryImpl_Factory(Providers.asDaggerProvider(eventResolverProvider), Providers.asDaggerProvider(prefsProvider));
   }
 
-  public static AuthRepositoryImpl_Factory create(Provider<TotemApi> apiProvider,
-      Provider<TokenStorage> tokenStorageProvider) {
-    return new AuthRepositoryImpl_Factory(apiProvider, tokenStorageProvider);
+  public static AuthRepositoryImpl_Factory create(
+      Provider<ActiveEventResolver> eventResolverProvider,
+      Provider<TotemPreferences> prefsProvider) {
+    return new AuthRepositoryImpl_Factory(eventResolverProvider, prefsProvider);
   }
 
-  public static AuthRepositoryImpl newInstance(TotemApi api, TokenStorage tokenStorage) {
-    return new AuthRepositoryImpl(api, tokenStorage);
+  public static AuthRepositoryImpl newInstance(ActiveEventResolver eventResolver,
+      TotemPreferences prefs) {
+    return new AuthRepositoryImpl(eventResolver, prefs);
   }
 }

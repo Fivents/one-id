@@ -1,21 +1,25 @@
 package com.oneid.totem.presentation.screens.checkin.code
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Keyboard
+import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -42,14 +46,20 @@ fun CodeCheckInScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(32.dp),
+                .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                IconButton(onClick = onBack) {
+                IconButton(
+                    onClick = onBack,
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(Surface),
+                ) {
                     Icon(Icons.Filled.ArrowBack, "Voltar", tint = OnSurface)
                 }
                 Spacer(Modifier.weight(1f))
@@ -64,26 +74,34 @@ fun CodeCheckInScreen(
                 Spacer(Modifier.weight(1f))
             }
 
-            Spacer(Modifier.height(56.dp))
+            Spacer(Modifier.weight(0.2f))
 
-            Icon(
-                imageVector = Icons.Filled.Keyboard,
-                contentDescription = null,
-                modifier = Modifier.size(64.dp),
-                tint = Primary,
-            )
+            Box(
+                modifier = Modifier
+                    .size(80.dp)
+                    .clip(CircleShape)
+                    .background(Primary.copy(alpha = 0.12f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.QrCode,
+                    contentDescription = null,
+                    modifier = Modifier.size(40.dp),
+                    tint = Primary,
+                )
+            }
 
             Spacer(Modifier.height(24.dp))
 
             Text(
-                text = "Código de acesso",
-                style = MaterialTheme.typography.headlineLarge,
+                text = "Código de Acesso",
+                style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
                 color = OnSurface,
             )
 
             Text(
                 text = "Digite o código recebido no convite",
-                style = MaterialTheme.typography.bodyMedium,
+                style = MaterialTheme.typography.bodyLarge,
                 color = OnSurfaceVariant,
                 modifier = Modifier.padding(top = 8.dp),
             )
@@ -98,21 +116,21 @@ fun CodeCheckInScreen(
                 enabled = !uiState.isLoading,
                 isError = uiState.error != null,
                 textStyle = MaterialTheme.typography.displayMedium.copy(
-                    letterSpacing = 12.sp,
+                    letterSpacing = 16.sp,
                     textAlign = TextAlign.Center,
                 ),
                 placeholder = {
                     Text(
                         text = "000000",
                         style = MaterialTheme.typography.displayMedium.copy(
-                            letterSpacing = 12.sp,
+                            letterSpacing = 16.sp,
                             textAlign = TextAlign.Center,
-                            color = OnSurfaceVariant.copy(alpha = 0.3f),
+                            color = OnSurfaceVariant.copy(alpha = 0.15f),
                         ),
                         modifier = Modifier.fillMaxWidth(),
                     )
                 },
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(20.dp),
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Ascii,
                     imeAction = ImeAction.Go,
@@ -121,8 +139,6 @@ fun CodeCheckInScreen(
                     focusedBorderColor = Primary,
                     unfocusedBorderColor = Outline,
                     cursorColor = Primary,
-                    focusedLabelColor = Primary,
-                    unfocusedLabelColor = OnSurfaceVariant,
                     focusedTextColor = OnSurface,
                     unfocusedTextColor = OnSurface,
                     focusedContainerColor = Surface,
@@ -130,38 +146,71 @@ fun CodeCheckInScreen(
                 ),
             )
 
-            AnimatedVisibility(visible = uiState.isLoading) {
+            Spacer(Modifier.height(16.dp))
+
+            AnimatedVisibility(
+                visible = uiState.isLoading,
+                enter = fadeIn(),
+                exit = fadeOut(),
+            ) {
                 LinearProgressIndicator(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 16.dp),
+                        .padding(horizontal = 32.dp),
                     color = Primary,
                 )
             }
 
-            AnimatedVisibility(visible = uiState.error != null) {
-                Text(
-                    text = uiState.error ?: "",
-                    color = Error,
-                    style = MaterialTheme.typography.bodyMedium,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(top = 16.dp),
-                )
+            AnimatedVisibility(
+                visible = uiState.error != null,
+                enter = fadeIn(),
+                exit = fadeOut(),
+            ) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 16.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = ErrorContainer),
+                ) {
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(Icons.Filled.ErrorOutline, contentDescription = null, tint = Error, modifier = Modifier.size(20.dp))
+                        Spacer(Modifier.width(12.dp))
+                        Text(
+                            uiState.error ?: "",
+                            color = Error,
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                }
             }
 
-            Spacer(Modifier.weight(1f))
+            Spacer(Modifier.weight(0.3f))
 
             Button(
                 onClick = viewModel::submitCode,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(56.dp),
+                    .height(60.dp),
                 enabled = uiState.code.length >= 4 && !uiState.isLoading,
-                shape = RoundedCornerShape(14.dp),
+                shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Primary),
             ) {
-                Text("CONFIRMAR", style = MaterialTheme.typography.titleMedium, color = OnPrimary)
+                Text(
+                    "CONFIRMAR",
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 2.sp,
+                    ),
+                    color = OnPrimary,
+                )
             }
+
+            Spacer(Modifier.height(24.dp))
         }
     }
 }

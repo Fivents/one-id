@@ -2,7 +2,7 @@ package com.oneid.totem.data.print
 
 import android.graphics.Bitmap
 import android.content.Context
-import com.oneid.totem.data.local.TokenStorage
+import com.oneid.totem.data.local.TotemPreferences
 import com.oneid.totem.domain.model.PrintData
 import com.oneid.totem.domain.repository.PrintResult
 import com.oneid.totem.domain.repository.PrintRepository
@@ -24,7 +24,7 @@ class PrintCoordinator @Inject constructor(
     @ApplicationContext private val context: Context,
     private val printRepository: PrintRepository,
     private val badgeRenderer: BadgeRenderer,
-    private val tokenStorage: TokenStorage,
+    private val prefs: TotemPreferences,
 ) {
 
     private var printer: BrotherPrinter? = null
@@ -64,12 +64,12 @@ class PrintCoordinator @Inject constructor(
         printData: PrintData,
     ): PrintJobResult {
         val printer = getPrinter()
-        val printerIp = PrinterConfig.printerIp.ifBlank {
-            tokenStorage.getPrinterIp() ?: ""
+        val printerIp = prefs.printerIp.ifBlank {
+            PrinterConfig.printerIp
         }
 
         if (printerIp.isBlank()) {
-            return PrintJobResult.Error("Impressora não configurada. Configure o IP em PrinterConfig ou nas configurações")
+            return PrintJobResult.Error("Impressora não configurada. Configure o IP nas configurações")
         }
 
         when (val connectResult = printer.connect(printerIp)) {
@@ -90,7 +90,7 @@ class PrintCoordinator @Inject constructor(
     }
 
     private fun getPrinter(): BrotherPrinter {
-        return printer ?: BrotherSdkPrinter().also { printer = it }
+        return printer ?: BrotherRasterPrinter().also { printer = it }
     }
 
     fun dispose() {

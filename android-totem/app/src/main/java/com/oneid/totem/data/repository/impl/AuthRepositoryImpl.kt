@@ -1,100 +1,104 @@
 package com.oneid.totem.data.repository.impl
 
-import com.oneid.totem.data.api.TotemApi
-import com.oneid.totem.data.api.dto.LoginRequest
-import com.oneid.totem.data.local.TokenStorage
+import com.oneid.totem.data.db.ActiveEventResolver
+import com.oneid.totem.data.local.TotemPreferences
 import com.oneid.totem.domain.model.EventConfig
+import com.oneid.totem.domain.model.AIConfig
 import com.oneid.totem.domain.model.TotemSession
 import com.oneid.totem.domain.repository.AuthRepository
 import com.oneid.totem.domain.repository.AuthResult
 import javax.inject.Inject
+import javax.inject.Singleton
 
+@Singleton
 class AuthRepositoryImpl @Inject constructor(
-    private val api: TotemApi,
-    private val tokenStorage: TokenStorage,
+    private val eventResolver: ActiveEventResolver,
+    private val prefs: TotemPreferences,
 ) : AuthRepository {
 
     override suspend fun login(key: String): AuthResult {
         return try {
-            val response = api.login(LoginRequest(key))
-            if (response.isSuccessful) {
-                val body = response.body() ?: return AuthResult.Error("UNKNOWN", "Empty response")
-                tokenStorage.saveToken(body.token)
-                tokenStorage.saveTotemInfo(body.totem.id, body.totem.name)
-                AuthResult.Success(mapToSession(body))
-            } else {
-                val errorBody = response.errorBody()?.string() ?: "Login failed"
-                AuthResult.Error("LOGIN_FAILED", errorBody)
+            val code = key.uppercase().trim()
+            val context = eventResolver.resolveByAccessCode(code)
+            if (context == null) {
+                return AuthResult.Error("TOTEM_NO_ACTIVE_EVENT", "Totem não encontrado ou sem evento ativo")
             }
+
+            prefs.saveTotemSession(
+                totemId = context.totemId,
+                totemName = context.totemName,
+                eventId = context.eventId,
+                eventName = context.eventName,
+                totemEventSubscriptionId = context.totemEventSubscriptionId,
+            )
+            prefs.totemAccessCode = code
+
+            AuthResult.Success(mapToSession(context))
         } catch (e: Exception) {
-            AuthResult.Error("NETWORK_ERROR", e.message ?: "Network error")
+            val cause = e.cause
+            val detail = if (cause != null) "${cause::class.java.simpleName}: ${cause.message}" else e.message ?: ""
+            AuthResult.Error("DB_ERROR", "Erro ao conectar: $detail")
         }
     }
 
     override suspend fun validateSession(): AuthResult {
-        val token = tokenStorage.getToken() ?: return AuthResult.Error("MISSING_TOKEN", "No token found")
+        if (!isLoggedIn()) return AuthResult.Error("NOT_LOGGED_IN", "Nenhum totem logado")
+
         return try {
-            val response = api.getSession()
-            if (response.isSuccessful) {
-                val body = response.body() ?: return AuthResult.Error("UNKNOWN", "Empty response")
-                AuthResult.Success(
-                    TotemSession(
-                        sessionId = body.sessionId,
-                        expiresAt = body.expiresAt,
-                        totemId = body.totem.id,
-                        totemName = body.totem.name,
-                        activeEvent = EventConfig(
-                            id = body.activeEvent.id,
-                            name = body.activeEvent.name,
-                            faceEnabled = body.activeEvent.faceEnabled,
-                            qrEnabled = body.activeEvent.qrEnabled,
-                            codeEnabled = body.activeEvent.codeEnabled,
-                            allowSelfRegistration = body.activeEvent.allowSelfRegistration,
-                            hasPrintConfig = body.activeEvent.hasPrintConfig,
-                        ),
-                        totemEventSubscriptionId = body.totemEventSubscriptionId,
-                        aiConfig = mapAIConfig(body.aiConfig),
-                    )
-                )
-            } else {
-                tokenStorage.clearToken()
-                AuthResult.Error("SESSION_EXPIRED", "Session expired")
+            val context = eventResolver.resolveByTotemId(prefs.totemId)
+            if (context == null) {
+                prefs.clearSession()
+                return AuthResult.Error("TOTEM_NO_ACTIVE_EVENT", "Sessão expirada - nenhum evento ativo")
             }
+
+            prefs.saveTotemSession(
+                totemId = context.totemId,
+                totemName = context.totemName,
+                eventId = context.eventId,
+                eventName = context.eventName,
+                totemEventSubscriptionId = context.totemEventSubscriptionId,
+            )
+
+            AuthResult.Success(mapToSession(context))
         } catch (e: Exception) {
-            AuthResult.Error("NETWORK_ERROR", e.message ?: "Network error")
+            val cause = e.cause
+            val detail = if (cause != null) "${cause::class.java.simpleName}: ${cause.message}" else e.message ?: ""
+            AuthResult.Error("DB_ERROR", "Erro ao validar sessão: $detail")
         }
     }
 
     override suspend fun logout() {
-        tokenStorage.clearToken()
+        prefs.clearSession()
     }
 
-    override fun isLoggedIn(): Boolean = tokenStorage.getToken() != null
+    override fun isLoggedIn(): Boolean = prefs.isLoggedIn
 
-    private fun mapToSession(login: com.oneid.totem.data.api.dto.LoginResponse) = TotemSession(
+    private fun mapToSession(context: com.oneid.totem.data.db.ResolvedActiveContext) = TotemSession(
         sessionId = "",
         expiresAt = "",
-        totemId = login.totem.id,
-        totemName = login.totem.name,
+        totemId = context.totemId,
+        totemName = context.totemName,
         activeEvent = EventConfig(
-            id = login.activeEvent.id,
-            name = login.activeEvent.name,
-            faceEnabled = login.activeEvent.faceEnabled,
-            qrEnabled = login.activeEvent.qrEnabled,
-            codeEnabled = login.activeEvent.codeEnabled,
-            allowSelfRegistration = login.activeEvent.allowSelfRegistration,
-            hasPrintConfig = login.activeEvent.hasPrintConfig,
+            id = context.eventId,
+            name = context.eventName,
+            faceEnabled = context.faceEnabled,
+            qrEnabled = context.qrEnabled,
+            codeEnabled = context.codeEnabled,
+            allowSelfRegistration = context.allowSelfRegistration,
+            hasPrintConfig = context.hasPrintConfig,
+            labelPrintPromptEnabled = context.labelPrintPromptEnabled,
+            labelPrintPromptTimeoutSeconds = context.labelPrintPromptTimeoutSeconds,
         ),
-        totemEventSubscriptionId = login.totemEventSubscriptionId,
-        aiConfig = mapAIConfig(login.aiConfig),
-    )
-
-    private fun mapAIConfig(ai: com.oneid.totem.data.api.dto.AIConfig) = com.oneid.totem.domain.model.AIConfig(
-        confidenceThreshold = ai.confidenceThreshold,
-        maxFaces = ai.maxFaces,
-        minFaceSize = ai.minFaceSize,
-        livenessDetection = ai.livenessDetection,
-        livenessThreshold = ai.livenessThreshold,
-        cooldownSeconds = ai.cooldownSeconds,
+        totemEventSubscriptionId = context.totemEventSubscriptionId,
+        aiConfig = AIConfig(
+            confidenceThreshold = context.confidenceThreshold,
+            maxFaces = context.maxFaces,
+            minFaceSize = context.minFaceSize,
+            livenessDetection = context.livenessDetection,
+            livenessThreshold = context.livenessThreshold,
+            cooldownSeconds = context.cooldownSeconds,
+            efSearch = context.efSearch,
+            topKCandidates = context.topKCandidates,
+        ),
     )
 }

@@ -3,11 +3,14 @@ package com.oneid.totem.presentation.screens.method
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.oneid.totem.data.print.PrinterConfig
+import com.oneid.totem.data.service.ModelDownloadState
+import com.oneid.totem.data.service.ModelDownloader
 import com.oneid.totem.domain.model.TotemSession
 import com.oneid.totem.domain.repository.AuthRepository
 import com.oneid.totem.domain.repository.AuthResult
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -25,10 +28,13 @@ data class MethodUiState(
 @HiltViewModel
 class MethodViewModel @Inject constructor(
     private val authRepository: AuthRepository,
+    private val modelDownloader: ModelDownloader,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MethodUiState())
     val uiState = _uiState.asStateFlow()
+
+    val modelDownloadState: StateFlow<ModelDownloadState> = modelDownloader.downloadState
 
     init {
         loadSession()

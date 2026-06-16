@@ -29,10 +29,6 @@ class CodeCheckInViewModel @Inject constructor(
     fun onCodeChanged(code: String) {
         val filtered = code.uppercase().filter { it.isLetterOrDigit() }
         _uiState.value = _uiState.value.copy(code = filtered, error = null)
-
-        if (filtered.length >= 6) {
-            submitCode()
-        }
     }
 
     fun submitCode() {

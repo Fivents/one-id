@@ -1,10 +1,10 @@
 {
     "logs": [
         {
-            "outputFile": "com.oneid.totem.app-mergeDebugResources-73:/values-v30/values-v30.xml",
+            "outputFile": "com.oneid.totem.app-mergeDebugResources-72:/values-v30/values-v30.xml",
             "map": [
                 {
-                    "source": "/home/phelipecript/.gradle/caches/8.11.1/transforms/b6fdfc35a713bb75506b51a3b900d264/transformed/material3-release/res/values-v30/values-v30.xml",
+                    "source": "/Users/phsc/.gradle/caches/8.11.1/transforms/e1a0c356b6f3dd915ce493f57ef28acb/transformed/material3-release/res/values-v30/values-v30.xml",
                     "from": {
                         "startLines": "2",
                         "startColumns": "4",

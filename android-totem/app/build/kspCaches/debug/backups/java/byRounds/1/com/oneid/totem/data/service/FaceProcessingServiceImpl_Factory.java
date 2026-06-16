@@ -28,25 +28,32 @@ import javax.annotation.processing.Generated;
 public final class FaceProcessingServiceImpl_Factory implements Factory<FaceProcessingServiceImpl> {
   private final Provider<Context> contextProvider;
 
-  public FaceProcessingServiceImpl_Factory(Provider<Context> contextProvider) {
+  private final Provider<ModelDownloader> modelDownloaderProvider;
+
+  public FaceProcessingServiceImpl_Factory(Provider<Context> contextProvider,
+      Provider<ModelDownloader> modelDownloaderProvider) {
     this.contextProvider = contextProvider;
+    this.modelDownloaderProvider = modelDownloaderProvider;
   }
 
   @Override
   public FaceProcessingServiceImpl get() {
-    return newInstance(contextProvider.get());
+    return newInstance(contextProvider.get(), modelDownloaderProvider.get());
   }
 
   public static FaceProcessingServiceImpl_Factory create(
-      javax.inject.Provider<Context> contextProvider) {
-    return new FaceProcessingServiceImpl_Factory(Providers.asDaggerProvider(contextProvider));
+      javax.inject.Provider<Context> contextProvider,
+      javax.inject.Provider<ModelDownloader> modelDownloaderProvider) {
+    return new FaceProcessingServiceImpl_Factory(Providers.asDaggerProvider(contextProvider), Providers.asDaggerProvider(modelDownloaderProvider));
   }
 
-  public static FaceProcessingServiceImpl_Factory create(Provider<Context> contextProvider) {
-    return new FaceProcessingServiceImpl_Factory(contextProvider);
+  public static FaceProcessingServiceImpl_Factory create(Provider<Context> contextProvider,
+      Provider<ModelDownloader> modelDownloaderProvider) {
+    return new FaceProcessingServiceImpl_Factory(contextProvider, modelDownloaderProvider);
   }
 
-  public static FaceProcessingServiceImpl newInstance(Context context) {
-    return new FaceProcessingServiceImpl(context);
+  public static FaceProcessingServiceImpl newInstance(Context context,
+      ModelDownloader modelDownloader) {
+    return new FaceProcessingServiceImpl(context, modelDownloader);
   }
 }

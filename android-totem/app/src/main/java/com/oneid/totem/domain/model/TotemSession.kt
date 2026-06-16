@@ -18,6 +18,8 @@ data class EventConfig(
     val codeEnabled: Boolean,
     val allowSelfRegistration: Boolean,
     val hasPrintConfig: Boolean,
+    val labelPrintPromptEnabled: Boolean = false,
+    val labelPrintPromptTimeoutSeconds: Int = 15,
 )
 
 data class AIConfig(
@@ -27,6 +29,8 @@ data class AIConfig(
     val livenessDetection: Boolean,
     val livenessThreshold: Double,
     val cooldownSeconds: Int,
+    val efSearch: Int = 64,
+    val topKCandidates: Int = 5,
 )
 
 data class CheckInResult(

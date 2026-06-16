@@ -1,7 +1,7 @@
 package com.oneid.totem.data.print;
 
 import android.content.Context;
-import com.oneid.totem.data.local.TokenStorage;
+import com.oneid.totem.data.local.TotemPreferences;
 import com.oneid.totem.domain.repository.PrintRepository;
 import dagger.internal.DaggerGenerated;
 import dagger.internal.Factory;
@@ -34,37 +34,37 @@ public final class PrintCoordinator_Factory implements Factory<PrintCoordinator>
 
   private final Provider<BadgeRenderer> badgeRendererProvider;
 
-  private final Provider<TokenStorage> tokenStorageProvider;
+  private final Provider<TotemPreferences> prefsProvider;
 
   public PrintCoordinator_Factory(Provider<Context> contextProvider,
       Provider<PrintRepository> printRepositoryProvider,
-      Provider<BadgeRenderer> badgeRendererProvider, Provider<TokenStorage> tokenStorageProvider) {
+      Provider<BadgeRenderer> badgeRendererProvider, Provider<TotemPreferences> prefsProvider) {
     this.contextProvider = contextProvider;
     this.printRepositoryProvider = printRepositoryProvider;
     this.badgeRendererProvider = badgeRendererProvider;
-    this.tokenStorageProvider = tokenStorageProvider;
+    this.prefsProvider = prefsProvider;
   }
 
   @Override
   public PrintCoordinator get() {
-    return newInstance(contextProvider.get(), printRepositoryProvider.get(), badgeRendererProvider.get(), tokenStorageProvider.get());
+    return newInstance(contextProvider.get(), printRepositoryProvider.get(), badgeRendererProvider.get(), prefsProvider.get());
   }
 
   public static PrintCoordinator_Factory create(javax.inject.Provider<Context> contextProvider,
       javax.inject.Provider<PrintRepository> printRepositoryProvider,
       javax.inject.Provider<BadgeRenderer> badgeRendererProvider,
-      javax.inject.Provider<TokenStorage> tokenStorageProvider) {
-    return new PrintCoordinator_Factory(Providers.asDaggerProvider(contextProvider), Providers.asDaggerProvider(printRepositoryProvider), Providers.asDaggerProvider(badgeRendererProvider), Providers.asDaggerProvider(tokenStorageProvider));
+      javax.inject.Provider<TotemPreferences> prefsProvider) {
+    return new PrintCoordinator_Factory(Providers.asDaggerProvider(contextProvider), Providers.asDaggerProvider(printRepositoryProvider), Providers.asDaggerProvider(badgeRendererProvider), Providers.asDaggerProvider(prefsProvider));
   }
 
   public static PrintCoordinator_Factory create(Provider<Context> contextProvider,
       Provider<PrintRepository> printRepositoryProvider,
-      Provider<BadgeRenderer> badgeRendererProvider, Provider<TokenStorage> tokenStorageProvider) {
-    return new PrintCoordinator_Factory(contextProvider, printRepositoryProvider, badgeRendererProvider, tokenStorageProvider);
+      Provider<BadgeRenderer> badgeRendererProvider, Provider<TotemPreferences> prefsProvider) {
+    return new PrintCoordinator_Factory(contextProvider, printRepositoryProvider, badgeRendererProvider, prefsProvider);
   }
 
   public static PrintCoordinator newInstance(Context context, PrintRepository printRepository,
-      BadgeRenderer badgeRenderer, TokenStorage tokenStorage) {
-    return new PrintCoordinator(context, printRepository, badgeRenderer, tokenStorage);
+      BadgeRenderer badgeRenderer, TotemPreferences prefs) {
+    return new PrintCoordinator(context, printRepository, badgeRenderer, prefs);
   }
 }

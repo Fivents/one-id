@@ -1,5 +1,6 @@
 package com.oneid.totem.presentation.screens.method;
 
+import com.oneid.totem.data.service.ModelDownloader;
 import com.oneid.totem.domain.repository.AuthRepository;
 import dagger.internal.DaggerGenerated;
 import dagger.internal.Factory;
@@ -28,25 +29,32 @@ import javax.annotation.processing.Generated;
 public final class MethodViewModel_Factory implements Factory<MethodViewModel> {
   private final Provider<AuthRepository> authRepositoryProvider;
 
-  public MethodViewModel_Factory(Provider<AuthRepository> authRepositoryProvider) {
+  private final Provider<ModelDownloader> modelDownloaderProvider;
+
+  public MethodViewModel_Factory(Provider<AuthRepository> authRepositoryProvider,
+      Provider<ModelDownloader> modelDownloaderProvider) {
     this.authRepositoryProvider = authRepositoryProvider;
+    this.modelDownloaderProvider = modelDownloaderProvider;
   }
 
   @Override
   public MethodViewModel get() {
-    return newInstance(authRepositoryProvider.get());
+    return newInstance(authRepositoryProvider.get(), modelDownloaderProvider.get());
   }
 
   public static MethodViewModel_Factory create(
-      javax.inject.Provider<AuthRepository> authRepositoryProvider) {
-    return new MethodViewModel_Factory(Providers.asDaggerProvider(authRepositoryProvider));
+      javax.inject.Provider<AuthRepository> authRepositoryProvider,
+      javax.inject.Provider<ModelDownloader> modelDownloaderProvider) {
+    return new MethodViewModel_Factory(Providers.asDaggerProvider(authRepositoryProvider), Providers.asDaggerProvider(modelDownloaderProvider));
   }
 
-  public static MethodViewModel_Factory create(Provider<AuthRepository> authRepositoryProvider) {
-    return new MethodViewModel_Factory(authRepositoryProvider);
+  public static MethodViewModel_Factory create(Provider<AuthRepository> authRepositoryProvider,
+      Provider<ModelDownloader> modelDownloaderProvider) {
+    return new MethodViewModel_Factory(authRepositoryProvider, modelDownloaderProvider);
   }
 
-  public static MethodViewModel newInstance(AuthRepository authRepository) {
-    return new MethodViewModel(authRepository);
+  public static MethodViewModel newInstance(AuthRepository authRepository,
+      ModelDownloader modelDownloader) {
+    return new MethodViewModel(authRepository, modelDownloader);
   }
 }

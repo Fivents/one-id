@@ -3,9 +3,12 @@ package com.oneid.totem.presentation.screens.feedback
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Print
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -41,9 +44,9 @@ fun FeedbackScreen(
         }
     }
 
-    val infiniteAlpha = rememberInfiniteTransition(label = "pulse")
-    val iconAlpha by infiniteAlpha.animateFloat(
-        initialValue = 0.6f,
+    val pulseAnim = rememberInfiniteTransition(label = "pulse")
+    val iconScale by pulseAnim.animateFloat(
+        initialValue = 0.95f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
             animation = tween(800, easing = FastOutSlowInEasing),
@@ -53,7 +56,6 @@ fun FeedbackScreen(
     )
 
     HapticEffect(trigger = uiState.isSuccess, feedbackType = android.view.HapticFeedbackConstants.CONFIRM)
-    HapticEffect(trigger = !uiState.isSuccess && uiState.participantName.isNotBlank(), feedbackType = android.view.HapticFeedbackConstants.REJECT)
 
     val autoReturnDelay = if (uiState.isPrinting || type != "success") 8000L else 4000L
 
@@ -72,31 +74,52 @@ fun FeedbackScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier.padding(32.dp),
         ) {
-            Icon(
-                imageVector = if (uiState.isSuccess) Icons.Filled.CheckCircle else Icons.Filled.Error,
-                contentDescription = null,
+            Box(
                 modifier = Modifier
-                    .size(96.dp)
-                    .alpha(if (uiState.isPrinting) 0.4f else iconAlpha),
-                tint = if (uiState.isSuccess) Success else Error,
-            )
+                    .size(120.dp)
+                    .clip(CircleShape)
+                    .background(
+                        if (uiState.isSuccess) Success.copy(alpha = 0.15f)
+                        else Error.copy(alpha = 0.15f)
+                    ),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = if (uiState.isSuccess) Icons.Filled.CheckCircle else Icons.Filled.Close,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(64.dp)
+                        .alpha(if (uiState.isPrinting) 0.4f else iconScale),
+                    tint = if (uiState.isSuccess) Success else Error,
+                )
+            }
 
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(32.dp))
 
             Text(
                 text = if (uiState.isSuccess) "Check-in realizado!" else "Falha no check-in",
-                style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold),
+                style = MaterialTheme.typography.headlineLarge.copy(
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.sp,
+                ),
                 color = if (uiState.isSuccess) Success else Error,
             )
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(20.dp))
 
             if (uiState.isSuccess) {
-                Text("Bem-vindo(a)", style = MaterialTheme.typography.titleMedium, color = OnSurfaceVariant)
+                Text(
+                    "Bem-vindo(a)",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = OnSurfaceVariant,
+                )
                 Spacer(Modifier.height(8.dp))
                 Text(
                     text = uiState.participantName,
-                    style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.SemiBold),
+                    style = MaterialTheme.typography.headlineSmall.copy(
+                        fontWeight = FontWeight.SemiBold,
+                        letterSpacing = 0.5.sp,
+                    ),
                     color = OnSurface,
                     textAlign = TextAlign.Center,
                 )
@@ -110,40 +133,54 @@ fun FeedbackScreen(
             }
 
             if (uiState.isSuccess) {
-                Spacer(Modifier.height(24.dp))
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center,
+                Spacer(Modifier.height(32.dp))
+                Card(
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Surface.copy(alpha = 0.5f)),
                 ) {
-                    if (uiState.isPrinting) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp),
-                            color = Primary,
-                            strokeWidth = 2.dp,
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Text("Imprimindo badge...", color = OnSurfaceVariant)
-                    } else if (uiState.printSuccess == true) {
-                        Icon(Icons.Filled.Print, "Impresso", tint = Success, modifier = Modifier.size(20.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text("Badge impresso", color = Success)
-                    } else if (uiState.printSuccess == false) {
-                        Text("Falha na impressão: ${uiState.printError.orEmpty()}", color = Error)
+                    Row(
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        if (uiState.isPrinting) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                color = Primary,
+                                strokeWidth = 2.dp,
+                            )
+                            Spacer(Modifier.width(12.dp))
+                            Text("Imprimindo badge...", color = OnSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
+                        } else if (uiState.printSuccess == true) {
+                            Icon(Icons.Filled.Print, "Impresso", tint = Success, modifier = Modifier.size(22.dp))
+                            Spacer(Modifier.width(12.dp))
+                            Text("Badge impresso com sucesso", color = Success, style = MaterialTheme.typography.bodyMedium)
+                        } else if (uiState.printSuccess == false) {
+                            Text("Falha na impressão: ${uiState.printError.orEmpty()}", color = Error, style = MaterialTheme.typography.bodyMedium)
+                        }
                     }
                 }
             }
 
-            Spacer(Modifier.height(40.dp))
+            Spacer(Modifier.height(48.dp))
 
             Button(
                 onClick = onDone,
-                modifier = Modifier.fillMaxWidth().height(56.dp),
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = if (uiState.isSuccess) Primary else Error,
                 ),
             ) {
-                Text("Voltar ao início", style = MaterialTheme.typography.titleMedium, color = OnPrimary)
+                Text(
+                    "Voltar ao início",
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.sp,
+                    ),
+                    color = OnPrimary,
+                )
             }
         }
     }
