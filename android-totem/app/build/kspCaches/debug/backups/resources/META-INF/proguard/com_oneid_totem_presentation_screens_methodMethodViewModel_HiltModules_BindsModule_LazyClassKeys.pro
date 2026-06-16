@@ -1,0 +1,3 @@
+-keep,allowobfuscation,allowshrinking class com.oneid.totem.presentation.screens.feedback.FeedbackViewModel
+-keep,allowobfuscation,allowshrinking class com.oneid.totem.presentation.screens.feedback.FeedbackViewModel
+-keep,allowobfuscation,allowshrinking class com.oneid.totem.presentation.screens.method.MethodViewModel

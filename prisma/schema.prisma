@@ -263,6 +263,8 @@ model Event {
   qrEnabled   Boolean @default(false) @map("qr_enabled")
   codeEnabled Boolean @default(false) @map("code_enabled")
 
+  allowSelfRegistration Boolean @default(false) @map("allow_self_registration")
+
   labelPrintPromptEnabled        Boolean @default(true) @map("label_print_prompt_enabled")
   labelPrintPromptTimeoutSeconds Int     @default(15) @map("label_print_prompt_timeout_seconds")
 

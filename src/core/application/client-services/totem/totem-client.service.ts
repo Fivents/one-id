@@ -28,6 +28,7 @@ export interface TotemLoginResponse {
     faceEnabled: boolean;
     qrEnabled: boolean;
     codeEnabled: boolean;
+    allowSelfRegistration: boolean;
     hasPrintConfig: boolean;
     labelPrintPromptEnabled: boolean;
     labelPrintPromptTimeoutSeconds: number;
@@ -51,12 +52,26 @@ export interface TotemSessionResponse {
     faceEnabled: boolean;
     qrEnabled: boolean;
     codeEnabled: boolean;
+    allowSelfRegistration: boolean;
     hasPrintConfig: boolean;
     labelPrintPromptEnabled: boolean;
     labelPrintPromptTimeoutSeconds: number;
   };
   totemEventSubscriptionId: string;
   aiConfig: TotemAIConfig;
+}
+
+export interface TotemSelfRegisterResponse {
+  id: string;
+  eventParticipantId: string;
+  participant: {
+    name: string;
+    company: string | null;
+    jobTitle: string | null;
+    imageUrl: string | null;
+    accessCode: string | null;
+    qrCodeValue: string | null;
+  };
 }
 
 export interface TotemCheckInResponse {
@@ -297,6 +312,33 @@ export async function getEventAIConfig(eventId: string, token?: string): Promise
     {
       timeoutMs: 10000,
     },
+  );
+}
+
+export async function sendSelfRegister(
+  payload: { name: string; email: string; document?: string | null; company?: string | null; jobTitle?: string | null },
+  token?: string,
+): Promise<ApiResponse<TotemSelfRegisterResponse>> {
+  const activeToken = token ?? getStoredTotemToken();
+
+  if (!activeToken) {
+    return {
+      success: false,
+      error: { code: 'MISSING_TOKEN', message: 'Totem token not found.' },
+    };
+  }
+
+  return request<TotemSelfRegisterResponse>(
+    '/api/totem/self-register',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${activeToken}`,
+      },
+      body: JSON.stringify(payload),
+    },
+    { timeoutMs: 10000 },
   );
 }
 

@@ -244,6 +244,10 @@ export default function EventDetailPage() {
   const [settingsStartsAt, setSettingsStartsAt] = useState('');
   const [settingsEndsAt, setSettingsEndsAt] = useState('');
   const [settingsStatus, setSettingsStatus] = useState<EventResponse['status']>('DRAFT');
+  const [faceEnabled, setFaceEnabled] = useState(true);
+  const [qrEnabled, setQrEnabled] = useState(false);
+  const [codeEnabled, setCodeEnabled] = useState(false);
+  const [allowSelfRegistration, setAllowSelfRegistration] = useState(false);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [aiConfig, setAiConfig] = useState<EventAIConfigResponse>({
     confidenceThreshold: DEFAULT_AI_CONFIG.confidenceThreshold,
@@ -333,6 +337,10 @@ export default function EventDetailPage() {
       setSettingsStartsAt(new Date(response.data.startsAt).toISOString().slice(0, 16));
       setSettingsEndsAt(new Date(response.data.endsAt).toISOString().slice(0, 16));
       setSettingsStatus(response.data.status);
+      setFaceEnabled(response.data.faceEnabled);
+      setQrEnabled(response.data.qrEnabled);
+      setCodeEnabled(response.data.codeEnabled);
+      setAllowSelfRegistration(response.data.allowSelfRegistration);
       setPrintConfigEnabled(Boolean(response.data.printConfigId));
       setPrintPromptEnabled(response.data.labelPrintPromptEnabled);
       setPrintPromptTimeoutSeconds(response.data.labelPrintPromptTimeoutSeconds);
@@ -1050,6 +1058,10 @@ export default function EventDetailPage() {
         timezone: settingsTimezone.trim(),
         address: finalAddress || null,
         addressDetails: normalizedAddressDetails,
+        faceEnabled,
+        qrEnabled,
+        codeEnabled,
+        allowSelfRegistration,
         startsAt: startDate,
         endsAt: endDate,
       });
@@ -1794,6 +1806,39 @@ export default function EventDetailPage() {
                       onChange={(e) => setSettingsEndsAt(e.target.value)}
                       required
                     />
+                  </div>
+                </div>
+
+                <div className="space-y-4 rounded-lg border p-4">
+                  <p className="text-sm font-medium">Métodos de check-in</p>
+                  <p className="text-muted-foreground text-xs">Pelo menos um método deve estar ativo.</p>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium">Reconhecimento facial</p>
+                      <p className="text-muted-foreground text-xs">Check-in por reconhecimento facial</p>
+                    </div>
+                    <Switch checked={faceEnabled} onCheckedChange={setFaceEnabled} />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium">QR Code</p>
+                      <p className="text-muted-foreground text-xs">Check-in por leitura de QR Code</p>
+                    </div>
+                    <Switch checked={qrEnabled} onCheckedChange={setQrEnabled} />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium">Código de acesso</p>
+                      <p className="text-muted-foreground text-xs">Check-in por código de acesso</p>
+                    </div>
+                    <Switch checked={codeEnabled} onCheckedChange={setCodeEnabled} />
+                  </div>
+                  <div className="flex items-center justify-between rounded-lg pt-2">
+                    <div>
+                      <p className="text-sm font-medium">Auto-cadastro</p>
+                      <p className="text-muted-foreground text-xs">Participante pode se cadastrar no totem</p>
+                    </div>
+                    <Switch checked={allowSelfRegistration} onCheckedChange={setAllowSelfRegistration} />
                   </div>
                 </div>
 

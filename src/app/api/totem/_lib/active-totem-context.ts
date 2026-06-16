@@ -28,6 +28,7 @@ export interface ActiveTotemContext {
     faceEnabled: boolean;
     qrEnabled: boolean;
     codeEnabled: boolean;
+    allowSelfRegistration: boolean;
     hasPrintConfig: boolean;
     labelPrintPromptEnabled: boolean;
     labelPrintPromptTimeoutSeconds: number;
@@ -146,6 +147,7 @@ async function resolveFromWhere(where: { id?: string; accessCode?: string }): Pr
                   faceEnabled: true,
                   qrEnabled: true,
                   codeEnabled: true,
+                  allowSelfRegistration: true,
                   printConfigId: true,
                   labelPrintPromptEnabled: true,
                   labelPrintPromptTimeoutSeconds: true,
@@ -192,6 +194,7 @@ async function resolveFromWhere(where: { id?: string; accessCode?: string }): Pr
       faceEnabled: eventSubscription.event.faceEnabled,
       qrEnabled: eventSubscription.event.qrEnabled,
       codeEnabled: eventSubscription.event.codeEnabled,
+      allowSelfRegistration: eventSubscription.event.allowSelfRegistration,
       hasPrintConfig: Boolean(eventSubscription.event.printConfigId),
       labelPrintPromptEnabled: eventSubscription.event.labelPrintPromptEnabled,
       labelPrintPromptTimeoutSeconds: eventSubscription.event.labelPrintPromptTimeoutSeconds,

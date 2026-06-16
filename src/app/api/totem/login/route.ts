@@ -55,6 +55,7 @@ export async function POST(request: NextRequest) {
           faceEnabled: activeContext.event.faceEnabled,
           qrEnabled: activeContext.event.qrEnabled,
           codeEnabled: activeContext.event.codeEnabled,
+          allowSelfRegistration: activeContext.event.allowSelfRegistration,
           hasPrintConfig: activeContext.event.hasPrintConfig,
           labelPrintPromptEnabled: activeContext.event.labelPrintPromptEnabled,
           labelPrintPromptTimeoutSeconds: activeContext.event.labelPrintPromptTimeoutSeconds,

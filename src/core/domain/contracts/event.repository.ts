@@ -12,6 +12,7 @@ export interface CreateEventData {
   faceEnabled?: boolean;
   qrEnabled?: boolean;
   codeEnabled?: boolean;
+  allowSelfRegistration?: boolean;
   labelPrintPromptEnabled?: boolean;
   labelPrintPromptTimeoutSeconds?: number;
   startsAt: Date;
@@ -31,6 +32,7 @@ export interface UpdateEventData {
   faceEnabled?: boolean;
   qrEnabled?: boolean;
   codeEnabled?: boolean;
+  allowSelfRegistration?: boolean;
   labelPrintPromptEnabled?: boolean;
   labelPrintPromptTimeoutSeconds?: number;
   startsAt?: Date;

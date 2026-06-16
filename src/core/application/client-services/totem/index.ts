@@ -21,9 +21,11 @@ export {
   getTotemToken,
   loginTotem,
   sendCheckIn,
+  sendSelfRegister,
   type TotemAIConfig,
   type TotemCheckInRequestPayload,
   type TotemCheckInResponse,
   type TotemLoginResponse,
+  type TotemSelfRegisterResponse,
   type TotemSessionResponse,
 } from './totem-client.service';

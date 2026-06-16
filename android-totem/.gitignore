@@ -1,0 +1,19 @@
+*.iml
+.gradle
+/local.properties
+/.idea
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+*.apk
+*.aab
+*.ap_
+*.dex
+
+# ONNX model (63MB, downloaded separately)
+app/src/main/assets/arcface_mobilefacenet.onnx
+
+# Brother SDK binary (not distributable via git)
+app/libs/*.aar

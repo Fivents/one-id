@@ -18,6 +18,7 @@ export interface EventProps {
   faceEnabled: boolean;
   qrEnabled: boolean;
   codeEnabled: boolean;
+  allowSelfRegistration: boolean;
   labelPrintPromptEnabled: boolean;
   labelPrintPromptTimeoutSeconds: number;
   startsAt: Date;
@@ -111,6 +112,10 @@ export class EventEntity extends BaseEntity {
 
   get codeEnabled(): boolean {
     return this.props.codeEnabled;
+  }
+
+  get allowSelfRegistration(): boolean {
+    return this.props.allowSelfRegistration;
   }
 
   get labelPrintPromptEnabled(): boolean {
@@ -214,6 +219,7 @@ export class EventEntity extends BaseEntity {
       faceEnabled: this.props.faceEnabled,
       qrEnabled: this.props.qrEnabled,
       codeEnabled: this.props.codeEnabled,
+      allowSelfRegistration: this.props.allowSelfRegistration,
       labelPrintPromptEnabled: this.props.labelPrintPromptEnabled,
       labelPrintPromptTimeoutSeconds: this.props.labelPrintPromptTimeoutSeconds,
       startsAt: this.props.startsAt,

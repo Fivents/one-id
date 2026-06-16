@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="background">#0F0F1A</color>
+    <color name="error">#EF4444</color>
+    <color name="on_background">#F1F1F6</color>
+    <color name="on_primary">#FFFFFF</color>
+    <color name="on_surface">#E2E2E8</color>
+    <color name="primary">#6366F1</color>
+    <color name="primary_variant">#4F46E5</color>
+    <color name="secondary">#10B981</color>
+    <color name="success">#22C55E</color>
+    <color name="surface">#1A1A2E</color>
+    <string name="app_name">ONE-ID Totem</string>
+    <style name="Theme.OneIdTotem" parent="android:Theme.Material.NoActionBar">
+        <item name="android:colorBackground">@color/background</item>
+        <item name="android:statusBarColor">@color/background</item>
+        <item name="android:navigationBarColor">@color/background</item>
+        <item name="android:windowFullscreen">true</item>
+    </style>
+</resources>
