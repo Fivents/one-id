@@ -49,6 +49,11 @@ class PrintHttpRepository @Inject constructor(
                     paperHeight = body.paperHeight,
                     printerDpi = body.printerDpi,
                     copies = body.copies,
+                    participantName = body.participantName ?: "",
+                    company = body.company,
+                    jobTitle = body.jobTitle,
+                    qrCodeValue = body.qrCodeValue,
+                    accessCode = body.accessCode,
                 )
             )
         } catch (e: java.net.ConnectException) {

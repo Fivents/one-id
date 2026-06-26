@@ -108,6 +108,11 @@ export const POST = withAuth(
             paperHeight: printConfig.paperHeight,
             printerDpi: printConfig.printerDpi,
             copies: printConfig.copies,
+            participantName: eventParticipant.person.name,
+            company: eventParticipant.company,
+            jobTitle: eventParticipant.jobTitle,
+            qrCodeValue: eventParticipant.qrCodeValue,
+            accessCode: eventParticipant.accessCode,
           },
           { status: 201 },
         );

@@ -34,8 +34,12 @@ class PrintCoordinator @Inject constructor(
         }
 
         val bitmap = try {
-            badgeRenderer.render(
-                html = printData.html,
+            badgeRenderer.renderFromData(
+                name = printData.participantName,
+                company = printData.company,
+                jobTitle = printData.jobTitle,
+                qrCodeValue = printData.qrCodeValue,
+                accessCode = printData.accessCode,
                 paperWidthMm = printData.paperWidth,
                 paperHeightMm = printData.paperHeight,
                 dpi = printData.printerDpi,

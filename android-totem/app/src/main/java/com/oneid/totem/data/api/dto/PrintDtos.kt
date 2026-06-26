@@ -15,6 +15,11 @@ data class PrintBadgeResponse(
     @SerializedName("paperHeight") val paperHeight: Double,
     @SerializedName("printerDpi") val printerDpi: Int,
     @SerializedName("copies") val copies: Int,
+    @SerializedName("participantName") val participantName: String? = null,
+    @SerializedName("company") val company: String? = null,
+    @SerializedName("jobTitle") val jobTitle: String? = null,
+    @SerializedName("qrCodeValue") val qrCodeValue: String? = null,
+    @SerializedName("accessCode") val accessCode: String? = null,
 )
 
 data class PrintConfigResponse(

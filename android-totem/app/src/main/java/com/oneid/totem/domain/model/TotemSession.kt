@@ -56,4 +56,9 @@ data class PrintData(
     val paperHeight: Double,
     val printerDpi: Int,
     val copies: Int,
+    val participantName: String = "",
+    val company: String? = null,
+    val jobTitle: String? = null,
+    val qrCodeValue: String? = null,
+    val accessCode: String? = null,
 )
