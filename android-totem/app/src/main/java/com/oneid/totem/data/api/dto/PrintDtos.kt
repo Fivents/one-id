@@ -1,36 +1,36 @@
 package com.oneid.totem.data.api.dto
 
-import com.squareup.moshi.Json
-import com.squareup.moshi.JsonClass
+import com.google.gson.annotations.SerializedName
 
-@JsonClass(generateAdapter = true)
-data class PrintRequest(
-    @Json(name = "eventParticipantId") val eventParticipantId: String,
-    @Json(name = "checkInId") val checkInId: String? = null,
+data class PrintBadgeRequest(
+    @SerializedName("eventParticipantId") val eventParticipantId: String,
+    @SerializedName("checkInId") val checkInId: String? = null,
 )
 
-@JsonClass(generateAdapter = true)
-data class PrintResponse(
-    @Json(name = "jobId") val jobId: String,
-    @Json(name = "token") val token: String,
-    @Json(name = "html") val html: String,
-    @Json(name = "paperWidth") val paperWidth: Double,
-    @Json(name = "paperHeight") val paperHeight: Double,
-    @Json(name = "printerDpi") val printerDpi: Int,
-    @Json(name = "copies") val copies: Int,
+data class PrintBadgeResponse(
+    @SerializedName("jobId") val jobId: String,
+    @SerializedName("token") val token: String,
+    @SerializedName("html") val html: String,
+    @SerializedName("paperWidth") val paperWidth: Double,
+    @SerializedName("paperHeight") val paperHeight: Double,
+    @SerializedName("printerDpi") val printerDpi: Int,
+    @SerializedName("copies") val copies: Int,
 )
 
-@JsonClass(generateAdapter = true)
 data class PrintConfigResponse(
-    @Json(name = "id") val id: String,
-    @Json(name = "paperWidth") val paperWidth: Double,
-    @Json(name = "paperHeight") val paperHeight: Double,
-    @Json(name = "orientation") val orientation: String,
-    @Json(name = "printerDpi") val printerDpi: Int,
-    @Json(name = "copies") val copies: Int,
-    @Json(name = "qrCodeContent") val qrCodeContent: String,
-    @Json(name = "showQrCode") val showQrCode: Boolean,
-    @Json(name = "showAccessCode") val showAccessCode: Boolean,
-    @Json(name = "fontSizeName") val fontSizeName: Int,
-    @Json(name = "fontSizeMeta") val fontSizeMeta: Int,
+    @SerializedName("id") val id: String,
+    @SerializedName("paperWidth") val paperWidth: Double,
+    @SerializedName("paperHeight") val paperHeight: Double,
+    @SerializedName("orientation") val orientation: String? = "PORTRAIT",
+    @SerializedName("printerDpi") val printerDpi: Int,
+    @SerializedName("copies") val copies: Int,
+    @SerializedName("showQrCode") val showQrCode: Boolean? = true,
+    @SerializedName("showAccessCode") val showAccessCode: Boolean? = false,
+    @SerializedName("fontSizeName") val fontSizeName: Int? = 13,
+    @SerializedName("fontSizeMeta") val fontSizeMeta: Int? = 9,
+)
+
+data class ApiErrorResponse(
+    @SerializedName("error") val error: String,
+    @SerializedName("code") val code: String? = null,
 )

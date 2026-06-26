@@ -7,9 +7,6 @@ compose-bom = "2024.12.01"
 activity-compose = "1.9.3"
 navigation-compose = "2.8.5"
 lifecycle = "2.8.7"
-retrofit = "2.11.0"
-okhttp = "4.12.0"
-moshi = "1.15.2"
 camerax = "1.4.1"
 mlkit-barcode = "17.3.0"
 mlkit-face = "16.1.7"
@@ -21,6 +18,9 @@ coil = "2.7.0"
 zxing = "3.5.3"
 postgresql = "42.7.4"
 hikaricp = "6.2.1"
+retrofit = "2.11.0"
+okhttp = "4.12.0"
+gson = "2.11.0"
 jwt = "0.12.6"
 junit = "4.13.2"
 mockk = "1.13.14"
@@ -49,14 +49,8 @@ hilt-android = { group = "com.google.dagger", name = "hilt-android", version.ref
 hilt-compiler = { group = "com.google.dagger", name = "hilt-android-compiler", version.ref = "hilt" }
 hilt-navigation-compose = { group = "androidx.hilt", name = "hilt-navigation-compose", version = "1.2.0" }
 
-# Network
-retrofit = { group = "com.squareup.retrofit2", name = "retrofit", version.ref = "retrofit" }
-retrofit-moshi = { group = "com.squareup.retrofit2", name = "converter-moshi", version.ref = "retrofit" }
-okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
-okhttp-logging = { group = "com.squareup.okhttp3", name = "logging-interceptor", version.ref = "okhttp" }
-moshi = { group = "com.squareup.moshi", name = "moshi", version.ref = "moshi" }
-moshi-kotlin = { group = "com.squareup.moshi", name = "moshi-kotlin", version.ref = "moshi" }
-moshi-codegen = { group = "com.squareup.moshi", name = "moshi-kotlin-codegen", version.ref = "moshi" }
+# Database
+postgresql = { group = "org.postgresql", name = "postgresql", version.ref = "postgresql" }
 
 # CameraX
 camerax-core = { group = "androidx.camera", name = "camera-core", version.ref = "camerax" }
@@ -87,8 +81,12 @@ robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "
 # ZXing
 zxing-core = { group = "com.google.zxing", name = "core", version.ref = "zxing" }
 
-# PostgreSQL
-postgresql = { group = "org.postgresql", name = "postgresql", version.ref = "postgresql" }
+# HTTP
+retrofit = { group = "com.squareup.retrofit2", name = "retrofit", version.ref = "retrofit" }
+retrofit-converter-gson = { group = "com.squareup.retrofit2", name = "converter-gson", version.ref = "retrofit" }
+okhttp-logging = { group = "com.squareup.okhttp3", name = "logging-interceptor", version.ref = "okhttp" }
+gson = { group = "com.google.code.gson", name = "gson", version.ref = "gson" }
+
 hikaricp = { group = "com.zaxxer", name = "HikariCP", version.ref = "hikaricp" }
 
 # JWT

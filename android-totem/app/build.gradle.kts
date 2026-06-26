@@ -6,6 +6,22 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
+fun loadEnv(): Map<String, String> {
+    val envFile = rootProject.file(".env")
+    if (!envFile.exists()) return emptyMap()
+    return envFile.readLines()
+        .map { it.trim() }
+        .filter { it.isNotBlank() && !it.startsWith("#") }
+        .associate { line ->
+            val eq = line.indexOf('=')
+            if (eq > 0) line.substring(0, eq).trim() to line.substring(eq + 1).trim().removeSurrounding("\"")
+            else line.trim() to ""
+        }
+}
+
+val env = loadEnv()
+val modelUrl = env["NEXT_PUBLIC_ARCFACE_ONNX_REMOTE_URL"] ?: "https://huggingface.co/onnx-community/arcface-onnx/resolve/main/arcface.onnx"
+
 android {
     namespace = "com.oneid.totem"
     compileSdk = 35
@@ -21,6 +37,9 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "1.0.0"
+
+        buildConfigField("String", "API_BASE_URL", "\"https://one-id-lyart.vercel.app/\"")
+        buildConfigField("String", "MODEL_DOWNLOAD_URL", "\"$modelUrl\"")
     }
 
     buildTypes {
@@ -52,6 +71,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
@@ -79,13 +99,11 @@ dependencies {
     ksp(libs.hilt.compiler)
     implementation(libs.hilt.navigation.compose)
 
-    // Network
+    // HTTP (Retrofit + Next.js)
     implementation(libs.retrofit)
-    implementation(libs.retrofit.moshi)
-    implementation(libs.okhttp)
+    implementation(libs.retrofit.converter.gson)
     implementation(libs.okhttp.logging)
-    implementation(libs.moshi)
-    ksp(libs.moshi.codegen)
+    implementation(libs.gson)
 
     // CameraX
     implementation(libs.camerax.core)
@@ -109,10 +127,6 @@ dependencies {
 
     // ZXing
     implementation(libs.zxing.core)
-
-    // PostgreSQL
-    implementation(libs.postgresql)
-    implementation(libs.hikaricp)
 
     // JWT
     implementation(libs.jwt.core)

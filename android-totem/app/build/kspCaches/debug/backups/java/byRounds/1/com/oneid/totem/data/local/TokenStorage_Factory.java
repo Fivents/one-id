@@ -1,6 +1,5 @@
 package com.oneid.totem.data.local;
 
-import android.content.Context;
 import dagger.internal.DaggerGenerated;
 import dagger.internal.Factory;
 import dagger.internal.Provider;
@@ -10,7 +9,7 @@ import dagger.internal.ScopeMetadata;
 import javax.annotation.processing.Generated;
 
 @ScopeMetadata("javax.inject.Singleton")
-@QualifierMetadata("dagger.hilt.android.qualifiers.ApplicationContext")
+@QualifierMetadata
 @DaggerGenerated
 @Generated(
     value = "dagger.internal.codegen.ComponentProcessor",
@@ -26,26 +25,26 @@ import javax.annotation.processing.Generated;
     "nullness:initialization.field.uninitialized"
 })
 public final class TokenStorage_Factory implements Factory<TokenStorage> {
-  private final Provider<Context> contextProvider;
+  private final Provider<TotemPreferences> prefsProvider;
 
-  public TokenStorage_Factory(Provider<Context> contextProvider) {
-    this.contextProvider = contextProvider;
+  public TokenStorage_Factory(Provider<TotemPreferences> prefsProvider) {
+    this.prefsProvider = prefsProvider;
   }
 
   @Override
   public TokenStorage get() {
-    return newInstance(contextProvider.get());
+    return newInstance(prefsProvider.get());
   }
 
-  public static TokenStorage_Factory create(javax.inject.Provider<Context> contextProvider) {
-    return new TokenStorage_Factory(Providers.asDaggerProvider(contextProvider));
+  public static TokenStorage_Factory create(javax.inject.Provider<TotemPreferences> prefsProvider) {
+    return new TokenStorage_Factory(Providers.asDaggerProvider(prefsProvider));
   }
 
-  public static TokenStorage_Factory create(Provider<Context> contextProvider) {
-    return new TokenStorage_Factory(contextProvider);
+  public static TokenStorage_Factory create(Provider<TotemPreferences> prefsProvider) {
+    return new TokenStorage_Factory(prefsProvider);
   }
 
-  public static TokenStorage newInstance(Context context) {
-    return new TokenStorage(context);
+  public static TokenStorage newInstance(TotemPreferences prefs) {
+    return new TokenStorage(prefs);
   }
 }

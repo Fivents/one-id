@@ -17,3 +17,6 @@ app/src/main/assets/arcface_mobilefacenet.onnx
 
 # Brother SDK binary (not distributable via git)
 app/libs/*.aar
+
+# Environment variables (contains DB credentials)
+.env

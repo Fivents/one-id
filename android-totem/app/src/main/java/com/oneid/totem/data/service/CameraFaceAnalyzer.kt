@@ -11,6 +11,7 @@ class CameraFaceAnalyzer(
     private val faceProcessingService: FaceProcessingService,
     private val config: FaceProcessingConfig = FaceProcessingConfig(),
     private val onFaceResult: (FaceDetectionResult?) -> Unit,
+    private val onStatus: ((String) -> Unit)? = null,
 ) : ImageAnalysis.Analyzer {
 
     private var processing = false
@@ -27,12 +28,14 @@ class CameraFaceAnalyzer(
 
         processing = true
         lastProcessedMs = now
+        onStatus?.invoke("Frame recebido, processando...")
 
         scope.launch {
             try {
-                val result = faceProcessingService.detectAndProcess(imageProxy, config)
+                val result = faceProcessingService.detectAndProcess(imageProxy, config, onStatus)
                 onFaceResult(result)
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                onStatus?.invoke("ERRO: ${e.message?.take(60)}")
                 imageProxy.close()
             } finally {
                 processing = false

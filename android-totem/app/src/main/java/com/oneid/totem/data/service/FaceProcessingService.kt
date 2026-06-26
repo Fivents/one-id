@@ -13,11 +13,12 @@ interface FaceProcessingService {
     suspend fun detectAndProcess(
         imageProxy: ImageProxy,
         config: FaceProcessingConfig = FaceProcessingConfig(),
+        onStatus: ((String) -> Unit)? = null,
     ): FaceDetectionResult?
 
     fun checkLiveness(face: Face, config: FaceProcessingConfig): LivenessResult
 
-    suspend fun extractEmbedding(croppedFace: Bitmap): List<Double>
+    suspend fun extractEmbedding(croppedFace: Bitmap, onStatus: ((String) -> Unit)? = null): List<Double>
 
     fun close()
 }

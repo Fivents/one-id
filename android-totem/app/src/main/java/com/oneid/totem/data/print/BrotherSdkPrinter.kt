@@ -1,40 +1,62 @@
 package com.oneid.totem.data.print
 
+import android.content.Context
 import android.graphics.Bitmap
 import com.brother.sdk.lmprinter.*
 import com.brother.sdk.lmprinter.setting.PrintImageSettings
 import com.brother.sdk.lmprinter.setting.QLPrintSettings
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeout
+import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class BrotherSdkPrinter @Inject constructor() : BrotherPrinter {
+class BrotherSdkPrinter @Inject constructor(
+    @ApplicationContext private val appContext: Context,
+) : BrotherPrinter {
 
     private var driver: PrinterDriver? = null
+    private var connectedLabelSize: QLPrintSettings.LabelSize? = null
+
+    private val workPath: String by lazy {
+        File(appContext.cacheDir, "brother_print").also { it.mkdirs() }.absolutePath
+    }
 
     override suspend fun connect(ipAddress: String, port: Int): PrintJobResult {
         return withContext(Dispatchers.IO) {
             try {
                 close()
                 val channel = Channel.newWifiChannel(ipAddress)
-                val result = withTimeout(10_000) {
-                    PrinterDriverGenerator.openChannel(channel)
-                }
+                val result = PrinterDriverGenerator.openChannel(channel)
                 if (result.error.code != OpenChannelError.ErrorCode.NoError) {
                     return@withContext PrintJobResult.Error(
                         "Falha ao conectar: ${result.error.code}"
                     )
                 }
                 driver = result.driver
+
+                connectedLabelSize = queryLabelSize(result.driver)
+
                 PrintJobResult.Success
-            } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
-                PrintJobResult.Error("Timeout de conexão — verifique se a impressora está ligada e no IP correto")
             } catch (e: Exception) {
                 PrintJobResult.Error("Conexão falhou: ${e.message}")
             }
+        }
+    }
+
+    private fun queryLabelSize(d: PrinterDriver): QLPrintSettings.LabelSize {
+        return try {
+            val statusResult = d.printerStatus
+            if (statusResult.error.code == GetStatusError.ErrorCode.NoError) {
+                val ls = statusResult.printerStatus?.mediaInfo?.getQLLabelSize()
+                ls ?: QLPrintSettings.LabelSize.RollW62
+            } else {
+                QLPrintSettings.LabelSize.RollW62
+            }
+        } catch (e: Exception) {
+            QLPrintSettings.LabelSize.RollW62
         }
     }
 
@@ -43,34 +65,34 @@ class BrotherSdkPrinter @Inject constructor() : BrotherPrinter {
             try {
                 val d = driver ?: return@withContext PrintJobResult.Error("Impressora não conectada")
 
+                val labelSize = connectedLabelSize ?: queryLabelSize(d)
+
                 val settings = QLPrintSettings(PrinterModel.QL_810W).apply {
-                    labelSize = QLPrintSettings.LabelSize.RollW62
+                    this.labelSize = labelSize
                     numCopies = copies
                     halftone = PrintImageSettings.Halftone.ErrorDiffusion
                     printQuality = PrintImageSettings.PrintQuality.Best
                     isAutoCut = true
                     isCutAtEnd = true
-                    isSkipStatusCheck = true
+                    isSkipStatusCheck = false
                     hAlignment = PrintImageSettings.HorizontalAlignment.Center
                     vAlignment = PrintImageSettings.VerticalAlignment.Center
                     printOrientation = PrintImageSettings.Orientation.Landscape
                     scaleMode = PrintImageSettings.ScaleMode.FitPageAspect
                     compress = PrintImageSettings.CompressMode.Mode9
+                    workPath = this@BrotherSdkPrinter.workPath
                 }
 
                 val printError = d.printImage(bitmap, settings)
 
                 if (printError.code != PrintError.ErrorCode.NoError) {
-                    val message = when (printError.code) {
-                        PrintError.ErrorCode.PrinterStatusErrorPaperEmpty -> "Papel acabando ou acabou"
-                        PrintError.ErrorCode.PrinterStatusErrorBatteryWeak -> "Bateria da impressora fraca"
-                        PrintError.ErrorCode.PrinterStatusErrorCoverOpen -> "Tampa da impressora aberta"
-                        PrintError.ErrorCode.PrinterStatusErrorOverHeat -> "Impressora superaquecida — aguarde"
-                        PrintError.ErrorCode.PrinterStatusErrorBusy -> "Impressora ocupada"
-                        PrintError.ErrorCode.PrinterStatusErrorMediaCannotBeFed -> "Sem mídia na impressora"
-                        else -> "Erro de impressão: ${printError.code}"
+                    val desc = printError.errorDescription
+                    val msg = if (!desc.isNullOrBlank()) {
+                        "Erro de impressão: ${printError.code} - $desc"
+                    } else {
+                        "Erro de impressão: ${printError.code}"
                     }
-                    PrintJobResult.Error(message)
+                    PrintJobResult.Error(msg)
                 } else {
                     PrintJobResult.Success
                 }
@@ -81,30 +103,7 @@ class BrotherSdkPrinter @Inject constructor() : BrotherPrinter {
     }
 
     override suspend fun getStatus(): PrinterStatus {
-        return try {
-            val d = driver ?: return PrinterStatus.UNKNOWN
-            val statusResult = d.printerStatus
-            val statusError = statusResult.error
-            if (statusError.code != com.brother.sdk.lmprinter.GetStatusError.ErrorCode.NoError) {
-                return PrinterStatus.UNKNOWN
-            }
-            val printerStatus = statusResult.printerStatus
-            when (printerStatus.errorCode) {
-                com.brother.sdk.lmprinter.PrinterStatus.ErrorCode.NoError -> PrinterStatus.OK
-                com.brother.sdk.lmprinter.PrinterStatus.ErrorCode.NoPaper,
-                com.brother.sdk.lmprinter.PrinterStatus.ErrorCode.PaperJam -> PrinterStatus.PAPER_EMPTY
-                com.brother.sdk.lmprinter.PrinterStatus.ErrorCode.CoverOpen -> PrinterStatus.COVER_OPEN
-                com.brother.sdk.lmprinter.PrinterStatus.ErrorCode.Busy -> PrinterStatus.BUSY
-                com.brother.sdk.lmprinter.PrinterStatus.ErrorCode.BatteryEmpty,
-                com.brother.sdk.lmprinter.PrinterStatus.ErrorCode.BatteryTrouble -> PrinterStatus.BATTERY_LOW
-                com.brother.sdk.lmprinter.PrinterStatus.ErrorCode.MotorSlow,
-                com.brother.sdk.lmprinter.PrinterStatus.ErrorCode.HighVoltageAdapter,
-                com.brother.sdk.lmprinter.PrinterStatus.ErrorCode.SystemError -> PrinterStatus.OVERHEAT
-                else -> PrinterStatus.ERROR
-            }
-        } catch (_: Exception) {
-            PrinterStatus.UNKNOWN
-        }
+        return PrinterStatus.UNKNOWN
     }
 
     override fun isConnected(): Boolean = driver != null

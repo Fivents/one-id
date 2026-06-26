@@ -27,6 +27,7 @@ data class FaceCheckInUiState(
     val error: String? = null,
     val success: Triple<String, String, String>? = null,
     val hasCameraPermission: Boolean? = null,
+    val debugMessage: String? = null,
 )
 
 @HiltViewModel
@@ -42,10 +43,10 @@ class FaceCheckInViewModel @Inject constructor(
     private var cooldownUntil = 0L
 
     private val processingConfig = FaceProcessingConfig(
-        minFaceSize = 200,
+        minFaceSize = 150,
         maxFaces = 1,
         livenessEnabled = true,
-        livenessThreshold = 0.5,
+        livenessThreshold = 0.35,
         cooldownMs = 1500,
     )
 
@@ -54,6 +55,9 @@ class FaceCheckInViewModel @Inject constructor(
             faceProcessingService = faceProcessingService,
             config = processingConfig,
             onFaceResult = { result -> handleFaceResult(result) },
+            onStatus = { msg ->
+                _uiState.value = _uiState.value.copy(debugMessage = msg)
+            },
         ).also { analyzer = it }
     }
 
@@ -78,6 +82,11 @@ class FaceCheckInViewModel @Inject constructor(
         if (result.embedding.isEmpty()) {
             if (result.livenessResult.passed) {
                 _uiState.value = _uiState.value.copy(faceDetected = true, isDetecting = false)
+            } else {
+                val scorePercent = (result.livenessResult.score * 100).toInt()
+                _uiState.value = _uiState.value.copy(
+                    error = "Mantenha os olhos abertos e o rosto reto (liveness: ${scorePercent}%)",
+                )
             }
             return
         }

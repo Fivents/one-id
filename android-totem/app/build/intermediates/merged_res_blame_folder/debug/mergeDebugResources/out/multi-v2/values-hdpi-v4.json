@@ -4,7 +4,7 @@
             "outputFile": "com.oneid.totem.app-mergeDebugResources-73:/values-hdpi-v4/values-hdpi-v4.xml",
             "map": [
                 {
-                    "source": "/home/phelipescript/.gradle/caches/8.11.1/transforms/7cc03e895d7ab25e60dab15e745df2eb/transformed/appcompat-1.6.1/res/values-hdpi-v4/values-hdpi-v4.xml",
+                    "source": "/home/phelipescript/.gradle/caches/8.11.1/transforms/6bd3a32bf8ec13d466c2a08b471d5ef8/transformed/appcompat-1.6.1/res/values-hdpi-v4/values-hdpi-v4.xml",
                     "from": {
                         "startLines": "2",
                         "startColumns": "4",

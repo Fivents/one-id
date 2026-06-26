@@ -1,15 +1,12 @@
 package com.oneid.totem.presentation.screens.login
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -38,18 +35,21 @@ fun LoginScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Background),
-        contentAlignment = Alignment.Center,
     ) {
         Column(
-            modifier = Modifier.widthIn(max = 420.dp).padding(32.dp),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 32.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
+            Spacer(Modifier.height(80.dp))
+
             Text(
                 text = "ONE-ID",
                 style = MaterialTheme.typography.displayLarge.copy(
                     fontWeight = FontWeight.Bold,
-                    fontSize = 42.sp,
-                    letterSpacing = 6.sp,
+                    fontSize = 48.sp,
+                    letterSpacing = 8.sp,
                 ),
                 color = Primary,
             )
@@ -62,20 +62,38 @@ fun LoginScreen(
                 color = OnSurfaceVariant,
             )
 
-            Spacer(Modifier.height(48.dp))
+            Spacer(Modifier.weight(0.3f))
+
+            Text(
+                text = "Código do Totem",
+                style = MaterialTheme.typography.titleMedium,
+                color = OnSurfaceVariant,
+            )
+
+            Spacer(Modifier.height(12.dp))
 
             OutlinedTextField(
                 value = uiState.key,
                 onValueChange = viewModel::onKeyChanged,
-                label = { Text("Código de acesso") },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 enabled = !uiState.isLoading,
                 isError = uiState.error != null,
                 textStyle = MaterialTheme.typography.headlineMedium.copy(
-                    letterSpacing = 8.sp,
+                    letterSpacing = 10.sp,
                     textAlign = TextAlign.Center,
                 ),
+                placeholder = {
+                    Text(
+                        "XXXXXX",
+                        style = MaterialTheme.typography.headlineMedium.copy(
+                            letterSpacing = 10.sp,
+                            textAlign = TextAlign.Center,
+                            color = OnSurfaceVariant.copy(alpha = 0.2f),
+                        ),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                },
                 shape = RoundedCornerShape(16.dp),
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Ascii,
@@ -85,8 +103,6 @@ fun LoginScreen(
                     focusedBorderColor = Primary,
                     unfocusedBorderColor = Outline,
                     cursorColor = Primary,
-                    focusedLabelColor = Primary,
-                    unfocusedLabelColor = OnSurfaceVariant,
                     focusedTextColor = OnSurface,
                     unfocusedTextColor = OnSurface,
                     focusedContainerColor = Surface,
@@ -94,7 +110,11 @@ fun LoginScreen(
                 ),
             )
 
-            AnimatedVisibility(visible = uiState.error != null) {
+            AnimatedVisibility(
+                visible = uiState.error != null,
+                enter = fadeIn(),
+                exit = fadeOut(),
+            ) {
                 Text(
                     text = uiState.error ?: "",
                     color = Error,
@@ -107,9 +127,11 @@ fun LoginScreen(
 
             Button(
                 onClick = viewModel::login,
-                modifier = Modifier.fillMaxWidth().height(56.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
                 enabled = uiState.key.length >= 4 && !uiState.isLoading,
-                shape = RoundedCornerShape(14.dp),
+                shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Primary),
             ) {
                 if (uiState.isLoading) {
@@ -121,68 +143,16 @@ fun LoginScreen(
                 } else {
                     Text(
                         text = "ENTRAR",
-                        style = MaterialTheme.typography.titleMedium,
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 2.sp,
+                        ),
                         color = OnPrimary,
                     )
                 }
             }
-        }
 
-        IconButton(
-            onClick = viewModel::openServerDialog,
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(16.dp)
-                .size(48.dp)
-                .background(Surface, CircleShape),
-        ) {
-            Icon(
-                imageVector = Icons.Default.Settings,
-                contentDescription = "Configurar servidor",
-                tint = OnSurfaceVariant,
-            )
+            Spacer(Modifier.weight(0.5f))
         }
-    }
-
-    if (uiState.showServerDialog) {
-        AlertDialog(
-            onDismissRequest = viewModel::dismissServerDialog,
-            title = {
-                Text("Configurar Servidor", fontWeight = FontWeight.Bold)
-            },
-            text = {
-                Column {
-                    Text(
-                        text = "Digite a URL do servidor One-ID:",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = OnSurfaceVariant,
-                    )
-                    Spacer(Modifier.height(12.dp))
-                    OutlinedTextField(
-                        value = uiState.serverUrl,
-                        onValueChange = viewModel::onServerUrlChanged,
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        label = { Text("URL do servidor") },
-                        placeholder = { Text("http://10.0.2.2:3000") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
-                        shape = RoundedCornerShape(8.dp),
-                    )
-                }
-            },
-            confirmButton = {
-                Button(onClick = viewModel::saveServerUrl) {
-                    Text("Salvar")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = viewModel::dismissServerDialog) {
-                    Text("Cancelar")
-                }
-            },
-            containerColor = Surface,
-            titleContentColor = OnSurface,
-            textContentColor = OnSurfaceVariant,
-        )
     }
 }

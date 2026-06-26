@@ -2,13 +2,14 @@ package com.oneid.totem.presentation.screens.login
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.oneid.totem.data.local.TokenStorage
 import com.oneid.totem.domain.repository.AuthRepository
 import com.oneid.totem.domain.repository.AuthResult
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
 import javax.inject.Inject
 
 data class LoginUiState(
@@ -16,18 +17,19 @@ data class LoginUiState(
     val isLoading: Boolean = false,
     val error: String? = null,
     val isLoggedIn: Boolean = false,
-    val showServerDialog: Boolean = false,
-    val serverUrl: String = "",
 )
 
 @HiltViewModel
 class LoginViewModel @Inject constructor(
     private val authRepository: AuthRepository,
-    private val tokenStorage: TokenStorage,
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(LoginUiState(serverUrl = tokenStorage.getBaseUrl()))
+    private val _uiState = MutableStateFlow(LoginUiState())
     val uiState = _uiState.asStateFlow()
+
+    private companion object {
+        private const val TIMEOUT_MS = 15_000L
+    }
 
     init {
         checkExistingSession()
@@ -37,12 +39,18 @@ class LoginViewModel @Inject constructor(
         if (!authRepository.isLoggedIn()) return
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)
-            when (val result = authRepository.validateSession()) {
-                is AuthResult.Success -> _uiState.value = _uiState.value.copy(isLoggedIn = true, isLoading = false)
-                is AuthResult.Error -> {
-                    authRepository.logout()
-                    _uiState.value = _uiState.value.copy(isLoading = false)
+            try {
+                withTimeout(TIMEOUT_MS) {
+                    when (val result = authRepository.validateSession()) {
+                        is AuthResult.Success -> _uiState.value = _uiState.value.copy(isLoggedIn = true, isLoading = false)
+                        is AuthResult.Error -> {
+                            authRepository.logout()
+                            _uiState.value = _uiState.value.copy(isLoading = false)
+                        }
+                    }
                 }
+            } catch (_: TimeoutCancellationException) {
+                _uiState.value = _uiState.value.copy(isLoading = false, error = "Tempo limite excedido. Verifique sua conexão.")
             }
         }
     }
@@ -59,30 +67,16 @@ class LoginViewModel @Inject constructor(
         }
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
-            when (val result = authRepository.login(key)) {
-                is AuthResult.Success -> _uiState.value = _uiState.value.copy(isLoggedIn = true, isLoading = false)
-                is AuthResult.Error -> _uiState.value = _uiState.value.copy(isLoading = false, error = result.message)
+            try {
+                withTimeout(TIMEOUT_MS) {
+                    when (val result = authRepository.login(key)) {
+                        is AuthResult.Success -> _uiState.value = _uiState.value.copy(isLoggedIn = true, isLoading = false)
+                        is AuthResult.Error -> _uiState.value = _uiState.value.copy(isLoading = false, error = result.message)
+                    }
+                }
+            } catch (_: TimeoutCancellationException) {
+                _uiState.value = _uiState.value.copy(isLoading = false, error = "Tempo limite excedido. Verifique sua conexão.")
             }
-        }
-    }
-
-    fun openServerDialog() {
-        _uiState.value = _uiState.value.copy(showServerDialog = true, serverUrl = tokenStorage.getBaseUrl())
-    }
-
-    fun dismissServerDialog() {
-        _uiState.value = _uiState.value.copy(showServerDialog = false)
-    }
-
-    fun onServerUrlChanged(url: String) {
-        _uiState.value = _uiState.value.copy(serverUrl = url)
-    }
-
-    fun saveServerUrl() {
-        val url = _uiState.value.serverUrl.trim()
-        if (url.isNotBlank()) {
-            tokenStorage.saveBaseUrl(url)
-            _uiState.value = _uiState.value.copy(showServerDialog = false, error = null)
         }
     }
 }

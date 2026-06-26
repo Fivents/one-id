@@ -1,8 +1,8 @@
 package com.oneid.totem.data
 
-import com.oneid.totem.data.database.repo.DatabaseAuthRepository
-import com.oneid.totem.data.database.repo.DatabaseCheckInRepository
-import com.oneid.totem.data.database.repo.DatabasePrintRepository
+import com.oneid.totem.data.repository.http.AuthHttpRepository
+import com.oneid.totem.data.repository.http.CheckInHttpRepository
+import com.oneid.totem.data.repository.http.PrintHttpRepository
 import com.oneid.totem.data.service.FaceProcessingService
 import com.oneid.totem.data.service.FaceProcessingServiceImpl
 import com.oneid.totem.domain.repository.AuthRepository
@@ -20,15 +20,15 @@ abstract class RepositoryModule {
 
     @Binds
     @Singleton
-    abstract fun bindAuthRepository(impl: DatabaseAuthRepository): AuthRepository
+    abstract fun bindAuthRepository(impl: AuthHttpRepository): AuthRepository
 
     @Binds
     @Singleton
-    abstract fun bindCheckInRepository(impl: DatabaseCheckInRepository): CheckInRepository
+    abstract fun bindCheckInRepository(impl: CheckInHttpRepository): CheckInRepository
 
     @Binds
     @Singleton
-    abstract fun bindPrintRepository(impl: DatabasePrintRepository): PrintRepository
+    abstract fun bindPrintRepository(impl: PrintHttpRepository): PrintRepository
 
     @Binds
     @Singleton

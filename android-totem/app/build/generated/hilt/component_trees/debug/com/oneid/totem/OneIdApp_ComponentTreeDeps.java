@@ -20,8 +20,6 @@ import dagger.hilt.processor.internal.definecomponent.codegen._dagger_hilt_compo
 import hilt_aggregated_deps._com_oneid_totem_MainActivity_GeneratedInjector;
 import hilt_aggregated_deps._com_oneid_totem_OneIdApp_GeneratedInjector;
 import hilt_aggregated_deps._com_oneid_totem_data_RepositoryModule;
-import hilt_aggregated_deps._com_oneid_totem_data_api_ApiModule;
-import hilt_aggregated_deps._com_oneid_totem_data_database_DatabaseModule;
 import hilt_aggregated_deps._com_oneid_totem_data_print_PrinterConfigModule;
 import hilt_aggregated_deps._com_oneid_totem_data_print_PrinterModule;
 import hilt_aggregated_deps._com_oneid_totem_presentation_screens_checkin_code_CodeCheckInViewModel_HiltModules_BindsModule;
@@ -83,8 +81,6 @@ import hilt_aggregated_deps._dagger_hilt_android_internal_modules_HiltWrapper_Ac
         _com_oneid_totem_MainActivity_GeneratedInjector.class,
         _com_oneid_totem_OneIdApp_GeneratedInjector.class,
         _com_oneid_totem_data_RepositoryModule.class,
-        _com_oneid_totem_data_api_ApiModule.class,
-        _com_oneid_totem_data_database_DatabaseModule.class,
         _com_oneid_totem_data_print_PrinterConfigModule.class,
         _com_oneid_totem_data_print_PrinterModule.class,
         _com_oneid_totem_presentation_screens_checkin_code_CodeCheckInViewModel_HiltModules_BindsModule.class,
