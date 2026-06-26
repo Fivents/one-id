@@ -46,6 +46,14 @@ class BrotherRasterPrinter @Inject constructor() : BrotherPrinter {
         }
     }
 
+    override suspend fun getStatus(): PrinterStatus {
+        return try {
+            if (isConnected()) PrinterStatus.OK else PrinterStatus.UNKNOWN
+        } catch (_: Exception) {
+            PrinterStatus.UNKNOWN
+        }
+    }
+
     override fun isConnected(): Boolean {
         return socket?.isConnected == true && socket?.isClosed == false
     }
@@ -68,21 +76,19 @@ class BrotherRasterPrinter @Inject constructor() : BrotherPrinter {
 
         val out = java.io.ByteArrayOutputStream()
 
-        // Brother Raster Mode Command Set
-        out.write(byteArrayOf(0x1B, 0x69, 0x61, 0x01)) // ESC ia 01 — Raster mode
-        out.write(byteArrayOf(0x1B, 0x69, 0x42, 0x00)) // ESC iB 00 — Auto cut
-        out.write(byteArrayOf(0x1B, 0x69, 0x4D, 0x0A)) // ESC iM 0x0A — 62mm media
-        out.write(byteArrayOf(0x1B, 0x69, 0x64, 0x00)) // ESC id 00 — Dots
+        out.write(byteArrayOf(0x1B, 0x69, 0x61, 0x01))
+        out.write(byteArrayOf(0x1B, 0x69, 0x42, 0x00))
+        out.write(byteArrayOf(0x1B, 0x69, 0x4D, 0x0A))
+        out.write(byteArrayOf(0x1B, 0x69, 0x64, 0x00))
         out.write(
             byteArrayOf(
-                0x1B, 0x69, 0x7A, // ESC iz — Resolution
-                0x00, 0x00, 0x01, 0x2C, // 300 DPI
+                0x1B, 0x69, 0x7A,
+                0x00, 0x00, 0x01, 0x2C,
             )
         )
 
-        // Raster data per line
         val rasterLine = ByteArray(bytesPerLine)
-        rasterLine[0] = 0x47 // 'G' raster transfer
+        rasterLine[0] = 0x47
 
         for (y in 0 until height) {
             java.util.Arrays.fill(rasterLine, 1, bytesPerLine, 0.toByte())
@@ -105,8 +111,8 @@ class BrotherRasterPrinter @Inject constructor() : BrotherPrinter {
             out.write(rasterLine)
         }
 
-        out.write(byteArrayOf(0x1A)) // Ctrl+Z — End raster
-        out.write(byteArrayOf(0x0C)) // Form feed
+        out.write(byteArrayOf(0x1A))
+        out.write(byteArrayOf(0x0C))
 
         return out.toByteArray()
     }

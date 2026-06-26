@@ -4,7 +4,7 @@
             "outputFile": "com.oneid.totem.app-mergeDebugResources-73:/values-land/values-land.xml",
             "map": [
                 {
-                    "source": "/home/phelipecript/.gradle/caches/8.11.1/transforms/d4afbf851e6964f112623c20b3f30fa7/transformed/appcompat-1.6.1/res/values-land/values-land.xml",
+                    "source": "/home/phelipescript/.gradle/caches/8.11.1/transforms/7cc03e895d7ab25e60dab15e745df2eb/transformed/appcompat-1.6.1/res/values-land/values-land.xml",
                     "from": {
                         "startLines": "2,3,4",
                         "startColumns": "4,4,4",

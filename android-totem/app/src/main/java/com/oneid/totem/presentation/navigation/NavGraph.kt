@@ -15,6 +15,7 @@ import com.oneid.totem.presentation.screens.checkin.qr.QrCheckInScreen
 import com.oneid.totem.presentation.screens.feedback.FeedbackScreen
 import com.oneid.totem.presentation.screens.login.LoginScreen
 import com.oneid.totem.presentation.screens.method.MethodScreen
+import com.oneid.totem.presentation.screens.printer.PrinterSetupScreen
 import com.oneid.totem.presentation.screens.selfregister.SelfRegisterScreen
 
 object Routes {
@@ -24,6 +25,7 @@ object Routes {
     const val FACE_CHECK_IN = "face_checkin"
     const val QR_CHECK_IN = "qr_checkin"
     const val CODE_CHECK_IN = "code_checkin"
+    const val PRINTER_SETUP = "printer_setup"
     const val FEEDBACK = "feedback/{type}/{name}/{epId}/{checkInId}"
 
     fun feedback(type: String, name: String, eventParticipantId: String = "", checkInId: String = "") =
@@ -60,6 +62,7 @@ fun NavGraph(navController: NavHostController = rememberNavController()) {
                 onNavigateToQr = { navController.navigate(Routes.QR_CHECK_IN) },
                 onNavigateToCode = { navController.navigate(Routes.CODE_CHECK_IN) },
                 onNavigateToSelfRegister = { navController.navigate(Routes.SELF_REGISTER) },
+                onNavigateToPrinterSetup = { navController.navigate(Routes.PRINTER_SETUP) },
                 onLogout = {
                     navController.navigate(Routes.LOGIN) {
                         popUpTo(0) { inclusive = true }
@@ -137,6 +140,16 @@ fun NavGraph(navController: NavHostController = rememberNavController()) {
                 },
                 onBack = { navController.popBackStack() },
             )
+        }
+
+        composable(
+            route = Routes.PRINTER_SETUP,
+            enterTransition = { slideInHorizontally(tween(DURATION)) { it } },
+            exitTransition = { slideOutHorizontally(tween(DURATION)) { -it / 3 } },
+            popEnterTransition = { slideInHorizontally(tween(DURATION)) { -it / 3 } },
+            popExitTransition = { slideOutHorizontally(tween(DURATION)) { it } },
+        ) {
+            PrinterSetupScreen(onBack = { navController.popBackStack() })
         }
 
         composable(

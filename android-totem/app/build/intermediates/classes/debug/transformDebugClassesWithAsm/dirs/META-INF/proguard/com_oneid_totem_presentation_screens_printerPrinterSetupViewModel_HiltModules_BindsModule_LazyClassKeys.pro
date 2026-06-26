@@ -1,0 +1,1 @@
+-keep,allowobfuscation,allowshrinking class com.oneid.totem.presentation.screens.printer.PrinterSetupViewModel

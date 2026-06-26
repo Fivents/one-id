@@ -1,7 +1,3 @@
--keep,allowobfuscation,allowshrinking class com.oneid.totem.presentation.screens.feedback.FeedbackViewModel
--keep,allowobfuscation,allowshrinking class com.oneid.totem.presentation.screens.feedback.FeedbackViewModel
--keep,allowobfuscation,allowshrinking class com.oneid.totem.presentation.screens.method.MethodViewModel
--keep,allowobfuscation,allowshrinking class com.oneid.totem.presentation.screens.method.MethodViewModel
--keep,allowobfuscation,allowshrinking class com.oneid.totem.presentation.screens.selfregister.SelfRegisterViewModel
--keep,allowobfuscation,allowshrinking class com.oneid.totem.presentation.screens.selfregister.SelfRegisterViewModel
+-keep,allowobfuscation,allowshrinking class com.oneid.totem.presentation.screens.printer.PrinterSetupViewModel
+-keep,allowobfuscation,allowshrinking class com.oneid.totem.presentation.screens.printer.PrinterSetupViewModel
 -keep,allowobfuscation,allowshrinking class com.oneid.totem.presentation.screens.login.LoginViewModel

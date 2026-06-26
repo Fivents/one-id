@@ -2,7 +2,7 @@ package com.oneid.totem.presentation.screens.method
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.oneid.totem.data.print.PrinterConfig
+import com.oneid.totem.data.print.PrinterConfigRepository
 import com.oneid.totem.domain.model.TotemSession
 import com.oneid.totem.domain.repository.AuthRepository
 import com.oneid.totem.domain.repository.AuthResult
@@ -17,20 +17,25 @@ data class MethodUiState(
     val isLoading: Boolean = true,
     val error: String? = null,
     val hasLoggedOut: Boolean = false,
-    val printerIp: String = PrinterConfig.printerIp,
-    val showPrinterDialog: Boolean = false,
-    val printerDialogIp: String = PrinterConfig.printerIp,
+    val printerIp: String = "",
 )
 
 @HiltViewModel
 class MethodViewModel @Inject constructor(
     private val authRepository: AuthRepository,
+    private val printerConfigRepository: PrinterConfigRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MethodUiState())
     val uiState = _uiState.asStateFlow()
 
     init {
+        printerConfigRepository.load()
+        viewModelScope.launch {
+            printerConfigRepository.printerIp.collect { ip ->
+                _uiState.value = _uiState.value.copy(printerIp = ip)
+            }
+        }
         loadSession()
     }
 
@@ -60,29 +65,5 @@ class MethodViewModel @Inject constructor(
 
     fun refresh() {
         loadSession()
-    }
-
-    fun showPrinterConfig() {
-        _uiState.value = _uiState.value.copy(
-            showPrinterDialog = true,
-            printerDialogIp = PrinterConfig.printerIp,
-        )
-    }
-
-    fun hidePrinterConfig() {
-        _uiState.value = _uiState.value.copy(showPrinterDialog = false)
-    }
-
-    fun onPrinterIpChanged(ip: String) {
-        _uiState.value = _uiState.value.copy(printerDialogIp = ip)
-    }
-
-    fun savePrinterIp() {
-        val ip = _uiState.value.printerDialogIp.trim()
-        PrinterConfig.setIp(ip)
-        _uiState.value = _uiState.value.copy(
-            printerIp = ip,
-            showPrinterDialog = false,
-        )
     }
 }

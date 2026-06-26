@@ -14,7 +14,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.oneid.totem.presentation.components.MethodCard
 import com.oneid.totem.presentation.theme.*
@@ -25,6 +24,7 @@ fun MethodScreen(
     onNavigateToQr: () -> Unit,
     onNavigateToCode: () -> Unit,
     onNavigateToSelfRegister: () -> Unit,
+    onNavigateToPrinterSetup: () -> Unit,
     onLogout: () -> Unit,
     viewModel: MethodViewModel = hiltViewModel(),
 ) {
@@ -144,7 +144,7 @@ fun MethodScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     // Printer config
-                    IconButton(onClick = { viewModel.showPrinterConfig() }) {
+                    IconButton(onClick = onNavigateToPrinterSetup) {
                         Icon(
                             Icons.Filled.Print,
                             contentDescription = "Configurar impressora",
@@ -160,66 +160,4 @@ fun MethodScreen(
         }
     }
 
-    // Printer config dialog
-    if (uiState.showPrinterDialog) {
-        Dialog(onDismissRequest = { viewModel.hidePrinterConfig() }) {
-            Card(
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = Surface),
-            ) {
-                Column(modifier = Modifier.padding(24.dp)) {
-                    Text(
-                        "Configurar Impressora",
-                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                        color = OnSurface,
-                    )
-
-                    Spacer(Modifier.height(16.dp))
-
-                    OutlinedTextField(
-                        value = uiState.printerDialogIp,
-                        onValueChange = viewModel::onPrinterIpChanged,
-                        label = { Text("IP da Impressora") },
-                        placeholder = { Text("192.168.1.100") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Primary,
-                            unfocusedBorderColor = Outline,
-                            cursorColor = Primary,
-                            focusedTextColor = OnSurface,
-                            unfocusedTextColor = OnSurface,
-                            focusedContainerColor = SurfaceVariant,
-                            unfocusedContainerColor = SurfaceVariant,
-                        ),
-                    )
-
-                    Spacer(Modifier.height(8.dp))
-
-                    Text(
-                        "Descubra o IP no menu: Config. Rede → TCP/IP da impressora",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = OnSurfaceVariant,
-                    )
-
-                    Spacer(Modifier.height(20.dp))
-
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                        TextButton(onClick = { viewModel.hidePrinterConfig() }) {
-                            Text("Cancelar", color = OnSurfaceVariant)
-                        }
-                        Spacer(Modifier.width(8.dp))
-                        Button(
-                            onClick = { viewModel.savePrinterIp() },
-                            colors = ButtonDefaults.buttonColors(containerColor = Primary),
-                            shape = RoundedCornerShape(10.dp),
-                        ) {
-                            Text("Salvar", color = OnPrimary)
-                        }
-                    }
-                }
-            }
-        }
-    }
 }

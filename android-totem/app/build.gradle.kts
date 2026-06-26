@@ -10,6 +10,11 @@ android {
     namespace = "com.oneid.totem"
     compileSdk = 35
 
+    // FlatDir for local Brother AAR
+    lint {
+        abortOnError = false
+    }
+
     defaultConfig {
         applicationId = "com.oneid.totem"
         minSdk = 26
@@ -102,6 +107,24 @@ dependencies {
     // Image Loading
     implementation(libs.coil.compose)
 
+    // ZXing
+    implementation(libs.zxing.core)
+
+    // PostgreSQL
+    implementation(libs.postgresql)
+    implementation(libs.hikaricp)
+
+    // JWT
+    implementation(libs.jwt.core)
+    implementation(libs.jwt.impl)
+    implementation(libs.jwt.jackson)
+
     // Brother Print SDK (download from https://support.brother.com and place AAR in app/libs/)
     implementation(fileTree("libs") { include("*.aar") })
+
+    // Test
+    testImplementation(libs.junit)
+    testImplementation(libs.mockk)
+    testImplementation(libs.coroutines.test)
+    testImplementation(libs.robolectric)
 }

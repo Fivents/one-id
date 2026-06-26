@@ -1,4 +1,14 @@
--keep,allowobfuscation,allowshrinking class com.oneid.totem.presentation.screens.feedback.FeedbackViewModel
--keep,allowobfuscation,allowshrinking class com.oneid.totem.presentation.screens.feedback.FeedbackViewModel
+-keep,allowobfuscation,allowshrinking class com.oneid.totem.presentation.screens.printer.PrinterSetupViewModel
+-keep,allowobfuscation,allowshrinking class com.oneid.totem.presentation.screens.printer.PrinterSetupViewModel
+-keep,allowobfuscation,allowshrinking class com.oneid.totem.presentation.screens.login.LoginViewModel
+-keep,allowobfuscation,allowshrinking class com.oneid.totem.presentation.screens.login.LoginViewModel
+-keep,allowobfuscation,allowshrinking class com.oneid.totem.presentation.screens.checkin.qr.QrCheckInViewModel
+-keep,allowobfuscation,allowshrinking class com.oneid.totem.presentation.screens.checkin.qr.QrCheckInViewModel
+-keep,allowobfuscation,allowshrinking class com.oneid.totem.presentation.screens.checkin.code.CodeCheckInViewModel
+-keep,allowobfuscation,allowshrinking class com.oneid.totem.presentation.screens.checkin.code.CodeCheckInViewModel
+-keep,allowobfuscation,allowshrinking class com.oneid.totem.presentation.screens.checkin.face.FaceCheckInViewModel
+-keep,allowobfuscation,allowshrinking class com.oneid.totem.presentation.screens.checkin.face.FaceCheckInViewModel
+-keep,allowobfuscation,allowshrinking class com.oneid.totem.presentation.screens.selfregister.SelfRegisterViewModel
+-keep,allowobfuscation,allowshrinking class com.oneid.totem.presentation.screens.selfregister.SelfRegisterViewModel
 -keep,allowobfuscation,allowshrinking class com.oneid.totem.presentation.screens.method.MethodViewModel
 -keep,allowobfuscation,allowshrinking class com.oneid.totem.presentation.screens.method.MethodViewModel

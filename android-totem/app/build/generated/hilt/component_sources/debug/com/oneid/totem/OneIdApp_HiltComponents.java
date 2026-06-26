@@ -2,12 +2,16 @@ package com.oneid.totem;
 
 import com.oneid.totem.data.RepositoryModule;
 import com.oneid.totem.data.api.ApiModule;
+import com.oneid.totem.data.database.DatabaseModule;
+import com.oneid.totem.data.print.PrinterConfigModule;
+import com.oneid.totem.data.print.PrinterModule;
 import com.oneid.totem.presentation.screens.checkin.code.CodeCheckInViewModel_HiltModules;
 import com.oneid.totem.presentation.screens.checkin.face.FaceCheckInViewModel_HiltModules;
 import com.oneid.totem.presentation.screens.checkin.qr.QrCheckInViewModel_HiltModules;
 import com.oneid.totem.presentation.screens.feedback.FeedbackViewModel_HiltModules;
 import com.oneid.totem.presentation.screens.login.LoginViewModel_HiltModules;
 import com.oneid.totem.presentation.screens.method.MethodViewModel_HiltModules;
+import com.oneid.totem.presentation.screens.printer.PrinterSetupViewModel_HiltModules;
 import com.oneid.totem.presentation.screens.selfregister.SelfRegisterViewModel_HiltModules;
 import dagger.Binds;
 import dagger.Component;
@@ -135,9 +139,12 @@ public final class OneIdApp_HiltComponents {
       modules = {
           ApiModule.class,
           ApplicationContextModule.class,
+          DatabaseModule.class,
           HiltWrapper_FragmentGetContextFix_FragmentGetContextFixModule.class,
           ActivityRetainedCBuilderModule.class,
           ServiceCBuilderModule.class,
+          PrinterConfigModule.class,
+          PrinterModule.class,
           RepositoryModule.class
       }
   )
@@ -170,6 +177,7 @@ public final class OneIdApp_HiltComponents {
           MethodViewModel_HiltModules.KeyModule.class,
           ActivityCBuilderModule.class,
           ViewModelCBuilderModule.class,
+          PrinterSetupViewModel_HiltModules.KeyModule.class,
           QrCheckInViewModel_HiltModules.KeyModule.class,
           SelfRegisterViewModel_HiltModules.KeyModule.class
       }
@@ -213,6 +221,7 @@ public final class OneIdApp_HiltComponents {
           HiltWrapper_HiltViewModelFactory_ViewModelModule.class,
           LoginViewModel_HiltModules.BindsModule.class,
           MethodViewModel_HiltModules.BindsModule.class,
+          PrinterSetupViewModel_HiltModules.BindsModule.class,
           QrCheckInViewModel_HiltModules.BindsModule.class,
           SelfRegisterViewModel_HiltModules.BindsModule.class
       }

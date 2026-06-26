@@ -1,12 +1,9 @@
 package com.oneid.totem.data.print
 
 import android.graphics.Bitmap
-import android.content.Context
-import com.oneid.totem.data.local.TokenStorage
 import com.oneid.totem.domain.model.PrintData
-import com.oneid.totem.domain.repository.PrintResult
 import com.oneid.totem.domain.repository.PrintRepository
-import dagger.hilt.android.qualifiers.ApplicationContext
+import com.oneid.totem.domain.repository.PrintResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
@@ -21,13 +18,11 @@ data class PrintJob(
 
 @Singleton
 class PrintCoordinator @Inject constructor(
-    @ApplicationContext private val context: Context,
     private val printRepository: PrintRepository,
     private val badgeRenderer: BadgeRenderer,
-    private val tokenStorage: TokenStorage,
+    private val printerConfigRepository: PrinterConfigRepository,
+    private val connectionManager: PrinterConnectionManager,
 ) {
-
-    private var printer: BrotherPrinter? = null
 
     suspend fun printBadge(
         eventParticipantId: String,
@@ -49,51 +44,30 @@ class PrintCoordinator @Inject constructor(
             return@withContext PrintJobResult.Error("Falha ao renderizar badge: ${e.message}")
         }
 
-        connectAndPrint(bitmap, printData)
+        printWithConnection(bitmap, printData)
     }
 
     suspend fun printWithBitmap(
         bitmap: Bitmap,
         printData: PrintData,
     ): PrintJobResult = withContext(Dispatchers.Default) {
-        connectAndPrint(bitmap, printData)
+        printWithConnection(bitmap, printData)
     }
 
-    private suspend fun connectAndPrint(
+    private suspend fun printWithConnection(
         bitmap: Bitmap,
         printData: PrintData,
     ): PrintJobResult {
-        val printer = getPrinter()
-        val printerIp = PrinterConfig.printerIp.ifBlank {
-            tokenStorage.getPrinterIp() ?: ""
-        }
+        val printerIp = printerConfigRepository.printerIpValue
 
         if (printerIp.isBlank()) {
-            return PrintJobResult.Error("Impressora não configurada. Configure o IP em PrinterConfig ou nas configurações")
+            return PrintJobResult.Error("Impressora não configurada. Configure o IP nas configurações")
         }
 
-        when (val connectResult = printer.connect(printerIp)) {
-            is PrintJobResult.Error -> return connectResult
-            else -> { }
-        }
-
-        val printResult = printer.printBitmap(bitmap, printData.copies)
-
-        printer.close()
-
-        return printResult
-    }
-
-    fun setPrinter(printer: BrotherPrinter) {
-        this.printer?.close()
-        this.printer = printer
-    }
-
-    private fun getPrinter(): BrotherPrinter {
-        return printer ?: BrotherSdkPrinter().also { printer = it }
+        return connectionManager.printWithReconnect(bitmap, printerIp, printData.copies)
     }
 
     fun dispose() {
-        printer?.close()
+        connectionManager.disconnect()
     }
 }

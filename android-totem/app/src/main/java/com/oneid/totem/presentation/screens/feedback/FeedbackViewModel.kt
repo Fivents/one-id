@@ -8,6 +8,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
 import javax.inject.Inject
 
 data class FeedbackUiState(
@@ -45,7 +46,17 @@ class FeedbackViewModel @Inject constructor(
 
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isPrinting = true)
-            when (val result = printCoordinator.printBadge(eventParticipantId, checkInId.ifBlank { null })) {
+            val result = try {
+                withTimeout(30_000) {
+                    printCoordinator.printBadge(eventParticipantId, checkInId.ifBlank { null })
+                }
+            } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
+                PrintJobResult.Error("Tempo limite de impressão excedido (30s)")
+            } catch (e: Exception) {
+                PrintJobResult.Error("Erro inesperado: ${e.message}")
+            }
+
+            when (result) {
                 is PrintJobResult.Success -> {
                     _uiState.value = _uiState.value.copy(
                         isPrinting = false,

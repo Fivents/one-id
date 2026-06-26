@@ -18,6 +18,13 @@ coroutines = "1.9.0"
 datastore = "1.1.2"
 security-crypto = "1.1.0-alpha06"
 coil = "2.7.0"
+zxing = "3.5.3"
+postgresql = "42.7.4"
+hikaricp = "6.2.1"
+jwt = "0.12.6"
+junit = "4.13.2"
+mockk = "1.13.14"
+robolectric = "4.14.1"
 
 [libraries]
 # Compose
@@ -70,6 +77,24 @@ coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutin
 
 # Image Loading
 coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
+
+# Test
+junit = { group = "junit", name = "junit", version.ref = "junit" }
+mockk = { group = "io.mockk", name = "mockk", version.ref = "mockk" }
+coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutines" }
+robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
+
+# ZXing
+zxing-core = { group = "com.google.zxing", name = "core", version.ref = "zxing" }
+
+# PostgreSQL
+postgresql = { group = "org.postgresql", name = "postgresql", version.ref = "postgresql" }
+hikaricp = { group = "com.zaxxer", name = "HikariCP", version.ref = "hikaricp" }
+
+# JWT
+jwt-core = { group = "io.jsonwebtoken", name = "jjwt-api", version.ref = "jwt" }
+jwt-impl = { group = "io.jsonwebtoken", name = "jjwt-impl", version.ref = "jwt" }
+jwt-jackson = { group = "io.jsonwebtoken", name = "jjwt-jackson", version.ref = "jwt" }
 
 # Core
 core-ktx = { group = "androidx.core", name = "core-ktx", version = "1.15.0" }

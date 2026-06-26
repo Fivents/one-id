@@ -4,7 +4,7 @@
             "outputFile": "com.oneid.totem.app-mergeDebugResources-73:/values-night-v8/values-night-v8.xml",
             "map": [
                 {
-                    "source": "/home/phelipecript/.gradle/caches/8.11.1/transforms/d4afbf851e6964f112623c20b3f30fa7/transformed/appcompat-1.6.1/res/values-night-v8/values-night-v8.xml",
+                    "source": "/home/phelipescript/.gradle/caches/8.11.1/transforms/7cc03e895d7ab25e60dab15e745df2eb/transformed/appcompat-1.6.1/res/values-night-v8/values-night-v8.xml",
                     "from": {
                         "startLines": "2,3,4,5,6,7,8,9",
                         "startColumns": "4,4,4,4,4,4,4,4",

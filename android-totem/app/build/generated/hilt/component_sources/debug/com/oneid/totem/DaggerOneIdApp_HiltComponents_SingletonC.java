@@ -6,21 +6,21 @@ import android.view.View;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.SavedStateHandle;
 import androidx.lifecycle.ViewModel;
-import com.oneid.totem.data.api.ApiModule_ProvideOkHttpClientFactory;
-import com.oneid.totem.data.api.ApiModule_ProvideRetrofitFactory;
-import com.oneid.totem.data.api.ApiModule_ProvideTotemApiFactory;
-import com.oneid.totem.data.api.TotemApi;
-import com.oneid.totem.data.api.interceptor.AuthInterceptor;
+import com.oneid.totem.data.database.ActiveContextRepository;
+import com.oneid.totem.data.database.DatabaseDataSource;
+import com.oneid.totem.data.database.DatabaseModule_ProvideDataSourceFactory;
+import com.oneid.totem.data.database.DatabaseModule_ProvideDatabaseDataSourceFactory;
+import com.oneid.totem.data.database.repo.DatabaseAuthRepository;
+import com.oneid.totem.data.database.repo.DatabaseCheckInRepository;
+import com.oneid.totem.data.database.repo.DatabasePrintRepository;
 import com.oneid.totem.data.local.TokenStorage;
 import com.oneid.totem.data.print.BadgeRenderer;
+import com.oneid.totem.data.print.BrotherSdkPrinter;
 import com.oneid.totem.data.print.PrintCoordinator;
-import com.oneid.totem.data.repository.impl.AuthRepositoryImpl;
-import com.oneid.totem.data.repository.impl.CheckInRepositoryImpl;
-import com.oneid.totem.data.repository.impl.PrintRepositoryImpl;
+import com.oneid.totem.data.print.PrinterConfigModule_ProvidePrinterConnectionManagerFactory;
+import com.oneid.totem.data.print.PrinterConfigRepository;
+import com.oneid.totem.data.print.PrinterConnectionManager;
 import com.oneid.totem.data.service.FaceProcessingServiceImpl;
-import com.oneid.totem.domain.repository.AuthRepository;
-import com.oneid.totem.domain.repository.CheckInRepository;
-import com.oneid.totem.domain.repository.PrintRepository;
 import com.oneid.totem.presentation.screens.checkin.code.CodeCheckInViewModel;
 import com.oneid.totem.presentation.screens.checkin.code.CodeCheckInViewModel_HiltModules;
 import com.oneid.totem.presentation.screens.checkin.code.CodeCheckInViewModel_HiltModules_BindsModule_Binds_LazyMapKey;
@@ -45,11 +45,16 @@ import com.oneid.totem.presentation.screens.method.MethodViewModel;
 import com.oneid.totem.presentation.screens.method.MethodViewModel_HiltModules;
 import com.oneid.totem.presentation.screens.method.MethodViewModel_HiltModules_BindsModule_Binds_LazyMapKey;
 import com.oneid.totem.presentation.screens.method.MethodViewModel_HiltModules_KeyModule_Provide_LazyMapKey;
+import com.oneid.totem.presentation.screens.printer.PrinterSetupViewModel;
+import com.oneid.totem.presentation.screens.printer.PrinterSetupViewModel_HiltModules;
+import com.oneid.totem.presentation.screens.printer.PrinterSetupViewModel_HiltModules_BindsModule_Binds_LazyMapKey;
+import com.oneid.totem.presentation.screens.printer.PrinterSetupViewModel_HiltModules_KeyModule_Provide_LazyMapKey;
 import com.oneid.totem.presentation.screens.selfregister.SelfRegisterViewModel;
 import com.oneid.totem.presentation.screens.selfregister.SelfRegisterViewModel_HiltModules;
 import com.oneid.totem.presentation.screens.selfregister.SelfRegisterViewModel_HiltModules_BindsModule_Binds_LazyMapKey;
 import com.oneid.totem.presentation.screens.selfregister.SelfRegisterViewModel_HiltModules_KeyModule_Provide_LazyMapKey;
 import com.oneid.totem.presentation.util.ConnectivityMonitor;
+import com.zaxxer.hikari.HikariDataSource;
 import dagger.hilt.android.ActivityRetainedLifecycle;
 import dagger.hilt.android.ViewModelLifecycle;
 import dagger.hilt.android.internal.builders.ActivityComponentBuilder;
@@ -75,8 +80,6 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
 import javax.annotation.processing.Generated;
-import okhttp3.OkHttpClient;
-import retrofit2.Retrofit;
 
 @DaggerGenerated
 @Generated(
@@ -413,7 +416,7 @@ public final class DaggerOneIdApp_HiltComponents_SingletonC {
 
     @Override
     public Map<Class<?>, Boolean> getViewModelKeys() {
-      return LazyClassKeyMap.<Boolean>of(MapBuilder.<String, Boolean>newMapBuilder(7).put(CodeCheckInViewModel_HiltModules_KeyModule_Provide_LazyMapKey.lazyClassKeyName, CodeCheckInViewModel_HiltModules.KeyModule.provide()).put(FaceCheckInViewModel_HiltModules_KeyModule_Provide_LazyMapKey.lazyClassKeyName, FaceCheckInViewModel_HiltModules.KeyModule.provide()).put(FeedbackViewModel_HiltModules_KeyModule_Provide_LazyMapKey.lazyClassKeyName, FeedbackViewModel_HiltModules.KeyModule.provide()).put(LoginViewModel_HiltModules_KeyModule_Provide_LazyMapKey.lazyClassKeyName, LoginViewModel_HiltModules.KeyModule.provide()).put(MethodViewModel_HiltModules_KeyModule_Provide_LazyMapKey.lazyClassKeyName, MethodViewModel_HiltModules.KeyModule.provide()).put(QrCheckInViewModel_HiltModules_KeyModule_Provide_LazyMapKey.lazyClassKeyName, QrCheckInViewModel_HiltModules.KeyModule.provide()).put(SelfRegisterViewModel_HiltModules_KeyModule_Provide_LazyMapKey.lazyClassKeyName, SelfRegisterViewModel_HiltModules.KeyModule.provide()).build());
+      return LazyClassKeyMap.<Boolean>of(MapBuilder.<String, Boolean>newMapBuilder(8).put(CodeCheckInViewModel_HiltModules_KeyModule_Provide_LazyMapKey.lazyClassKeyName, CodeCheckInViewModel_HiltModules.KeyModule.provide()).put(FaceCheckInViewModel_HiltModules_KeyModule_Provide_LazyMapKey.lazyClassKeyName, FaceCheckInViewModel_HiltModules.KeyModule.provide()).put(FeedbackViewModel_HiltModules_KeyModule_Provide_LazyMapKey.lazyClassKeyName, FeedbackViewModel_HiltModules.KeyModule.provide()).put(LoginViewModel_HiltModules_KeyModule_Provide_LazyMapKey.lazyClassKeyName, LoginViewModel_HiltModules.KeyModule.provide()).put(MethodViewModel_HiltModules_KeyModule_Provide_LazyMapKey.lazyClassKeyName, MethodViewModel_HiltModules.KeyModule.provide()).put(PrinterSetupViewModel_HiltModules_KeyModule_Provide_LazyMapKey.lazyClassKeyName, PrinterSetupViewModel_HiltModules.KeyModule.provide()).put(QrCheckInViewModel_HiltModules_KeyModule_Provide_LazyMapKey.lazyClassKeyName, QrCheckInViewModel_HiltModules.KeyModule.provide()).put(SelfRegisterViewModel_HiltModules_KeyModule_Provide_LazyMapKey.lazyClassKeyName, SelfRegisterViewModel_HiltModules.KeyModule.provide()).build());
     }
 
     @Override
@@ -454,6 +457,8 @@ public final class DaggerOneIdApp_HiltComponents_SingletonC {
 
     private Provider<MethodViewModel> methodViewModelProvider;
 
+    private Provider<PrinterSetupViewModel> printerSetupViewModelProvider;
+
     private Provider<QrCheckInViewModel> qrCheckInViewModelProvider;
 
     private Provider<SelfRegisterViewModel> selfRegisterViewModelProvider;
@@ -476,13 +481,14 @@ public final class DaggerOneIdApp_HiltComponents_SingletonC {
       this.feedbackViewModelProvider = new SwitchingProvider<>(singletonCImpl, activityRetainedCImpl, viewModelCImpl, 2);
       this.loginViewModelProvider = new SwitchingProvider<>(singletonCImpl, activityRetainedCImpl, viewModelCImpl, 3);
       this.methodViewModelProvider = new SwitchingProvider<>(singletonCImpl, activityRetainedCImpl, viewModelCImpl, 4);
-      this.qrCheckInViewModelProvider = new SwitchingProvider<>(singletonCImpl, activityRetainedCImpl, viewModelCImpl, 5);
-      this.selfRegisterViewModelProvider = new SwitchingProvider<>(singletonCImpl, activityRetainedCImpl, viewModelCImpl, 6);
+      this.printerSetupViewModelProvider = new SwitchingProvider<>(singletonCImpl, activityRetainedCImpl, viewModelCImpl, 5);
+      this.qrCheckInViewModelProvider = new SwitchingProvider<>(singletonCImpl, activityRetainedCImpl, viewModelCImpl, 6);
+      this.selfRegisterViewModelProvider = new SwitchingProvider<>(singletonCImpl, activityRetainedCImpl, viewModelCImpl, 7);
     }
 
     @Override
     public Map<Class<?>, javax.inject.Provider<ViewModel>> getHiltViewModelMap() {
-      return LazyClassKeyMap.<javax.inject.Provider<ViewModel>>of(MapBuilder.<String, javax.inject.Provider<ViewModel>>newMapBuilder(7).put(CodeCheckInViewModel_HiltModules_BindsModule_Binds_LazyMapKey.lazyClassKeyName, ((Provider) codeCheckInViewModelProvider)).put(FaceCheckInViewModel_HiltModules_BindsModule_Binds_LazyMapKey.lazyClassKeyName, ((Provider) faceCheckInViewModelProvider)).put(FeedbackViewModel_HiltModules_BindsModule_Binds_LazyMapKey.lazyClassKeyName, ((Provider) feedbackViewModelProvider)).put(LoginViewModel_HiltModules_BindsModule_Binds_LazyMapKey.lazyClassKeyName, ((Provider) loginViewModelProvider)).put(MethodViewModel_HiltModules_BindsModule_Binds_LazyMapKey.lazyClassKeyName, ((Provider) methodViewModelProvider)).put(QrCheckInViewModel_HiltModules_BindsModule_Binds_LazyMapKey.lazyClassKeyName, ((Provider) qrCheckInViewModelProvider)).put(SelfRegisterViewModel_HiltModules_BindsModule_Binds_LazyMapKey.lazyClassKeyName, ((Provider) selfRegisterViewModelProvider)).build());
+      return LazyClassKeyMap.<javax.inject.Provider<ViewModel>>of(MapBuilder.<String, javax.inject.Provider<ViewModel>>newMapBuilder(8).put(CodeCheckInViewModel_HiltModules_BindsModule_Binds_LazyMapKey.lazyClassKeyName, ((Provider) codeCheckInViewModelProvider)).put(FaceCheckInViewModel_HiltModules_BindsModule_Binds_LazyMapKey.lazyClassKeyName, ((Provider) faceCheckInViewModelProvider)).put(FeedbackViewModel_HiltModules_BindsModule_Binds_LazyMapKey.lazyClassKeyName, ((Provider) feedbackViewModelProvider)).put(LoginViewModel_HiltModules_BindsModule_Binds_LazyMapKey.lazyClassKeyName, ((Provider) loginViewModelProvider)).put(MethodViewModel_HiltModules_BindsModule_Binds_LazyMapKey.lazyClassKeyName, ((Provider) methodViewModelProvider)).put(PrinterSetupViewModel_HiltModules_BindsModule_Binds_LazyMapKey.lazyClassKeyName, ((Provider) printerSetupViewModelProvider)).put(QrCheckInViewModel_HiltModules_BindsModule_Binds_LazyMapKey.lazyClassKeyName, ((Provider) qrCheckInViewModelProvider)).put(SelfRegisterViewModel_HiltModules_BindsModule_Binds_LazyMapKey.lazyClassKeyName, ((Provider) selfRegisterViewModelProvider)).build());
     }
 
     @Override
@@ -512,25 +518,28 @@ public final class DaggerOneIdApp_HiltComponents_SingletonC {
       public T get() {
         switch (id) {
           case 0: // com.oneid.totem.presentation.screens.checkin.code.CodeCheckInViewModel 
-          return (T) new CodeCheckInViewModel(singletonCImpl.bindCheckInRepositoryProvider.get());
+          return (T) new CodeCheckInViewModel(singletonCImpl.databaseCheckInRepositoryProvider.get());
 
           case 1: // com.oneid.totem.presentation.screens.checkin.face.FaceCheckInViewModel 
-          return (T) new FaceCheckInViewModel(singletonCImpl.bindCheckInRepositoryProvider.get(), singletonCImpl.faceProcessingServiceImplProvider.get());
+          return (T) new FaceCheckInViewModel(singletonCImpl.databaseCheckInRepositoryProvider.get(), singletonCImpl.faceProcessingServiceImplProvider.get());
 
           case 2: // com.oneid.totem.presentation.screens.feedback.FeedbackViewModel 
           return (T) new FeedbackViewModel(singletonCImpl.printCoordinatorProvider.get());
 
           case 3: // com.oneid.totem.presentation.screens.login.LoginViewModel 
-          return (T) new LoginViewModel(singletonCImpl.bindAuthRepositoryProvider.get(), singletonCImpl.tokenStorageProvider.get());
+          return (T) new LoginViewModel(singletonCImpl.databaseAuthRepositoryProvider.get(), singletonCImpl.tokenStorageProvider.get());
 
           case 4: // com.oneid.totem.presentation.screens.method.MethodViewModel 
-          return (T) new MethodViewModel(singletonCImpl.bindAuthRepositoryProvider.get());
+          return (T) new MethodViewModel(singletonCImpl.databaseAuthRepositoryProvider.get(), singletonCImpl.printerConfigRepositoryProvider.get());
 
-          case 5: // com.oneid.totem.presentation.screens.checkin.qr.QrCheckInViewModel 
-          return (T) new QrCheckInViewModel(singletonCImpl.bindCheckInRepositoryProvider.get());
+          case 5: // com.oneid.totem.presentation.screens.printer.PrinterSetupViewModel 
+          return (T) new PrinterSetupViewModel(ApplicationContextModule_ProvideContextFactory.provideContext(singletonCImpl.applicationContextModule), singletonCImpl.printerConfigRepositoryProvider.get(), singletonCImpl.providePrinterConnectionManagerProvider.get(), singletonCImpl.badgeRendererProvider.get());
 
-          case 6: // com.oneid.totem.presentation.screens.selfregister.SelfRegisterViewModel 
-          return (T) new SelfRegisterViewModel(singletonCImpl.bindCheckInRepositoryProvider.get());
+          case 6: // com.oneid.totem.presentation.screens.checkin.qr.QrCheckInViewModel 
+          return (T) new QrCheckInViewModel(singletonCImpl.databaseCheckInRepositoryProvider.get());
+
+          case 7: // com.oneid.totem.presentation.screens.selfregister.SelfRegisterViewModel 
+          return (T) new SelfRegisterViewModel(singletonCImpl.databaseCheckInRepositoryProvider.get());
 
           default: throw new AssertionError(id);
         }
@@ -614,31 +623,31 @@ public final class DaggerOneIdApp_HiltComponents_SingletonC {
 
     private Provider<ConnectivityMonitor> connectivityMonitorProvider;
 
+    private Provider<HikariDataSource> provideDataSourceProvider;
+
+    private Provider<DatabaseDataSource> provideDatabaseDataSourceProvider;
+
     private Provider<TokenStorage> tokenStorageProvider;
 
-    private Provider<OkHttpClient> provideOkHttpClientProvider;
-
-    private Provider<Retrofit> provideRetrofitProvider;
-
-    private Provider<TotemApi> provideTotemApiProvider;
-
-    private Provider<CheckInRepositoryImpl> checkInRepositoryImplProvider;
-
-    private Provider<CheckInRepository> bindCheckInRepositoryProvider;
+    private Provider<DatabaseCheckInRepository> databaseCheckInRepositoryProvider;
 
     private Provider<FaceProcessingServiceImpl> faceProcessingServiceImplProvider;
 
-    private Provider<PrintRepositoryImpl> printRepositoryImplProvider;
-
-    private Provider<PrintRepository> bindPrintRepositoryProvider;
+    private Provider<DatabasePrintRepository> databasePrintRepositoryProvider;
 
     private Provider<BadgeRenderer> badgeRendererProvider;
 
+    private Provider<PrinterConfigRepository> printerConfigRepositoryProvider;
+
+    private Provider<BrotherSdkPrinter> brotherSdkPrinterProvider;
+
+    private Provider<PrinterConnectionManager> providePrinterConnectionManagerProvider;
+
     private Provider<PrintCoordinator> printCoordinatorProvider;
 
-    private Provider<AuthRepositoryImpl> authRepositoryImplProvider;
+    private Provider<ActiveContextRepository> activeContextRepositoryProvider;
 
-    private Provider<AuthRepository> bindAuthRepositoryProvider;
+    private Provider<DatabaseAuthRepository> databaseAuthRepositoryProvider;
 
     private SingletonCImpl(ApplicationContextModule applicationContextModuleParam) {
       this.applicationContextModule = applicationContextModuleParam;
@@ -646,30 +655,26 @@ public final class DaggerOneIdApp_HiltComponents_SingletonC {
 
     }
 
-    private AuthInterceptor authInterceptor() {
-      return new AuthInterceptor(tokenStorageProvider.get());
-    }
-
     @SuppressWarnings("unchecked")
     private void initialize(final ApplicationContextModule applicationContextModuleParam) {
       this.connectivityMonitorProvider = DoubleCheck.provider(new SwitchingProvider<ConnectivityMonitor>(singletonCImpl, 0));
-      this.tokenStorageProvider = DoubleCheck.provider(new SwitchingProvider<TokenStorage>(singletonCImpl, 5));
-      this.provideOkHttpClientProvider = DoubleCheck.provider(new SwitchingProvider<OkHttpClient>(singletonCImpl, 4));
-      this.provideRetrofitProvider = DoubleCheck.provider(new SwitchingProvider<Retrofit>(singletonCImpl, 3));
-      this.provideTotemApiProvider = DoubleCheck.provider(new SwitchingProvider<TotemApi>(singletonCImpl, 2));
-      this.checkInRepositoryImplProvider = new SwitchingProvider<>(singletonCImpl, 1);
-      this.bindCheckInRepositoryProvider = DoubleCheck.provider((Provider) checkInRepositoryImplProvider);
-      this.faceProcessingServiceImplProvider = DoubleCheck.provider(new SwitchingProvider<FaceProcessingServiceImpl>(singletonCImpl, 6));
-      this.printRepositoryImplProvider = new SwitchingProvider<>(singletonCImpl, 8);
-      this.bindPrintRepositoryProvider = DoubleCheck.provider((Provider) printRepositoryImplProvider);
-      this.badgeRendererProvider = DoubleCheck.provider(new SwitchingProvider<BadgeRenderer>(singletonCImpl, 9));
-      this.printCoordinatorProvider = DoubleCheck.provider(new SwitchingProvider<PrintCoordinator>(singletonCImpl, 7));
-      this.authRepositoryImplProvider = new SwitchingProvider<>(singletonCImpl, 10);
-      this.bindAuthRepositoryProvider = DoubleCheck.provider((Provider) authRepositoryImplProvider);
+      this.provideDataSourceProvider = DoubleCheck.provider(new SwitchingProvider<HikariDataSource>(singletonCImpl, 3));
+      this.provideDatabaseDataSourceProvider = DoubleCheck.provider(new SwitchingProvider<DatabaseDataSource>(singletonCImpl, 2));
+      this.tokenStorageProvider = DoubleCheck.provider(new SwitchingProvider<TokenStorage>(singletonCImpl, 4));
+      this.databaseCheckInRepositoryProvider = DoubleCheck.provider(new SwitchingProvider<DatabaseCheckInRepository>(singletonCImpl, 1));
+      this.faceProcessingServiceImplProvider = DoubleCheck.provider(new SwitchingProvider<FaceProcessingServiceImpl>(singletonCImpl, 5));
+      this.databasePrintRepositoryProvider = DoubleCheck.provider(new SwitchingProvider<DatabasePrintRepository>(singletonCImpl, 7));
+      this.badgeRendererProvider = DoubleCheck.provider(new SwitchingProvider<BadgeRenderer>(singletonCImpl, 8));
+      this.printerConfigRepositoryProvider = DoubleCheck.provider(new SwitchingProvider<PrinterConfigRepository>(singletonCImpl, 9));
+      this.brotherSdkPrinterProvider = DoubleCheck.provider(new SwitchingProvider<BrotherSdkPrinter>(singletonCImpl, 11));
+      this.providePrinterConnectionManagerProvider = DoubleCheck.provider(new SwitchingProvider<PrinterConnectionManager>(singletonCImpl, 10));
+      this.printCoordinatorProvider = DoubleCheck.provider(new SwitchingProvider<PrintCoordinator>(singletonCImpl, 6));
+      this.activeContextRepositoryProvider = DoubleCheck.provider(new SwitchingProvider<ActiveContextRepository>(singletonCImpl, 13));
+      this.databaseAuthRepositoryProvider = DoubleCheck.provider(new SwitchingProvider<DatabaseAuthRepository>(singletonCImpl, 12));
     }
 
     @Override
-    public void injectOneIdApp(OneIdApp oneIdApp) {
+    public void injectOneIdApp(OneIdApp arg0) {
     }
 
     @Override
@@ -704,35 +709,44 @@ public final class DaggerOneIdApp_HiltComponents_SingletonC {
           case 0: // com.oneid.totem.presentation.util.ConnectivityMonitor 
           return (T) new ConnectivityMonitor(ApplicationContextModule_ProvideContextFactory.provideContext(singletonCImpl.applicationContextModule));
 
-          case 1: // com.oneid.totem.data.repository.impl.CheckInRepositoryImpl 
-          return (T) new CheckInRepositoryImpl(singletonCImpl.provideTotemApiProvider.get());
+          case 1: // com.oneid.totem.data.database.repo.DatabaseCheckInRepository 
+          return (T) new DatabaseCheckInRepository(singletonCImpl.provideDatabaseDataSourceProvider.get(), singletonCImpl.tokenStorageProvider.get());
 
-          case 2: // com.oneid.totem.data.api.TotemApi 
-          return (T) ApiModule_ProvideTotemApiFactory.provideTotemApi(singletonCImpl.provideRetrofitProvider.get());
+          case 2: // com.oneid.totem.data.database.DatabaseDataSource 
+          return (T) DatabaseModule_ProvideDatabaseDataSourceFactory.provideDatabaseDataSource(singletonCImpl.provideDataSourceProvider.get());
 
-          case 3: // retrofit2.Retrofit 
-          return (T) ApiModule_ProvideRetrofitFactory.provideRetrofit(singletonCImpl.provideOkHttpClientProvider.get(), singletonCImpl.tokenStorageProvider.get());
+          case 3: // com.zaxxer.hikari.HikariDataSource 
+          return (T) DatabaseModule_ProvideDataSourceFactory.provideDataSource();
 
-          case 4: // okhttp3.OkHttpClient 
-          return (T) ApiModule_ProvideOkHttpClientFactory.provideOkHttpClient(singletonCImpl.authInterceptor());
-
-          case 5: // com.oneid.totem.data.local.TokenStorage 
+          case 4: // com.oneid.totem.data.local.TokenStorage 
           return (T) new TokenStorage(ApplicationContextModule_ProvideContextFactory.provideContext(singletonCImpl.applicationContextModule));
 
-          case 6: // com.oneid.totem.data.service.FaceProcessingServiceImpl 
+          case 5: // com.oneid.totem.data.service.FaceProcessingServiceImpl 
           return (T) new FaceProcessingServiceImpl(ApplicationContextModule_ProvideContextFactory.provideContext(singletonCImpl.applicationContextModule));
 
-          case 7: // com.oneid.totem.data.print.PrintCoordinator 
-          return (T) new PrintCoordinator(ApplicationContextModule_ProvideContextFactory.provideContext(singletonCImpl.applicationContextModule), singletonCImpl.bindPrintRepositoryProvider.get(), singletonCImpl.badgeRendererProvider.get(), singletonCImpl.tokenStorageProvider.get());
+          case 6: // com.oneid.totem.data.print.PrintCoordinator 
+          return (T) new PrintCoordinator(singletonCImpl.databasePrintRepositoryProvider.get(), singletonCImpl.badgeRendererProvider.get(), singletonCImpl.printerConfigRepositoryProvider.get(), singletonCImpl.providePrinterConnectionManagerProvider.get());
 
-          case 8: // com.oneid.totem.data.repository.impl.PrintRepositoryImpl 
-          return (T) new PrintRepositoryImpl(singletonCImpl.provideTotemApiProvider.get());
+          case 7: // com.oneid.totem.data.database.repo.DatabasePrintRepository 
+          return (T) new DatabasePrintRepository(singletonCImpl.provideDatabaseDataSourceProvider.get(), singletonCImpl.tokenStorageProvider.get());
 
-          case 9: // com.oneid.totem.data.print.BadgeRenderer 
-          return (T) new BadgeRenderer(ApplicationContextModule_ProvideContextFactory.provideContext(singletonCImpl.applicationContextModule));
+          case 8: // com.oneid.totem.data.print.BadgeRenderer 
+          return (T) new BadgeRenderer();
 
-          case 10: // com.oneid.totem.data.repository.impl.AuthRepositoryImpl 
-          return (T) new AuthRepositoryImpl(singletonCImpl.provideTotemApiProvider.get(), singletonCImpl.tokenStorageProvider.get());
+          case 9: // com.oneid.totem.data.print.PrinterConfigRepository 
+          return (T) new PrinterConfigRepository(singletonCImpl.tokenStorageProvider.get());
+
+          case 10: // com.oneid.totem.data.print.PrinterConnectionManager 
+          return (T) PrinterConfigModule_ProvidePrinterConnectionManagerFactory.providePrinterConnectionManager(singletonCImpl.brotherSdkPrinterProvider.get());
+
+          case 11: // com.oneid.totem.data.print.BrotherSdkPrinter 
+          return (T) new BrotherSdkPrinter();
+
+          case 12: // com.oneid.totem.data.database.repo.DatabaseAuthRepository 
+          return (T) new DatabaseAuthRepository(singletonCImpl.provideDatabaseDataSourceProvider.get(), singletonCImpl.activeContextRepositoryProvider.get(), singletonCImpl.tokenStorageProvider.get());
+
+          case 13: // com.oneid.totem.data.database.ActiveContextRepository 
+          return (T) new ActiveContextRepository(singletonCImpl.provideDatabaseDataSourceProvider.get());
 
           default: throw new AssertionError(id);
         }
