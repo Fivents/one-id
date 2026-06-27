@@ -20,6 +20,9 @@ data class PrintBadgeResponse(
     @SerializedName("jobTitle") val jobTitle: String? = null,
     @SerializedName("qrCodeValue") val qrCodeValue: String? = null,
     @SerializedName("accessCode") val accessCode: String? = null,
+    @SerializedName("eventName") val eventName: String? = null,
+    @SerializedName("showQrCode") val showQrCode: Boolean? = null,
+    @SerializedName("showAccessCode") val showAccessCode: Boolean? = null,
 )
 
 data class PrintConfigResponse(

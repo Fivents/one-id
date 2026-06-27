@@ -61,4 +61,7 @@ data class PrintData(
     val jobTitle: String? = null,
     val qrCodeValue: String? = null,
     val accessCode: String? = null,
+    val eventName: String = "",
+    val showQrCode: Boolean = true,
+    val showAccessCode: Boolean = false,
 )

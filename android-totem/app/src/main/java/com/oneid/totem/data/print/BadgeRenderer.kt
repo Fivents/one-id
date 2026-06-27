@@ -5,12 +5,13 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Typeface
-import android.graphics.Rect
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
-import com.google.zxing.common.BitMatrix
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -20,6 +21,9 @@ data class BadgeElements(
     val jobTitle: String?,
     val qrCodeValue: String?,
     val accessCode: String?,
+    val showQrCode: Boolean = true,
+    val showAccessCode: Boolean = false,
+    val eventName: String = "",
 ) {
     fun isNotEmpty(): Boolean = participantName.isNotBlank()
 }
@@ -54,26 +58,47 @@ class BadgeRenderer @Inject constructor() {
         jobTitle: String?,
         qrCodeValue: String?,
         accessCode: String?,
+        showQrCode: Boolean = true,
+        showAccessCode: Boolean = false,
+        eventName: String = "",
         paperWidthMm: Double,
         paperHeightMm: Double,
         dpi: Int,
     ): Bitmap = withContext(Dispatchers.Default) {
-        val widthPx = mmToPixels(paperWidthMm, dpi)
-        val heightPx = mmToPixels(paperHeightMm, dpi)
+        val rollWidthMm = paperHeightMm
+        val maxFeedMm = paperWidthMm
 
-        val bitmap = Bitmap.createBitmap(widthPx, heightPx, Bitmap.Config.ARGB_8888)
+        val rollWidthPx = mmToPixels(rollWidthMm, dpi)
+        val maxFeedPx = mmToPixels(maxFeedMm, dpi)
+
+        val bitmap = Bitmap.createBitmap(rollWidthPx, maxFeedPx, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
         canvas.drawColor(Color.WHITE)
 
         drawBadge(
             canvas = canvas,
-            elements = BadgeElements(name, company, jobTitle, qrCodeValue, accessCode),
-            widthPx = widthPx,
-            heightPx = heightPx,
+            elements = BadgeElements(
+                participantName = shortenName(name),
+                company = company,
+                jobTitle = jobTitle,
+                qrCodeValue = qrCodeValue,
+                accessCode = accessCode,
+                showQrCode = showQrCode,
+                showAccessCode = showAccessCode,
+                eventName = eventName,
+            ),
+            widthPx = rollWidthPx,
+            heightPx = maxFeedPx,
             dpi = dpi,
         )
 
-        bitmap
+        trimBitmap(bitmap, mmToPixels(2.0, dpi))
+    }
+
+    private fun shortenName(fullName: String): String {
+        val parts = fullName.trim().split("\\s+".toRegex())
+        if (parts.size <= 2) return fullName
+        return "${parts.first()} ${parts.last()}"
     }
 
     private fun drawBadge(
@@ -83,72 +108,222 @@ class BadgeRenderer @Inject constructor() {
         heightPx: Int,
         dpi: Int,
     ) {
-        val marginPx = mmToPixels(3.0, dpi)
-        val contentWidth = widthPx - marginPx * 2
-        var currentY = marginPx.toFloat()
+        val m = mmToPixels(2.5, dpi)
+        val showQr = elements.showQrCode && !elements.qrCodeValue.isNullOrBlank()
+        val cssScale = dpi / 96f * 2.2f
 
-        val namePaint = Paint().apply {
+        val brandPaint = Paint().apply {
             color = Color.BLACK
-            textSize = (contentWidth / 12f).coerceIn(24f, 72f)
+            textSize = 6f * cssScale
             typeface = Typeface.create("sans-serif", Typeface.BOLD)
             isAntiAlias = true
         }
-
+        val eventPaint = Paint().apply {
+            color = Color.BLACK
+            textSize = 5f * cssScale
+            typeface = Typeface.create("sans-serif", Typeface.BOLD)
+            isAntiAlias = true
+        }
+        val namePaint = Paint().apply {
+            color = Color.BLACK
+            textSize = 13f * cssScale
+            typeface = Typeface.create("sans-serif", Typeface.BOLD)
+            isAntiAlias = true
+        }
         val metaPaint = Paint().apply {
-            color = Color.DKGRAY
-            textSize = (contentWidth / 16f).coerceIn(16f, 48f)
+            color = Color.BLACK
+            textSize = 9f * cssScale
             typeface = Typeface.create("sans-serif", Typeface.NORMAL)
             isAntiAlias = true
         }
-
-        currentY = drawTextCentered(canvas, elements.participantName, namePaint, widthPx, currentY + namePaint.textSize * 1.2f)
-
-        if (!elements.jobTitle.isNullOrBlank()) {
-            currentY += metaPaint.textSize * 0.3f
-            currentY = drawTextCentered(canvas, elements.jobTitle, metaPaint, widthPx, currentY + metaPaint.textSize)
+        val tsPaint = Paint().apply {
+            color = Color.BLACK
+            textSize = 4f * cssScale
+            typeface = Typeface.create("sans-serif", Typeface.NORMAL)
+            isAntiAlias = true
+        }
+        val codeLabelPaint = Paint().apply {
+            color = Color.BLACK
+            textSize = 3.5f * cssScale
+            typeface = Typeface.create("sans-serif", Typeface.NORMAL)
+            isAntiAlias = true
+        }
+        val codeValuePaint = Paint().apply {
+            color = Color.BLACK
+            textSize = 5f * cssScale
+            typeface = Typeface.create("sans-serif", Typeface.BOLD)
+            isAntiAlias = true
+        }
+        val sepPaint = Paint().apply {
+            color = Color.BLACK
+            strokeWidth = mmToPixels(0.5, dpi).toFloat()
         }
 
-        if (!elements.company.isNullOrBlank()) {
-            metaPaint.textSize = (contentWidth / 18f).coerceIn(14f, 36f)
-            currentY += metaPaint.textSize * 0.2f
-            currentY = drawTextCentered(canvas, elements.company, metaPaint, widthPx, currentY + metaPaint.textSize)
+        val qrPanelW: Int
+        val textL: Float
+        val textW: Int
+
+        if (showQr) {
+            qrPanelW = (widthPx * 0.40f).toInt()
+            textL = m.toFloat()
+            textW = widthPx - qrPanelW - m * 2
+        } else {
+            qrPanelW = 0
+            textL = m.toFloat()
+            textW = widthPx - m * 2
         }
 
-        if (!elements.accessCode.isNullOrBlank()) {
-            val codePaint = Paint().apply {
-                color = Color.DKGRAY
-                textSize = (contentWidth / 20f).coerceIn(12f, 32f)
-                typeface = Typeface.create("sans-serif", Typeface.NORMAL)
-                isAntiAlias = true
-            }
-            currentY += codePaint.textSize * 0.5f
-            currentY = drawTextCentered(canvas, "Código: ${elements.accessCode}", codePaint, widthPx, currentY + codePaint.textSize)
+        if (textW <= 0) return
+
+        val sepH = mmToPixels(0.6, dpi).toFloat()
+        val gapTight = mmToPixels(0.6, dpi).toFloat()
+        val gapBig = mmToPixels(2.0, dpi).toFloat()
+        val hasTitle = !elements.jobTitle.isNullOrBlank()
+        val hasCompany = !elements.company.isNullOrBlank()
+
+        var contentH = 0f
+        contentH += brandPaint.textSize * 1.2f
+        contentH += gapBig
+        contentH += namePaint.textSize * 1.2f * 2
+        if (hasTitle) {
+            contentH += gapTight
+            contentH += metaPaint.textSize * 1.2f * 2
+        }
+        if (hasCompany) {
+            contentH += gapTight
+            contentH += metaPaint.textSize * 1.2f * 2
+        }
+        contentH += gapTight
+        contentH += sepH
+        contentH += gapTight
+        contentH += tsPaint.textSize * 1.2f
+        if (elements.showAccessCode && !elements.accessCode.isNullOrBlank()) {
+            contentH += codeValuePaint.textSize * 1.3f
         }
 
-        val qrSize = ((heightPx - currentY - marginPx).coerceAtMost(contentWidth.coerceAtMost(400).toFloat())).toInt()
-        if (!elements.qrCodeValue.isNullOrBlank() && qrSize > 30) {
-            val qrX = (widthPx - qrSize) / 2
-            val qrY = (currentY + marginPx).coerceAtLeast(marginPx.toFloat()).toInt()
-            drawQrCode(canvas, elements.qrCodeValue, qrX, qrY, qrSize)
+        val maxQrSize = qrPanelW - m * 2
+        val qrTextH = contentH + m * 2
+        val qrSize = if (showQr) minOf(maxQrSize, qrTextH.toInt(), mmToPixels(28.0, dpi)).coerceAtLeast(30) else 0
+
+        var y = ((qrTextH - contentH) / 2f).coerceAtLeast(m.toFloat())
+
+        y = drawTextAt(canvas, "ONEID - ${elements.eventName.uppercase()}", brandPaint, textL, y + brandPaint.textSize)
+        y += gapBig
+
+        y = drawTextWrappedMax(canvas, elements.participantName, namePaint, textL, y + namePaint.textSize, textW, 2)
+
+        if (hasTitle) {
+            y += gapTight
+            y = drawTextWrappedMax(canvas, elements.jobTitle!!, metaPaint, textL, y + metaPaint.textSize, textW, 2)
+        }
+
+        if (hasCompany) {
+            y += gapTight
+            y = drawTextWrappedMax(canvas, elements.company!!, metaPaint, textL, y + metaPaint.textSize, textW, 2)
+        }
+
+        y += gapTight
+        canvas.drawLine(textL, y, (textL + textW).toFloat(), y, sepPaint)
+        y += sepH + gapTight
+
+        val timestamp = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(Date())
+        y = drawTextAt(canvas, timestamp, tsPaint, textL, y + tsPaint.textSize)
+
+        if (elements.showAccessCode && !elements.accessCode.isNullOrBlank()) {
+            val label = "Codigo: "
+            val labelW = codeLabelPaint.measureText(label)
+            drawTextAt(canvas, label, codeLabelPaint, textL, y + codeValuePaint.textSize)
+            drawTextAt(canvas, elements.accessCode, codeValuePaint, textL + labelW, y + codeValuePaint.textSize)
+            y += codeValuePaint.textSize * 1.3f
+        }
+
+        if (showQr) {
+            val qrAreaLeft = widthPx - qrPanelW
+            val qrX = qrAreaLeft + (qrPanelW - qrSize) / 2
+            val qrMaxH = (y + m * 2).coerceAtMost(heightPx.toFloat()).toInt()
+            val qrMinH = m * 2 + qrSize
+            val qrY = if (qrMaxH > qrMinH) (qrMaxH - qrSize) / 2 else m
+            drawQrCode(canvas, elements.qrCodeValue!!, qrX, qrY, qrSize)
         }
     }
 
-    private fun drawTextCentered(
+    private fun trimBitmap(bitmap: Bitmap, marginPx: Int): Bitmap {
+        val w = bitmap.width
+        val h = bitmap.height
+
+        var top = 0
+        var bottom = h - 1
+
+        topLoop@ for (y in 0 until h) {
+            for (x in 0 until w) {
+                if (bitmap.getPixel(x, y) != Color.WHITE) {
+                    top = y
+                    break@topLoop
+                }
+            }
+        }
+
+        if (top >= bottom) return bitmap
+
+        bottomLoop@ for (y in (h - 1) downTo 0) {
+            for (x in 0 until w) {
+                if (bitmap.getPixel(x, y) != Color.WHITE) {
+                    bottom = y
+                    break@bottomLoop
+                }
+            }
+        }
+
+        val cropTop = (top - marginPx).coerceAtLeast(0)
+        val cropBottom = (bottom + marginPx).coerceAtMost(h - 1)
+        val cropH = cropBottom - cropTop + 1
+
+        if (cropTop == 0 && cropBottom == h - 1) return bitmap
+        return Bitmap.createBitmap(bitmap, 0, cropTop, w, cropH)
+    }
+
+    private fun drawTextAt(
         canvas: Canvas,
         text: String,
         paint: Paint,
-        canvasWidth: Int,
+        x: Float,
         y: Float,
     ): Float {
-        val lines = autoWrap(text, paint, canvasWidth)
+        canvas.drawText(text, x, y, paint)
+        return y
+    }
+
+    private fun drawTextWrappedMax(
+        canvas: Canvas,
+        text: String,
+        paint: Paint,
+        x: Float,
+        y: Float,
+        maxWidth: Int,
+        maxLines: Int,
+    ): Float {
+        val lines = autoWrap(text, paint, maxWidth)
         var currentY = y
-        for (line in lines) {
-            val textWidth = paint.measureText(line)
-            val x = (canvasWidth - textWidth) / 2f
+        for (i in 0 until minOf(lines.size, maxLines)) {
+            val line = if (i == maxLines - 1 && lines.size > maxLines) {
+                truncateLine(lines[i], paint, maxWidth)
+            } else {
+                lines[i]
+            }
             canvas.drawText(line, x, currentY, paint)
             currentY += paint.textSize * 1.15f
         }
         return currentY
+    }
+
+    private fun truncateLine(line: String, paint: Paint, maxWidth: Int): String {
+        val ellipsis = "..."
+        if (paint.measureText(line) <= maxWidth) return line
+        var result = line
+        while (result.isNotEmpty() && paint.measureText("$result$ellipsis") > maxWidth) {
+            result = result.dropLast(1)
+        }
+        return "$result$ellipsis"
     }
 
     private fun autoWrap(text: String, paint: Paint, maxWidth: Int): List<String> {
@@ -174,7 +349,7 @@ class BadgeRenderer @Inject constructor() {
     private fun drawQrCode(canvas: Canvas, value: String, x: Int, y: Int, size: Int) {
         try {
             val writer = QRCodeWriter()
-            val bitMatrix: BitMatrix = writer.encode(value, BarcodeFormat.QR_CODE, size, size)
+            val bitMatrix = writer.encode(value, BarcodeFormat.QR_CODE, size, size)
             val paint = Paint().apply { color = Color.BLACK }
             val whitePaint = Paint().apply { color = Color.WHITE }
 
@@ -206,7 +381,7 @@ class BadgeRenderer @Inject constructor() {
         val qrCode = extractText(html, listOf("qrCodeValue", "qrcode", "qr"))
         val code = extractText(html, listOf("accessCode", "access_code", "codigo"))
         return BadgeElements(
-            participantName = name ?: "",
+            participantName = shortenName(name ?: ""),
             company = company,
             jobTitle = jobTitle,
             qrCodeValue = qrCode,

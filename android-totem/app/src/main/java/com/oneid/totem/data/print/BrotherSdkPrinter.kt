@@ -77,7 +77,7 @@ class BrotherSdkPrinter @Inject constructor(
                     isSkipStatusCheck = false
                     hAlignment = PrintImageSettings.HorizontalAlignment.Center
                     vAlignment = PrintImageSettings.VerticalAlignment.Center
-                    printOrientation = PrintImageSettings.Orientation.Landscape
+                    printOrientation = PrintImageSettings.Orientation.Portrait
                     scaleMode = PrintImageSettings.ScaleMode.FitPageAspect
                     compress = PrintImageSettings.CompressMode.Mode9
                     workPath = this@BrotherSdkPrinter.workPath

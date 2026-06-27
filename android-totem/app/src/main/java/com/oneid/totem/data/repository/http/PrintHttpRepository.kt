@@ -54,6 +54,9 @@ class PrintHttpRepository @Inject constructor(
                     jobTitle = body.jobTitle,
                     qrCodeValue = body.qrCodeValue,
                     accessCode = body.accessCode,
+                    eventName = body.eventName ?: "",
+                    showQrCode = body.showQrCode ?: true,
+                    showAccessCode = body.showAccessCode ?: false,
                 )
             )
         } catch (e: java.net.ConnectException) {
