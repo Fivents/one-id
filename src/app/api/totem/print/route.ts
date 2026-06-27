@@ -113,6 +113,9 @@ export const POST = withAuth(
             jobTitle: eventParticipant.jobTitle,
             qrCodeValue: eventParticipant.qrCodeValue,
             accessCode: eventParticipant.accessCode,
+            eventName: context.event.name,
+            showQrCode: printConfig.showQrCode,
+            showAccessCode: printConfig.showAccessCode,
           },
           { status: 201 },
         );
