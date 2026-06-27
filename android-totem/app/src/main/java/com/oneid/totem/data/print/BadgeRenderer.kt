@@ -118,12 +118,6 @@ class BadgeRenderer @Inject constructor() {
             typeface = Typeface.create("sans-serif", Typeface.BOLD)
             isAntiAlias = true
         }
-        val eventPaint = Paint().apply {
-            color = Color.BLACK
-            textSize = 5f * cssScale
-            typeface = Typeface.create("sans-serif", Typeface.BOLD)
-            isAntiAlias = true
-        }
         val namePaint = Paint().apply {
             color = Color.BLACK
             textSize = 13f * cssScale
@@ -159,71 +153,54 @@ class BadgeRenderer @Inject constructor() {
             strokeWidth = mmToPixels(0.5, dpi).toFloat()
         }
 
-        val qrPanelW: Int
-        val textL: Float
-        val textW: Int
-
-        if (showQr) {
-            qrPanelW = (widthPx * 0.40f).toInt()
-            textL = m.toFloat()
-            textW = widthPx - qrPanelW - m * 2
-        } else {
-            qrPanelW = 0
-            textL = m.toFloat()
-            textW = widthPx - m * 2
-        }
-
-        if (textW <= 0) return
-
-        val sepH = mmToPixels(0.6, dpi).toFloat()
         val gapTight = mmToPixels(0.6, dpi).toFloat()
         val gapBig = mmToPixels(2.0, dpi).toFloat()
+        val sepH = mmToPixels(0.6, dpi).toFloat()
         val hasTitle = !elements.jobTitle.isNullOrBlank()
         val hasCompany = !elements.company.isNullOrBlank()
+        val textL = m.toFloat()
+        val fullW = widthPx - m * 2
 
-        var contentH = 0f
-        contentH += brandPaint.textSize * 1.2f
-        contentH += gapBig
-        contentH += namePaint.textSize * 1.2f * 2
-        if (hasTitle) {
-            contentH += gapTight
-            contentH += metaPaint.textSize * 1.2f * 2
-        }
-        if (hasCompany) {
-            contentH += gapTight
-            contentH += metaPaint.textSize * 1.2f * 2
-        }
-        contentH += gapTight
-        contentH += sepH
-        contentH += gapTight
-        contentH += tsPaint.textSize * 1.2f
-        if (elements.showAccessCode && !elements.accessCode.isNullOrBlank()) {
-            contentH += codeValuePaint.textSize * 1.3f
+        // QR code no canto superior direito
+        val qrMargin = mmToPixels(1.0, dpi).coerceAtLeast(3)
+        val qrSize: Int
+        val qrZoneBottom: Float
+        if (showQr) {
+            qrSize = mmToPixels(18.0, dpi).coerceIn(80, (widthPx * 0.35f).toInt())
+            val qrX = widthPx - qrSize - qrMargin
+            val qrY = qrMargin
+            drawQrCode(canvas, elements.qrCodeValue!!, qrX, qrY, qrSize)
+            qrZoneBottom = (qrY + qrSize + gapTight).toFloat()
+        } else {
+            qrSize = 0
+            qrZoneBottom = 0f
         }
 
-        val maxQrSize = qrPanelW - m * 2
-        val qrTextH = contentH + m * 2
-        val qrSize = if (showQr) minOf(maxQrSize, qrTextH.toInt(), mmToPixels(28.0, dpi)).coerceAtLeast(30) else 0
+        // Espaço à esquerda do QR para o header
+        val headerW = if (showQr) (widthPx - qrSize - qrMargin - m) else fullW
 
-        var y = ((qrTextH - contentH) / 2f).coerceAtLeast(m.toFloat())
+        var y = m.toFloat()
 
-        y = drawTextAt(canvas, "ONEID - ${elements.eventName.uppercase()}", brandPaint, textL, y + brandPaint.textSize)
-        y += gapBig
+        val headerText = if (elements.eventName.isNotBlank()) "ONEID - ${elements.eventName.uppercase()}" else "ONEID"
+        y = drawTextAt(canvas, headerText, brandPaint, textL, y + brandPaint.textSize)
 
-        y = drawTextWrappedMax(canvas, elements.participantName, namePaint, textL, y + namePaint.textSize, textW, 2)
+        // Pula para depois do QR (só header divide a linha com QR)
+        y = maxOf(y, qrZoneBottom) + gapTight
+
+        y = drawTextWrappedMax(canvas, elements.participantName, namePaint, textL, y + namePaint.textSize, fullW, 2)
 
         if (hasTitle) {
             y += gapTight
-            y = drawTextWrappedMax(canvas, elements.jobTitle!!, metaPaint, textL, y + metaPaint.textSize, textW, 2)
+            y = drawTextWrappedMax(canvas, elements.jobTitle!!, metaPaint, textL, y + metaPaint.textSize, fullW, 2)
         }
 
         if (hasCompany) {
             y += gapTight
-            y = drawTextWrappedMax(canvas, elements.company!!, metaPaint, textL, y + metaPaint.textSize, textW, 2)
+            y = drawTextWrappedMax(canvas, elements.company!!, metaPaint, textL, y + metaPaint.textSize, fullW, 2)
         }
 
         y += gapTight
-        canvas.drawLine(textL, y, (textL + textW).toFloat(), y, sepPaint)
+        canvas.drawLine(textL, y, (textL + fullW).toFloat(), y, sepPaint)
         y += sepH + gapTight
 
         val timestamp = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(Date())
@@ -234,16 +211,6 @@ class BadgeRenderer @Inject constructor() {
             val labelW = codeLabelPaint.measureText(label)
             drawTextAt(canvas, label, codeLabelPaint, textL, y + codeValuePaint.textSize)
             drawTextAt(canvas, elements.accessCode, codeValuePaint, textL + labelW, y + codeValuePaint.textSize)
-            y += codeValuePaint.textSize * 1.3f
-        }
-
-        if (showQr) {
-            val qrAreaLeft = widthPx - qrPanelW
-            val qrX = qrAreaLeft + (qrPanelW - qrSize) / 2
-            val qrMaxH = (y + m * 2).coerceAtMost(heightPx.toFloat()).toInt()
-            val qrMinH = m * 2 + qrSize
-            val qrY = if (qrMaxH > qrMinH) (qrMaxH - qrSize) / 2 else m
-            drawQrCode(canvas, elements.qrCodeValue!!, qrX, qrY, qrSize)
         }
     }
 
