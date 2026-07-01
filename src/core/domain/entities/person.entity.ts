@@ -9,6 +9,9 @@ export interface PersonProps {
   document?: string | null;
   documentType?: DocumentType | null;
   phone?: string | null;
+  jobTitle?: string | null;
+  birthDate?: Date | null;
+  notes?: string | null;
   qrCodeValue?: string | null;
   accessCode?: string | null;
   organizationId: string;
@@ -44,6 +47,18 @@ export class PersonEntity extends BaseEntity {
 
   get phone(): string | null | undefined {
     return this.props.phone;
+  }
+
+  get jobTitle(): string | null | undefined {
+    return this.props.jobTitle;
+  }
+
+  get birthDate(): Date | null | undefined {
+    return this.props.birthDate;
+  }
+
+  get notes(): string | null | undefined {
+    return this.props.notes;
   }
 
   get qrCodeValue(): string | null | undefined {
@@ -94,6 +109,9 @@ export class PersonEntity extends BaseEntity {
       document: this.props.document,
       documentType: this.props.documentType,
       phone: this.props.phone,
+      jobTitle: this.props.jobTitle,
+      birthDate: this.props.birthDate,
+      notes: this.props.notes,
       qrCodeValue: this.props.qrCodeValue,
       accessCode: this.props.accessCode,
       organizationId: this.props.organizationId,

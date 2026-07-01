@@ -5,7 +5,9 @@ import { type ControllerResponse, ok, serverError } from '../controller-response
 
 interface ImportPersonsResponse {
   created: Record<string, unknown>[];
+  updated: Record<string, unknown>[];
   skipped: string[];
+  errors: { row: number; message: string }[];
 }
 
 export class ImportPersonsController {
@@ -13,11 +15,17 @@ export class ImportPersonsController {
 
   async handle(request: ImportPersonsRequest): Promise<ControllerResponse<ImportPersonsResponse>> {
     try {
-      const result = await this.importPersonsUseCase.execute(request.organizationId, request.persons);
+      const result = await this.importPersonsUseCase.execute(
+        request.organizationId,
+        request.persons,
+        request.overwrite,
+      );
 
       return ok({
         created: result.created.map((person) => person.toJSON()),
+        updated: result.updated.map((person) => person.toJSON()),
         skipped: result.skipped,
+        errors: result.errors,
       });
     } catch {
       return serverError();

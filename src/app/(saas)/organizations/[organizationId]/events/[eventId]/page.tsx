@@ -8,7 +8,9 @@ import {
   Calendar,
   CheckCircle2,
   Copy,
+  Download,
   ExternalLink,
+  FileSpreadsheet,
   Globe,
   Link2,
   MapPin,
@@ -20,11 +22,13 @@ import {
   ScanFace,
   Search,
   Trash2,
+  Upload,
   User,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { EventAddressEditor, EventStatusBadge } from '@/components/organizations/events';
+import { ImportEventParticipantsDialog } from '@/components/organizations/events/import-event-participants-dialog';
 import { useConfirm } from '@/components/shared/confirm-dialog';
 import { LabelPrintConfirmationModal } from '@/components/shared/label-print-confirmation-modal';
 import { Badge } from '@/components/ui/badge';
@@ -77,6 +81,8 @@ import { AI_CONFIG_CONSTRAINTS, DEFAULT_AI_CONFIG } from '@/core/domain/constant
 import { getValidTransitions, isFinalStatus } from '@/core/domain/constants/event-transitions.constants';
 import type { EventAddress } from '@/core/domain/value-objects';
 import { useI18n } from '@/i18n';
+import { excelEventParticipants } from '@/core/utils/excel-event-participants';
+import type { ParticipantExportRow } from '@/core/utils/excel-event-participants';
 
 function formatDateTime(value: Date | string, locale: string) {
   return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
@@ -279,6 +285,9 @@ export default function EventDetailPage() {
 
   const isLoadingPage = isAppLoading || isAuthLoading;
 
+  const [importParticipantsOpen, setImportParticipantsOpen] = useState(false);
+  const [isExportingParticipants, setIsExportingParticipants] = useState(false);
+
   const canView = isSuperAdmin() || hasPermission('EVENT_VIEW');
 
   const stats = useMemo(() => {
@@ -389,6 +398,26 @@ export default function EventDetailPage() {
       setIsLoadingParticipants(false);
     }
   }, [eventId, participantsPage, participantsSearch, t]);
+
+  const handleDownloadTemplateParticipants = useCallback(() => {
+    excelEventParticipants.generateTemplate();
+  }, []);
+
+  const handleExportParticipants = useCallback(async () => {
+    if (!event) return;
+    setIsExportingParticipants(true);
+    try {
+      const response = await fetch(`/api/events/${eventId}/participants/export`);
+      if (!response.ok) throw new Error('Export failed');
+      const data: ParticipantExportRow[] = await response.json();
+      excelEventParticipants.exportToExcel(data, event.name);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : t('pages.eventDetail.loadParticipantsError');
+      toast.error(message);
+    } finally {
+      setIsExportingParticipants(false);
+    }
+  }, [eventId, event, t]);
 
   const loadPeopleForLinking = useCallback(async () => {
     if (!event?.organizationId) return;
@@ -1360,6 +1389,27 @@ export default function EventDetailPage() {
                   </CardDescription>
                 </div>
                 <div className="flex gap-2">
+                  <Button size="sm" variant="outline" onClick={handleDownloadTemplateParticipants}>
+                    <Download className="mr-2 h-4 w-4" />
+                    {t('pages.eventDetail.downloadTemplate')}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setImportParticipantsOpen(true)}
+                  >
+                    <Upload className="mr-2 h-4 w-4" />
+                    {t('pages.eventDetail.importSpreadsheet')}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleExportParticipants}
+                    disabled={isExportingParticipants || participants.length === 0}
+                  >
+                    <FileSpreadsheet className="mr-2 h-4 w-4" />
+                    {t('pages.eventDetail.exportSpreadsheet')}
+                  </Button>
                   <Button size="sm" variant="outline" onClick={() => setLinkPersonOpen(true)}>
                     <Link2 className="mr-2 h-4 w-4" />
                     {t('pages.eventDetail.linkPerson')}
@@ -1809,38 +1859,40 @@ export default function EventDetailPage() {
                   </div>
                 </div>
 
-                <div className="space-y-4 rounded-lg border p-4">
-                  <p className="text-sm font-medium">Métodos de check-in</p>
-                  <p className="text-muted-foreground text-xs">Pelo menos um método deve estar ativo.</p>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium">Reconhecimento facial</p>
-                      <p className="text-muted-foreground text-xs">Check-in por reconhecimento facial</p>
+                {isSuperAdmin() && (
+                  <div className="space-y-4 rounded-lg border p-4">
+                    <p className="text-sm font-medium">Métodos de check-in</p>
+                    <p className="text-muted-foreground text-xs">Pelo menos um método deve estar ativo.</p>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium">Reconhecimento facial</p>
+                        <p className="text-muted-foreground text-xs">Check-in por reconhecimento facial</p>
+                      </div>
+                      <Switch checked={faceEnabled} onCheckedChange={setFaceEnabled} />
                     </div>
-                    <Switch checked={faceEnabled} onCheckedChange={setFaceEnabled} />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium">QR Code</p>
-                      <p className="text-muted-foreground text-xs">Check-in por leitura de QR Code</p>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium">QR Code</p>
+                        <p className="text-muted-foreground text-xs">Check-in por leitura de QR Code</p>
+                      </div>
+                      <Switch checked={qrEnabled} onCheckedChange={setQrEnabled} />
                     </div>
-                    <Switch checked={qrEnabled} onCheckedChange={setQrEnabled} />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium">Código de acesso</p>
-                      <p className="text-muted-foreground text-xs">Check-in por código de acesso</p>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium">Código de acesso</p>
+                        <p className="text-muted-foreground text-xs">Check-in por código de acesso</p>
+                      </div>
+                      <Switch checked={codeEnabled} onCheckedChange={setCodeEnabled} />
                     </div>
-                    <Switch checked={codeEnabled} onCheckedChange={setCodeEnabled} />
-                  </div>
-                  <div className="flex items-center justify-between rounded-lg pt-2">
-                    <div>
-                      <p className="text-sm font-medium">Auto-cadastro</p>
-                      <p className="text-muted-foreground text-xs">Participante pode se cadastrar no totem</p>
+                    <div className="flex items-center justify-between rounded-lg pt-2">
+                      <div>
+                        <p className="text-sm font-medium">Auto-cadastro</p>
+                        <p className="text-muted-foreground text-xs">Participante pode se cadastrar no totem</p>
+                      </div>
+                      <Switch checked={allowSelfRegistration} onCheckedChange={setAllowSelfRegistration} />
                     </div>
-                    <Switch checked={allowSelfRegistration} onCheckedChange={setAllowSelfRegistration} />
                   </div>
-                </div>
+                )}
 
                 <div className="flex justify-end">
                   <Button type="submit" disabled={isSavingSettings}>
@@ -1852,124 +1904,126 @@ export default function EventDetailPage() {
           </Card>
 
           {/* Facial Recognition Settings Card */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <ScanFace className="h-5 w-5" />
-                {t('pages.eventDetail.facialRecognitionTitle')}
-              </CardTitle>
-              <CardDescription>{t('pages.eventDetail.facialRecognitionDescription')}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSaveAIConfig} className="space-y-4">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="ai-threshold">{t('pages.eventDetail.confidenceThreshold')}</Label>
-                    <Input
-                      id="ai-threshold"
-                      type="number"
-                      min={AI_CONFIG_CONSTRAINTS.confidenceThreshold.min}
-                      max={AI_CONFIG_CONSTRAINTS.confidenceThreshold.max}
-                      step={AI_CONFIG_CONSTRAINTS.confidenceThreshold.step}
-                      value={aiConfig.confidenceThreshold}
-                      onChange={(e) =>
-                        setAiConfig((current) => ({
-                          ...current,
-                          confidenceThreshold: Number(e.target.value),
-                        }))
-                      }
-                    />
-                    <p className="text-muted-foreground text-xs">{t('pages.eventDetail.confidenceThresholdHint')}</p>
+          {isSuperAdmin() && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <ScanFace className="h-5 w-5" />
+                  {t('pages.eventDetail.facialRecognitionTitle')}
+                </CardTitle>
+                <CardDescription>{t('pages.eventDetail.facialRecognitionDescription')}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleSaveAIConfig} className="space-y-4">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="ai-threshold">{t('pages.eventDetail.confidenceThreshold')}</Label>
+                      <Input
+                        id="ai-threshold"
+                        type="number"
+                        min={AI_CONFIG_CONSTRAINTS.confidenceThreshold.min}
+                        max={AI_CONFIG_CONSTRAINTS.confidenceThreshold.max}
+                        step={AI_CONFIG_CONSTRAINTS.confidenceThreshold.step}
+                        value={aiConfig.confidenceThreshold}
+                        onChange={(e) =>
+                          setAiConfig((current) => ({
+                            ...current,
+                            confidenceThreshold: Number(e.target.value),
+                          }))
+                        }
+                      />
+                      <p className="text-muted-foreground text-xs">{t('pages.eventDetail.confidenceThresholdHint')}</p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="ai-interval">{t('pages.eventDetail.detectionInterval')}</Label>
+                      <Input
+                        id="ai-interval"
+                        type="number"
+                        min={AI_CONFIG_CONSTRAINTS.detectionIntervalMs.min}
+                        max={AI_CONFIG_CONSTRAINTS.detectionIntervalMs.max}
+                        step={AI_CONFIG_CONSTRAINTS.detectionIntervalMs.step}
+                        value={aiConfig.detectionIntervalMs}
+                        onChange={(e) =>
+                          setAiConfig((current) => ({
+                            ...current,
+                            detectionIntervalMs: Number(e.target.value),
+                          }))
+                        }
+                      />
+                      <p className="text-muted-foreground text-xs">{t('pages.eventDetail.detectionIntervalHint')}</p>
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="ai-interval">{t('pages.eventDetail.detectionInterval')}</Label>
-                    <Input
-                      id="ai-interval"
-                      type="number"
-                      min={AI_CONFIG_CONSTRAINTS.detectionIntervalMs.min}
-                      max={AI_CONFIG_CONSTRAINTS.detectionIntervalMs.max}
-                      step={AI_CONFIG_CONSTRAINTS.detectionIntervalMs.step}
-                      value={aiConfig.detectionIntervalMs}
-                      onChange={(e) =>
-                        setAiConfig((current) => ({
-                          ...current,
-                          detectionIntervalMs: Number(e.target.value),
-                        }))
-                      }
-                    />
-                    <p className="text-muted-foreground text-xs">{t('pages.eventDetail.detectionIntervalHint')}</p>
-                  </div>
-                </div>
 
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="ai-max-faces">{t('pages.eventDetail.maxFaces')}</Label>
-                    <Input
-                      id="ai-max-faces"
-                      type="number"
-                      min={AI_CONFIG_CONSTRAINTS.maxFaces.min}
-                      max={AI_CONFIG_CONSTRAINTS.maxFaces.max}
-                      step={AI_CONFIG_CONSTRAINTS.maxFaces.step}
-                      value={aiConfig.maxFaces}
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="ai-max-faces">{t('pages.eventDetail.maxFaces')}</Label>
+                      <Input
+                        id="ai-max-faces"
+                        type="number"
+                        min={AI_CONFIG_CONSTRAINTS.maxFaces.min}
+                        max={AI_CONFIG_CONSTRAINTS.maxFaces.max}
+                        step={AI_CONFIG_CONSTRAINTS.maxFaces.step}
+                        value={aiConfig.maxFaces}
+                        onChange={(e) =>
+                          setAiConfig((current) => ({
+                            ...current,
+                            maxFaces: Number(e.target.value),
+                          }))
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="ai-min-face-size">{t('pages.eventDetail.minFaceSize')}</Label>
+                      <Input
+                        id="ai-min-face-size"
+                        type="number"
+                        min={AI_CONFIG_CONSTRAINTS.minFaceSize.min}
+                        max={AI_CONFIG_CONSTRAINTS.minFaceSize.max}
+                        step={AI_CONFIG_CONSTRAINTS.minFaceSize.step}
+                        value={aiConfig.minFaceSize}
+                        onChange={(e) =>
+                          setAiConfig((current) => ({
+                            ...current,
+                            minFaceSize: Number(e.target.value),
+                          }))
+                        }
+                      />
+                      <p className="text-muted-foreground text-xs">{t('pages.eventDetail.minFaceSizeHint')}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 rounded-lg border p-3">
+                    <input
+                      id="ai-liveness"
+                      type="checkbox"
+                      checked={aiConfig.livenessDetection}
                       onChange={(e) =>
                         setAiConfig((current) => ({
                           ...current,
-                          maxFaces: Number(e.target.value),
+                          livenessDetection: e.target.checked,
                         }))
                       }
+                      className="h-4 w-4"
                     />
+                    <Label htmlFor="ai-liveness" className="flex-1 cursor-pointer">
+                      {t('pages.eventDetail.enableLiveness')}
+                      <span className="text-muted-foreground ml-2 text-xs">({t('pages.eventDetail.experimental')})</span>
+                    </Label>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="ai-min-face-size">{t('pages.eventDetail.minFaceSize')}</Label>
-                    <Input
-                      id="ai-min-face-size"
-                      type="number"
-                      min={AI_CONFIG_CONSTRAINTS.minFaceSize.min}
-                      max={AI_CONFIG_CONSTRAINTS.minFaceSize.max}
-                      step={AI_CONFIG_CONSTRAINTS.minFaceSize.step}
-                      value={aiConfig.minFaceSize}
-                      onChange={(e) =>
-                        setAiConfig((current) => ({
-                          ...current,
-                          minFaceSize: Number(e.target.value),
-                        }))
-                      }
-                    />
-                    <p className="text-muted-foreground text-xs">{t('pages.eventDetail.minFaceSizeHint')}</p>
+
+                  <div className="flex justify-between gap-2">
+                    <Button type="button" variant="outline" onClick={handleResetAIConfig} disabled={isSavingAIConfig}>
+                      <RotateCcw className="mr-2 h-4 w-4" />
+                      {t('pages.eventDetail.resetToDefaults')}
+                    </Button>
+                    <Button type="submit" disabled={isSavingAIConfig}>
+                      {isSavingAIConfig ? t('pages.eventDetail.saving') : t('pages.eventDetail.saveAiSettings')}
+                    </Button>
                   </div>
-                </div>
-
-                <div className="flex items-center gap-3 rounded-lg border p-3">
-                  <input
-                    id="ai-liveness"
-                    type="checkbox"
-                    checked={aiConfig.livenessDetection}
-                    onChange={(e) =>
-                      setAiConfig((current) => ({
-                        ...current,
-                        livenessDetection: e.target.checked,
-                      }))
-                    }
-                    className="h-4 w-4"
-                  />
-                  <Label htmlFor="ai-liveness" className="flex-1 cursor-pointer">
-                    {t('pages.eventDetail.enableLiveness')}
-                    <span className="text-muted-foreground ml-2 text-xs">({t('pages.eventDetail.experimental')})</span>
-                  </Label>
-                </div>
-
-                <div className="flex justify-between gap-2">
-                  <Button type="button" variant="outline" onClick={handleResetAIConfig} disabled={isSavingAIConfig}>
-                    <RotateCcw className="mr-2 h-4 w-4" />
-                    {t('pages.eventDetail.resetToDefaults')}
-                  </Button>
-                  <Button type="submit" disabled={isSavingAIConfig}>
-                    {isSavingAIConfig ? t('pages.eventDetail.saving') : t('pages.eventDetail.saveAiSettings')}
-                  </Button>
-                </div>
-              </form>
-            </CardContent>
-          </Card>
+                </form>
+              </CardContent>
+            </Card>
+          )}
 
           <Card>
             <CardHeader>
@@ -1981,106 +2035,110 @@ export default function EventDetailPage() {
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSavePrintConfig} className="space-y-6">
-                <div className="flex items-center justify-between rounded-lg border p-4">
-                  <div>
-                    <p className="text-sm font-medium">Impressão automática</p>
-                    <p className="text-muted-foreground text-xs">
-                      Ao ativar, o ticket será impresso após qualquer check-in (facial, QR ou código).
-                    </p>
+                {isSuperAdmin() && (
+                  <div className="flex items-center justify-between rounded-lg border p-4">
+                    <div>
+                      <p className="text-sm font-medium">Impressão automática</p>
+                      <p className="text-muted-foreground text-xs">
+                        Ao ativar, o ticket será impresso após qualquer check-in (facial, QR ou código).
+                      </p>
+                    </div>
+                    <Switch checked={printConfigEnabled} onCheckedChange={setPrintConfigEnabled} />
                   </div>
-                  <Switch checked={printConfigEnabled} onCheckedChange={setPrintConfigEnabled} />
-                </div>
+                )}
 
                 {printConfigEnabled ? (
                   <>
-                    <div className="grid gap-4 md:grid-cols-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="print-paper-width">{t('labelConfig.paper.width')}</Label>
-                      <Input
-                        id="print-paper-width"
-                        type="number"
-                        min={20}
-                        max={300}
-                        value={printConfigDraft.paperWidth}
-                        onChange={(e) => updatePrintConfigField('paperWidth', parseNumber(e.currentTarget.value, 100))}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="print-paper-height">{t('labelConfig.paper.height')}</Label>
-                      <Input
-                        id="print-paper-height"
-                        type="number"
-                        min={20}
-                        max={500}
-                        value={printConfigDraft.paperHeight}
-                        onChange={(e) =>
-                          updatePrintConfigField('paperHeight', parseNumber(e.currentTarget.value, 62))
-                        }
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="print-orientation">{t('labelConfig.paper.orientation')}</Label>
-                      <Select
-                        value={printConfigDraft.orientation}
-                        onValueChange={(value) =>
-                          updatePrintConfigField('orientation', value as 'PORTRAIT' | 'LANDSCAPE')
-                        }
-                      >
-                        <SelectTrigger id="print-orientation">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="PORTRAIT">{t('labelConfig.paper.portrait')}</SelectItem>
-                          <SelectItem value="LANDSCAPE">{t('labelConfig.paper.landscape')}</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="print-dpi">DPI</Label>
-                      <Input
-                        id="print-dpi"
-                        type="number"
-                        min={72}
-                        max={1200}
-                        value={printConfigDraft.printerDpi}
-                        onChange={(e) =>
-                          updatePrintConfigField('printerDpi', parseNumber(e.currentTarget.value, 300))
-                        }
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="print-copies">{t('labelConfig.printer.copies')}</Label>
-                      <Input
-                        id="print-copies"
-                        type="number"
-                        min={1}
-                        max={10}
-                        value={printConfigDraft.copies}
-                        onChange={(e) => updatePrintConfigField('copies', parseNumber(e.currentTarget.value, 1))}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="print-qr-content">Conteúdo do QR Code</Label>
-                      <Select
-                        value={printConfigDraft.qrCodeContent}
-                        onValueChange={(value) =>
-                          updatePrintConfigField(
-                            'qrCodeContent',
-                            value as 'participant_id' | 'access_code' | 'qr_code_value',
-                          )
-                        }
-                      >
-                        <SelectTrigger id="print-qr-content">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="participant_id">ID do participante</SelectItem>
-                          <SelectItem value="access_code">Código de acesso</SelectItem>
-                          <SelectItem value="qr_code_value">Valor do QR Code</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    </div>
+                    {isSuperAdmin() && (
+                      <div className="grid gap-4 md:grid-cols-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="print-paper-width">{t('labelConfig.paper.width')}</Label>
+                        <Input
+                          id="print-paper-width"
+                          type="number"
+                          min={20}
+                          max={300}
+                          value={printConfigDraft.paperWidth}
+                          onChange={(e) => updatePrintConfigField('paperWidth', parseNumber(e.currentTarget.value, 100))}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="print-paper-height">{t('labelConfig.paper.height')}</Label>
+                        <Input
+                          id="print-paper-height"
+                          type="number"
+                          min={20}
+                          max={500}
+                          value={printConfigDraft.paperHeight}
+                          onChange={(e) =>
+                            updatePrintConfigField('paperHeight', parseNumber(e.currentTarget.value, 62))
+                          }
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="print-orientation">{t('labelConfig.paper.orientation')}</Label>
+                        <Select
+                          value={printConfigDraft.orientation}
+                          onValueChange={(value) =>
+                            updatePrintConfigField('orientation', value as 'PORTRAIT' | 'LANDSCAPE')
+                          }
+                        >
+                          <SelectTrigger id="print-orientation">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="PORTRAIT">{t('labelConfig.paper.portrait')}</SelectItem>
+                            <SelectItem value="LANDSCAPE">{t('labelConfig.paper.landscape')}</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="print-dpi">DPI</Label>
+                        <Input
+                          id="print-dpi"
+                          type="number"
+                          min={72}
+                          max={1200}
+                          value={printConfigDraft.printerDpi}
+                          onChange={(e) =>
+                            updatePrintConfigField('printerDpi', parseNumber(e.currentTarget.value, 300))
+                          }
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="print-copies">{t('labelConfig.printer.copies')}</Label>
+                        <Input
+                          id="print-copies"
+                          type="number"
+                          min={1}
+                          max={10}
+                          value={printConfigDraft.copies}
+                          onChange={(e) => updatePrintConfigField('copies', parseNumber(e.currentTarget.value, 1))}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="print-qr-content">Conteúdo do QR Code</Label>
+                        <Select
+                          value={printConfigDraft.qrCodeContent}
+                          onValueChange={(value) =>
+                            updatePrintConfigField(
+                              'qrCodeContent',
+                              value as 'participant_id' | 'access_code' | 'qr_code_value',
+                            )
+                          }
+                        >
+                          <SelectTrigger id="print-qr-content">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="participant_id">ID do participante</SelectItem>
+                            <SelectItem value="access_code">Código de acesso</SelectItem>
+                            <SelectItem value="qr_code_value">Valor do QR Code</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      </div>
+                    )}
 
                     <div className="flex items-center gap-6">
                       <div className="flex items-center gap-3 rounded-lg border p-3">
@@ -2109,30 +2167,32 @@ export default function EventDetailPage() {
                       </div>
                     </div>
 
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label htmlFor="print-font-name">Tamanho do nome (px)</Label>
-                        <Input
-                          id="print-font-name"
-                          type="number"
-                          min={8}
-                          max={24}
-                          value={printConfigDraft.fontSizeName}
-                          onChange={(e) => updatePrintConfigField('fontSizeName', parseNumber(e.currentTarget.value, 13))}
-                        />
+                    {isSuperAdmin() && (
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label htmlFor="print-font-name">Tamanho do nome (px)</Label>
+                          <Input
+                            id="print-font-name"
+                            type="number"
+                            min={8}
+                            max={24}
+                            value={printConfigDraft.fontSizeName}
+                            onChange={(e) => updatePrintConfigField('fontSizeName', parseNumber(e.currentTarget.value, 13))}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="print-font-meta">Tamanho do cargo/empresa (px)</Label>
+                          <Input
+                            id="print-font-meta"
+                            type="number"
+                            min={6}
+                            max={18}
+                            value={printConfigDraft.fontSizeMeta}
+                            onChange={(e) => updatePrintConfigField('fontSizeMeta', parseNumber(e.currentTarget.value, 9))}
+                          />
+                        </div>
                       </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="print-font-meta">Tamanho do cargo/empresa (px)</Label>
-                        <Input
-                          id="print-font-meta"
-                          type="number"
-                          min={6}
-                          max={18}
-                          value={printConfigDraft.fontSizeMeta}
-                          onChange={(e) => updatePrintConfigField('fontSizeMeta', parseNumber(e.currentTarget.value, 9))}
-                        />
-                      </div>
-                    </div>
+                    )}
                   </>
                 ) : (
                   <p className="text-muted-foreground text-sm">
@@ -2140,48 +2200,50 @@ export default function EventDetailPage() {
                   </p>
                 )}
 
-                <div className="flex justify-end gap-2">
-                  {printConfigEnabled && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      disabled={isSavingPrintConfig || isLoadingPrintConfig}
-                      onClick={async () => {
-                        try {
-                          const response = await fetch(`/api/events/${event?.id}/print/test`, { method: 'POST' });
-                          if (!response.ok) {
-                            const err = await response.json().catch(() => ({ error: 'Erro ao testar impressão' }));
-                            throw new Error(err.error);
-                          }
-                          const data = await response.json();
-                          const silent = await getSilentPrinterAvailability();
-                          if (silent.available) {
-                            const { printBadgeSilently } = await import(
-                              '@/core/application/client-services/totem/print.client'
-                            );
-                            await printBadgeSilently(data.html, data.copies, data.printerDpi, data.paperWidth, data.paperHeight);
-                          } else {
-                            const testWindow = window.open('', '_blank');
-                            if (testWindow) {
-                              testWindow.document.write(data.html);
-                              testWindow.document.close();
-                              testWindow.print();
+                {isSuperAdmin() && (
+                  <div className="flex justify-end gap-2">
+                    {printConfigEnabled && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={isSavingPrintConfig || isLoadingPrintConfig}
+                        onClick={async () => {
+                          try {
+                            const response = await fetch(`/api/events/${event?.id}/print/test`, { method: 'POST' });
+                            if (!response.ok) {
+                              const err = await response.json().catch(() => ({ error: 'Erro ao testar impressão' }));
+                              throw new Error(err.error);
                             }
+                            const data = await response.json();
+                            const silent = await getSilentPrinterAvailability();
+                            if (silent.available) {
+                              const { printBadgeSilently } = await import(
+                                '@/core/application/client-services/totem/print.client'
+                              );
+                              await printBadgeSilently(data.html, data.copies, data.printerDpi, data.paperWidth, data.paperHeight);
+                            } else {
+                              const testWindow = window.open('', '_blank');
+                              if (testWindow) {
+                                testWindow.document.write(data.html);
+                                testWindow.document.close();
+                                testWindow.print();
+                              }
+                            }
+                            toast.success('Impressão de teste enviada');
+                          } catch (err) {
+                            toast.error(err instanceof Error ? err.message : 'Erro ao testar impressão');
                           }
-                          toast.success('Impressão de teste enviada');
-                        } catch (err) {
-                          toast.error(err instanceof Error ? err.message : 'Erro ao testar impressão');
-                        }
-                      }}
-                    >
-                      <Printer className="mr-2 h-4 w-4" />
-                      Testar Impressão
+                        }}
+                      >
+                        <Printer className="mr-2 h-4 w-4" />
+                        Testar Impressão
+                      </Button>
+                    )}
+                    <Button type="submit" disabled={isSavingPrintConfig || isLoadingPrintConfig}>
+                      {isSavingPrintConfig ? t('pages.eventDetail.saving') : t('pages.eventDetail.saveSettings')}
                     </Button>
-                  )}
-                  <Button type="submit" disabled={isSavingPrintConfig || isLoadingPrintConfig}>
-                    {isSavingPrintConfig ? t('pages.eventDetail.saving') : t('pages.eventDetail.saveSettings')}
-                  </Button>
-                </div>
+                  </div>
+                )}
               </form>
             </CardContent>
           </Card>
@@ -2876,6 +2938,15 @@ export default function EventDetailPage() {
           } finally {
             setIsPrintingParticipantLabel(false);
           }
+        }}
+      />
+
+      <ImportEventParticipantsDialog
+        open={importParticipantsOpen}
+        onOpenChange={setImportParticipantsOpen}
+        eventId={eventId}
+        onImportComplete={() => {
+          loadParticipants();
         }}
       />
     </div>

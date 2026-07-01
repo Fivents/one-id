@@ -114,23 +114,25 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel>{t('nav.sidebar.dashboard')}</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {filteredNavItems.map((item) => (
-                <SidebarMenuItem key={item.href}>
-                  <SidebarMenuButton asChild isActive={pathname.startsWith(item.href)}>
-                    <Link href={item.href}>
-                      <item.icon className="h-4 w-4" />
-                      <span>{t(item.titleKey)}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {isSuperAdmin() && (
+          <SidebarGroup>
+            <SidebarGroupLabel>{t('nav.sidebar.dashboard')}</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {filteredNavItems.map((item) => (
+                  <SidebarMenuItem key={item.href}>
+                    <SidebarMenuButton asChild isActive={pathname.startsWith(item.href)}>
+                      <Link href={item.href}>
+                        <item.icon className="h-4 w-4" />
+                        <span>{t(item.titleKey)}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
 
         <SidebarGroup>
           <SidebarGroupLabel>{t('nav.sidebar.organizationSection')}</SidebarGroupLabel>

@@ -1,5 +1,9 @@
 'use client';
 
+import { useEffect } from 'react';
+
+import { useRouter } from 'next/navigation';
+
 import { Bell, Building2, CalendarDays, Monitor, ShieldCheck, Users } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
@@ -8,11 +12,20 @@ import { useAuth, useNotifications, useOrganization, usePermissions } from '@/co
 import { useI18n } from '@/i18n';
 
 export default function DashboardPage() {
+  const router = useRouter();
   const { t } = useI18n();
   const { user } = useAuth();
   const { activeOrganization, organizations } = useOrganization();
   const { role, isSuperAdmin, isOrgOwner } = usePermissions();
   const { unreadCount } = useNotifications();
+
+  const organizationId = activeOrganization?.id ?? organizations[0]?.id ?? user?.organizationId;
+
+  useEffect(() => {
+    if (user && !isSuperAdmin() && organizationId) {
+      router.replace(`/organizations/${organizationId}/people`);
+    }
+  }, [user, isSuperAdmin, organizationId, router]);
 
   if (!user) return null;
 

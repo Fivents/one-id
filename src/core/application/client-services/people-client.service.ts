@@ -10,6 +10,9 @@ export interface PersonSummaryResponse {
   document: string | null;
   documentType: 'PASSPORT' | 'ID_CARD' | 'DRIVER_LICENSE' | 'OTHER' | null;
   phone: string | null;
+  jobTitle: string | null;
+  birthDate: Date | null;
+  notes: string | null;
   qrCodeValue: string | null;
   accessCode: string | null;
   organizationId: string;
@@ -100,6 +103,37 @@ class PeopleClientService extends BaseClient {
 
   async unlinkPersonFromEvent(personId: string, eventId: string): Promise<ApiResponse<void>> {
     return this.delete(`/people/${encodeURIComponent(personId)}/events/${encodeURIComponent(eventId)}`);
+  }
+
+  async exportPeople(organizationId: string): Promise<ApiResponse<Record<string, unknown>[]>> {
+    return this.get(`/people/export?organizationId=${encodeURIComponent(organizationId)}`);
+  }
+
+  async importPeople(data: {
+    organizationId: string;
+    overwrite: boolean;
+    persons: Array<{
+      name: string;
+      email?: string | null;
+      document?: string | null;
+      phone?: string | null;
+      jobTitle?: string | null;
+      birthDate?: Date | null;
+      notes?: string | null;
+    }>;
+  }): Promise<
+    ApiResponse<{
+      created: Record<string, unknown>[];
+      updated: Record<string, unknown>[];
+      skipped: string[];
+      errors: { row: number; message: string }[];
+    }>
+  > {
+    return this.post('/people/import', data);
+  }
+
+  async getTemplate(): Promise<ApiResponse<{ columns: string[]; example: Record<string, string> }>> {
+    return this.get('/people/template');
   }
 }
 

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { useParams, useRouter } from 'next/navigation';
 
-import { Edit, ScanFace, Search, Trash2, UserPlus, Users } from 'lucide-react';
+import { Edit, FileDown, FileSpreadsheet, FileUp, ScanFace, Search, Trash2, UserPlus, Users } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { useConfirm } from '@/components/shared/confirm-dialog';
@@ -31,6 +31,8 @@ import type {
   PersonSummaryResponse,
 } from '@/core/application/client-services/people-client.service';
 import { extractFaceEmbedding } from '@/core/application/client-services/totem/face-embedding.client';
+import { ImportPeopleDialog } from '@/components/organizations/people/import-people-dialog';
+import { excelPeople } from '@/core/utils/excel-people';
 import { useApp, useAuth, useOrganization, usePermissions } from '@/core/application/contexts';
 import { useI18n } from '@/i18n';
 
@@ -144,6 +146,7 @@ export default function OrganizationPeoplePage() {
   const [selectedDeletedIds, setSelectedDeletedIds] = useState<Set<string>>(new Set());
 
   const [createOpen, setCreateOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [editPerson, setEditPerson] = useState<PersonSummaryResponse | null>(null);
   const [manageEventsPerson, setManageEventsPerson] = useState<PersonSummaryResponse | null>(null);
   const [manageFacePerson, setManageFacePerson] = useState<PersonSummaryResponse | null>(null);
@@ -775,6 +778,29 @@ export default function OrganizationPeoplePage() {
     }
   }, [manageFacePerson, faceImageUrl, faceImageDataUrl, stopFaceCamera, t, loadPeople]);
 
+  const handleExport = useCallback(async () => {
+    if (!organizationId) return;
+
+    try {
+      const response = await peopleClient.exportPeople(organizationId);
+      if (!response.success) {
+        toast.error('Erro ao exportar pessoas.');
+        return;
+      }
+
+      const people = response.data || [];
+      const orgName = activeOrganization?.name || 'pessoas';
+      excelPeople.exportToExcel(people as any, orgName);
+      toast.success('Planilha exportada com sucesso.');
+    } catch {
+      toast.error('Erro ao exportar pessoas.');
+    }
+  }, [organizationId, activeOrganization]);
+
+  const handleDownloadTemplate = useCallback(() => {
+    excelPeople.generateTemplate();
+  }, []);
+
   if (isLoadingPage || !isAuthenticated || !canView) {
     return null;
   }
@@ -796,6 +822,23 @@ export default function OrganizationPeoplePage() {
         </div>
 
         <div className="flex items-center gap-2">
+          {canManage && (
+            <>
+              <Button variant="outline" onClick={handleDownloadTemplate}>
+                <FileDown className="mr-2 h-4 w-4" />
+                {t('pages.organizationPeople.downloadTemplate')}
+              </Button>
+              <Button variant="outline" onClick={handleExport}>
+                <FileSpreadsheet className="mr-2 h-4 w-4" />
+                {t('pages.organizationPeople.exportSpreadsheet')}
+              </Button>
+              <Button variant="outline" onClick={() => setImportOpen(true)}>
+                <FileUp className="mr-2 h-4 w-4" />
+                {t('pages.organizationPeople.importSpreadsheet')}
+              </Button>
+            </>
+          )}
+
           <Select value={organizationId} onValueChange={handleOrganizationChange}>
             <SelectTrigger className="w-64">
               <SelectValue placeholder={t('pages.organizationPeople.selectOrganization')} />
@@ -1466,6 +1509,12 @@ export default function OrganizationPeoplePage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ImportPeopleDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        organizationId={organizationId}
+      />
     </div>
   );
 }

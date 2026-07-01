@@ -19,6 +19,9 @@ export class PrismaPersonRepository implements IPersonRepository {
       document: person.document,
       documentType: person.documentType as DocumentType | null,
       phone: person.phone,
+      jobTitle: person.jobTitle,
+      birthDate: person.birthDate,
+      notes: person.notes,
       qrCodeValue: person.qrCodeValue,
       accessCode: person.accessCode,
       organizationId: person.organizationId,
@@ -35,6 +38,32 @@ export class PrismaPersonRepository implements IPersonRepository {
 
     if (!person) return null;
 
+    return     PersonEntity.create({
+      id: person.id,
+      name: person.name,
+      email: person.email,
+      document: person.document,
+      documentType: person.documentType as DocumentType | null,
+      phone: person.phone,
+      jobTitle: person.jobTitle,
+      birthDate: person.birthDate,
+      notes: person.notes,
+      qrCodeValue: person.qrCodeValue,
+      accessCode: person.accessCode,
+      organizationId: person.organizationId,
+      createdAt: person.createdAt,
+      updatedAt: person.updatedAt,
+      deletedAt: person.deletedAt,
+    });
+  }
+
+  async findByDocumentAndOrganization(document: string, organizationId: string): Promise<PersonEntity | null> {
+    const person = await this.db.person.findFirst({
+      where: { document, organizationId, deletedAt: null },
+    });
+
+    if (!person) return null;
+
     return PersonEntity.create({
       id: person.id,
       name: person.name,
@@ -42,6 +71,9 @@ export class PrismaPersonRepository implements IPersonRepository {
       document: person.document,
       documentType: person.documentType as DocumentType | null,
       phone: person.phone,
+      jobTitle: person.jobTitle,
+      birthDate: person.birthDate,
+      notes: person.notes,
       qrCodeValue: person.qrCodeValue,
       accessCode: person.accessCode,
       organizationId: person.organizationId,
@@ -82,6 +114,9 @@ export class PrismaPersonRepository implements IPersonRepository {
         document: data.document,
         documentType: data.documentType,
         phone: data.phone,
+        jobTitle: data.jobTitle,
+        birthDate: data.birthDate,
+        notes: data.notes,
         qrCodeValue: data.qrCodeValue,
         accessCode: data.accessCode,
         organizationId: data.organizationId,
@@ -95,6 +130,9 @@ export class PrismaPersonRepository implements IPersonRepository {
       document: person.document,
       documentType: person.documentType as DocumentType | null,
       phone: person.phone,
+      jobTitle: person.jobTitle,
+      birthDate: person.birthDate,
+      notes: person.notes,
       qrCodeValue: person.qrCodeValue,
       accessCode: person.accessCode,
       organizationId: person.organizationId,
@@ -113,6 +151,9 @@ export class PrismaPersonRepository implements IPersonRepository {
         document: data.document,
         documentType: data.documentType,
         phone: data.phone,
+        jobTitle: data.jobTitle,
+        birthDate: data.birthDate,
+        notes: data.notes,
         qrCodeValue: data.qrCodeValue,
         accessCode: data.accessCode,
       },
@@ -125,6 +166,9 @@ export class PrismaPersonRepository implements IPersonRepository {
       document: person.document,
       documentType: person.documentType as DocumentType | null,
       phone: person.phone,
+      jobTitle: person.jobTitle,
+      birthDate: person.birthDate,
+      notes: person.notes,
       qrCodeValue: person.qrCodeValue,
       accessCode: person.accessCode,
       organizationId: person.organizationId,

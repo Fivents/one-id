@@ -6,6 +6,9 @@ export interface CreatePersonData {
   document?: string | null;
   documentType?: DocumentType | null;
   phone?: string | null;
+  jobTitle?: string | null;
+  birthDate?: Date | null;
+  notes?: string | null;
   qrCodeValue?: string | null;
   accessCode?: string | null;
   organizationId: string;
@@ -17,6 +20,9 @@ export interface UpdatePersonData {
   document?: string | null;
   documentType?: DocumentType | null;
   phone?: string | null;
+  jobTitle?: string | null;
+  birthDate?: Date | null;
+  notes?: string | null;
   qrCodeValue?: string | null;
   accessCode?: string | null;
 }
@@ -24,6 +30,7 @@ export interface UpdatePersonData {
 export interface IPersonRepository {
   findById(id: string): Promise<PersonEntity | null>;
   findByEmailAndOrganization(email: string, organizationId: string): Promise<PersonEntity | null>;
+  findByDocumentAndOrganization(document: string, organizationId: string): Promise<PersonEntity | null>;
   findByOrganization(organizationId: string): Promise<PersonEntity[]>;
   create(data: CreatePersonData): Promise<PersonEntity>;
   update(id: string, data: UpdatePersonData): Promise<PersonEntity>;

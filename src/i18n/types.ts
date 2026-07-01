@@ -57,6 +57,9 @@ export type TranslationSchema = {
       all: string;
       company: string;
       jobTitle: string;
+      department: string;
+      birthDate: string;
+      notes: string;
       createdAt: string;
       description: string;
       address: string;
@@ -1070,6 +1073,10 @@ export type TranslationSchema = {
       removing: string;
       linking: string;
       linkAction: string;
+      // Import/Export
+      downloadTemplate: string;
+      importSpreadsheet: string;
+      exportSpreadsheet: string;
     };
     adminOrganizations: Record<string, string>;
     adminOrganizationsTable: Record<string, string>;

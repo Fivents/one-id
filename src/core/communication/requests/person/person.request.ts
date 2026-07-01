@@ -8,6 +8,9 @@ export const createPersonRequestSchema = z.object({
   document: z.string().nullable().optional(),
   documentType: documentTypeSchema.nullable().optional(),
   phone: z.string().nullable().optional(),
+  jobTitle: z.string().nullable().optional(),
+  birthDate: z.date().nullable().optional(),
+  notes: z.string().nullable().optional(),
   qrCodeValue: z.string().min(1).nullable().optional(),
   accessCode: z.string().min(1).nullable().optional(),
   organizationId: z.string().min(1, 'Organization ID is required.'),
@@ -21,25 +24,33 @@ export const updatePersonRequestSchema = z.object({
   document: z.string().nullable().optional(),
   documentType: documentTypeSchema.nullable().optional(),
   phone: z.string().nullable().optional(),
+  jobTitle: z.string().nullable().optional(),
+  birthDate: z.date().nullable().optional(),
+  notes: z.string().nullable().optional(),
   qrCodeValue: z.string().min(1).nullable().optional(),
   accessCode: z.string().min(1).nullable().optional(),
 });
 
 export type UpdatePersonRequest = z.infer<typeof updatePersonRequestSchema>;
 
+const importPersonItemSchema = z.object({
+  name: z.string().min(1, 'Name is required.'),
+  email: z.email('Invalid email address.').nullable().optional(),
+  document: z.string().nullable().optional(),
+  documentType: documentTypeSchema.nullable().optional(),
+  phone: z.string().nullable().optional(),
+  jobTitle: z.string().nullable().optional(),
+  birthDate: z.date().nullable().optional(),
+  notes: z.string().nullable().optional(),
+}).refine(
+  (data) => data.email || data.document,
+  { message: 'Email or CPF is required.' },
+);
+
 export const importPersonsRequestSchema = z.object({
   organizationId: z.string().min(1, 'Organization ID is required.'),
-  persons: z.array(
-    z.object({
-      name: z.string().min(1, 'Name is required.'),
-      email: z.email('Invalid email address.'),
-      document: z.string().nullable().optional(),
-      documentType: documentTypeSchema.nullable().optional(),
-      phone: z.string().nullable().optional(),
-      qrCodeValue: z.string().min(1).nullable().optional(),
-      accessCode: z.string().min(1).nullable().optional(),
-    }),
-  ),
+  overwrite: z.boolean().default(false),
+  persons: z.array(importPersonItemSchema),
 });
 
 export type ImportPersonsRequest = z.infer<typeof importPersonsRequestSchema>;

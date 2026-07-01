@@ -239,17 +239,7 @@ export function LoginForm() {
         </form>
       )}
 
-      {/* ── Separator: Totem Access Code ─────────────────── */}
-      {step !== 'totem' && (
-        <CardContent className="pt-0">
-          <div className="relative">
-            <Separator />
-            <span className="bg-card text-muted-foreground absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 px-2 text-xs">
-              {t('common.actions.or')}
-            </span>
-          </div>
-        </CardContent>
-      )}
+      {/* ── Separator: Totem Access Code (removido temporariamente) ── */}
 
       {/* ── Totem Access Code ────────────────────────────── */}
       {step === 'totem' ? (
@@ -291,21 +281,7 @@ export function LoginForm() {
             </Button>
           </CardContent>
         </form>
-      ) : (
-        <CardFooter>
-          <Button
-            onClick={() => {
-              setStep('totem');
-              setApiError('');
-            }}
-            className="w-full"
-            variant="outline"
-            disabled={isSubmitting}
-          >
-            {t('auth.login.loginAsTotemButton')}
-          </Button>
-        </CardFooter>
-      )}
+      ) : null}
     </Card>
   );
 }

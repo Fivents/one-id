@@ -280,6 +280,39 @@ class EventsClientService extends BaseClient {
   ): Promise<ApiResponse<PrintConfigFullResponse>> {
     return this.patch(`/events/${encodeURIComponent(eventId)}/print-config`, data);
   }
+
+  async exportEventParticipants(
+    eventId: string,
+  ): Promise<ApiResponse<Record<string, unknown>[]>> {
+    return this.get(`/events/${encodeURIComponent(eventId)}/participants/export`);
+  }
+
+  async importEventParticipants(data: {
+    eventId: string;
+    overwrite: boolean;
+    participants: Array<{
+      name: string;
+      email?: string | null;
+      document?: string | null;
+      phone?: string | null;
+      jobTitle?: string | null;
+      birthDate?: string | null;
+      notes?: string | null;
+      company?: string | null;
+      accessCode?: string | null;
+      qrCodeValue?: string | null;
+    }>;
+  }): Promise<
+    ApiResponse<{
+      created: number;
+      updated: number;
+      skipped: string[];
+      errors: { row: number; message: string }[];
+    }>
+  > {
+    const { eventId, ...payload } = data;
+    return this.post(`/events/${encodeURIComponent(eventId)}/participants/import`, payload);
+  }
 }
 
 export const eventsClient = new EventsClientService();
