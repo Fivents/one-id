@@ -1,7 +1,6 @@
 package com.oneid.totem.presentation.screens.printer
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -17,9 +16,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.oneid.totem.data.print.PrinterStatus
+import com.oneid.totem.domain.repository.LabelLayout
+import com.oneid.totem.domain.repository.PrintConfig
 import com.oneid.totem.presentation.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -96,25 +96,30 @@ fun PrinterSetupScreen(
             }
 
             item {
-                HorizontalDivider(color = Outline.copy(alpha = 0.3f))
-            }
-
-            item {
-                ManualIpSection(
-                    ip = uiState.manualIp,
-                    onIpChanged = viewModel::onManualIpChanged,
-                    onConnect = viewModel::connectManual,
-                    disabled = uiState.isConnecting,
-                )
-            }
-
-            item {
                 TestPrintSection(
                     isTesting = uiState.isTesting,
                     testResult = uiState.testResult,
                     hasPrinter = (uiState.connectedIp ?: uiState.savedIp).isNotBlank(),
                     onTestPrint = viewModel::testPrint,
                 )
+            }
+
+            item {
+                uiState.printConfig?.let { config ->
+                    BadgePreviewSection(
+                        paperWidthMm = config.paperWidth,
+                        paperHeightMm = config.paperHeight,
+                        orientation = uiState.orientation,
+                        labelLayout = uiState.labelLayout,
+                        showQrCode = config.showQrCode,
+                        showAccessCode = config.showAccessCode,
+                        fontSizeName = config.fontSizeName,
+                        fontSizeMeta = config.fontSizeMeta,
+                        eventName = "EVENTO",
+                        onOrientationChange = viewModel::setOrientation,
+                        onLabelLayoutChange = viewModel::setLabelLayout,
+                    )
+                }
             }
 
             item {
@@ -328,73 +333,6 @@ private fun PrinterCard(
                     tint = Primary,
                     modifier = Modifier.size(20.dp),
                 )
-            }
-        }
-    }
-}
-
-@Composable
-private fun ManualIpSection(
-    ip: String,
-    onIpChanged: (String) -> Unit,
-    onConnect: () -> Unit,
-    disabled: Boolean,
-) {
-    Card(
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Surface),
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Column(modifier = Modifier.padding(20.dp)) {
-            Text(
-                "Conexão Manual",
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                color = OnSurface,
-            )
-            Spacer(Modifier.height(4.dp))
-            Text(
-                "Digite o IP da impressora manualmente",
-                style = MaterialTheme.typography.bodySmall,
-                color = OnSurfaceVariant,
-            )
-            Spacer(Modifier.height(12.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                OutlinedTextField(
-                    value = ip,
-                    onValueChange = onIpChanged,
-                    label = { Text("IP da Impressora") },
-                    placeholder = { Text("192.168.1.100") },
-                    singleLine = true,
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Primary,
-                        unfocusedBorderColor = Outline,
-                        cursorColor = Primary,
-                        focusedTextColor = OnSurface,
-                        unfocusedTextColor = OnSurface,
-                        focusedContainerColor = SurfaceVariant,
-                        unfocusedContainerColor = SurfaceVariant,
-                    ),
-                )
-                Spacer(Modifier.width(8.dp))
-                Button(
-                    onClick = onConnect,
-                    enabled = ip.isNotBlank() && !disabled,
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Primary),
-                    modifier = Modifier.height(56.dp),
-                ) {
-                    if (disabled) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(18.dp),
-                            color = OnPrimary,
-                            strokeWidth = 2.dp,
-                        )
-                    } else {
-                        Text("Conectar", color = OnPrimary)
-                    }
-                }
             }
         }
     }

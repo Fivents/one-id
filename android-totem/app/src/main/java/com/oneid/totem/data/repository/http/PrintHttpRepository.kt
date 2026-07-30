@@ -87,6 +87,7 @@ class PrintHttpRepository @Inject constructor(
                 showAccessCode = body.showAccessCode ?: false,
                 fontSizeName = body.fontSizeName ?: 13,
                 fontSizeMeta = body.fontSizeMeta ?: 9,
+                orientation = body.orientation ?: "PORTRAIT",
             )
         } catch (_: Exception) {
             defaultConfig()
@@ -102,5 +103,6 @@ class PrintHttpRepository @Inject constructor(
         showAccessCode = false,
         fontSizeName = 13,
         fontSizeMeta = 9,
+        orientation = "PORTRAIT",
     )
 }

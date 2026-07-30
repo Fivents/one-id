@@ -11,6 +11,9 @@ import com.oneid.totem.data.print.PrintJobResult
 import com.oneid.totem.data.print.PrinterConfigRepository
 import com.oneid.totem.data.print.PrinterConnectionManager
 import com.oneid.totem.data.print.PrinterStatus
+import com.oneid.totem.domain.repository.LabelLayout
+import com.oneid.totem.domain.repository.PrintConfig
+import com.oneid.totem.domain.repository.PrintRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -39,6 +42,9 @@ data class PrinterSetupUiState(
     val manualIp: String = "",
     val isTesting: Boolean = false,
     val testResult: String? = null,
+    val printConfig: PrintConfig? = null,
+    val orientation: String = "PORTRAIT",
+    val labelLayout: LabelLayout = LabelLayout.STANDARD,
 )
 
 @HiltViewModel
@@ -47,6 +53,7 @@ class PrinterSetupViewModel @Inject constructor(
     private val printerConfigRepository: PrinterConfigRepository,
     private val printerConnectionManager: PrinterConnectionManager,
     private val badgeRenderer: BadgeRenderer,
+    private val printRepository: PrintRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(PrinterSetupUiState())
@@ -55,10 +62,37 @@ class PrinterSetupViewModel @Inject constructor(
     init {
         printerConfigRepository.load()
         val ip = printerConfigRepository.printerIpValue
+        val savedOrientation = printerConfigRepository.orientationValue
+        val savedLabelLayout = printerConfigRepository.labelLayoutValue
         _uiState.update {
-            it.copy(savedIp = ip, manualIp = ip)
+            it.copy(
+                savedIp = ip,
+                manualIp = ip,
+                orientation = savedOrientation,
+                labelLayout = savedLabelLayout,
+            )
         }
         checkCurrentConnection(ip)
+        fetchPrintConfig()
+    }
+
+    private fun fetchPrintConfig() {
+        viewModelScope.launch {
+            try {
+                val config = withContext(Dispatchers.IO) {
+                    printRepository.getPrintConfig()
+                }
+                _uiState.update {
+                    it.copy(
+                        printConfig = config,
+                        orientation = config.orientation,
+                    )
+                }
+                printerConfigRepository.setOrientation(config.orientation)
+            } catch (_: Exception) {
+                // Silently use defaults if API fetch fails
+            }
+        }
     }
 
     private fun checkCurrentConnection(ip: String) {
@@ -175,6 +209,17 @@ class PrinterSetupViewModel @Inject constructor(
         }
     }
 
+    fun setOrientation(orientation: String) {
+        val normalized = if (orientation == "LANDSCAPE") "LANDSCAPE" else "PORTRAIT"
+        _uiState.update { it.copy(orientation = normalized) }
+        printerConfigRepository.setOrientation(normalized)
+    }
+
+    fun setLabelLayout(layout: LabelLayout) {
+        _uiState.update { it.copy(labelLayout = layout) }
+        printerConfigRepository.setLabelLayout(layout)
+    }
+
     fun testPrint() {
         viewModelScope.launch {
             _uiState.update { it.copy(isTesting = true, testResult = null) }
@@ -186,6 +231,7 @@ class PrinterSetupViewModel @Inject constructor(
                 return@launch
             }
             try {
+                val labelLayout = _uiState.value.labelLayout
                 val bitmap = badgeRenderer.renderFromData(
                     name = "TESTE DE IMPRESSÃO",
                     company = "ONE-ID",
@@ -195,6 +241,7 @@ class PrinterSetupViewModel @Inject constructor(
                     paperWidthMm = 62.0,
                     paperHeightMm = 100.0,
                     dpi = 300,
+                    labelLayout = labelLayout,
                 )
                 val result = printerConnectionManager.printWithReconnect(bitmap, ip, 1)
                 _uiState.update {

@@ -533,7 +533,7 @@ public final class DaggerOneIdApp_HiltComponents_SingletonC {
           return (T) new MethodViewModel(singletonCImpl.authHttpRepositoryProvider.get(), singletonCImpl.printerConfigRepositoryProvider.get(), singletonCImpl.modelDownloaderProvider.get());
 
           case 5: // com.oneid.totem.presentation.screens.printer.PrinterSetupViewModel 
-          return (T) new PrinterSetupViewModel(ApplicationContextModule_ProvideContextFactory.provideContext(singletonCImpl.applicationContextModule), singletonCImpl.printerConfigRepositoryProvider.get(), singletonCImpl.providePrinterConnectionManagerProvider.get(), singletonCImpl.badgeRendererProvider.get());
+          return (T) new PrinterSetupViewModel(ApplicationContextModule_ProvideContextFactory.provideContext(singletonCImpl.applicationContextModule), singletonCImpl.printerConfigRepositoryProvider.get(), singletonCImpl.providePrinterConnectionManagerProvider.get(), singletonCImpl.badgeRendererProvider.get(), singletonCImpl.printHttpRepositoryProvider.get());
 
           case 6: // com.oneid.totem.presentation.screens.checkin.qr.QrCheckInViewModel 
           return (T) new QrCheckInViewModel(singletonCImpl.checkInHttpRepositoryProvider.get());
@@ -744,7 +744,7 @@ public final class DaggerOneIdApp_HiltComponents_SingletonC {
           return (T) new BadgeRenderer();
 
           case 10: // com.oneid.totem.data.print.PrinterConfigRepository 
-          return (T) new PrinterConfigRepository(singletonCImpl.tokenStorageProvider.get());
+          return (T) new PrinterConfigRepository(singletonCImpl.tokenStorageProvider.get(), singletonCImpl.totemPreferencesProvider.get());
 
           case 11: // com.oneid.totem.data.print.PrinterConnectionManager 
           return (T) PrinterConfigModule_ProvidePrinterConnectionManagerFactory.providePrinterConnectionManager(singletonCImpl.brotherSdkPrinterProvider.get());

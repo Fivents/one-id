@@ -7,6 +7,7 @@ import android.graphics.Paint
 import android.graphics.Typeface
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
+import com.oneid.totem.domain.repository.LabelLayout
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
@@ -24,6 +25,7 @@ data class BadgeElements(
     val showQrCode: Boolean = true,
     val showAccessCode: Boolean = false,
     val eventName: String = "",
+    val labelLayout: LabelLayout = LabelLayout.STANDARD,
 ) {
     fun isNotEmpty(): Boolean = participantName.isNotBlank()
 }
@@ -64,6 +66,7 @@ class BadgeRenderer @Inject constructor() {
         paperWidthMm: Double,
         paperHeightMm: Double,
         dpi: Int,
+        labelLayout: LabelLayout = LabelLayout.STANDARD,
     ): Bitmap = withContext(Dispatchers.Default) {
         val rollWidthMm = paperHeightMm
         val maxFeedMm = paperWidthMm
@@ -86,6 +89,7 @@ class BadgeRenderer @Inject constructor() {
                 showQrCode = showQrCode,
                 showAccessCode = showAccessCode,
                 eventName = eventName,
+                labelLayout = labelLayout,
             ),
             widthPx = rollWidthPx,
             heightPx = maxFeedPx,
@@ -108,6 +112,10 @@ class BadgeRenderer @Inject constructor() {
         heightPx: Int,
         dpi: Int,
     ) {
+        if (elements.labelLayout == LabelLayout.COMPACT) {
+            drawBadgeCompact(canvas, elements, widthPx, heightPx, dpi)
+            return
+        }
         val m = mmToPixels(2.5, dpi)
         val showQr = elements.showQrCode && !elements.qrCodeValue.isNullOrBlank()
         val cssScale = dpi / 96f * 2.2f
@@ -214,6 +222,108 @@ class BadgeRenderer @Inject constructor() {
         }
     }
 
+    private fun drawBadgeCompact(
+        canvas: Canvas,
+        elements: BadgeElements,
+        widthPx: Int,
+        heightPx: Int,
+        dpi: Int,
+    ) {
+        val m = mmToPixels(2.5, dpi)
+        val showQr = elements.showQrCode && !elements.qrCodeValue.isNullOrBlank()
+        val cssScale = dpi / 96f * 2.2f
+
+        val brandPaint = Paint().apply {
+            color = Color.BLACK
+            textSize = 7f * cssScale
+            typeface = Typeface.create("sans-serif", Typeface.BOLD)
+            isAntiAlias = true
+        }
+        val namePaint = Paint().apply {
+            color = Color.BLACK
+            textSize = 13f * cssScale
+            typeface = Typeface.create("sans-serif", Typeface.BOLD)
+            isAntiAlias = true
+        }
+        val metaPaint = Paint().apply {
+            color = Color.BLACK
+            textSize = 9f * cssScale
+            typeface = Typeface.create("sans-serif", Typeface.NORMAL)
+            isAntiAlias = true
+        }
+        val tsPaint = Paint().apply {
+            color = Color.BLACK
+            textSize = 3.5f * cssScale
+            typeface = Typeface.create("sans-serif", Typeface.NORMAL)
+            isAntiAlias = true
+        }
+        val codeValuePaint = Paint().apply {
+            color = Color.BLACK
+            textSize = 9f * cssScale
+            typeface = Typeface.create("sans-serif", Typeface.BOLD)
+            isAntiAlias = true
+        }
+
+        val gapTight = mmToPixels(0.4, dpi).toFloat()
+        val textL = m.toFloat()
+        val hasTitle = !elements.jobTitle.isNullOrBlank()
+        val hasCompany = !elements.company.isNullOrBlank()
+
+        val qrMargin = mmToPixels(1.0, dpi).coerceAtLeast(3)
+        val qrSize: Int
+        if (showQr) {
+            qrSize = mmToPixels(16.0, dpi).coerceIn(60, (widthPx * 0.30f).toInt())
+        } else {
+            qrSize = 0
+        }
+
+        val textAreaWidth = if (showQr) {
+            (widthPx - m - qrSize - qrMargin - mmToPixels(0.4, dpi)).coerceAtLeast(40)
+        } else {
+            widthPx - m * 2
+        }
+
+        var y = m.toFloat()
+
+        val headerText = if (elements.eventName.isNotBlank()) "ONEID - ${elements.eventName.uppercase()}" else "ONEID"
+        y = drawTextAt(canvas, headerText, brandPaint, textL, y + brandPaint.textSize)
+        y += gapTight * 1.5f
+
+        y = drawTextWrappedMaxCompact(canvas, elements.participantName, namePaint, textL, y + namePaint.textSize, textAreaWidth, 2)
+
+        if (hasTitle || hasCompany) {
+            val metaText = buildString {
+                if (hasTitle) append(elements.jobTitle)
+                if (hasTitle && hasCompany) append(" – ")
+                if (hasCompany) append(elements.company)
+            }
+            val metaTextClamped = if (metaPaint.measureText(metaText) > textAreaWidth) {
+                truncateLineNoEllipsis(metaText, metaPaint, textAreaWidth)
+            } else metaText
+            drawTextAt(canvas, metaTextClamped, metaPaint, textL, y + metaPaint.textSize)
+            y += metaPaint.textSize + gapTight
+        }
+
+        if (elements.showAccessCode && !elements.accessCode.isNullOrBlank()) {
+            val codeText = "CÓDIGO: ${elements.accessCode}"
+            drawTextAt(canvas, codeText, codeValuePaint, textL, y + codeValuePaint.textSize)
+            y += codeValuePaint.textSize + gapTight
+        }
+
+        y += gapTight * 1.5f
+
+        val timestamp = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(Date())
+        drawTextAt(canvas, timestamp, tsPaint, textL, y + tsPaint.textSize)
+
+        val contentTop = m + brandPaint.textSize + (gapTight * 1.5f)
+
+        if (showQr) {
+            val qrX = widthPx - qrSize - qrMargin
+            val qrY = contentTop.toInt()
+            drawQrCode(canvas, elements.qrCodeValue!!, qrX, qrY, qrSize)
+        }
+    }
+
     private fun trimBitmap(bitmap: Bitmap, marginPx: Int): Bitmap {
         val w = bitmap.width
         val h = bitmap.height
@@ -283,6 +393,29 @@ class BadgeRenderer @Inject constructor() {
         return currentY
     }
 
+    private fun drawTextWrappedMaxCompact(
+        canvas: Canvas,
+        text: String,
+        paint: Paint,
+        x: Float,
+        y: Float,
+        maxWidth: Int,
+        maxLines: Int,
+    ): Float {
+        val lines = autoWrap(text, paint, maxWidth)
+        var currentY = y
+        for (i in 0 until minOf(lines.size, maxLines)) {
+            val line = if (i == maxLines - 1 && lines.size > maxLines) {
+                truncateLineNoEllipsis(lines[i], paint, maxWidth)
+            } else {
+                lines[i]
+            }
+            canvas.drawText(line, x, currentY, paint)
+            currentY += paint.textSize * 1.15f
+        }
+        return currentY
+    }
+
     private fun truncateLine(line: String, paint: Paint, maxWidth: Int): String {
         val ellipsis = "..."
         if (paint.measureText(line) <= maxWidth) return line
@@ -291,6 +424,15 @@ class BadgeRenderer @Inject constructor() {
             result = result.dropLast(1)
         }
         return "$result$ellipsis"
+    }
+
+    private fun truncateLineNoEllipsis(line: String, paint: Paint, maxWidth: Int): String {
+        if (paint.measureText(line) <= maxWidth) return line
+        var result = line
+        while (result.isNotEmpty() && paint.measureText(result) > maxWidth) {
+            result = result.dropLast(1)
+        }
+        return result
     }
 
     private fun autoWrap(text: String, paint: Paint, maxWidth: Int): List<String> {

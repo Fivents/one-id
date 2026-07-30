@@ -2,6 +2,8 @@ package com.oneid.totem.domain.repository
 
 import com.oneid.totem.domain.model.PrintData
 
+enum class LabelLayout { STANDARD, COMPACT }
+
 sealed class PrintResult {
     data class Success(val data: PrintData) : PrintResult()
     data class Error(val message: String) : PrintResult()
@@ -21,4 +23,6 @@ data class PrintConfig(
     val showAccessCode: Boolean,
     val fontSizeName: Int,
     val fontSizeMeta: Int,
+    val orientation: String = "PORTRAIT",
+    val labelLayout: LabelLayout = LabelLayout.STANDARD,
 )

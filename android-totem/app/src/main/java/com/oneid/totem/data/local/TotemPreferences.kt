@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
+import com.oneid.totem.domain.repository.LabelLayout
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -39,6 +40,18 @@ class TotemPreferences @Inject constructor(
     var printerIp: String
         get() = prefs.getString(KEY_PRINTER_IP, "") ?: ""
         set(value) = prefs.edit().putString(KEY_PRINTER_IP, value).apply()
+
+    var printerOrientation: String
+        get() = prefs.getString(KEY_PRINTER_ORIENTATION, "PORTRAIT") ?: "PORTRAIT"
+        set(value) = prefs.edit().putString(KEY_PRINTER_ORIENTATION, value).apply()
+
+    var printerLabelLayout: LabelLayout
+        get() = try {
+            LabelLayout.valueOf(prefs.getString(KEY_PRINTER_LABEL_LAYOUT, LabelLayout.STANDARD.name) ?: LabelLayout.STANDARD.name)
+        } catch (_: IllegalArgumentException) {
+            LabelLayout.STANDARD
+        }
+        set(value) = prefs.edit().putString(KEY_PRINTER_LABEL_LAYOUT, value.name).apply()
 
     var activeEventId: String
         get() = prefs.getString(KEY_ACTIVE_EVENT_ID, "") ?: ""
@@ -81,6 +94,8 @@ class TotemPreferences @Inject constructor(
         private const val KEY_TOTEM_ID = "totem_id"
         private const val KEY_TOTEM_NAME = "totem_name"
         private const val KEY_PRINTER_IP = "printer_ip"
+        private const val KEY_PRINTER_ORIENTATION = "printer_orientation"
+        private const val KEY_PRINTER_LABEL_LAYOUT = "printer_label_layout"
         private const val KEY_ACTIVE_EVENT_ID = "active_event_id"
         private const val KEY_EVENT_NAME = "event_name"
         private const val KEY_TOTEM_EVENT_SUB_ID = "totem_event_sub_id"
