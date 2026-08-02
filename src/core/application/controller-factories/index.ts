@@ -222,6 +222,12 @@ export {
   makeListLogsByUserController,
 } from './make-audit-log-controllers.factory';
 
+// Organization People Settings
+export {
+  makeGetOrganizationPeopleSettingsController,
+  makeUpdateOrganizationPeopleSettingsController,
+} from './make-organization-people-settings-controllers.factory';
+
 // Print Config
 export {
   makeAssociatePrintConfigController,

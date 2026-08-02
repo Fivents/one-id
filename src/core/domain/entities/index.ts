@@ -8,6 +8,7 @@ export * from './feature.entity';
 export * from './membership.entity';
 export * from './notification.entity';
 export * from './organization.entity';
+export * from './organization-people-settings.entity';
 export * from './person.entity';
 export * from './person-face.entity';
 export * from './plan.entity';

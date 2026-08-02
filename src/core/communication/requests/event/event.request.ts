@@ -1,6 +1,9 @@
 import { z } from 'zod/v4';
 
+import { codeSourceFieldOptions } from '../organization-people-settings';
+
 const eventStatusSchema = z.enum(['DRAFT', 'PUBLISHED', 'ACTIVE', 'COMPLETED', 'CANCELED']);
+const eventCodeSourceSchema = z.enum(codeSourceFieldOptions);
 
 const eventAddressDetailsSchema = z.object({
   formattedAddress: z.string().min(1),
@@ -31,6 +34,10 @@ export const createEventRequestSchema = z
     qrEnabled: z.boolean().default(false),
     codeEnabled: z.boolean().default(false),
     allowSelfRegistration: z.boolean().optional().default(false),
+    autoLinkNewPeople: z.boolean().optional().default(false),
+    // Null/omitted means "inherit the organization's default people-settings code source".
+    accessCodeSource: eventCodeSourceSchema.nullable().optional(),
+    qrCodeSource: eventCodeSourceSchema.nullable().optional(),
     labelPrintPromptEnabled: z.boolean().optional().default(true),
     labelPrintPromptTimeoutSeconds: z.number().int().min(10).max(60).optional().default(15),
     startsAt: z.coerce.date(),
@@ -58,6 +65,10 @@ export const updateEventRequestSchema = z
     qrEnabled: z.boolean().optional(),
     codeEnabled: z.boolean().optional(),
     allowSelfRegistration: z.boolean().optional(),
+    autoLinkNewPeople: z.boolean().optional(),
+    // Undefined = don't change; null = reset to "inherit organization default"; value = explicit override.
+    accessCodeSource: eventCodeSourceSchema.nullable().optional(),
+    qrCodeSource: eventCodeSourceSchema.nullable().optional(),
     labelPrintPromptEnabled: z.boolean().optional(),
     labelPrintPromptTimeoutSeconds: z.number().int().min(10).max(60).optional(),
     startsAt: z.coerce.date().optional(),

@@ -28,7 +28,11 @@ export function makeListPersonsUseCase(): ListPersonsUseCase {
 }
 
 export function makeImportPersonsUseCase(): ImportPersonsUseCase {
-  return new ImportPersonsUseCase(containerService.getPersonRepository());
+  return new ImportPersonsUseCase(
+    containerService.getPersonRepository(),
+    containerService.getEventRepository(),
+    containerService.getEventParticipantRepository(),
+  );
 }
 
 export function makeExportPersonsUseCase(): ExportPersonsUseCase {

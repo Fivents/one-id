@@ -104,6 +104,12 @@ export {
   makeUpdateEventUseCase,
 } from './make-event.factory';
 
+// Organization People Settings
+export {
+  makeGetOrganizationPeopleSettingsUseCase,
+  makeUpdateOrganizationPeopleSettingsUseCase,
+} from './make-organization-people-settings.factory';
+
 // Print Config
 export {
   makeAssociatePrintConfigUseCase,

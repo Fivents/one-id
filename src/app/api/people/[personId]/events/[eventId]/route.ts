@@ -27,9 +27,18 @@ export const POST = withAuth(
         return NextResponse.json({ error: 'Event not found for this organization.' }, { status: 404 });
       }
 
+      const person = await prisma.person.findUnique({
+        where: { id: personId },
+        select: { accessCode: true, accessCodeProvenance: true, qrCodeValue: true, qrCodeProvenance: true },
+      });
+
+      // Participants inherit the Person's own derived/manual code by default, so the code
+      // shown on the People page always matches the code used for this event's check-in.
       const credentialLength = await resolveTotemAccessCodeLength(prisma, event.organizationId);
-      const qrCodeValue = generateCheckInCredential(credentialLength);
-      const accessCode = generateCheckInCredential(credentialLength);
+      const qrCodeValue = person?.qrCodeValue ?? generateCheckInCredential(credentialLength);
+      const qrCodeProvenance = person?.qrCodeValue ? person.qrCodeProvenance : 'RANDOM';
+      const accessCode = person?.accessCode ?? generateCheckInCredential(credentialLength);
+      const accessCodeProvenance = person?.accessCode ? person.accessCodeProvenance : 'RANDOM';
 
       const existing = await prisma.eventParticipant.findFirst({
         where: { eventId, personId },
@@ -43,6 +52,8 @@ export const POST = withAuth(
             data: {
               qrCodeValue,
               accessCode,
+              accessCodeProvenance,
+              qrCodeProvenance,
               deletedAt: null,
             },
           });
@@ -59,6 +70,8 @@ export const POST = withAuth(
           eventId,
           qrCodeValue,
           accessCode,
+          accessCodeProvenance,
+          qrCodeProvenance,
         },
       });
 

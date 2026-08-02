@@ -1,5 +1,5 @@
 import type { CreateEventData, IEventRepository, UpdateEventData } from '@/core/domain/contracts';
-import { EventEntity, type EventStatus } from '@/core/domain/entities';
+import { type CodeSourceField, EventEntity, type EventStatus } from '@/core/domain/entities';
 import { type EventAddress, normalizeEventAddress } from '@/core/domain/value-objects';
 import { Prisma, type PrismaClient } from '@/generated/prisma/client';
 
@@ -44,6 +44,9 @@ export class PrismaEventRepository implements IEventRepository {
       qrEnabled: event.qrEnabled,
       codeEnabled: event.codeEnabled,
       allowSelfRegistration: event.allowSelfRegistration,
+      autoLinkNewPeople: event.autoLinkNewPeople,
+      accessCodeSource: event.accessCodeSource as CodeSourceField | null,
+      qrCodeSource: event.qrCodeSource as CodeSourceField | null,
       labelPrintPromptEnabled: event.labelPrintPromptEnabled,
       labelPrintPromptTimeoutSeconds: event.labelPrintPromptTimeoutSeconds,
       startsAt: event.startsAt,
@@ -76,6 +79,9 @@ export class PrismaEventRepository implements IEventRepository {
         qrEnabled: event.qrEnabled,
         codeEnabled: event.codeEnabled,
         allowSelfRegistration: event.allowSelfRegistration,
+        autoLinkNewPeople: event.autoLinkNewPeople,
+        accessCodeSource: event.accessCodeSource as CodeSourceField | null,
+        qrCodeSource: event.qrCodeSource as CodeSourceField | null,
         labelPrintPromptEnabled: event.labelPrintPromptEnabled,
         labelPrintPromptTimeoutSeconds: event.labelPrintPromptTimeoutSeconds,
         startsAt: event.startsAt,
@@ -103,6 +109,9 @@ export class PrismaEventRepository implements IEventRepository {
         qrEnabled: data.qrEnabled,
         codeEnabled: data.codeEnabled,
         allowSelfRegistration: data.allowSelfRegistration,
+        autoLinkNewPeople: data.autoLinkNewPeople,
+        accessCodeSource: data.accessCodeSource,
+        qrCodeSource: data.qrCodeSource,
         labelPrintPromptEnabled: data.labelPrintPromptEnabled,
         labelPrintPromptTimeoutSeconds: data.labelPrintPromptTimeoutSeconds,
         startsAt: data.startsAt,
@@ -125,6 +134,9 @@ export class PrismaEventRepository implements IEventRepository {
       qrEnabled: event.qrEnabled,
       codeEnabled: event.codeEnabled,
       allowSelfRegistration: event.allowSelfRegistration,
+      autoLinkNewPeople: event.autoLinkNewPeople,
+      accessCodeSource: event.accessCodeSource as CodeSourceField | null,
+      qrCodeSource: event.qrCodeSource as CodeSourceField | null,
       labelPrintPromptEnabled: event.labelPrintPromptEnabled,
       labelPrintPromptTimeoutSeconds: event.labelPrintPromptTimeoutSeconds,
       startsAt: event.startsAt,
@@ -152,6 +164,9 @@ export class PrismaEventRepository implements IEventRepository {
         qrEnabled: data.qrEnabled,
         codeEnabled: data.codeEnabled,
         allowSelfRegistration: data.allowSelfRegistration,
+        autoLinkNewPeople: data.autoLinkNewPeople,
+        accessCodeSource: data.accessCodeSource,
+        qrCodeSource: data.qrCodeSource,
         labelPrintPromptEnabled: data.labelPrintPromptEnabled,
         labelPrintPromptTimeoutSeconds: data.labelPrintPromptTimeoutSeconds,
         startsAt: data.startsAt,
@@ -173,6 +188,9 @@ export class PrismaEventRepository implements IEventRepository {
       qrEnabled: event.qrEnabled,
       codeEnabled: event.codeEnabled,
       allowSelfRegistration: event.allowSelfRegistration,
+      autoLinkNewPeople: event.autoLinkNewPeople,
+      accessCodeSource: event.accessCodeSource as CodeSourceField | null,
+      qrCodeSource: event.qrCodeSource as CodeSourceField | null,
       labelPrintPromptEnabled: event.labelPrintPromptEnabled,
       labelPrintPromptTimeoutSeconds: event.labelPrintPromptTimeoutSeconds,
       startsAt: event.startsAt,

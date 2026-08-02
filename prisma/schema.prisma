@@ -141,6 +141,21 @@ enum AuditAction {
   SUBSCRIPTION_CREATED
   SUBSCRIPTION_UPDATED
   SUBSCRIPTION_DELETED
+  EVENT_AUTO_LINK_BACKFILL
+  PEOPLE_CODE_RECALCULATED
+}
+
+enum CodeSourceField {
+  NONE
+  DOCUMENT
+  PHONE
+  EMAIL
+}
+
+enum CodeProvenance {
+  MANUAL
+  RANDOM
+  DERIVED
 }
 
 // ── Models ─────────────────────────────────────────────────────────
@@ -166,8 +181,25 @@ model Organization {
   people                         Person[]
   auditLogs                      AuditLog[]
   planChangeRequests             PlanChangeRequest[]
+  peopleSettings                 OrganizationPeopleSettings?
 
   @@map("organizations")
+}
+
+model OrganizationPeopleSettings {
+  id String @id @default(uuid())
+
+  organizationId String @unique @map("organization_id")
+
+  accessCodeSource CodeSourceField @default(NONE) @map("access_code_source")
+  qrCodeSource     CodeSourceField @default(NONE) @map("qr_code_source")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("organization_people_settings")
 }
 
 model User {
@@ -264,6 +296,13 @@ model Event {
   codeEnabled Boolean @default(false) @map("code_enabled")
 
   allowSelfRegistration Boolean @default(false) @map("allow_self_registration")
+
+  autoLinkNewPeople Boolean @default(false) @map("auto_link_new_people")
+
+  // Per-event override of the organization's people-settings code sources. Null means
+  // "inherit the organization default" — see OrganizationPeopleSettings.
+  accessCodeSource CodeSourceField? @map("access_code_source")
+  qrCodeSource     CodeSourceField? @map("qr_code_source")
 
   labelPrintPromptEnabled        Boolean @default(true) @map("label_print_prompt_enabled")
   labelPrintPromptTimeoutSeconds Int     @default(15) @map("label_print_prompt_timeout_seconds")
@@ -438,6 +477,8 @@ model Person {
   notes        String?
   qrCodeValue  String?       @map("qr_code_value")
   accessCode   String?       @map("access_code")
+  accessCodeProvenance CodeProvenance @default(RANDOM) @map("access_code_provenance")
+  qrCodeProvenance     CodeProvenance @default(RANDOM) @map("qr_code_provenance")
 
   organizationId String @map("organization_id")
 
@@ -506,6 +547,8 @@ model EventParticipant {
   qrCodeValue String? @map("qr_code_value")
   accessCode  String? @map("access_code")
   useDocumentAsAccessCode Boolean @default(false) @map("use_document_as_access_code")
+  accessCodeProvenance CodeProvenance @default(RANDOM) @map("access_code_provenance")
+  qrCodeProvenance     CodeProvenance @default(RANDOM) @map("qr_code_provenance")
 
   personId String @map("person_id")
   eventId  String @map("event_id")

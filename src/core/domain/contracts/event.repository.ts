@@ -1,4 +1,5 @@
 import type { EventEntity, EventStatus } from '../entities/event.entity';
+import type { CodeSourceField } from '../entities/organization-people-settings.entity';
 import type { EventAddress } from '../value-objects';
 
 export interface CreateEventData {
@@ -13,6 +14,9 @@ export interface CreateEventData {
   qrEnabled?: boolean;
   codeEnabled?: boolean;
   allowSelfRegistration?: boolean;
+  autoLinkNewPeople?: boolean;
+  accessCodeSource?: CodeSourceField | null;
+  qrCodeSource?: CodeSourceField | null;
   labelPrintPromptEnabled?: boolean;
   labelPrintPromptTimeoutSeconds?: number;
   startsAt: Date;
@@ -33,6 +37,9 @@ export interface UpdateEventData {
   qrEnabled?: boolean;
   codeEnabled?: boolean;
   allowSelfRegistration?: boolean;
+  autoLinkNewPeople?: boolean;
+  accessCodeSource?: CodeSourceField | null;
+  qrCodeSource?: CodeSourceField | null;
   labelPrintPromptEnabled?: boolean;
   labelPrintPromptTimeoutSeconds?: number;
   startsAt?: Date;

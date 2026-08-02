@@ -3,6 +3,7 @@ import { AppError, ErrorCode } from '@/core/errors';
 import type { EventAddress } from '../value-objects';
 
 import { BaseEntity } from './base.entity';
+import type { CodeSourceField } from './organization-people-settings.entity';
 
 export type EventStatus = 'DRAFT' | 'PUBLISHED' | 'ACTIVE' | 'COMPLETED' | 'CANCELED';
 
@@ -19,6 +20,10 @@ export interface EventProps {
   qrEnabled: boolean;
   codeEnabled: boolean;
   allowSelfRegistration: boolean;
+  autoLinkNewPeople: boolean;
+  // Null means "inherit the organization's default people-settings code source".
+  accessCodeSource?: CodeSourceField | null;
+  qrCodeSource?: CodeSourceField | null;
   labelPrintPromptEnabled: boolean;
   labelPrintPromptTimeoutSeconds: number;
   startsAt: Date;
@@ -116,6 +121,18 @@ export class EventEntity extends BaseEntity {
 
   get allowSelfRegistration(): boolean {
     return this.props.allowSelfRegistration;
+  }
+
+  get autoLinkNewPeople(): boolean {
+    return this.props.autoLinkNewPeople;
+  }
+
+  get accessCodeSource(): CodeSourceField | null | undefined {
+    return this.props.accessCodeSource;
+  }
+
+  get qrCodeSource(): CodeSourceField | null | undefined {
+    return this.props.qrCodeSource;
   }
 
   get labelPrintPromptEnabled(): boolean {
@@ -220,6 +237,9 @@ export class EventEntity extends BaseEntity {
       qrEnabled: this.props.qrEnabled,
       codeEnabled: this.props.codeEnabled,
       allowSelfRegistration: this.props.allowSelfRegistration,
+      autoLinkNewPeople: this.props.autoLinkNewPeople,
+      accessCodeSource: this.props.accessCodeSource ?? null,
+      qrCodeSource: this.props.qrCodeSource ?? null,
       labelPrintPromptEnabled: this.props.labelPrintPromptEnabled,
       labelPrintPromptTimeoutSeconds: this.props.labelPrintPromptTimeoutSeconds,
       startsAt: this.props.startsAt,

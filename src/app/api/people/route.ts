@@ -2,16 +2,51 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { makeCreatePersonController } from '@/core/application/controller-factories';
 import { createPersonRequestSchema } from '@/core/communication/requests/person';
+import type { CodeProvenance } from '@/core/domain/entities';
 import { AppError } from '@/core/errors';
 import { withAuth, withRBAC } from '@/core/infrastructure/http/middlewares';
 import { toNextResponse } from '@/core/infrastructure/http/to-next-response';
 import { getUserAuth } from '@/core/infrastructure/http/types';
 import { prisma } from '@/core/infrastructure/prisma-client';
-import { generateCheckInCredential, resolveTotemAccessCodeLength } from '@/core/utils/checkin-credentials';
+import { resolveTotemAccessCodeLength } from '@/core/utils/checkin-credentials';
+import { type CodeSourceField, resolveDerivedCodeUnique } from '@/core/utils/derived-code';
 import { parseWithZod } from '@/core/utils/parse-with-zod';
 import { Prisma } from '@/generated/prisma/client';
 
 import { assertOrganizationAccess } from './_lib/access';
+
+async function linkPersonToAutoLinkEvents(
+  organizationId: string,
+  person: {
+    id: string;
+    accessCode: string;
+    accessCodeProvenance: CodeProvenance;
+    qrCodeValue: string;
+    qrCodeProvenance: CodeProvenance;
+  },
+): Promise<void> {
+  const autoLinkEvents = await prisma.event.findMany({
+    where: { organizationId, deletedAt: null, autoLinkNewPeople: true },
+    select: { id: true },
+  });
+
+  if (autoLinkEvents.length === 0) return;
+
+  await Promise.all(
+    autoLinkEvents.map((event) =>
+      prisma.eventParticipant.create({
+        data: {
+          personId: person.id,
+          eventId: event.id,
+          qrCodeValue: person.qrCodeValue,
+          accessCode: person.accessCode,
+          accessCodeProvenance: person.accessCodeProvenance,
+          qrCodeProvenance: person.qrCodeProvenance,
+        },
+      }),
+    ),
+  );
+}
 
 export const GET = withAuth(
   withRBAC(['PARTICIPANT_VIEW'], async (req: NextRequest) => {
@@ -113,6 +148,8 @@ export const GET = withAuth(
           phone: person.phone,
           qrCodeValue: person.qrCodeValue,
           accessCode: person.accessCode,
+          accessCodeProvenance: person.accessCodeProvenance,
+          qrCodeProvenance: person.qrCodeProvenance,
           organizationId: person.organizationId,
           createdAt: person.createdAt,
           updatedAt: person.updatedAt,
@@ -144,8 +181,45 @@ export const POST = withAuth(
       }
 
       const credentialLength = await resolveTotemAccessCodeLength(prisma, data.organizationId);
-      const qrCodeValue = data.qrCodeValue?.trim() || generateCheckInCredential(credentialLength);
-      const accessCode = data.accessCode?.trim().toUpperCase() || generateCheckInCredential(credentialLength);
+      const peopleSettings = await prisma.organizationPeopleSettings.findUnique({
+        where: { organizationId: data.organizationId },
+        select: { accessCodeSource: true, qrCodeSource: true },
+      });
+      const accessCodeSource: CodeSourceField = (peopleSettings?.accessCodeSource as CodeSourceField) ?? 'NONE';
+      const qrCodeSource: CodeSourceField = (peopleSettings?.qrCodeSource as CodeSourceField) ?? 'NONE';
+
+      const isCodeTaken = (field: 'accessCode' | 'qrCodeValue', value: string) =>
+        prisma.person
+          .findFirst({
+            where: { organizationId: data.organizationId, deletedAt: null, [field]: value },
+            select: { id: true },
+          })
+          .then((person) => person !== null);
+
+      const accessCodeResolved = await resolveDerivedCodeUnique(
+        {
+          explicitValue: data.accessCode,
+          sourceField: accessCodeSource,
+          document: data.document,
+          phone: data.phone,
+          email: data.email,
+          credentialLength,
+          uppercase: true,
+        },
+        (value) => isCodeTaken('accessCode', value),
+      );
+      const qrCodeResolved = await resolveDerivedCodeUnique(
+        {
+          explicitValue: data.qrCodeValue,
+          sourceField: qrCodeSource,
+          document: data.document,
+          phone: data.phone,
+          email: data.email,
+          credentialLength,
+          uppercase: false,
+        },
+        (value) => isCodeTaken('qrCodeValue', value),
+      );
 
       const existing = await prisma.person.findFirst({
         where: {
@@ -162,10 +236,20 @@ export const POST = withAuth(
             document: data.document ?? null,
             documentType: data.documentType ?? null,
             phone: data.phone ?? null,
-            qrCodeValue,
-            accessCode,
+            qrCodeValue: qrCodeResolved.value,
+            accessCode: accessCodeResolved.value,
+            accessCodeProvenance: accessCodeResolved.provenance,
+            qrCodeProvenance: qrCodeResolved.provenance,
             deletedAt: null,
           },
+        });
+
+        await linkPersonToAutoLinkEvents(data.organizationId, {
+          id: restored.id,
+          accessCode: restored.accessCode ?? accessCodeResolved.value,
+          accessCodeProvenance: accessCodeResolved.provenance,
+          qrCodeValue: restored.qrCodeValue ?? qrCodeResolved.value,
+          qrCodeProvenance: qrCodeResolved.provenance,
         });
 
         return NextResponse.json(restored, { status: 200 });
@@ -174,9 +258,22 @@ export const POST = withAuth(
       const controller = makeCreatePersonController();
       const result = await controller.handle({
         ...data,
-        qrCodeValue,
-        accessCode,
+        qrCodeValue: qrCodeResolved.value,
+        accessCode: accessCodeResolved.value,
+        accessCodeProvenance: accessCodeResolved.provenance,
+        qrCodeProvenance: qrCodeResolved.provenance,
       });
+
+      if (result.statusCode === 201 && result.body && typeof result.body === 'object' && 'id' in result.body) {
+        const createdPerson = result.body as { id: string };
+        await linkPersonToAutoLinkEvents(data.organizationId, {
+          id: createdPerson.id,
+          accessCode: accessCodeResolved.value,
+          accessCodeProvenance: accessCodeResolved.provenance,
+          qrCodeValue: qrCodeResolved.value,
+          qrCodeProvenance: qrCodeResolved.provenance,
+        });
+      }
 
       return toNextResponse(result);
     } catch (error) {

@@ -1,4 +1,5 @@
 import type { EventParticipantEntity } from '../entities/event-participant.entity';
+import type { CodeProvenance } from '../entities/organization-people-settings.entity';
 
 export interface CreateEventParticipantData {
   company?: string | null;
@@ -6,6 +7,8 @@ export interface CreateEventParticipantData {
   qrCodeValue?: string | null;
   accessCode?: string | null;
   useDocumentAsAccessCode?: boolean;
+  accessCodeProvenance?: CodeProvenance;
+  qrCodeProvenance?: CodeProvenance;
   personId: string;
   eventId: string;
 }
@@ -16,6 +19,8 @@ export interface UpdateEventParticipantData {
   qrCodeValue?: string | null;
   accessCode?: string | null;
   useDocumentAsAccessCode?: boolean;
+  accessCodeProvenance?: CodeProvenance;
+  qrCodeProvenance?: CodeProvenance;
 }
 
 export interface IEventParticipantRepository {

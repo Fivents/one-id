@@ -1,4 +1,5 @@
 import { BaseEntity } from './base.entity';
+import type { CodeProvenance } from './organization-people-settings.entity';
 
 export interface EventParticipantProps {
   id: string;
@@ -7,6 +8,8 @@ export interface EventParticipantProps {
   qrCodeValue?: string | null;
   accessCode?: string | null;
   useDocumentAsAccessCode: boolean;
+  accessCodeProvenance: CodeProvenance;
+  qrCodeProvenance: CodeProvenance;
   personId: string;
   eventId: string;
   createdAt: Date;
@@ -41,6 +44,14 @@ export class EventParticipantEntity extends BaseEntity {
 
   get useDocumentAsAccessCode(): boolean {
     return this.props.useDocumentAsAccessCode;
+  }
+
+  get accessCodeProvenance(): CodeProvenance {
+    return this.props.accessCodeProvenance;
+  }
+
+  get qrCodeProvenance(): CodeProvenance {
+    return this.props.qrCodeProvenance;
   }
 
   get personId(): string {
@@ -87,6 +98,8 @@ export class EventParticipantEntity extends BaseEntity {
       qrCodeValue: this.props.qrCodeValue,
       accessCode: this.props.accessCode,
       useDocumentAsAccessCode: this.props.useDocumentAsAccessCode,
+      accessCodeProvenance: this.props.accessCodeProvenance,
+      qrCodeProvenance: this.props.qrCodeProvenance,
       personId: this.props.personId,
       eventId: this.props.eventId,
       createdAt: this.props.createdAt,

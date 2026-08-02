@@ -10,6 +10,8 @@ interface EventScope {
   qrEnabled: boolean;
   codeEnabled: boolean;
   publicSlug: string | null;
+  accessCodeSource: string | null;
+  qrCodeSource: string | null;
 }
 
 export async function assertOrganizationAccess(req: NextRequest, organizationId: string): Promise<NextResponse | null> {
@@ -45,6 +47,8 @@ export async function getAuthorizedEvent(req: NextRequest, eventId: string): Pro
       qrEnabled: true,
       codeEnabled: true,
       publicSlug: true,
+      accessCodeSource: true,
+      qrCodeSource: true,
     },
   });
 

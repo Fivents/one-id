@@ -26,6 +26,10 @@ export type {
   IOrganizationRepository,
   UpdateOrganizationData,
 } from './organization.repository';
+export type {
+  IOrganizationPeopleSettingsRepository,
+  UpsertOrganizationPeopleSettingsData,
+} from './organization-people-settings.repository';
 export type { IPasswordHasher } from './password-hasher';
 export type { CreatePersonData, IPersonRepository, UpdatePersonData } from './person.repository';
 export type { CreatePersonFaceData, IPersonFaceRepository } from './person-face.repository';

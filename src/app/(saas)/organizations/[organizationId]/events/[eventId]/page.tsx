@@ -21,6 +21,7 @@ import {
   RotateCcw,
   ScanFace,
   Search,
+  Settings,
   Trash2,
   Upload,
   User,
@@ -28,6 +29,7 @@ import {
 import { toast } from 'sonner';
 
 import { EventAddressEditor, EventStatusBadge } from '@/components/organizations/events';
+import { EventPeopleSettingsDialog } from '@/components/organizations/events/event-people-settings-dialog';
 import { ImportEventParticipantsDialog } from '@/components/organizations/events/import-event-participants-dialog';
 import { useConfirm } from '@/components/shared/confirm-dialog';
 import { LabelPrintConfirmationModal } from '@/components/shared/label-print-confirmation-modal';
@@ -80,9 +82,9 @@ import type { EventResponse } from '@/core/communication/responses/event';
 import { AI_CONFIG_CONSTRAINTS, DEFAULT_AI_CONFIG } from '@/core/domain/constants/ai-config.constants';
 import { getValidTransitions, isFinalStatus } from '@/core/domain/constants/event-transitions.constants';
 import type { EventAddress } from '@/core/domain/value-objects';
-import { useI18n } from '@/i18n';
-import { excelEventParticipants } from '@/core/utils/excel-event-participants';
 import type { ParticipantExportRow } from '@/core/utils/excel-event-participants';
+import { excelEventParticipants } from '@/core/utils/excel-event-participants';
+import { useI18n } from '@/i18n';
 
 function formatDateTime(value: Date | string, locale: string) {
   return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
@@ -287,6 +289,7 @@ export default function EventDetailPage() {
 
   const [importParticipantsOpen, setImportParticipantsOpen] = useState(false);
   const [isExportingParticipants, setIsExportingParticipants] = useState(false);
+  const [peopleSettingsOpen, setPeopleSettingsOpen] = useState(false);
 
   const canView = isSuperAdmin() || hasPermission('EVENT_VIEW');
 
@@ -1389,6 +1392,14 @@ export default function EventDetailPage() {
                   </CardDescription>
                 </div>
                 <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    title="Configurações de código de acesso/QR deste evento"
+                    onClick={() => setPeopleSettingsOpen(true)}
+                  >
+                    <Settings className="h-4 w-4" />
+                  </Button>
                   <Button size="sm" variant="outline" onClick={handleDownloadTemplateParticipants}>
                     <Download className="mr-2 h-4 w-4" />
                     {t('pages.eventDetail.downloadTemplate')}
@@ -2949,6 +2960,18 @@ export default function EventDetailPage() {
           loadParticipants();
         }}
       />
+
+      {event && (
+        <EventPeopleSettingsDialog
+          open={peopleSettingsOpen}
+          onOpenChange={setPeopleSettingsOpen}
+          eventId={event.id}
+          organizationId={event.organizationId}
+          accessCodeSource={event.accessCodeSource}
+          qrCodeSource={event.qrCodeSource}
+          onSaved={(settings) => setEvent((prev) => (prev ? { ...prev, ...settings } : prev))}
+        />
+      )}
     </div>
   );
 }

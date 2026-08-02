@@ -1,5 +1,6 @@
 import type { ImportPersonsRequest } from '@/core/communication/requests/person';
 
+import type { ImportCodeSettings } from '../../use-cases/person';
 import { ImportPersonsUseCase } from '../../use-cases/person';
 import { type ControllerResponse, ok, serverError } from '../controller-response';
 
@@ -13,12 +14,16 @@ interface ImportPersonsResponse {
 export class ImportPersonsController {
   constructor(private readonly importPersonsUseCase: ImportPersonsUseCase) {}
 
-  async handle(request: ImportPersonsRequest): Promise<ControllerResponse<ImportPersonsResponse>> {
+  async handle(
+    request: ImportPersonsRequest,
+    codeSettings?: ImportCodeSettings,
+  ): Promise<ControllerResponse<ImportPersonsResponse>> {
     try {
       const result = await this.importPersonsUseCase.execute(
         request.organizationId,
         request.persons,
         request.overwrite,
+        codeSettings,
       );
 
       return ok({

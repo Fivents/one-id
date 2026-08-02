@@ -1,5 +1,12 @@
-import type { CreatePersonData, IPersonRepository, UpdatePersonData } from '@/core/domain/contracts';
+import type {
+  CreatePersonData,
+  IEventParticipantRepository,
+  IEventRepository,
+  IPersonRepository,
+  UpdatePersonData,
+} from '@/core/domain/contracts';
 import type { DocumentType, PersonEntity } from '@/core/domain/entities';
+import { type CodeSourceField, resolveDerivedCodeUnique } from '@/core/utils/derived-code';
 
 export interface ImportPersonItem {
   name: string;
@@ -12,6 +19,12 @@ export interface ImportPersonItem {
   notes?: string | null;
 }
 
+export interface ImportCodeSettings {
+  accessCodeSource: CodeSourceField;
+  qrCodeSource: CodeSourceField;
+  credentialLength: number;
+}
+
 export interface ImportResult {
   created: PersonEntity[];
   updated: PersonEntity[];
@@ -20,14 +33,22 @@ export interface ImportResult {
 }
 
 export class ImportPersonsUseCase {
-  constructor(private readonly personRepository: IPersonRepository) {}
+  constructor(
+    private readonly personRepository: IPersonRepository,
+    private readonly eventRepository: IEventRepository,
+    private readonly eventParticipantRepository: IEventParticipantRepository,
+  ) {}
 
   async execute(
     organizationId: string,
     persons: ImportPersonItem[],
     overwrite: boolean = false,
+    codeSettings?: ImportCodeSettings,
   ): Promise<ImportResult> {
     const result: ImportResult = { created: [], updated: [], skipped: [], errors: [] };
+
+    const orgEvents = await this.eventRepository.findByOrganization(organizationId);
+    const autoLinkEventIds = orgEvents.filter((event) => event.autoLinkNewPeople).map((event) => event.id);
 
     for (let i = 0; i < persons.length; i++) {
       const personData = persons[i];
@@ -51,7 +72,7 @@ export class ImportPersonsUseCase {
               documentType: personData.documentType as DocumentType | null | undefined,
               phone: personData.phone,
               jobTitle: personData.jobTitle,
-               birthDate: personData.birthDate,
+              birthDate: personData.birthDate,
               notes: personData.notes,
             };
             if (personData.email) {
@@ -63,6 +84,31 @@ export class ImportPersonsUseCase {
             result.skipped.push(personData.name);
           }
         } else {
+          const accessCodeResolved = await resolveDerivedCodeUnique(
+            {
+              explicitValue: undefined,
+              sourceField: codeSettings?.accessCodeSource ?? 'NONE',
+              document: personData.document,
+              phone: personData.phone,
+              email: personData.email,
+              credentialLength: codeSettings?.credentialLength ?? 8,
+              uppercase: true,
+            },
+            (value) => this.personRepository.isCodeTaken(organizationId, 'accessCode', value),
+          );
+          const qrCodeResolved = await resolveDerivedCodeUnique(
+            {
+              explicitValue: undefined,
+              sourceField: codeSettings?.qrCodeSource ?? 'NONE',
+              document: personData.document,
+              phone: personData.phone,
+              email: personData.email,
+              credentialLength: codeSettings?.credentialLength ?? 8,
+              uppercase: false,
+            },
+            (value) => this.personRepository.isCodeTaken(organizationId, 'qrCodeValue', value),
+          );
+
           const createData: CreatePersonData = {
             name: personData.name,
             email: personData.email || '',
@@ -72,10 +118,25 @@ export class ImportPersonsUseCase {
             jobTitle: personData.jobTitle,
             birthDate: personData.birthDate,
             notes: personData.notes,
+            qrCodeValue: qrCodeResolved.value,
+            accessCode: accessCodeResolved.value,
+            accessCodeProvenance: accessCodeResolved.provenance,
+            qrCodeProvenance: qrCodeResolved.provenance,
             organizationId,
           };
           const created = await this.personRepository.create(createData);
           result.created.push(created);
+
+          for (const eventId of autoLinkEventIds) {
+            await this.eventParticipantRepository.create({
+              personId: created.id,
+              eventId,
+              qrCodeValue: qrCodeResolved.value,
+              accessCode: accessCodeResolved.value,
+              accessCodeProvenance: accessCodeResolved.provenance,
+              qrCodeProvenance: qrCodeResolved.provenance,
+            });
+          }
         }
       } catch (error) {
         result.errors.push({

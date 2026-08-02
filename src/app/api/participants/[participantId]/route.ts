@@ -12,15 +12,11 @@ import { toNextResponse } from '@/core/infrastructure/http/to-next-response';
 import type { RouteContext } from '@/core/infrastructure/http/types';
 import { prisma } from '@/core/infrastructure/prisma-client';
 import { generateCheckInCredential, resolveTotemAccessCodeLength } from '@/core/utils/checkin-credentials';
+import { normalizeDocumentAsAccessCode } from '@/core/utils/derived-code';
 import { parseWithZod } from '@/core/utils/parse-with-zod';
 import { Prisma } from '@/generated/prisma/client';
 
 import { getAuthorizedEvent } from '../../events/_lib/access';
-
-function normalizeDocumentAsAccessCode(document: string | null | undefined): string | null {
-  const normalized = document?.trim();
-  return normalized ? normalized.toUpperCase() : null;
-}
 
 export const GET = withAuth(
   withRBAC(['PARTICIPANT_VIEW'], async (_req: NextRequest, context: RouteContext) => {

@@ -15,6 +15,8 @@ export interface PersonSummaryResponse {
   notes: string | null;
   qrCodeValue: string | null;
   accessCode: string | null;
+  accessCodeProvenance: 'MANUAL' | 'RANDOM' | 'DERIVED';
+  qrCodeProvenance: 'MANUAL' | 'RANDOM' | 'DERIVED';
   organizationId: string;
   createdAt: Date;
   updatedAt: Date;

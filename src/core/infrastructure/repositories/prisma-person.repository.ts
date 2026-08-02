@@ -1,5 +1,5 @@
 import type { CreatePersonData, IPersonRepository, UpdatePersonData } from '@/core/domain/contracts';
-import { type DocumentType, PersonEntity } from '@/core/domain/entities';
+import { type CodeProvenance, type DocumentType, PersonEntity } from '@/core/domain/entities';
 import type { PrismaClient } from '@/generated/prisma/client';
 
 export class PrismaPersonRepository implements IPersonRepository {
@@ -24,6 +24,8 @@ export class PrismaPersonRepository implements IPersonRepository {
       notes: person.notes,
       qrCodeValue: person.qrCodeValue,
       accessCode: person.accessCode,
+      accessCodeProvenance: person.accessCodeProvenance as CodeProvenance,
+      qrCodeProvenance: person.qrCodeProvenance as CodeProvenance,
       organizationId: person.organizationId,
       createdAt: person.createdAt,
       updatedAt: person.updatedAt,
@@ -50,6 +52,8 @@ export class PrismaPersonRepository implements IPersonRepository {
       notes: person.notes,
       qrCodeValue: person.qrCodeValue,
       accessCode: person.accessCode,
+      accessCodeProvenance: person.accessCodeProvenance as CodeProvenance,
+      qrCodeProvenance: person.qrCodeProvenance as CodeProvenance,
       organizationId: person.organizationId,
       createdAt: person.createdAt,
       updatedAt: person.updatedAt,
@@ -76,6 +80,8 @@ export class PrismaPersonRepository implements IPersonRepository {
       notes: person.notes,
       qrCodeValue: person.qrCodeValue,
       accessCode: person.accessCode,
+      accessCodeProvenance: person.accessCodeProvenance as CodeProvenance,
+      qrCodeProvenance: person.qrCodeProvenance as CodeProvenance,
       organizationId: person.organizationId,
       createdAt: person.createdAt,
       updatedAt: person.updatedAt,
@@ -96,8 +102,13 @@ export class PrismaPersonRepository implements IPersonRepository {
         document: person.document,
         documentType: person.documentType as DocumentType | null,
         phone: person.phone,
+        jobTitle: person.jobTitle,
+        birthDate: person.birthDate,
+        notes: person.notes,
         qrCodeValue: person.qrCodeValue,
         accessCode: person.accessCode,
+        accessCodeProvenance: person.accessCodeProvenance as CodeProvenance,
+        qrCodeProvenance: person.qrCodeProvenance as CodeProvenance,
         organizationId: person.organizationId,
         createdAt: person.createdAt,
         updatedAt: person.updatedAt,
@@ -119,6 +130,8 @@ export class PrismaPersonRepository implements IPersonRepository {
         notes: data.notes,
         qrCodeValue: data.qrCodeValue,
         accessCode: data.accessCode,
+        accessCodeProvenance: data.accessCodeProvenance,
+        qrCodeProvenance: data.qrCodeProvenance,
         organizationId: data.organizationId,
       },
     });
@@ -135,6 +148,8 @@ export class PrismaPersonRepository implements IPersonRepository {
       notes: person.notes,
       qrCodeValue: person.qrCodeValue,
       accessCode: person.accessCode,
+      accessCodeProvenance: person.accessCodeProvenance as CodeProvenance,
+      qrCodeProvenance: person.qrCodeProvenance as CodeProvenance,
       organizationId: person.organizationId,
       createdAt: person.createdAt,
       updatedAt: person.updatedAt,
@@ -156,6 +171,8 @@ export class PrismaPersonRepository implements IPersonRepository {
         notes: data.notes,
         qrCodeValue: data.qrCodeValue,
         accessCode: data.accessCode,
+        accessCodeProvenance: data.accessCodeProvenance,
+        qrCodeProvenance: data.qrCodeProvenance,
       },
     });
 
@@ -171,6 +188,8 @@ export class PrismaPersonRepository implements IPersonRepository {
       notes: person.notes,
       qrCodeValue: person.qrCodeValue,
       accessCode: person.accessCode,
+      accessCodeProvenance: person.accessCodeProvenance as CodeProvenance,
+      qrCodeProvenance: person.qrCodeProvenance as CodeProvenance,
       organizationId: person.organizationId,
       createdAt: person.createdAt,
       updatedAt: person.updatedAt,
@@ -183,5 +202,24 @@ export class PrismaPersonRepository implements IPersonRepository {
       where: { id },
       data: { deletedAt: new Date() },
     });
+  }
+
+  async isCodeTaken(
+    organizationId: string,
+    field: 'accessCode' | 'qrCodeValue',
+    value: string,
+    excludePersonId?: string,
+  ): Promise<boolean> {
+    const person = await this.db.person.findFirst({
+      where: {
+        organizationId,
+        deletedAt: null,
+        [field]: value,
+        ...(excludePersonId ? { id: { not: excludePersonId } } : {}),
+      },
+      select: { id: true },
+    });
+
+    return person !== null;
   }
 }

@@ -1,3 +1,4 @@
+import type { CodeProvenance } from '../entities/organization-people-settings.entity';
 import type { DocumentType, PersonEntity } from '../entities/person.entity';
 
 export interface CreatePersonData {
@@ -11,6 +12,8 @@ export interface CreatePersonData {
   notes?: string | null;
   qrCodeValue?: string | null;
   accessCode?: string | null;
+  accessCodeProvenance?: CodeProvenance;
+  qrCodeProvenance?: CodeProvenance;
   organizationId: string;
 }
 
@@ -25,6 +28,8 @@ export interface UpdatePersonData {
   notes?: string | null;
   qrCodeValue?: string | null;
   accessCode?: string | null;
+  accessCodeProvenance?: CodeProvenance;
+  qrCodeProvenance?: CodeProvenance;
 }
 
 export interface IPersonRepository {
@@ -35,4 +40,10 @@ export interface IPersonRepository {
   create(data: CreatePersonData): Promise<PersonEntity>;
   update(id: string, data: UpdatePersonData): Promise<PersonEntity>;
   softDelete(id: string): Promise<void>;
+  isCodeTaken(
+    organizationId: string,
+    field: 'accessCode' | 'qrCodeValue',
+    value: string,
+    excludePersonId?: string,
+  ): Promise<boolean>;
 }

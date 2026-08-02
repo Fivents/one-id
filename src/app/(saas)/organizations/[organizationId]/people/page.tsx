@@ -4,9 +4,23 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { useParams, useRouter } from 'next/navigation';
 
-import { Edit, FileDown, FileSpreadsheet, FileUp, ScanFace, Search, Trash2, UserPlus, Users } from 'lucide-react';
+import {
+  AlertTriangle,
+  Edit,
+  FileDown,
+  FileSpreadsheet,
+  FileUp,
+  ScanFace,
+  Search,
+  Settings,
+  Trash2,
+  UserPlus,
+  Users,
+} from 'lucide-react';
 import { toast } from 'sonner';
 
+import { ImportPeopleDialog } from '@/components/organizations/people/import-people-dialog';
+import { PeopleSettingsDialog } from '@/components/organizations/people/people-settings-dialog';
 import { useConfirm } from '@/components/shared/confirm-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -24,16 +38,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { participantsClient, peopleClient } from '@/core/application/client-services';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { organizationPeopleSettingsClient, participantsClient, peopleClient } from '@/core/application/client-services';
 import type {
   PaginatedPeopleResponse,
   PersonEventLinkResponse,
   PersonSummaryResponse,
 } from '@/core/application/client-services/people-client.service';
 import { extractFaceEmbedding } from '@/core/application/client-services/totem/face-embedding.client';
-import { ImportPeopleDialog } from '@/components/organizations/people/import-people-dialog';
-import { excelPeople } from '@/core/utils/excel-people';
 import { useApp, useAuth, useOrganization, usePermissions } from '@/core/application/contexts';
+import type { CodeSourceFieldOption } from '@/core/communication/requests/organization-people-settings';
+import { excelPeople } from '@/core/utils/excel-people';
 import { useI18n } from '@/i18n';
 
 const PAGE_SIZE = 20;
@@ -147,6 +162,11 @@ export default function OrganizationPeoplePage() {
 
   const [createOpen, setCreateOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [peopleSettings, setPeopleSettings] = useState<{
+    accessCodeSource: CodeSourceFieldOption;
+    qrCodeSource: CodeSourceFieldOption;
+  }>({ accessCodeSource: 'NONE', qrCodeSource: 'NONE' });
   const [editPerson, setEditPerson] = useState<PersonSummaryResponse | null>(null);
   const [manageEventsPerson, setManageEventsPerson] = useState<PersonSummaryResponse | null>(null);
   const [manageFacePerson, setManageFacePerson] = useState<PersonSummaryResponse | null>(null);
@@ -256,6 +276,19 @@ export default function OrganizationPeoplePage() {
 
     void loadPeople(tab);
   }, [isAuthenticated, canView, shouldUseCurrentOrganization, organizations, organizationId, router, tab, loadPeople]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !canView || !organizationId) return;
+
+    organizationPeopleSettingsClient.getSettings(organizationId).then((response) => {
+      if (response.success) {
+        setPeopleSettings({
+          accessCodeSource: response.data.accessCodeSource,
+          qrCodeSource: response.data.qrCodeSource,
+        });
+      }
+    });
+  }, [isAuthenticated, canView, organizationId, settingsOpen]);
 
   const handleOrganizationChange = useCallback(
     (nextOrganizationId: string) => {
@@ -824,6 +857,9 @@ export default function OrganizationPeoplePage() {
         <div className="flex items-center gap-2">
           {canManage && (
             <>
+              <Button variant="outline" size="icon" title="Configurações" onClick={() => setSettingsOpen(true)}>
+                <Settings className="h-4 w-4" />
+              </Button>
               <Button variant="outline" onClick={handleDownloadTemplate}>
                 <FileDown className="mr-2 h-4 w-4" />
                 {t('pages.organizationPeople.downloadTemplate')}
@@ -983,8 +1019,38 @@ export default function OrganizationPeoplePage() {
                             : t('pages.organizationPeople.noImage')}
                         </Badge>
                       </TableCell>
-                      <TableCell>{person.accessCode ?? '—'}</TableCell>
-                      <TableCell>{person.qrCodeValue ?? '—'}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          {person.accessCode ?? '—'}
+                          {peopleSettings.accessCodeSource !== 'NONE' && person.accessCodeProvenance === 'RANDOM' && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                Código gerado pelo sistema: o campo configurado para código de acesso está vazio
+                                nesta pessoa.
+                              </TooltipContent>
+                            </Tooltip>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          {person.qrCodeValue ?? '—'}
+                          {peopleSettings.qrCodeSource !== 'NONE' && person.qrCodeProvenance === 'RANDOM' && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                QR-code gerado pelo sistema: o campo configurado para QR-code está vazio nesta
+                                pessoa.
+                              </TooltipContent>
+                            </Tooltip>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell className="flex gap-2">
                         {canManage && (
                           <>
@@ -1513,6 +1579,15 @@ export default function OrganizationPeoplePage() {
       <ImportPeopleDialog
         open={importOpen}
         onOpenChange={setImportOpen}
+        organizationId={organizationId}
+      />
+
+      <PeopleSettingsDialog
+        open={settingsOpen}
+        onOpenChange={(nextOpen) => {
+          setSettingsOpen(nextOpen);
+          if (!nextOpen) void loadPeople(tab);
+        }}
         organizationId={organizationId}
       />
     </div>

@@ -3,7 +3,7 @@ import type {
   IEventParticipantRepository,
   UpdateEventParticipantData,
 } from '@/core/domain/contracts';
-import { EventParticipantEntity } from '@/core/domain/entities';
+import { type CodeProvenance, EventParticipantEntity } from '@/core/domain/entities';
 import type { PrismaClient } from '@/generated/prisma/client';
 
 export class PrismaEventParticipantRepository implements IEventParticipantRepository {
@@ -23,6 +23,8 @@ export class PrismaEventParticipantRepository implements IEventParticipantReposi
       qrCodeValue: participant.qrCodeValue,
       accessCode: participant.accessCode,
       useDocumentAsAccessCode: participant.useDocumentAsAccessCode,
+      accessCodeProvenance: participant.accessCodeProvenance as CodeProvenance,
+      qrCodeProvenance: participant.qrCodeProvenance as CodeProvenance,
       personId: participant.personId,
       eventId: participant.eventId,
       createdAt: participant.createdAt,
@@ -44,6 +46,8 @@ export class PrismaEventParticipantRepository implements IEventParticipantReposi
         qrCodeValue: p.qrCodeValue,
         accessCode: p.accessCode,
         useDocumentAsAccessCode: p.useDocumentAsAccessCode,
+        accessCodeProvenance: p.accessCodeProvenance as CodeProvenance,
+        qrCodeProvenance: p.qrCodeProvenance as CodeProvenance,
         personId: p.personId,
         eventId: p.eventId,
         createdAt: p.createdAt,
@@ -67,6 +71,8 @@ export class PrismaEventParticipantRepository implements IEventParticipantReposi
       qrCodeValue: participant.qrCodeValue,
       accessCode: participant.accessCode,
       useDocumentAsAccessCode: participant.useDocumentAsAccessCode,
+      accessCodeProvenance: participant.accessCodeProvenance as CodeProvenance,
+      qrCodeProvenance: participant.qrCodeProvenance as CodeProvenance,
       personId: participant.personId,
       eventId: participant.eventId,
       createdAt: participant.createdAt,
@@ -83,6 +89,8 @@ export class PrismaEventParticipantRepository implements IEventParticipantReposi
         qrCodeValue: data.qrCodeValue,
         accessCode: data.accessCode,
         useDocumentAsAccessCode: data.useDocumentAsAccessCode,
+        accessCodeProvenance: data.accessCodeProvenance,
+        qrCodeProvenance: data.qrCodeProvenance,
         personId: data.personId,
         eventId: data.eventId,
       },
@@ -95,6 +103,8 @@ export class PrismaEventParticipantRepository implements IEventParticipantReposi
       qrCodeValue: participant.qrCodeValue,
       accessCode: participant.accessCode,
       useDocumentAsAccessCode: participant.useDocumentAsAccessCode,
+      accessCodeProvenance: participant.accessCodeProvenance as CodeProvenance,
+      qrCodeProvenance: participant.qrCodeProvenance as CodeProvenance,
       personId: participant.personId,
       eventId: participant.eventId,
       createdAt: participant.createdAt,
@@ -112,6 +122,8 @@ export class PrismaEventParticipantRepository implements IEventParticipantReposi
         qrCodeValue: data.qrCodeValue,
         accessCode: data.accessCode,
         useDocumentAsAccessCode: data.useDocumentAsAccessCode,
+        accessCodeProvenance: data.accessCodeProvenance,
+        qrCodeProvenance: data.qrCodeProvenance,
       },
     });
 
@@ -122,6 +134,8 @@ export class PrismaEventParticipantRepository implements IEventParticipantReposi
       qrCodeValue: participant.qrCodeValue,
       accessCode: participant.accessCode,
       useDocumentAsAccessCode: participant.useDocumentAsAccessCode,
+      accessCodeProvenance: participant.accessCodeProvenance as CodeProvenance,
+      qrCodeProvenance: participant.qrCodeProvenance as CodeProvenance,
       personId: participant.personId,
       eventId: participant.eventId,
       createdAt: participant.createdAt,

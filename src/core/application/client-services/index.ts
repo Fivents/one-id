@@ -9,6 +9,15 @@ export { type CheckInResponse, checkinsClient } from './checkins-client.service'
 export { eventsClient } from './events/events-client.service';
 export { type NotificationResponse, notificationsClient } from './notifications-client.service';
 export { type OrganizationTotemListResponse, orgTotemsClient } from './org-totems-client.service';
+export {
+  type AutoLinkEventResponse,
+  type BackfillConfirmResponse,
+  type BackfillPreviewResponse,
+  organizationPeopleSettingsClient,
+  type RecalculateConfirmResponse,
+  type RecalculatePreviewResponse,
+  type RecalculateTarget,
+} from './organization-people-settings-client.service';
 export { organizationsClient } from './organizations-client.service';
 export { type ParticipantResponse, participantsClient } from './participants-client.service';
 export { peopleClient } from './people-client.service';

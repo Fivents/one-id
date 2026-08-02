@@ -1,4 +1,5 @@
 import { BaseEntity } from './base.entity';
+import type { CodeProvenance } from './organization-people-settings.entity';
 
 export type DocumentType = 'PASSPORT' | 'ID_CARD' | 'DRIVER_LICENSE' | 'OTHER';
 
@@ -14,6 +15,8 @@ export interface PersonProps {
   notes?: string | null;
   qrCodeValue?: string | null;
   accessCode?: string | null;
+  accessCodeProvenance: CodeProvenance;
+  qrCodeProvenance: CodeProvenance;
   organizationId: string;
   createdAt: Date;
   updatedAt: Date;
@@ -69,6 +72,14 @@ export class PersonEntity extends BaseEntity {
     return this.props.accessCode;
   }
 
+  get accessCodeProvenance(): CodeProvenance {
+    return this.props.accessCodeProvenance;
+  }
+
+  get qrCodeProvenance(): CodeProvenance {
+    return this.props.qrCodeProvenance;
+  }
+
   get organizationId(): string {
     return this.props.organizationId;
   }
@@ -114,6 +125,8 @@ export class PersonEntity extends BaseEntity {
       notes: this.props.notes,
       qrCodeValue: this.props.qrCodeValue,
       accessCode: this.props.accessCode,
+      accessCodeProvenance: this.props.accessCodeProvenance,
+      qrCodeProvenance: this.props.qrCodeProvenance,
       organizationId: this.props.organizationId,
       createdAt: this.props.createdAt,
       updatedAt: this.props.updatedAt,

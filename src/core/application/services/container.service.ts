@@ -24,6 +24,7 @@ import { PrismaFeatureRepository } from '@/core/infrastructure/repositories/pris
 import { PrismaMembershipRepository } from '@/core/infrastructure/repositories/prisma-membership.repository';
 import { PrismaNotificationRepository } from '@/core/infrastructure/repositories/prisma-notification.repository';
 import { PrismaOrganizationRepository } from '@/core/infrastructure/repositories/prisma-organization.repository';
+import { PrismaOrganizationPeopleSettingsRepository } from '@/core/infrastructure/repositories/prisma-organization-people-settings.repository';
 import { PrismaPersonRepository } from '@/core/infrastructure/repositories/prisma-person.repository';
 import { PrismaPersonFaceRepository } from '@/core/infrastructure/repositories/prisma-person-face.repository';
 import { PrismaPlanRepository } from '@/core/infrastructure/repositories/prisma-plan.repository';
@@ -68,6 +69,7 @@ class ContainerService {
   private membershipRepository: PrismaMembershipRepository | null = null;
   private notificationRepository: PrismaNotificationRepository | null = null;
   private organizationRepository: PrismaOrganizationRepository | null = null;
+  private organizationPeopleSettingsRepository: PrismaOrganizationPeopleSettingsRepository | null = null;
   private personRepository: PrismaPersonRepository | null = null;
   private personFaceRepository: PrismaPersonFaceRepository | null = null;
   private planRepository: PrismaPlanRepository | null = null;
@@ -179,6 +181,13 @@ class ContainerService {
       this.organizationRepository = new PrismaOrganizationRepository(this.prismaClient);
     }
     return this.organizationRepository;
+  }
+
+  getOrganizationPeopleSettingsRepository(): PrismaOrganizationPeopleSettingsRepository {
+    if (!this.organizationPeopleSettingsRepository) {
+      this.organizationPeopleSettingsRepository = new PrismaOrganizationPeopleSettingsRepository(this.prismaClient);
+    }
+    return this.organizationPeopleSettingsRepository;
   }
 
   getPersonRepository(): PrismaPersonRepository {
