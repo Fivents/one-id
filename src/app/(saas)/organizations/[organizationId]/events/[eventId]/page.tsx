@@ -55,6 +55,7 @@ import { Textarea } from '@/components/ui/textarea';
 import {
   eventCheckinsClient,
   eventsClient,
+  organizationPeopleSettingsClient,
   participantsClient,
   peopleClient,
 } from '@/core/application/client-services';
@@ -78,6 +79,7 @@ import {
   type PrintParticipantData,
 } from '@/core/application/client-services/totem/print.client';
 import { useApp, useAuth, usePermissions } from '@/core/application/contexts';
+import type { CodeSourceFieldOption } from '@/core/communication/requests/organization-people-settings';
 import type { EventResponse } from '@/core/communication/responses/event';
 import { AI_CONFIG_CONSTRAINTS, DEFAULT_AI_CONFIG } from '@/core/domain/constants/ai-config.constants';
 import { getValidTransitions, isFinalStatus } from '@/core/domain/constants/event-transitions.constants';
@@ -100,6 +102,13 @@ function calculateCheckInRate(total: number, checkedIn: number) {
 }
 
 const PARTICIPANTS_PAGE_SIZE = 20;
+
+const CODE_SOURCE_FIELD_LABELS: Record<CodeSourceFieldOption, string> = {
+  NONE: '',
+  DOCUMENT: 'documento',
+  PHONE: 'telefone',
+  EMAIL: 'e-mail',
+};
 
 type EditablePrintConfig = Omit<PrintConfigFullResponse, 'id' | 'createdAt' | 'updatedAt'>;
 
@@ -170,6 +179,10 @@ export default function EventDetailPage() {
   const confirm = useConfirm();
 
   const [event, setEvent] = useState<EventResponse | null>(null);
+  const [orgPeopleSettings, setOrgPeopleSettings] = useState<{
+    accessCodeSource: CodeSourceFieldOption;
+    qrCodeSource: CodeSourceFieldOption;
+  }>({ accessCodeSource: 'NONE', qrCodeSource: 'NONE' });
   const [participants, setParticipants] = useState<EventParticipantDetailResponse[]>([]);
   const [participantsMeta, setParticipantsMeta] = useState<PaginatedEventParticipantsResponse>({
     items: [],
@@ -309,6 +322,13 @@ export default function EventDetailPage() {
     () => participants.filter((participant) => !participant.hasCheckIn),
     [participants],
   );
+
+  // Effective source = this event's own override, falling back to the organization default —
+  // mirrors the resolution done server-side in the participants POST route.
+  const effectiveAccessCodeSource: CodeSourceFieldOption =
+    (event?.accessCodeSource as CodeSourceFieldOption | null) ?? orgPeopleSettings.accessCodeSource;
+  const effectiveQrCodeSource: CodeSourceFieldOption =
+    (event?.qrCodeSource as CodeSourceFieldOption | null) ?? orgPeopleSettings.qrCodeSource;
 
   const getCheckInMethodLabel = useCallback(
     (method: string) => {
@@ -765,6 +785,19 @@ export default function EventDetailPage() {
       void loadParticipants();
     }
   }, [isAuthenticated, canView, loadParticipants]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !canView || !event?.organizationId) return;
+
+    organizationPeopleSettingsClient.getSettings(event.organizationId).then((response) => {
+      if (response.success) {
+        setOrgPeopleSettings({
+          accessCodeSource: response.data.accessCodeSource,
+          qrCodeSource: response.data.qrCodeSource,
+        });
+      }
+    });
+  }, [isAuthenticated, canView, event?.organizationId]);
 
   useEffect(() => {
     if (editParticipant) {
@@ -2479,15 +2512,25 @@ export default function EventDetailPage() {
                 <Label htmlFor="participant-qr-code">QR Code</Label>
                 <Input
                   id="participant-qr-code"
+                  disabled={effectiveQrCodeSource !== 'NONE'}
                   value={participantQrCodeValue}
                   onChange={(e) => setParticipantQrCodeValue(e.target.value)}
                 />
+                {effectiveQrCodeSource !== 'NONE' && (
+                  <p className="text-muted-foreground text-xs">
+                    Gerado automaticamente a partir do {CODE_SOURCE_FIELD_LABELS[effectiveQrCodeSource]} (settings do
+                    evento/organização).
+                  </p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="participant-access-code">Código de acesso</Label>
                 <Input
                   id="participant-access-code"
-                  disabled={participantUseDocumentAsAccessCode && Boolean(participantDocument.trim())}
+                  disabled={
+                    (participantUseDocumentAsAccessCode && Boolean(participantDocument.trim())) ||
+                    effectiveAccessCodeSource !== 'NONE'
+                  }
                   value={
                     participantUseDocumentAsAccessCode && participantDocument.trim()
                       ? participantDocument.trim()
@@ -2496,6 +2539,13 @@ export default function EventDetailPage() {
                   onChange={(e) => setParticipantAccessCode(e.target.value.toUpperCase())}
                   maxLength={8}
                 />
+                {effectiveAccessCodeSource !== 'NONE' &&
+                  !(participantUseDocumentAsAccessCode && participantDocument.trim()) && (
+                    <p className="text-muted-foreground text-xs">
+                      Gerado automaticamente a partir do {CODE_SOURCE_FIELD_LABELS[effectiveAccessCodeSource]}{' '}
+                      (settings do evento/organização).
+                    </p>
+                  )}
               </div>
             </div>
 
@@ -2637,6 +2687,9 @@ export default function EventDetailPage() {
             <div className="space-y-2">
               <Label htmlFor="edit-qr-code">QR Code</Label>
               <Input id="edit-qr-code" value={editQrCodeValue} onChange={(e) => setEditQrCodeValue(e.target.value)} />
+              <p className="text-muted-foreground text-xs">
+                Editar aqui define um valor manual para este participante, mesmo com a settings ativa.
+              </p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="edit-access-code">Código de acesso</Label>
@@ -2651,6 +2704,11 @@ export default function EventDetailPage() {
                 onChange={(e) => setEditAccessCode(e.target.value.toUpperCase())}
                 maxLength={8}
               />
+              {!(editUseDocumentAsAccessCode && editParticipant?.document?.trim()) && (
+                <p className="text-muted-foreground text-xs">
+                  Editar aqui define um valor manual para este participante, mesmo com a settings ativa.
+                </p>
+              )}
             </div>
 
             <div className="flex items-center space-x-2">

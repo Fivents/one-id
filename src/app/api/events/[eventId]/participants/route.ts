@@ -264,26 +264,8 @@ export const POST = withAuth(
         personQrCodeProvenance = newPersonQrCode.provenance;
       }
 
-      // Priority for the participant's own accessCode: (1) explicit useDocumentAsAccessCode flag
-      // (existing mechanism, always wins), (2) explicit accessCode typed in the form, (3) inherit
-      // the Person's own code, (4) derive from the freshly-submitted fields (brand-new person only).
-      const documentAccessCode = normalizeDocumentAsAccessCode(personDocument);
-      let accessCode: string;
-      let accessCodeProvenance: 'MANUAL' | 'RANDOM' | 'DERIVED' | undefined;
-
-      if (requestedUseDocumentAsAccessCode && documentAccessCode) {
-        accessCode = documentAccessCode;
-        accessCodeProvenance = undefined;
-      } else if (data.accessCode?.trim()) {
-        accessCode = data.accessCode.trim().toUpperCase();
-        accessCodeProvenance = 'MANUAL';
-      } else if (personAccessCode) {
-        // Reuse the Person's own code (already resolved above for both existing and brand-new
-        // people) so the participant never ends up with a different value than the Person record.
-        accessCode = personAccessCode;
-        accessCodeProvenance = personAccessCodeProvenance ?? 'RANDOM';
-      } else {
-        const resolved = await resolveDerivedCodeUnique(
+      const deriveParticipantAccessCode = () =>
+        resolveDerivedCodeUnique(
           {
             explicitValue: undefined,
             sourceField: accessCodeSource,
@@ -295,23 +277,8 @@ export const POST = withAuth(
           },
           (value) => isParticipantCodeTaken('accessCode', value),
         );
-        accessCode = resolved.value;
-        accessCodeProvenance = resolved.provenance;
-      }
-
-      let qrCodeValue: string;
-      let qrCodeProvenance: 'MANUAL' | 'RANDOM' | 'DERIVED';
-
-      if (data.qrCodeValue?.trim()) {
-        qrCodeValue = data.qrCodeValue.trim();
-        qrCodeProvenance = 'MANUAL';
-      } else if (personQrCodeValue) {
-        // Reuse the Person's own code (already resolved above for both existing and brand-new
-        // people) so the participant never ends up with a different value than the Person record.
-        qrCodeValue = personQrCodeValue;
-        qrCodeProvenance = personQrCodeProvenance ?? 'RANDOM';
-      } else {
-        const resolved = await resolveDerivedCodeUnique(
+      const deriveParticipantQrCode = () =>
+        resolveDerivedCodeUnique(
           {
             explicitValue: undefined,
             sourceField: qrCodeSource,
@@ -323,6 +290,67 @@ export const POST = withAuth(
           },
           (value) => isParticipantCodeTaken('qrCodeValue', value),
         );
+
+      // Priority for the participant's own accessCode: (1) explicit useDocumentAsAccessCode flag
+      // (existing mechanism, always wins), (2) an ACTIVE org/event source policy — this always wins
+      // over anything typed in the form, reusing the Person's own code (already resolved above,
+      // from the current source) so the participant never drifts from the Person record, (3) once
+      // the source is NONE (manual mode): explicit accessCode typed in the form, (4) inherit the
+      // Person's own code, (5) derive/randomize as a last resort.
+      const documentAccessCode = normalizeDocumentAsAccessCode(personDocument);
+      let accessCode: string;
+      let accessCodeProvenance: 'MANUAL' | 'RANDOM' | 'DERIVED' | undefined;
+
+      if (requestedUseDocumentAsAccessCode && documentAccessCode) {
+        accessCode = documentAccessCode;
+        accessCodeProvenance = undefined;
+      } else if (accessCodeSource !== 'NONE') {
+        if (personAccessCode) {
+          accessCode = personAccessCode;
+          accessCodeProvenance = personAccessCodeProvenance ?? 'DERIVED';
+        } else {
+          const resolved = await deriveParticipantAccessCode();
+          accessCode = resolved.value;
+          accessCodeProvenance = resolved.provenance;
+        }
+      } else if (data.accessCode?.trim()) {
+        accessCode = data.accessCode.trim().toUpperCase();
+        accessCodeProvenance = 'MANUAL';
+      } else if (personAccessCode) {
+        // Reuse the Person's own code (already resolved above for both existing and brand-new
+        // people) so the participant never ends up with a different value than the Person record.
+        accessCode = personAccessCode;
+        accessCodeProvenance = personAccessCodeProvenance ?? 'RANDOM';
+      } else {
+        const resolved = await deriveParticipantAccessCode();
+        accessCode = resolved.value;
+        accessCodeProvenance = resolved.provenance;
+      }
+
+      // Same priority as accessCode above, minus the useDocumentAsAccessCode case (that flag only
+      // applies to accessCode).
+      let qrCodeValue: string;
+      let qrCodeProvenance: 'MANUAL' | 'RANDOM' | 'DERIVED';
+
+      if (qrCodeSource !== 'NONE') {
+        if (personQrCodeValue) {
+          qrCodeValue = personQrCodeValue;
+          qrCodeProvenance = personQrCodeProvenance ?? 'DERIVED';
+        } else {
+          const resolved = await deriveParticipantQrCode();
+          qrCodeValue = resolved.value;
+          qrCodeProvenance = resolved.provenance;
+        }
+      } else if (data.qrCodeValue?.trim()) {
+        qrCodeValue = data.qrCodeValue.trim();
+        qrCodeProvenance = 'MANUAL';
+      } else if (personQrCodeValue) {
+        // Reuse the Person's own code (already resolved above for both existing and brand-new
+        // people) so the participant never ends up with a different value than the Person record.
+        qrCodeValue = personQrCodeValue;
+        qrCodeProvenance = personQrCodeProvenance ?? 'RANDOM';
+      } else {
+        const resolved = await deriveParticipantQrCode();
         qrCodeValue = resolved.value;
         qrCodeProvenance = resolved.provenance;
       }

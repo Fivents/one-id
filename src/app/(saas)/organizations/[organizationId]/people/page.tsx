@@ -53,6 +53,13 @@ import { useI18n } from '@/i18n';
 
 const PAGE_SIZE = 20;
 
+const CODE_SOURCE_FIELD_LABELS: Record<CodeSourceFieldOption, string> = {
+  NONE: '',
+  DOCUMENT: 'documento',
+  PHONE: 'telefone',
+  EMAIL: 'e-mail',
+};
+
 type ActiveTab = 'active' | 'deleted';
 
 type DocumentType = 'PASSPORT' | 'ID_CARD' | 'DRIVER_LICENSE' | 'OTHER';
@@ -1243,11 +1250,31 @@ export default function OrganizationPeoplePage() {
             </div>
             <div className="space-y-1">
               <Label>QR Code</Label>
-              <Input value={formQrCodeValue} onChange={(event) => setFormQrCodeValue(event.target.value)} />
+              <Input
+                value={formQrCodeValue}
+                disabled={peopleSettings.qrCodeSource !== 'NONE'}
+                onChange={(event) => setFormQrCodeValue(event.target.value)}
+              />
+              {peopleSettings.qrCodeSource !== 'NONE' && (
+                <p className="text-muted-foreground text-xs">
+                  Gerado automaticamente a partir do {CODE_SOURCE_FIELD_LABELS[peopleSettings.qrCodeSource]} (settings
+                  da organização).
+                </p>
+              )}
             </div>
             <div className="space-y-1">
               <Label>Código de acesso</Label>
-              <Input value={formAccessCode} onChange={(event) => setFormAccessCode(event.target.value.toUpperCase())} />
+              <Input
+                value={formAccessCode}
+                disabled={peopleSettings.accessCodeSource !== 'NONE'}
+                onChange={(event) => setFormAccessCode(event.target.value.toUpperCase())}
+              />
+              {peopleSettings.accessCodeSource !== 'NONE' && (
+                <p className="text-muted-foreground text-xs">
+                  Gerado automaticamente a partir do {CODE_SOURCE_FIELD_LABELS[peopleSettings.accessCodeSource]}{' '}
+                  (settings da organização).
+                </p>
+              )}
             </div>
 
             <div className="space-y-1">
@@ -1382,10 +1409,16 @@ export default function OrganizationPeoplePage() {
             <div className="space-y-1">
               <Label>QR Code</Label>
               <Input value={formQrCodeValue} onChange={(event) => setFormQrCodeValue(event.target.value)} />
+              <p className="text-muted-foreground text-xs">
+                Editar aqui define um valor manual para esta pessoa, mesmo com a settings da organização ativa.
+              </p>
             </div>
             <div className="space-y-1">
               <Label>Código de acesso</Label>
               <Input value={formAccessCode} onChange={(event) => setFormAccessCode(event.target.value.toUpperCase())} />
+              <p className="text-muted-foreground text-xs">
+                Editar aqui define um valor manual para esta pessoa, mesmo com a settings da organização ativa.
+              </p>
             </div>
           </div>
           <DialogFooter>

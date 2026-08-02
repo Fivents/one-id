@@ -48,14 +48,16 @@ export function resolveDerivedCode(input: ResolveDerivedCodeInput): ResolvedCode
     return uppercase ? trimmed.toUpperCase() : trimmed;
   };
 
-  const explicit = input.explicitValue?.trim();
-  if (explicit) {
-    return { value: normalize(explicit), provenance: 'MANUAL' };
-  }
-
+  // An active org/event policy always wins over a manually-typed value — the whole point
+  // of the setting is that admins shouldn't have to remember to leave the field blank.
   const sourceValue = pickSourceValue(input.sourceField, input)?.trim();
   if (input.sourceField !== 'NONE' && sourceValue) {
     return { value: normalize(sourceValue), provenance: 'DERIVED' };
+  }
+
+  const explicit = input.explicitValue?.trim();
+  if (explicit) {
+    return { value: normalize(explicit), provenance: 'MANUAL' };
   }
 
   return { value: generateCheckInCredential(input.credentialLength), provenance: 'RANDOM' };
