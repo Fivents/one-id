@@ -3,8 +3,8 @@ package com.oneid.totem.data.print
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
-import android.graphics.Matrix
 import android.graphics.Paint
+import android.graphics.Rect
 import android.graphics.Typeface
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
@@ -35,7 +35,9 @@ data class BadgeElements(
 }
 
 @Singleton
-class BadgeRenderer @Inject constructor() {
+open class BadgeRenderer @Inject constructor() {
+
+    protected open fun textWidth(paint: Paint, text: String): Float = paint.measureText(text)
 
     suspend fun render(
         html: String,
@@ -74,6 +76,16 @@ class BadgeRenderer @Inject constructor() {
     ): Bitmap = withContext(Dispatchers.Default) {
         if (labelLayout == LabelLayout.MINIMAL_QR) {
             return@withContext renderMinimalQr(
+                name = name,
+                company = company,
+                jobTitle = jobTitle,
+                qrCodeValue = qrCodeValue,
+                dpi = dpi,
+            )
+        }
+
+        if (labelLayout == LabelLayout.COMPACT) {
+            return@withContext renderCompactQr(
                 name = name,
                 company = company,
                 jobTitle = jobTitle,
@@ -185,9 +197,126 @@ class BadgeRenderer @Inject constructor() {
             }
         }
 
-        val matrix = Matrix().apply { postRotate(MINIMAL_QR_ROTATION_DEGREES) }
-        val rotated = Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+        val rotated = rotateCw(bitmap)
         return trimBitmap(rotated, mmToPixels(2.0, dpi))
+    }
+
+    private fun renderCompactQr(
+        name: String,
+        company: String?,
+        jobTitle: String?,
+        qrCodeValue: String?,
+        dpi: Int,
+    ): Bitmap {
+        val marginPx = mmToPixels(COMPACT_MARGIN_MM, dpi)
+        val maxFeedWidthPx = mmToPixels(COMPACT_MAX_FEED_MM, dpi)
+        val logicalH = mmToPixels(MINIMAL_QR_ROLL_WIDTH_MM, dpi)
+        val cssScale = dpi / 96f * 2.2f
+
+        val nameText = shortenName(name).uppercase()
+
+        val namePaint = Paint().apply {
+            color = Color.BLACK
+            textSize = COMPACT_NAME_FONT_CSS * cssScale
+            typeface = Typeface.create("sans-serif", Typeface.BOLD)
+            isAntiAlias = true
+        }
+        val companyPaint = Paint().apply {
+            color = Color.BLACK
+            textSize = COMPACT_META_FONT_CSS * cssScale
+            typeface = Typeface.create("sans-serif", Typeface.NORMAL)
+            isAntiAlias = true
+        }
+        val jobPaint = Paint().apply {
+            color = Color.BLACK
+            textSize = COMPACT_META_FONT_CSS * cssScale
+            typeface = Typeface.create("sans-serif", Typeface.NORMAL)
+            isAntiAlias = true
+        }
+
+        val hasCompany = !company.isNullOrBlank()
+        val hasJobTitle = !jobTitle.isNullOrBlank()
+        val hasQr = !qrCodeValue.isNullOrBlank()
+
+        // Nome: mede a largura precisando de até o comprimento máximo da etiqueta.
+        val nameMaxWidth = (maxFeedWidthPx - 2 * marginPx).coerceAtLeast(1)
+        val displayName = if (textWidth(namePaint, nameText) > nameMaxWidth) {
+            truncateLine(nameText, namePaint, nameMaxWidth)
+        } else {
+            nameText
+        }
+        val nameRect = Rect()
+        namePaint.getTextBounds(displayName, 0, displayName.length, nameRect)
+        val nameBaseline = -nameRect.top.toFloat()
+        val nameBlockBottom = nameBaseline + nameRect.bottom.toFloat()
+        val nameWidthPx = textWidth(namePaint, displayName)
+
+        // QR: ocupa o restante da altura abaixo do nome.
+        val nameToQrGapPx = mmToPixels(COMPACT_NAME_TO_QR_GAP_MM, dpi)
+        val qrSize = if (hasQr) {
+            (logicalH - marginPx - nameBlockBottom - nameToQrGapPx).toInt().coerceIn(
+                mmToPixels(COMPACT_QR_MIN_MM, dpi),
+                mmToPixels(COMPACT_QR_MAX_MM, dpi),
+            )
+        } else {
+            0
+        }
+
+        // Empresa/cargo: truncados até o espaço que já existe (o nome quase sempre é
+        // mais largo que o QR, então essa sobra já dá bastante espaço de graça) mais uma
+        // folga extra limitada — em vez de um limite fixo, que ou desperdiça o espaço que
+        // o nome já reservou (texto cortado bem antes do QR) ou deixa a etiqueta enorme.
+        val colGapPx = mmToPixels(COMPACT_QR_COL_GAP_MM, dpi)
+        val freeMetaWidthPx = (maxOf(nameWidthPx, qrSize.toFloat()) - qrSize - colGapPx).coerceAtLeast(0f)
+        val metaGrowthCapPx = mmToPixels(COMPACT_META_MAX_MM, dpi)
+        val metaTruncateCap = (freeMetaWidthPx + metaGrowthCapPx).toInt().coerceAtLeast(1)
+        val companyLine = if (hasCompany) truncateLineNoEllipsis(company!!.uppercase(), companyPaint, metaTruncateCap) else ""
+        val jobLine = if (hasJobTitle) truncateLineNoEllipsis(jobTitle!!, jobPaint, metaTruncateCap) else ""
+        val metaWidthPx = maxOf(
+            if (hasCompany) textWidth(companyPaint, companyLine) else 0f,
+            if (hasJobTitle) textWidth(jobPaint, jobLine) else 0f,
+        )
+        val metaRowWidthPx = if (hasCompany || hasJobTitle) metaWidthPx + colGapPx + qrSize else 0f
+
+        // A etiqueta compacta só precisa ser tão comprida quanto o próprio conteúdo —
+        // nada de sobrar fita em branco antes do nome ou depois do QR.
+        val contentWidthPx = (maxOf(nameWidthPx, metaRowWidthPx, qrSize.toFloat()) + 2 * marginPx)
+            .toInt()
+            .coerceIn((qrSize + 2 * marginPx).coerceAtLeast(1), maxFeedWidthPx)
+
+        val bitmap = Bitmap.createBitmap(contentWidthPx, logicalH, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        canvas.drawColor(Color.WHITE)
+
+        // Nome: centralizado na etiqueta (já do tamanho do conteúdo), colado na borda superior.
+        val nameAreaWidth = (contentWidthPx - 2 * marginPx).coerceAtLeast(1)
+        val nameX = marginPx + (nameAreaWidth - nameWidthPx) / 2f
+        canvas.drawText(displayName, nameX, nameBaseline, namePaint)
+
+        // QR: colado nas bordas direita e inferior, sem quiet zone — senão o próprio
+        // QR gera uma margem em branco por dentro dos módulos, mesmo já estando
+        // encostado na borda.
+        if (hasQr) {
+            val qrX = contentWidthPx - marginPx - qrSize
+            val qrY = logicalH - marginPx - qrSize
+            drawQrCode(canvas, qrCodeValue!!, qrX, qrY, qrSize, quietZone = COMPACT_QR_QUIET_ZONE)
+        }
+
+        // Empresa/cargo: alinhados à esquerda, abaixo do nome.
+        var y = nameBlockBottom
+        if (hasCompany) {
+            y += mmToPixels(COMPACT_NAME_TO_COMPANY_GAP_MM, dpi)
+            canvas.drawText(companyLine, marginPx.toFloat(), y + companyPaint.textSize, companyPaint)
+            y += companyPaint.textSize
+        }
+
+        if (hasJobTitle) {
+            y += mmToPixels(COMPACT_COMPANY_TO_JOB_GAP_MM, dpi)
+            canvas.drawText(jobLine, marginPx.toFloat(), y + jobPaint.textSize, jobPaint)
+            y += jobPaint.textSize
+        }
+
+        return rotateCw(bitmap)
     }
 
     private fun shortenName(fullName: String): String {
@@ -210,10 +339,6 @@ class BadgeRenderer @Inject constructor() {
         heightPx: Int,
         dpi: Int,
     ) {
-        if (elements.labelLayout == LabelLayout.COMPACT) {
-            drawBadgeCompact(canvas, elements, widthPx, heightPx, dpi)
-            return
-        }
         val m = mmToPixels(2.5, dpi)
         val showQr = elements.showQrCode && !elements.qrCodeValue.isNullOrBlank()
         val cssScale = dpi / 96f * 2.2f
@@ -320,108 +445,6 @@ class BadgeRenderer @Inject constructor() {
         }
     }
 
-    private fun drawBadgeCompact(
-        canvas: Canvas,
-        elements: BadgeElements,
-        widthPx: Int,
-        heightPx: Int,
-        dpi: Int,
-    ) {
-        val m = mmToPixels(2.5, dpi)
-        val showQr = elements.showQrCode && !elements.qrCodeValue.isNullOrBlank()
-        val cssScale = dpi / 96f * 2.2f
-
-        val brandPaint = Paint().apply {
-            color = Color.BLACK
-            textSize = 7f * cssScale
-            typeface = Typeface.create("sans-serif", Typeface.BOLD)
-            isAntiAlias = true
-        }
-        val namePaint = Paint().apply {
-            color = Color.BLACK
-            textSize = 13f * cssScale
-            typeface = Typeface.create("sans-serif", Typeface.BOLD)
-            isAntiAlias = true
-        }
-        val metaPaint = Paint().apply {
-            color = Color.BLACK
-            textSize = 9f * cssScale
-            typeface = Typeface.create("sans-serif", Typeface.NORMAL)
-            isAntiAlias = true
-        }
-        val tsPaint = Paint().apply {
-            color = Color.BLACK
-            textSize = 3.5f * cssScale
-            typeface = Typeface.create("sans-serif", Typeface.NORMAL)
-            isAntiAlias = true
-        }
-        val codeValuePaint = Paint().apply {
-            color = Color.BLACK
-            textSize = 9f * cssScale
-            typeface = Typeface.create("sans-serif", Typeface.BOLD)
-            isAntiAlias = true
-        }
-
-        val gapTight = mmToPixels(0.4, dpi).toFloat()
-        val textL = m.toFloat()
-        val hasTitle = !elements.jobTitle.isNullOrBlank()
-        val hasCompany = !elements.company.isNullOrBlank()
-
-        val qrMargin = mmToPixels(1.0, dpi).coerceAtLeast(3)
-        val qrSize: Int
-        if (showQr) {
-            qrSize = mmToPixels(16.0, dpi).coerceIn(60, (widthPx * 0.30f).toInt())
-        } else {
-            qrSize = 0
-        }
-
-        val textAreaWidth = if (showQr) {
-            (widthPx - m - qrSize - qrMargin - mmToPixels(0.4, dpi)).coerceAtLeast(40)
-        } else {
-            widthPx - m * 2
-        }
-
-        var y = m.toFloat()
-
-        val headerText = if (elements.eventName.isNotBlank()) "ONEID - ${elements.eventName.uppercase()}" else "ONEID"
-        y = drawTextAt(canvas, headerText, brandPaint, textL, y + brandPaint.textSize)
-        y += gapTight * 1.5f
-
-        y = drawTextWrappedMaxCompact(canvas, elements.participantName, namePaint, textL, y + namePaint.textSize, textAreaWidth, 2)
-
-        if (hasTitle || hasCompany) {
-            val metaText = buildString {
-                if (hasTitle) append(elements.jobTitle)
-                if (hasTitle && hasCompany) append(" – ")
-                if (hasCompany) append(elements.company)
-            }
-            val metaTextClamped = if (metaPaint.measureText(metaText) > textAreaWidth) {
-                truncateLineNoEllipsis(metaText, metaPaint, textAreaWidth)
-            } else metaText
-            drawTextAt(canvas, metaTextClamped, metaPaint, textL, y + metaPaint.textSize)
-            y += metaPaint.textSize + gapTight
-        }
-
-        if (elements.showAccessCode && !elements.accessCode.isNullOrBlank()) {
-            val codeText = "CÓDIGO: ${elements.accessCode}"
-            drawTextAt(canvas, codeText, codeValuePaint, textL, y + codeValuePaint.textSize)
-            y += codeValuePaint.textSize + gapTight
-        }
-
-        y += gapTight * 1.5f
-
-        val timestamp = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(Date())
-        drawTextAt(canvas, timestamp, tsPaint, textL, y + tsPaint.textSize)
-
-        val contentTop = m + brandPaint.textSize + (gapTight * 1.5f)
-
-        if (showQr) {
-            val qrX = widthPx - qrSize - qrMargin
-            val qrY = contentTop.toInt()
-            drawQrCode(canvas, elements.qrCodeValue!!, qrX, qrY, qrSize)
-        }
-    }
-
     private fun trimBitmap(bitmap: Bitmap, marginPx: Int): Bitmap {
         val w = bitmap.width
         val h = bitmap.height
@@ -455,6 +478,19 @@ class BadgeRenderer @Inject constructor() {
 
         if (cropTop == 0 && cropBottom == h - 1) return bitmap
         return Bitmap.createBitmap(bitmap, 0, cropTop, w, cropH)
+    }
+
+    private fun rotateCw(src: Bitmap): Bitmap {
+        val srcW = src.width
+        val srcH = src.height
+        val dst = Bitmap.createBitmap(srcH, srcW, Bitmap.Config.ARGB_8888)
+        dst.eraseColor(Color.WHITE)
+        for (x in 0 until srcW) {
+            for (y in 0 until srcH) {
+                dst.setPixel(srcH - 1 - y, x, src.getPixel(x, y))
+            }
+        }
+        return dst
     }
 
     private fun drawTextAt(
@@ -491,57 +527,34 @@ class BadgeRenderer @Inject constructor() {
         return currentY
     }
 
-    private fun drawTextWrappedMaxCompact(
-        canvas: Canvas,
-        text: String,
-        paint: Paint,
-        x: Float,
-        y: Float,
-        maxWidth: Int,
-        maxLines: Int,
-    ): Float {
-        val lines = autoWrap(text, paint, maxWidth)
-        var currentY = y
-        for (i in 0 until minOf(lines.size, maxLines)) {
-            val line = if (i == maxLines - 1 && lines.size > maxLines) {
-                truncateLineNoEllipsis(lines[i], paint, maxWidth)
-            } else {
-                lines[i]
-            }
-            canvas.drawText(line, x, currentY, paint)
-            currentY += paint.textSize * 1.15f
-        }
-        return currentY
-    }
-
     private fun truncateLine(line: String, paint: Paint, maxWidth: Int): String {
         val ellipsis = "..."
-        if (paint.measureText(line) <= maxWidth) return line
+        if (textWidth(paint, line) <= maxWidth) return line
         var result = line
-        while (result.isNotEmpty() && paint.measureText("$result$ellipsis") > maxWidth) {
+        while (result.isNotEmpty() && textWidth(paint, "$result$ellipsis") > maxWidth) {
             result = result.dropLast(1)
         }
         return "$result$ellipsis"
     }
 
     private fun truncateLineNoEllipsis(line: String, paint: Paint, maxWidth: Int): String {
-        if (paint.measureText(line) <= maxWidth) return line
+        if (textWidth(paint, line) <= maxWidth) return line
         var result = line
-        while (result.isNotEmpty() && paint.measureText(result) > maxWidth) {
+        while (result.isNotEmpty() && textWidth(paint, result) > maxWidth) {
             result = result.dropLast(1)
         }
         return result
     }
 
     private fun autoWrap(text: String, paint: Paint, maxWidth: Int): List<String> {
-        if (paint.measureText(text) <= maxWidth) return listOf(text)
+        if (textWidth(paint, text) <= maxWidth) return listOf(text)
 
         val lines = mutableListOf<String>()
         val words = text.split(" ")
         val currentLine = StringBuilder()
         for (word in words) {
             val testLine = if (currentLine.isEmpty()) word else "$currentLine $word"
-            if (paint.measureText(testLine) <= maxWidth) {
+            if (textWidth(paint, testLine) <= maxWidth) {
                 currentLine.append(if (currentLine.isEmpty()) word else " $word")
             } else {
                 if (currentLine.isNotEmpty()) lines.add(currentLine.toString())
@@ -641,6 +654,19 @@ class BadgeRenderer @Inject constructor() {
         const val MINIMAL_QR_ROTATION_DEGREES = 90f
         const val MINIMAL_QR_VERSION = 10
         const val MINIMAL_QR_QUIET_ZONE = 0
+
+        const val COMPACT_MAX_FEED_MM = 150.0
+        const val COMPACT_QR_MAX_MM = 29.0
+        const val COMPACT_QR_MIN_MM = 15.0
+        const val COMPACT_QR_QUIET_ZONE = 0
+        const val COMPACT_MARGIN_MM = 0.0
+        const val COMPACT_NAME_FONT_CSS = 20f
+        const val COMPACT_META_FONT_CSS = 10f
+        const val COMPACT_META_MAX_MM = 45.0
+        const val COMPACT_NAME_TO_QR_GAP_MM = 0.4
+        const val COMPACT_NAME_TO_COMPANY_GAP_MM = 0.8
+        const val COMPACT_COMPANY_TO_JOB_GAP_MM = 0.4
+        const val COMPACT_QR_COL_GAP_MM = 1.0
 
         fun mmToPixels(mm: Double, dpi: Int): Int {
             return (mm / 25.4 * dpi).toInt().coerceAtLeast(1)
