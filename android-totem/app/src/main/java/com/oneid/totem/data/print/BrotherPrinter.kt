@@ -25,5 +25,5 @@ interface BrotherPrinter : Closeable {
     suspend fun connect(ipAddress: String, port: Int = 9100): PrintJobResult
     suspend fun printBitmap(bitmap: Bitmap, copies: Int = 1): PrintJobResult
     suspend fun getStatus(): PrinterStatus
-    fun isConnected(): Boolean
+    suspend fun isConnected(): Boolean
 }

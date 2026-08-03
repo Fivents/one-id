@@ -1,10 +1,10 @@
 {
     "logs": [
         {
-            "outputFile": "com.oneid.totem.app-mergeDebugResources-73:/values-night-v8/values-night-v8.xml",
+            "outputFile": "com.oneid.totem.app-mergeDebugResources-2:/values-night-v8/values-night-v8.xml",
             "map": [
                 {
-                    "source": "/home/phelipescript/.gradle/caches/8.11.1/transforms/6bd3a32bf8ec13d466c2a08b471d5ef8/transformed/appcompat-1.6.1/res/values-night-v8/values-night-v8.xml",
+                    "source": "/Users/phsc/.gradle/caches/8.11.1/transforms/6bd3a32bf8ec13d466c2a08b471d5ef8/transformed/appcompat-1.6.1/res/values-night-v8/values-night-v8.xml",
                     "from": {
                         "startLines": "2,3,4,5,6,7,8,9",
                         "startColumns": "4,4,4,4,4,4,4,4",

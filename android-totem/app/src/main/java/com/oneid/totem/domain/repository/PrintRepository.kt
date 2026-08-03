@@ -2,7 +2,7 @@ package com.oneid.totem.domain.repository
 
 import com.oneid.totem.domain.model.PrintData
 
-enum class LabelLayout { STANDARD, COMPACT }
+enum class LabelLayout { STANDARD, COMPACT, MINIMAL_QR }
 
 sealed class PrintResult {
     data class Success(val data: PrintData) : PrintResult()

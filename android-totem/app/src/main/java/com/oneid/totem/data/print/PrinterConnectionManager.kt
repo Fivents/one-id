@@ -21,7 +21,7 @@ class PrinterConnectionManager @Inject constructor(
     }
 
     suspend fun ensureConnected(ip: String): PrintJobResult = mutex.withLock {
-        if (printer.isConnected() && ip == currentIp) {
+        if (ip == currentIp && printer.isConnected()) {
             return PrintJobResult.Success
         }
 

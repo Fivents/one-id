@@ -5,7 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -13,13 +13,17 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.oneid.totem.presentation.components.TotemTextField
 import com.oneid.totem.presentation.theme.*
+import com.oneid.totem.presentation.util.dismissKeyboardOnTapOutside
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -29,6 +33,8 @@ fun SelfRegisterScreen(
     viewModel: SelfRegisterViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
 
     LaunchedEffect(uiState.success) {
         uiState.success?.let { (id, epId, name) -> onSuccess(id, epId, name) }
@@ -37,13 +43,15 @@ fun SelfRegisterScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Background),
+            .background(Background)
+            .dismissKeyboardOnTapOutside(),
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(32.dp)
-                .verticalScroll(rememberScrollState()),
+                .verticalScroll(rememberScrollState())
+                .imePadding()
+                .padding(32.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Row(
@@ -82,47 +90,42 @@ fun SelfRegisterScreen(
 
             Spacer(Modifier.height(32.dp))
 
-            OutlinedTextField(
+            TotemTextField(
                 value = uiState.name,
                 onValueChange = viewModel::onNameChanged,
-                label = { Text("Nome completo") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
+                label = "Nome completo",
                 enabled = !uiState.isLoading,
-                shape = RoundedCornerShape(12.dp),
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-                colors = fieldColors(),
+                imeAction = ImeAction.Next,
             )
 
             Spacer(Modifier.height(16.dp))
 
-            OutlinedTextField(
+            TotemTextField(
                 value = uiState.email,
                 onValueChange = viewModel::onEmailChanged,
-                label = { Text("Email") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
+                label = "Email",
                 enabled = !uiState.isLoading,
-                shape = RoundedCornerShape(12.dp),
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Email,
-                    imeAction = ImeAction.Next,
-                ),
-                colors = fieldColors(),
+                keyboardType = KeyboardType.Email,
+                imeAction = ImeAction.Next,
             )
 
             Spacer(Modifier.height(16.dp))
 
-            OutlinedTextField(
+            TotemTextField(
                 value = uiState.company,
                 onValueChange = viewModel::onCompanyChanged,
-                label = { Text("Empresa (opcional)") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
+                label = "Empresa (opcional)",
                 enabled = !uiState.isLoading,
-                shape = RoundedCornerShape(12.dp),
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                colors = fieldColors(),
+                imeAction = ImeAction.Done,
+                keyboardActions = KeyboardActions(
+                    onDone = {
+                        if (!uiState.isLoading) {
+                            focusManager.clearFocus()
+                            keyboardController?.hide()
+                            viewModel.submit()
+                        }
+                    },
+                ),
             )
 
             AnimatedVisibility(visible = uiState.error != null) {
@@ -162,16 +165,3 @@ fun SelfRegisterScreen(
         }
     }
 }
-
-@Composable
-private fun fieldColors() = OutlinedTextFieldDefaults.colors(
-    focusedBorderColor = Primary,
-    unfocusedBorderColor = Outline,
-    cursorColor = Primary,
-    focusedLabelColor = Primary,
-    unfocusedLabelColor = OnSurfaceVariant,
-    focusedTextColor = OnSurface,
-    unfocusedTextColor = OnSurface,
-    focusedContainerColor = Surface,
-    unfocusedContainerColor = Surface,
-)

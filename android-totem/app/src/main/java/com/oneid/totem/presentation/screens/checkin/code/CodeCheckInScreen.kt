@@ -5,9 +5,12 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ErrorOutline
@@ -17,6 +20,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -25,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.oneid.totem.presentation.theme.*
+import com.oneid.totem.presentation.util.dismissKeyboardOnTapOutside
 
 @Composable
 fun CodeCheckInScreen(
@@ -33,6 +39,8 @@ fun CodeCheckInScreen(
     viewModel: CodeCheckInViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
 
     LaunchedEffect(uiState.success) {
         uiState.success?.let { (id, epId, name) -> onSuccess(id, epId, name) }
@@ -41,11 +49,14 @@ fun CodeCheckInScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Background),
+            .background(Background)
+            .dismissKeyboardOnTapOutside(),
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .imePadding()
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
@@ -74,7 +85,7 @@ fun CodeCheckInScreen(
                 Spacer(Modifier.weight(1f))
             }
 
-            Spacer(Modifier.weight(0.2f))
+            Spacer(Modifier.height(32.dp))
 
             Box(
                 modifier = Modifier
@@ -135,6 +146,15 @@ fun CodeCheckInScreen(
                     keyboardType = KeyboardType.Ascii,
                     imeAction = ImeAction.Go,
                 ),
+                keyboardActions = KeyboardActions(
+                    onGo = {
+                        if (uiState.code.length >= 4 && !uiState.isLoading) {
+                            focusManager.clearFocus()
+                            keyboardController?.hide()
+                            viewModel.submitCode()
+                        }
+                    },
+                ),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = Primary,
                     unfocusedBorderColor = Outline,
@@ -189,7 +209,7 @@ fun CodeCheckInScreen(
                 }
             }
 
-            Spacer(Modifier.weight(0.3f))
+            Spacer(Modifier.height(40.dp))
 
             Button(
                 onClick = viewModel::submitCode,

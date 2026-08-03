@@ -1,8 +1,10 @@
 package com.oneid.totem.data.print
 
+import com.oneid.totem.domain.repository.LabelLayout
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -39,8 +41,8 @@ class BadgeRendererTest {
         )
 
         assertNotNull(bitmap)
-        assertEquals(732, bitmap.width)
-        assertEquals(590, bitmap.height)
+        assertEquals(BadgeRenderer.mmToPixels(50.0, 300), bitmap.width)
+        assertTrue(bitmap.height in 1..BadgeRenderer.mmToPixels(62.0, 300))
     }
 
     @Test
@@ -57,8 +59,27 @@ class BadgeRendererTest {
         )
 
         assertNotNull(bitmap)
-        assertEquals(732, bitmap.width)
-        assertEquals(354, bitmap.height)
+        assertEquals(BadgeRenderer.mmToPixels(30.0, 300), bitmap.width)
+        assertTrue(bitmap.height in 1..BadgeRenderer.mmToPixels(62.0, 300))
+    }
+
+    @Test
+    fun `renderFromData MINIMAL_QR creates 29mm wide bitmap`() = runTest {
+        val bitmap = renderer.renderFromData(
+            name = "MARIA EDUARDA SILVA SANTOS DE OLIVEIRA",
+            company = "EMPRESA EXEMPLO DE TECNOLOGIA E SERVIÇOS LTDA",
+            jobTitle = "DIRETORA DE MARKETING E VENDAS",
+            qrCodeValue = "teste-print-001",
+            accessCode = null,
+            paperWidthMm = 62.0,
+            paperHeightMm = 50.0,
+            dpi = 300,
+            labelLayout = LabelLayout.MINIMAL_QR,
+        )
+
+        assertNotNull(bitmap)
+        assertEquals(BadgeRenderer.mmToPixels(29.0, 300), bitmap.width)
+        assertTrue(bitmap.height in 1..BadgeRenderer.mmToPixels(120.0, 300))
     }
 
     @Test

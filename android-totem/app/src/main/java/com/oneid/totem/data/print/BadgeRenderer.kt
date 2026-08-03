@@ -3,6 +3,7 @@ package com.oneid.totem.data.print
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.Typeface
 import com.google.zxing.BarcodeFormat
@@ -68,6 +69,16 @@ class BadgeRenderer @Inject constructor() {
         dpi: Int,
         labelLayout: LabelLayout = LabelLayout.STANDARD,
     ): Bitmap = withContext(Dispatchers.Default) {
+        if (labelLayout == LabelLayout.MINIMAL_QR) {
+            return@withContext renderMinimalQr(
+                name = name,
+                company = company,
+                jobTitle = jobTitle,
+                qrCodeValue = qrCodeValue,
+                dpi = dpi,
+            )
+        }
+
         val rollWidthMm = paperHeightMm
         val maxFeedMm = paperWidthMm
 
@@ -97,6 +108,80 @@ class BadgeRenderer @Inject constructor() {
         )
 
         trimBitmap(bitmap, mmToPixels(2.0, dpi))
+    }
+
+    private fun renderMinimalQr(
+        name: String,
+        company: String?,
+        jobTitle: String?,
+        qrCodeValue: String?,
+        dpi: Int,
+    ): Bitmap {
+        val logicalW = mmToPixels(MINIMAL_QR_MAX_FEED_MM, dpi)
+        val logicalH = mmToPixels(MINIMAL_QR_ROLL_WIDTH_MM, dpi)
+        val cssScale = dpi / 96f * 2.2f
+
+        val bitmap = Bitmap.createBitmap(logicalW, logicalH, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        canvas.drawColor(Color.WHITE)
+
+        val qrMargin = mmToPixels(1.0, dpi).coerceAtLeast(3)
+        val qrSize = (logicalH - qrMargin * 2).coerceAtLeast(80)
+        if (!qrCodeValue.isNullOrBlank()) {
+            drawQrCode(canvas, qrCodeValue, qrMargin, qrMargin, qrSize)
+        }
+
+        val namePaint = Paint().apply {
+            color = Color.BLACK
+            textSize = 20f * cssScale
+            typeface = Typeface.create("sans-serif", Typeface.BOLD)
+            isAntiAlias = true
+        }
+        val metaPaint = Paint().apply {
+            color = Color.BLACK
+            textSize = 10f * cssScale
+            typeface = Typeface.create("sans-serif", Typeface.NORMAL)
+            isAntiAlias = true
+        }
+
+        val gapTight = mmToPixels(0.8, dpi).toFloat()
+        val textLeft = (qrMargin + qrSize + mmToPixels(1.5, dpi)).toFloat()
+        val textAreaWidth = (logicalW - qrMargin - textLeft).toInt().coerceAtLeast(40)
+
+        val nameLines = autoWrap(shortenName(name), namePaint, textAreaWidth).take(2)
+        val metaLines = listOfNotNull(
+            shortenName(jobTitle ?: "").takeIf { it.isNotBlank() },
+            shortenName(company ?: "").takeIf { it.isNotBlank() },
+        )
+
+        val nameBlockH = nameLines.size * namePaint.textSize * 1.15f
+        val metaBlockH = if (metaLines.isNotEmpty()) {
+            metaLines.size * metaPaint.textSize * 1.15f + gapTight
+        } else {
+            0f
+        }
+        val totalH = nameBlockH + metaBlockH
+
+        var y = ((logicalH - totalH) / 2f).coerceAtLeast(qrMargin.toFloat())
+
+        for (line in nameLines) {
+            val clamped = truncateLineNoEllipsis(line, namePaint, textAreaWidth)
+            canvas.drawText(clamped, textLeft, y + namePaint.textSize, namePaint)
+            y += namePaint.textSize * 1.15f
+        }
+
+        if (metaLines.isNotEmpty()) {
+            y += gapTight
+            for (line in metaLines) {
+                val clamped = truncateLineNoEllipsis(line, metaPaint, textAreaWidth)
+                canvas.drawText(clamped, textLeft, y + metaPaint.textSize, metaPaint)
+                y += metaPaint.textSize * 1.15f
+            }
+        }
+
+        val matrix = Matrix().apply { postRotate(MINIMAL_QR_ROTATION_DEGREES) }
+        val rotated = Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+        return trimBitmap(rotated, mmToPixels(2.0, dpi))
     }
 
     private fun shortenName(fullName: String): String {
@@ -513,6 +598,10 @@ class BadgeRenderer @Inject constructor() {
     }
 
     companion object {
+        const val MINIMAL_QR_ROLL_WIDTH_MM = 29.0
+        const val MINIMAL_QR_MAX_FEED_MM = 120.0
+        const val MINIMAL_QR_ROTATION_DEGREES = 90f
+
         fun mmToPixels(mm: Double, dpi: Int): Int {
             return (mm / 25.4 * dpi).toInt().coerceAtLeast(1)
         }

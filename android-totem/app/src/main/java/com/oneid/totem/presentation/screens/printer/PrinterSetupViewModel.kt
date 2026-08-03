@@ -52,7 +52,7 @@ class PrinterSetupViewModel @Inject constructor(
     @ApplicationContext private val appContext: Context,
     private val printerConfigRepository: PrinterConfigRepository,
     private val printerConnectionManager: PrinterConnectionManager,
-    private val badgeRenderer: BadgeRenderer,
+    val badgeRenderer: BadgeRenderer,
     private val printRepository: PrintRepository,
 ) : ViewModel() {
 
@@ -232,14 +232,17 @@ class PrinterSetupViewModel @Inject constructor(
             }
             try {
                 val labelLayout = _uiState.value.labelLayout
+                val config = _uiState.value.printConfig
+                val paperWidth = config?.paperWidth ?: 62.0
+                val paperHeight = config?.paperHeight ?: 100.0
                 val bitmap = badgeRenderer.renderFromData(
-                    name = "TESTE DE IMPRESSÃO",
-                    company = "ONE-ID",
-                    jobTitle = "Impressora: $ip",
-                    qrCodeValue = null,
+                    name = "MARIA EDUARDA SILVA SANTOS DE OLIVEIRA",
+                    company = "EMPRESA EXEMPLO DE TECNOLOGIA E SERVIÇOS LTDA",
+                    jobTitle = "DIRETORA DE MARKETING E VENDAS",
+                    qrCodeValue = "teste-print-001",
                     accessCode = null,
-                    paperWidthMm = 62.0,
-                    paperHeightMm = 100.0,
+                    paperWidthMm = paperWidth,
+                    paperHeightMm = paperHeight,
                     dpi = 300,
                     labelLayout = labelLayout,
                 )

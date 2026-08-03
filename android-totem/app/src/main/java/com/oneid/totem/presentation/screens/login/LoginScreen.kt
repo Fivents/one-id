@@ -5,12 +5,17 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -19,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.oneid.totem.presentation.theme.*
+import com.oneid.totem.presentation.util.dismissKeyboardOnTapOutside
 
 @Composable
 fun LoginScreen(
@@ -26,6 +32,8 @@ fun LoginScreen(
     viewModel: LoginViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
 
     LaunchedEffect(uiState.isLoggedIn) {
         if (uiState.isLoggedIn) onLoginSuccess()
@@ -34,15 +42,18 @@ fun LoginScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Background),
+            .background(Background)
+            .dismissKeyboardOnTapOutside(),
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .imePadding()
                 .padding(horizontal = 32.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Spacer(Modifier.height(80.dp))
+            Spacer(Modifier.height(48.dp))
 
             Text(
                 text = "ONE-ID",
@@ -62,7 +73,7 @@ fun LoginScreen(
                 color = OnSurfaceVariant,
             )
 
-            Spacer(Modifier.weight(0.3f))
+            Spacer(Modifier.height(48.dp))
 
             Text(
                 text = "Código do Totem",
@@ -98,6 +109,15 @@ fun LoginScreen(
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Ascii,
                     imeAction = ImeAction.Go,
+                ),
+                keyboardActions = KeyboardActions(
+                    onGo = {
+                        if (uiState.key.length >= 4 && !uiState.isLoading) {
+                            focusManager.clearFocus()
+                            keyboardController?.hide()
+                            viewModel.login()
+                        }
+                    },
                 ),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = Primary,
@@ -152,7 +172,7 @@ fun LoginScreen(
                 }
             }
 
-            Spacer(Modifier.weight(0.5f))
+            Spacer(Modifier.height(64.dp))
         }
     }
 }

@@ -30,7 +30,7 @@ class PrinterConnectionManagerTest {
 
     @Test
     fun `ensureConnected connects when printer not connected`() = runTest {
-        every { printer.isConnected() } returns false
+        coEvery { printer.isConnected() } returns false
         coEvery { printer.connect(any()) } returns PrintJobResult.Success
 
         val result = manager.ensureConnected("192.168.1.100")
@@ -41,7 +41,7 @@ class PrinterConnectionManagerTest {
 
     @Test
     fun `ensureConnected reuses existing connection to same IP`() = runTest {
-        every { printer.isConnected() } returns true
+        coEvery { printer.isConnected() } returns true
         coEvery { printer.connect(any()) } returns PrintJobResult.Success
 
         manager.ensureConnected("192.168.1.100")
@@ -53,7 +53,7 @@ class PrinterConnectionManagerTest {
 
     @Test
     fun `ensureConnected reconnects when IP changes`() = runTest {
-        every { printer.isConnected() } returns true
+        coEvery { printer.isConnected() } returns true
         coEvery { printer.connect(any()) } returns PrintJobResult.Success
 
         manager.ensureConnected("192.168.1.100")
@@ -64,8 +64,20 @@ class PrinterConnectionManagerTest {
     }
 
     @Test
+    fun `ensureConnected reconnects when probe fails on same IP`() = runTest {
+        coEvery { printer.isConnected() } returns false
+        coEvery { printer.connect(any()) } returns PrintJobResult.Success
+
+        manager.ensureConnected("192.168.1.100")
+        val result = manager.ensureConnected("192.168.1.100")
+
+        assertTrue(result is PrintJobResult.Success)
+        coVerify(exactly = 2) { printer.connect(any()) }
+    }
+
+    @Test
     fun `ensureConnected retries up to MAX_RETRIES then fails`() = runTest {
-        every { printer.isConnected() } returns false
+        coEvery { printer.isConnected() } returns false
         coEvery { printer.connect(any()) } returns PrintJobResult.Error("fail")
 
         val result = manager.ensureConnected("192.168.1.100")
@@ -77,7 +89,7 @@ class PrinterConnectionManagerTest {
 
     @Test
     fun `printWithReconnect succeeds when connect and print succeed`() = runTest {
-        every { printer.isConnected() } returns false
+        coEvery { printer.isConnected() } returns false
         coEvery { printer.connect(any()) } returns PrintJobResult.Success
         coEvery { printer.printBitmap(any(), any()) } returns PrintJobResult.Success
 
@@ -91,7 +103,7 @@ class PrinterConnectionManagerTest {
 
     @Test
     fun `printWithReconnect closes on print failure`() = runTest {
-        every { printer.isConnected() } returns false
+        coEvery { printer.isConnected() } returns false
         coEvery { printer.connect(any()) } returns PrintJobResult.Success
         coEvery { printer.printBitmap(any(), any()) } returns PrintJobResult.Error("print fail")
         every { printer.close() } answers { }

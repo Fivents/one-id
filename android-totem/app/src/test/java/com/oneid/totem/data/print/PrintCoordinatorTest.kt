@@ -2,6 +2,7 @@ package com.oneid.totem.data.print
 
 import android.graphics.Bitmap
 import com.oneid.totem.domain.model.PrintData
+import com.oneid.totem.domain.repository.LabelLayout
 import com.oneid.totem.domain.repository.PrintRepository
 import com.oneid.totem.domain.repository.PrintResult
 import io.mockk.MockKAnnotations
@@ -81,7 +82,10 @@ class PrintCoordinatorTest {
     fun `printBadge returns error when render fails`() = runTest {
         coEvery { printRepository.printBadge(any(), any()) } returns PrintResult.Success(sampleData)
         every { printerConfigRepository.printerIpValue } returns "192.168.1.100"
-        coEvery { badgeRenderer.render(any(), any(), any(), any()) } throws RuntimeException("render crash")
+        every { printerConfigRepository.labelLayoutValue } returns LabelLayout.STANDARD
+        coEvery {
+            badgeRenderer.renderFromData(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
+        } throws RuntimeException("render crash")
 
         val result = coordinator.printBadge("ep-1", null)
 
@@ -95,14 +99,45 @@ class PrintCoordinatorTest {
 
         coEvery { printRepository.printBadge(any(), any()) } returns PrintResult.Success(sampleData)
         every { printerConfigRepository.printerIpValue } returns "192.168.1.100"
-        coEvery { badgeRenderer.render(any(), any(), any(), any()) } returns bitmap
+        every { printerConfigRepository.labelLayoutValue } returns LabelLayout.STANDARD
+        coEvery {
+            badgeRenderer.renderFromData(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
+        } returns bitmap
         coEvery { connectionManager.printWithReconnect(any(), any(), any()) } returns PrintJobResult.Success
 
         val result = coordinator.printBadge("ep-1", null)
 
         assertTrue(result is PrintJobResult.Success)
-        coVerify { badgeRenderer.render(eq(sampleData.html), any(), any(), any()) }
+        coVerify {
+            badgeRenderer.renderFromData(
+                any(), any(), any(), any(), any(), any(), any(), any(),
+                eq(62.0), eq(50.0), eq(300), eq(LabelLayout.STANDARD),
+            )
+        }
         coVerify { connectionManager.printWithReconnect(bitmap, "192.168.1.100", 1) }
+    }
+
+    @Test
+    fun `printBadge passes configured label layout to renderer`() = runTest {
+        val bitmap = Bitmap.createBitmap(100, 200, Bitmap.Config.ARGB_8888)
+
+        coEvery { printRepository.printBadge(any(), any()) } returns PrintResult.Success(sampleData)
+        every { printerConfigRepository.printerIpValue } returns "192.168.1.100"
+        every { printerConfigRepository.labelLayoutValue } returns LabelLayout.MINIMAL_QR
+        coEvery {
+            badgeRenderer.renderFromData(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
+        } returns bitmap
+        coEvery { connectionManager.printWithReconnect(any(), any(), any()) } returns PrintJobResult.Success
+
+        val result = coordinator.printBadge("ep-1", null)
+
+        assertTrue(result is PrintJobResult.Success)
+        coVerify {
+            badgeRenderer.renderFromData(
+                any(), any(), any(), any(), any(), any(), any(), any(),
+                any(), any(), any(), eq(LabelLayout.MINIMAL_QR),
+            )
+        }
     }
 
     @Test
@@ -111,7 +146,10 @@ class PrintCoordinatorTest {
 
         coEvery { printRepository.printBadge(any(), any()) } returns PrintResult.Success(sampleData)
         every { printerConfigRepository.printerIpValue } returns "192.168.1.100"
-        coEvery { badgeRenderer.render(any(), any(), any(), any()) } returns bitmap
+        every { printerConfigRepository.labelLayoutValue } returns LabelLayout.STANDARD
+        coEvery {
+            badgeRenderer.renderFromData(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
+        } returns bitmap
         coEvery { connectionManager.printWithReconnect(any(), any(), any()) } returns PrintJobResult.Error("Erro de impressão: PaperEmpty")
 
         val result = coordinator.printBadge("ep-1", null)

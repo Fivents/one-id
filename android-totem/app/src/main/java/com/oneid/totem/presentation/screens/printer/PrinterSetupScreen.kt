@@ -109,14 +109,11 @@ fun PrinterSetupScreen(
                     BadgePreviewSection(
                         paperWidthMm = config.paperWidth,
                         paperHeightMm = config.paperHeight,
-                        orientation = uiState.orientation,
                         labelLayout = uiState.labelLayout,
+                        badgeRenderer = viewModel.badgeRenderer,
                         showQrCode = config.showQrCode,
                         showAccessCode = config.showAccessCode,
-                        fontSizeName = config.fontSizeName,
-                        fontSizeMeta = config.fontSizeMeta,
                         eventName = "EVENTO",
-                        onOrientationChange = viewModel::setOrientation,
                         onLabelLayoutChange = viewModel::setLabelLayout,
                     )
                 }

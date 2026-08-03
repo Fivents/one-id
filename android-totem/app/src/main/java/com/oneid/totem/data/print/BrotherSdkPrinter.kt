@@ -106,7 +106,15 @@ class BrotherSdkPrinter @Inject constructor(
         return PrinterStatus.UNKNOWN
     }
 
-    override fun isConnected(): Boolean = driver != null
+    override suspend fun isConnected(): Boolean = withContext(Dispatchers.IO) {
+        val d = driver ?: return@withContext false
+        try {
+            val statusResult = d.printerStatus
+            statusResult.error.code == GetStatusError.ErrorCode.NoError
+        } catch (e: Exception) {
+            false
+        }
+    }
 
     override fun close() {
         try {
