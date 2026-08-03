@@ -1,6 +1,9 @@
 package com.oneid.totem.data.print
 
 import com.oneid.totem.data.local.TokenStorage
+import com.oneid.totem.data.local.TotemPreferences
+import com.oneid.totem.domain.repository.AccessCodeKeyboard
+import com.oneid.totem.domain.repository.LabelLayout
 import io.mockk.MockKAnnotations
 import io.mockk.every
 import io.mockk.impl.annotations.MockK
@@ -20,12 +23,18 @@ class PrinterConfigRepositoryTest {
     @MockK
     private lateinit var tokenStorage: TokenStorage
 
+    @MockK
+    private lateinit var prefs: TotemPreferences
+
     private lateinit var repository: PrinterConfigRepository
 
     @Before
     fun setUp() {
         MockKAnnotations.init(this)
-        repository = PrinterConfigRepository(tokenStorage)
+        every { prefs.printerOrientation } returns "PORTRAIT"
+        every { prefs.printerLabelLayout } returns LabelLayout.STANDARD
+        every { prefs.accessCodeKeyboard } returns AccessCodeKeyboard.ALPHANUMERIC
+        repository = PrinterConfigRepository(tokenStorage, prefs)
     }
 
     @Test
@@ -84,6 +93,27 @@ class PrinterConfigRepositoryTest {
 
         repository.setIp("10.0.0.1")
         assertEquals("10.0.0.1", repository.printerIp.first())
+    }
+
+    @Test
+    fun `load restores saved access code keyboard`() {
+        every { tokenStorage.getPrinterIp() } returns null
+        every { prefs.accessCodeKeyboard } returns AccessCodeKeyboard.NUMERIC
+
+        repository.load()
+
+        assertEquals(AccessCodeKeyboard.NUMERIC, repository.accessCodeKeyboardValue)
+    }
+
+    @Test
+    fun `setAccessCodeKeyboard updates value and persists`() = runTest {
+        every { prefs.accessCodeKeyboard = any() } just runs
+
+        repository.setAccessCodeKeyboard(AccessCodeKeyboard.NUMERIC)
+
+        assertEquals(AccessCodeKeyboard.NUMERIC, repository.accessCodeKeyboardValue)
+        assertEquals(AccessCodeKeyboard.NUMERIC, repository.accessCodeKeyboard.first())
+        verify { prefs.accessCodeKeyboard = AccessCodeKeyboard.NUMERIC }
     }
 
     @Test

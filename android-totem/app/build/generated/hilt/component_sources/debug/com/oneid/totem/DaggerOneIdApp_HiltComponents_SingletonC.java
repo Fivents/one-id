@@ -518,7 +518,7 @@ public final class DaggerOneIdApp_HiltComponents_SingletonC {
       public T get() {
         switch (id) {
           case 0: // com.oneid.totem.presentation.screens.checkin.code.CodeCheckInViewModel 
-          return (T) new CodeCheckInViewModel(singletonCImpl.checkInHttpRepositoryProvider.get());
+          return (T) new CodeCheckInViewModel(singletonCImpl.checkInHttpRepositoryProvider.get(), singletonCImpl.totemPreferencesProvider.get());
 
           case 1: // com.oneid.totem.presentation.screens.checkin.face.FaceCheckInViewModel 
           return (T) new FaceCheckInViewModel(singletonCImpl.checkInHttpRepositoryProvider.get(), singletonCImpl.faceProcessingServiceImplProvider.get());
@@ -530,7 +530,7 @@ public final class DaggerOneIdApp_HiltComponents_SingletonC {
           return (T) new LoginViewModel(singletonCImpl.authHttpRepositoryProvider.get());
 
           case 4: // com.oneid.totem.presentation.screens.method.MethodViewModel 
-          return (T) new MethodViewModel(singletonCImpl.authHttpRepositoryProvider.get(), singletonCImpl.printerConfigRepositoryProvider.get(), singletonCImpl.modelDownloaderProvider.get());
+          return (T) new MethodViewModel(singletonCImpl.authHttpRepositoryProvider.get(), singletonCImpl.printerConfigRepositoryProvider.get(), singletonCImpl.modelDownloaderProvider.get(), singletonCImpl.totemPreferencesProvider.get());
 
           case 5: // com.oneid.totem.presentation.screens.printer.PrinterSetupViewModel 
           return (T) new PrinterSetupViewModel(ApplicationContextModule_ProvideContextFactory.provideContext(singletonCImpl.applicationContextModule), singletonCImpl.printerConfigRepositoryProvider.get(), singletonCImpl.providePrinterConnectionManagerProvider.get(), singletonCImpl.badgeRendererProvider.get(), singletonCImpl.printHttpRepositoryProvider.get());
@@ -753,7 +753,7 @@ public final class DaggerOneIdApp_HiltComponents_SingletonC {
           return (T) new BrotherSdkPrinter(ApplicationContextModule_ProvideContextFactory.provideContext(singletonCImpl.applicationContextModule));
 
           case 13: // com.oneid.totem.data.repository.http.AuthHttpRepository 
-          return (T) new AuthHttpRepository(singletonCImpl.apiClientProvider.get(), singletonCImpl.tokenStorageProvider.get());
+          return (T) new AuthHttpRepository(singletonCImpl.apiClientProvider.get(), singletonCImpl.tokenStorageProvider.get(), singletonCImpl.totemPreferencesProvider.get());
 
           default: throw new AssertionError(id);
         }

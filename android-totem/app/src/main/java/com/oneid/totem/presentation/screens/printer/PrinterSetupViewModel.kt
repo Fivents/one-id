@@ -11,6 +11,7 @@ import com.oneid.totem.data.print.PrintJobResult
 import com.oneid.totem.data.print.PrinterConfigRepository
 import com.oneid.totem.data.print.PrinterConnectionManager
 import com.oneid.totem.data.print.PrinterStatus
+import com.oneid.totem.domain.repository.AccessCodeKeyboard
 import com.oneid.totem.domain.repository.LabelLayout
 import com.oneid.totem.domain.repository.PrintConfig
 import com.oneid.totem.domain.repository.PrintRepository
@@ -45,6 +46,7 @@ data class PrinterSetupUiState(
     val printConfig: PrintConfig? = null,
     val orientation: String = "PORTRAIT",
     val labelLayout: LabelLayout = LabelLayout.STANDARD,
+    val accessCodeKeyboard: AccessCodeKeyboard = AccessCodeKeyboard.ALPHANUMERIC,
 )
 
 @HiltViewModel
@@ -64,12 +66,14 @@ class PrinterSetupViewModel @Inject constructor(
         val ip = printerConfigRepository.printerIpValue
         val savedOrientation = printerConfigRepository.orientationValue
         val savedLabelLayout = printerConfigRepository.labelLayoutValue
+        val savedAccessCodeKeyboard = printerConfigRepository.accessCodeKeyboardValue
         _uiState.update {
             it.copy(
                 savedIp = ip,
                 manualIp = ip,
                 orientation = savedOrientation,
                 labelLayout = savedLabelLayout,
+                accessCodeKeyboard = savedAccessCodeKeyboard,
             )
         }
         checkCurrentConnection(ip)
@@ -218,6 +222,11 @@ class PrinterSetupViewModel @Inject constructor(
     fun setLabelLayout(layout: LabelLayout) {
         _uiState.update { it.copy(labelLayout = layout) }
         printerConfigRepository.setLabelLayout(layout)
+    }
+
+    fun setAccessCodeKeyboard(mode: AccessCodeKeyboard) {
+        _uiState.update { it.copy(accessCodeKeyboard = mode) }
+        printerConfigRepository.setAccessCodeKeyboard(mode)
     }
 
     fun testPrint() {

@@ -2,6 +2,8 @@ package com.oneid.totem.presentation.screens.checkin.code
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.oneid.totem.data.local.TotemPreferences
+import com.oneid.totem.domain.repository.AccessCodeKeyboard
 import com.oneid.totem.domain.repository.CheckInRepository
 import com.oneid.totem.domain.repository.CheckInResult
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -16,18 +18,28 @@ data class CodeCheckInUiState(
     val error: String? = null,
     val success: Triple<String, String, String>? = null,
     val attemptCount: Int = 0,
+    val numericKeyboard: Boolean = false,
 )
 
 @HiltViewModel
 class CodeCheckInViewModel @Inject constructor(
     private val checkInRepository: CheckInRepository,
+    private val totemPreferences: TotemPreferences,
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(CodeCheckInUiState())
+    private val _uiState = MutableStateFlow(
+        CodeCheckInUiState(
+            numericKeyboard = totemPreferences.accessCodeKeyboard == AccessCodeKeyboard.NUMERIC,
+        ),
+    )
     val uiState = _uiState.asStateFlow()
 
     fun onCodeChanged(code: String) {
-        val filtered = code.uppercase().filter { it.isLetterOrDigit() }
+        val filtered = if (_uiState.value.numericKeyboard) {
+            code.uppercase().filter { it.isDigit() }
+        } else {
+            code.uppercase().filter { it.isLetterOrDigit() }
+        }
         _uiState.value = _uiState.value.copy(code = filtered, error = null)
     }
 

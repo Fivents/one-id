@@ -2,6 +2,7 @@ package com.oneid.totem.presentation.screens.method
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.oneid.totem.data.local.TotemPreferences
 import com.oneid.totem.data.print.PrinterConfigRepository
 import com.oneid.totem.data.service.ModelDownloadState
 import com.oneid.totem.data.service.ModelDownloader
@@ -28,6 +29,7 @@ class MethodViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val printerConfigRepository: PrinterConfigRepository,
     private val modelDownloader: ModelDownloader,
+    private val totemPreferences: TotemPreferences,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MethodUiState())
@@ -67,6 +69,12 @@ class MethodViewModel @Inject constructor(
             authRepository.logout()
             _uiState.value = _uiState.value.copy(hasLoggedOut = true)
         }
+    }
+
+    fun isAccessCodeValid(code: String): Boolean {
+        val expected = totemPreferences.totemAccessCode
+        if (expected.isBlank()) return false
+        return code.uppercase().trim() == expected.uppercase().trim()
     }
 
     fun refresh() {

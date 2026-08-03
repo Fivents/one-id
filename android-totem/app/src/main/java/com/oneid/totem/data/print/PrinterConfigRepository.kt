@@ -2,6 +2,7 @@ package com.oneid.totem.data.print
 
 import com.oneid.totem.data.local.TokenStorage
 import com.oneid.totem.data.local.TotemPreferences
+import com.oneid.totem.domain.repository.AccessCodeKeyboard
 import com.oneid.totem.domain.repository.LabelLayout
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -17,6 +18,7 @@ class PrinterConfigRepository @Inject constructor(
     private val _printerIp = MutableStateFlow("")
     private val _orientation = MutableStateFlow("PORTRAIT")
     private val _labelLayout = MutableStateFlow(LabelLayout.STANDARD)
+    private val _accessCodeKeyboard = MutableStateFlow(AccessCodeKeyboard.ALPHANUMERIC)
 
     val printerIp: StateFlow<String> = _printerIp.asStateFlow()
 
@@ -30,6 +32,10 @@ class PrinterConfigRepository @Inject constructor(
 
     val labelLayoutValue: LabelLayout get() = _labelLayout.value
 
+    val accessCodeKeyboard: StateFlow<AccessCodeKeyboard> = _accessCodeKeyboard.asStateFlow()
+
+    val accessCodeKeyboardValue: AccessCodeKeyboard get() = _accessCodeKeyboard.value
+
     fun load() {
         val saved = tokenStorage.getPrinterIp()
         if (!saved.isNullOrBlank()) {
@@ -37,6 +43,7 @@ class PrinterConfigRepository @Inject constructor(
         }
         _orientation.value = prefs.printerOrientation
         _labelLayout.value = prefs.printerLabelLayout
+        _accessCodeKeyboard.value = prefs.accessCodeKeyboard
     }
 
     fun setIp(ip: String) {
@@ -54,6 +61,11 @@ class PrinterConfigRepository @Inject constructor(
     fun setLabelLayout(layout: LabelLayout) {
         _labelLayout.value = layout
         prefs.printerLabelLayout = layout
+    }
+
+    fun setAccessCodeKeyboard(mode: AccessCodeKeyboard) {
+        _accessCodeKeyboard.value = mode
+        prefs.accessCodeKeyboard = mode
     }
 
     fun isConfigured(): Boolean = _printerIp.value.isNotBlank()

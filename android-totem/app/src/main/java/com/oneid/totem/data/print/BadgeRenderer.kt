@@ -7,6 +7,9 @@ import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.Typeface
 import com.google.zxing.BarcodeFormat
+import com.google.zxing.EncodeHintType
+import com.google.zxing.WriterException
+import com.google.zxing.common.BitMatrix
 import com.google.zxing.qrcode.QRCodeWriter
 import com.oneid.totem.domain.repository.LabelLayout
 import kotlinx.coroutines.Dispatchers
@@ -125,10 +128,10 @@ class BadgeRenderer @Inject constructor() {
         val canvas = Canvas(bitmap)
         canvas.drawColor(Color.WHITE)
 
-        val qrMargin = mmToPixels(1.0, dpi).coerceAtLeast(3)
+        val qrMargin = mmToPixels(0.1, dpi).coerceAtLeast(1)
         val qrSize = (logicalH - qrMargin * 2).coerceAtLeast(80)
         if (!qrCodeValue.isNullOrBlank()) {
-            drawQrCode(canvas, qrCodeValue, qrMargin, qrMargin, qrSize)
+            drawQrCode(canvas, qrCodeValue, qrMargin, qrMargin, qrSize, quietZone = MINIMAL_QR_QUIET_ZONE, fixedVersion = MINIMAL_QR_VERSION)
         }
 
         val namePaint = Paint().apply {
@@ -144,30 +147,33 @@ class BadgeRenderer @Inject constructor() {
             isAntiAlias = true
         }
 
-        val gapTight = mmToPixels(0.8, dpi).toFloat()
+        val gapTight = mmToPixels(0.3, dpi).toFloat()
+        val lineHeightFactor = 1.05f
         val textLeft = (qrMargin + qrSize + mmToPixels(1.5, dpi)).toFloat()
         val textAreaWidth = (logicalW - qrMargin - textLeft).toInt().coerceAtLeast(40)
 
-        val nameLines = autoWrap(shortenName(name), namePaint, textAreaWidth).take(2)
-        val metaLines = listOfNotNull(
-            shortenName(jobTitle ?: "").takeIf { it.isNotBlank() },
-            shortenName(company ?: "").takeIf { it.isNotBlank() },
-        )
+        val hasTitle = !jobTitle.isNullOrBlank()
+        val hasCompany = !company.isNullOrBlank()
 
-        val nameBlockH = nameLines.size * namePaint.textSize * 1.15f
-        val metaBlockH = if (metaLines.isNotEmpty()) {
-            metaLines.size * metaPaint.textSize * 1.15f + gapTight
+        val nameLines: List<String>
+        val metaLines: List<String>
+        if (hasTitle && hasCompany) {
+            nameLines = listOf(shortNameInitial(name))
+            metaLines = listOf(jobTitle!!, company!!)
         } else {
-            0f
+            nameLines = autoWrap(shortenName(name), namePaint, textAreaWidth).take(2)
+            metaLines = listOfNotNull(
+                jobTitle?.takeIf { it.isNotBlank() },
+                company?.takeIf { it.isNotBlank() },
+            )
         }
-        val totalH = nameBlockH + metaBlockH
 
-        var y = ((logicalH - totalH) / 2f).coerceAtLeast(qrMargin.toFloat())
+        var y = qrMargin.toFloat()
 
         for (line in nameLines) {
             val clamped = truncateLineNoEllipsis(line, namePaint, textAreaWidth)
             canvas.drawText(clamped, textLeft, y + namePaint.textSize, namePaint)
-            y += namePaint.textSize * 1.15f
+            y += namePaint.textSize * lineHeightFactor
         }
 
         if (metaLines.isNotEmpty()) {
@@ -175,7 +181,7 @@ class BadgeRenderer @Inject constructor() {
             for (line in metaLines) {
                 val clamped = truncateLineNoEllipsis(line, metaPaint, textAreaWidth)
                 canvas.drawText(clamped, textLeft, y + metaPaint.textSize, metaPaint)
-                y += metaPaint.textSize * 1.15f
+                y += metaPaint.textSize * lineHeightFactor
             }
         }
 
@@ -188,6 +194,13 @@ class BadgeRenderer @Inject constructor() {
         val parts = fullName.trim().split("\\s+".toRegex())
         if (parts.size <= 2) return fullName
         return "${parts.first()} ${parts.last()}"
+    }
+
+    private fun shortNameInitial(fullName: String): String {
+        val parts = fullName.trim().split("\\s+".toRegex()).filter { it.isNotBlank() }
+        if (parts.isEmpty()) return ""
+        if (parts.size == 1) return parts.first()
+        return "${parts.first()} ${parts.last().first()}."
     }
 
     private fun drawBadge(
@@ -540,10 +553,20 @@ class BadgeRenderer @Inject constructor() {
         return lines
     }
 
-    private fun drawQrCode(canvas: Canvas, value: String, x: Int, y: Int, size: Int) {
+    private fun drawQrCode(canvas: Canvas, value: String, x: Int, y: Int, size: Int, quietZone: Int = 4, fixedVersion: Int = 0) {
         try {
             val writer = QRCodeWriter()
-            val bitMatrix = writer.encode(value, BarcodeFormat.QR_CODE, size, size)
+
+            val bitMatrix = try {
+                encodeQr(writer, value, size, quietZone, fixedVersion)
+            } catch (e: WriterException) {
+                if (fixedVersion > 0) {
+                    encodeQr(writer, value, size, quietZone, 0)
+                } else {
+                    throw e
+                }
+            }
+
             val paint = Paint().apply { color = Color.BLACK }
             val whitePaint = Paint().apply { color = Color.WHITE }
 
@@ -566,6 +589,21 @@ class BadgeRenderer @Inject constructor() {
             }
             canvas.drawText("QR Error", x.toFloat(), (y + size / 2).toFloat(), paint)
         }
+    }
+
+    private fun encodeQr(writer: QRCodeWriter, value: String, size: Int, quietZone: Int, fixedVersion: Int): BitMatrix {
+        val hints = HashMap<EncodeHintType, Any>()
+        hints[EncodeHintType.MARGIN] = quietZone
+        if (fixedVersion > 0) {
+            hints[EncodeHintType.QR_VERSION] = fixedVersion
+        }
+        return writer.encode(
+            value,
+            BarcodeFormat.QR_CODE,
+            size,
+            size,
+            hints,
+        )
     }
 
     private fun parseHtmlToElements(html: String): BadgeElements {
@@ -601,6 +639,8 @@ class BadgeRenderer @Inject constructor() {
         const val MINIMAL_QR_ROLL_WIDTH_MM = 29.0
         const val MINIMAL_QR_MAX_FEED_MM = 120.0
         const val MINIMAL_QR_ROTATION_DEGREES = 90f
+        const val MINIMAL_QR_VERSION = 10
+        const val MINIMAL_QR_QUIET_ZONE = 0
 
         fun mmToPixels(mm: Double, dpi: Int): Int {
             return (mm / 25.4 * dpi).toInt().coerceAtLeast(1)

@@ -5,6 +5,7 @@ import com.oneid.totem.data.api.ApiClient
 import com.oneid.totem.data.api.dto.ApiErrorResponse
 import com.oneid.totem.data.api.dto.LoginRequest
 import com.oneid.totem.data.local.TokenStorage
+import com.oneid.totem.data.local.TotemPreferences
 import com.oneid.totem.domain.model.AIConfig
 import com.oneid.totem.domain.model.EventConfig
 import com.oneid.totem.domain.model.TotemSession
@@ -17,6 +18,7 @@ import javax.inject.Singleton
 class AuthHttpRepository @Inject constructor(
     private val apiClient: ApiClient,
     private val tokenStorage: TokenStorage,
+    private val totemPreferences: TotemPreferences,
 ) : AuthRepository {
 
     private val gson = Gson()
@@ -41,6 +43,7 @@ class AuthHttpRepository @Inject constructor(
 
             tokenStorage.saveTotemInfo(body.totem.id, body.totem.name)
             tokenStorage.saveToken(body.token)
+            totemPreferences.totemAccessCode = key.uppercase()
 
             AuthResult.Success(
                 TotemSession(

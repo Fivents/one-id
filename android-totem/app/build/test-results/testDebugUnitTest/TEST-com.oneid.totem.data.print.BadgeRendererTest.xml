@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.oneid.totem.data.print.BadgeRendererTest" tests="13" skipped="0" failures="0" errors="0" timestamp="2026-08-03T18:57:38" hostname="PHSC" time="6.782">
+  <properties/>
+  <testcase name="renderFromData creates bitmap with correct dimensions" classname="com.oneid.totem.data.print.BadgeRendererTest" time="5.11"/>
+  <testcase name="mmToPixels converts correctly" classname="com.oneid.totem.data.print.BadgeRendererTest" time="0.023"/>
+  <testcase name="renderFromData handles null fields" classname="com.oneid.totem.data.print.BadgeRendererTest" time="0.03"/>
+  <testcase name="MINIMAL_QR QR bounds identical with and without company and job title" classname="com.oneid.totem.data.print.BadgeRendererTest" time="0.659"/>
+  <testcase name="render parses HTML with all fields" classname="com.oneid.totem.data.print.BadgeRendererTest" time="0.093"/>
+  <testcase name="MINIMAL_QR black QR is flush to the label edges" classname="com.oneid.totem.data.print.BadgeRendererTest" time="0.142"/>
+  <testcase name="mmToPixels coerceAtLeast ensures minimum 1 pixel" classname="com.oneid.totem.data.print.BadgeRendererTest" time="0.023"/>
+  <testcase name="MINIMAL_QR falls back to automatic version when payload exceeds v10 capacity" classname="com.oneid.totem.data.print.BadgeRendererTest" time="0.218"/>
+  <testcase name="render parses HTML with only name" classname="com.oneid.totem.data.print.BadgeRendererTest" time="0.028"/>
+  <testcase name="renderFromData MINIMAL_QR creates 29mm wide bitmap" classname="com.oneid.totem.data.print.BadgeRendererTest" time="0.15"/>
+  <testcase name="render handles empty HTML" classname="com.oneid.totem.data.print.BadgeRendererTest" time="0.024"/>
+  <testcase name="mmToPixels handles zero" classname="com.oneid.totem.data.print.BadgeRendererTest" time="0.023"/>
+  <testcase name="MINIMAL_QR has identical QR bounding box for short and long payloads" classname="com.oneid.totem.data.print.BadgeRendererTest" time="0.253"/>
+  <system-out><![CDATA[WARNING: No manifest file found at ./AndroidManifest.xml.
+Falling back to the Android OS resources only.
+To remove this warning, annotate your test class with @Config(manifest=Config.NONE).
+If you're using Android Gradle Plugin, add testOptions.unitTests.includeAndroidResources = true to your build.gradle
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

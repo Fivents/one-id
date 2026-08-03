@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.oneid.totem.presentation.screens.method.MethodViewModelTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-08-03T18:57:49" hostname="PHSC" time="0.329">
+  <properties/>
+  <testcase name="isAccessCodeValid trims whitespace" classname="com.oneid.totem.presentation.screens.method.MethodViewModelTest" time="0.305"/>
+  <testcase name="isAccessCodeValid is case-insensitive" classname="com.oneid.totem.presentation.screens.method.MethodViewModelTest" time="0.005"/>
+  <testcase name="isAccessCodeValid returns false when no access code is persisted" classname="com.oneid.totem.presentation.screens.method.MethodViewModelTest" time="0.005"/>
+  <testcase name="isAccessCodeValid rejects wrong code" classname="com.oneid.totem.presentation.screens.method.MethodViewModelTest" time="0.004"/>
+  <testcase name="logout sets hasLoggedOut" classname="com.oneid.totem.presentation.screens.method.MethodViewModelTest" time="0.006"/>
+  <testcase name="isAccessCodeValid accepts exact match" classname="com.oneid.totem.presentation.screens.method.MethodViewModelTest" time="0.004"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

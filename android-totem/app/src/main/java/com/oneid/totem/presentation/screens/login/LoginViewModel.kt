@@ -61,8 +61,8 @@ class LoginViewModel @Inject constructor(
 
     fun login() {
         val key = _uiState.value.key.uppercase().trim()
-        if (key.length < 4) {
-            _uiState.value = _uiState.value.copy(error = "O código deve ter pelo menos 4 caracteres")
+        if (key.length < 8) {
+            _uiState.value = _uiState.value.copy(error = "O código deve ter 8 caracteres")
             return
         }
         viewModelScope.launch {

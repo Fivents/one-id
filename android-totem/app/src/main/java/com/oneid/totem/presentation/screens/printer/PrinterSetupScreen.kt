@@ -18,6 +18,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.oneid.totem.data.print.PrinterStatus
+import com.oneid.totem.domain.repository.AccessCodeKeyboard
 import com.oneid.totem.domain.repository.LabelLayout
 import com.oneid.totem.domain.repository.PrintConfig
 import com.oneid.totem.presentation.theme.*
@@ -105,6 +106,13 @@ fun PrinterSetupScreen(
             }
 
             item {
+                AccessCodeKeyboardSection(
+                    selected = uiState.accessCodeKeyboard,
+                    onSelect = viewModel::setAccessCodeKeyboard,
+                )
+            }
+
+            item {
                 uiState.printConfig?.let { config ->
                     BadgePreviewSection(
                         paperWidthMm = config.paperWidth,
@@ -182,6 +190,53 @@ private fun ConnectionStatusCard(
                 Text(title, style = MaterialTheme.typography.bodyLarge, color = OnSurface)
                 Spacer(Modifier.height(2.dp))
                 Text(subtitle, style = MaterialTheme.typography.bodySmall, color = OnSurfaceVariant)
+            }
+        }
+    }
+}
+
+@Composable
+private fun AccessCodeKeyboardSection(
+    selected: AccessCodeKeyboard,
+    onSelect: (AccessCodeKeyboard) -> Unit,
+) {
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Surface),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Text(
+                "Teclado do Código de Acesso",
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                color = OnSurface,
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "Define o teclado que o participante usa ao digitar o código no check-in",
+                style = MaterialTheme.typography.bodySmall,
+                color = OnSurfaceVariant,
+            )
+            Spacer(Modifier.height(16.dp))
+
+            val options = listOf(
+                AccessCodeKeyboard.ALPHANUMERIC to "Alfanumérico",
+                AccessCodeKeyboard.NUMERIC to "Numérico",
+            )
+            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                options.forEachIndexed { index, (value, label) ->
+                    SegmentedButton(
+                        selected = selected == value,
+                        onClick = { onSelect(value) },
+                        shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size),
+                    ) {
+                        Text(
+                            label,
+                            style = MaterialTheme.typography.labelMedium,
+                            maxLines = 1,
+                        )
+                    }
+                }
             }
         }
     }

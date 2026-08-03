@@ -19,7 +19,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.oneid.totem.presentation.components.SecurityCodeDialog
 import com.oneid.totem.presentation.theme.*
+
+private enum class SecurityPendingAction { PRINTER, LOGOUT }
 
 @Composable
 fun MethodScreen(
@@ -33,6 +36,9 @@ fun MethodScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val modelState by viewModel.modelDownloadState.collectAsState()
+
+    var showSecurityDialog by remember { mutableStateOf(false) }
+    var pendingAction by remember { mutableStateOf<SecurityPendingAction?>(null) }
 
     LaunchedEffect(uiState.hasLoggedOut) {
         if (uiState.hasLoggedOut) onLogout()
@@ -197,7 +203,12 @@ fun MethodScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    IconButton(onClick = onNavigateToPrinterSetup) {
+                    IconButton(
+                        onClick = {
+                            pendingAction = SecurityPendingAction.PRINTER
+                            showSecurityDialog = true
+                        },
+                    ) {
                         Icon(
                             Icons.Filled.Print,
                             contentDescription = "Configurar impressora",
@@ -206,7 +217,10 @@ fun MethodScreen(
                     }
 
                     TextButton(
-                        onClick = viewModel::logout,
+                        onClick = {
+                            pendingAction = SecurityPendingAction.LOGOUT
+                            showSecurityDialog = true
+                        },
                         colors = ButtonDefaults.textButtonColors(contentColor = OnSurfaceVariant),
                     ) {
                         Icon(Icons.Filled.Logout, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -215,6 +229,30 @@ fun MethodScreen(
                     }
                 }
             }
+        }
+
+        if (showSecurityDialog) {
+            val action = pendingAction ?: SecurityPendingAction.PRINTER
+            SecurityCodeDialog(
+                description = when (action) {
+                    SecurityPendingAction.PRINTER ->
+                        "Digite o código do totem para acessar as configurações da impressora."
+                    SecurityPendingAction.LOGOUT ->
+                        "Digite o código do totem para sair do totem."
+                },
+                onSubmit = { code ->
+                    if (viewModel.isAccessCodeValid(code)) {
+                        when (action) {
+                            SecurityPendingAction.PRINTER -> onNavigateToPrinterSetup()
+                            SecurityPendingAction.LOGOUT -> viewModel.logout()
+                        }
+                        true
+                    } else {
+                        false
+                    }
+                },
+                onDismiss = { showSecurityDialog = false },
+            )
         }
     }
 }

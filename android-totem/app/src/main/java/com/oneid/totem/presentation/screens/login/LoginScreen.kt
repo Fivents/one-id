@@ -96,7 +96,7 @@ fun LoginScreen(
                 ),
                 placeholder = {
                     Text(
-                        "XXXXXX",
+                        "XXXXXXXX",
                         style = MaterialTheme.typography.headlineMedium.copy(
                             letterSpacing = 10.sp,
                             textAlign = TextAlign.Center,
@@ -112,7 +112,7 @@ fun LoginScreen(
                 ),
                 keyboardActions = KeyboardActions(
                     onGo = {
-                        if (uiState.key.length >= 4 && !uiState.isLoading) {
+                        if (uiState.key.length >= 8 && !uiState.isLoading) {
                             focusManager.clearFocus()
                             keyboardController?.hide()
                             viewModel.login()
@@ -150,7 +150,7 @@ fun LoginScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
-                enabled = uiState.key.length >= 4 && !uiState.isLoading,
+                enabled = uiState.key.length >= 8 && !uiState.isLoading,
                 shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Primary),
             ) {

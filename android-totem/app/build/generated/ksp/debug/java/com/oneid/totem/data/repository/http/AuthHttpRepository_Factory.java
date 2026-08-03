@@ -2,6 +2,7 @@ package com.oneid.totem.data.repository.http;
 
 import com.oneid.totem.data.api.ApiClient;
 import com.oneid.totem.data.local.TokenStorage;
+import com.oneid.totem.data.local.TotemPreferences;
 import dagger.internal.DaggerGenerated;
 import dagger.internal.Factory;
 import dagger.internal.Provider;
@@ -31,29 +32,36 @@ public final class AuthHttpRepository_Factory implements Factory<AuthHttpReposit
 
   private final Provider<TokenStorage> tokenStorageProvider;
 
+  private final Provider<TotemPreferences> totemPreferencesProvider;
+
   public AuthHttpRepository_Factory(Provider<ApiClient> apiClientProvider,
-      Provider<TokenStorage> tokenStorageProvider) {
+      Provider<TokenStorage> tokenStorageProvider,
+      Provider<TotemPreferences> totemPreferencesProvider) {
     this.apiClientProvider = apiClientProvider;
     this.tokenStorageProvider = tokenStorageProvider;
+    this.totemPreferencesProvider = totemPreferencesProvider;
   }
 
   @Override
   public AuthHttpRepository get() {
-    return newInstance(apiClientProvider.get(), tokenStorageProvider.get());
+    return newInstance(apiClientProvider.get(), tokenStorageProvider.get(), totemPreferencesProvider.get());
   }
 
   public static AuthHttpRepository_Factory create(
       javax.inject.Provider<ApiClient> apiClientProvider,
-      javax.inject.Provider<TokenStorage> tokenStorageProvider) {
-    return new AuthHttpRepository_Factory(Providers.asDaggerProvider(apiClientProvider), Providers.asDaggerProvider(tokenStorageProvider));
+      javax.inject.Provider<TokenStorage> tokenStorageProvider,
+      javax.inject.Provider<TotemPreferences> totemPreferencesProvider) {
+    return new AuthHttpRepository_Factory(Providers.asDaggerProvider(apiClientProvider), Providers.asDaggerProvider(tokenStorageProvider), Providers.asDaggerProvider(totemPreferencesProvider));
   }
 
   public static AuthHttpRepository_Factory create(Provider<ApiClient> apiClientProvider,
-      Provider<TokenStorage> tokenStorageProvider) {
-    return new AuthHttpRepository_Factory(apiClientProvider, tokenStorageProvider);
+      Provider<TokenStorage> tokenStorageProvider,
+      Provider<TotemPreferences> totemPreferencesProvider) {
+    return new AuthHttpRepository_Factory(apiClientProvider, tokenStorageProvider, totemPreferencesProvider);
   }
 
-  public static AuthHttpRepository newInstance(ApiClient apiClient, TokenStorage tokenStorage) {
-    return new AuthHttpRepository(apiClient, tokenStorage);
+  public static AuthHttpRepository newInstance(ApiClient apiClient, TokenStorage tokenStorage,
+      TotemPreferences totemPreferences) {
+    return new AuthHttpRepository(apiClient, tokenStorage, totemPreferences);
   }
 }

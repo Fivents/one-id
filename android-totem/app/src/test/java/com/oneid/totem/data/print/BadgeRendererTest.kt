@@ -1,7 +1,10 @@
 package com.oneid.totem.data.print
 
+import android.graphics.Bitmap
+import android.graphics.Color
 import com.oneid.totem.domain.repository.LabelLayout
 import kotlinx.coroutines.test.runTest
+import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
@@ -135,5 +138,115 @@ class BadgeRendererTest {
     @Test
     fun `mmToPixels coerceAtLeast ensures minimum 1 pixel`() {
         assertEquals(1, BadgeRenderer.mmToPixels(0.001, 300))
+    }
+
+    @Test
+    fun `MINIMAL_QR has identical QR bounding box for short and long payloads`() = runTest {
+        val short = renderMinimalQr("TOKEN-123")
+        val long = renderMinimalQr("https://example.com/checkin?token=" + "A".repeat(167))
+
+        assertNotNull(short)
+        assertNotNull(long)
+        assertArrayEquals("QR square should have the same black bounds for any payload", blackBounds(short), blackBounds(long))
+        assertTrue("QR should have rendered black pixels", blackBounds(short)[0] != Int.MAX_VALUE)
+    }
+
+    @Test
+    fun `MINIMAL_QR falls back to automatic version when payload exceeds v10 capacity`() = runTest {
+        val bitmap = renderMinimalQr("https://example.com/checkin?token=" + "A".repeat(500))
+
+        assertNotNull(bitmap)
+        assertEquals(BadgeRenderer.mmToPixels(29.0, 300), bitmap.width)
+        assertTrue(bitmap.height in 1..BadgeRenderer.mmToPixels(120.0, 300))
+        assertTrue("QR should still render after fallback", blackBounds(bitmap)[0] != Int.MAX_VALUE)
+    }
+
+    @Test
+    fun `MINIMAL_QR black QR is flush to the label edges`() = runTest {
+        val bitmap = renderMinimalQr("TOKEN-123")
+
+        assertNotNull(bitmap)
+        val bounds = qrBounds(bitmap)
+        val maxInsetPx = BadgeRenderer.mmToPixels(0.3, 300)
+        assertTrue("QR should touch the top edge (top=${bounds[0]})", bounds[0] <= maxInsetPx)
+        assertTrue("QR should touch the left edge (left=${bounds[2]})", bounds[2] <= maxInsetPx)
+        assertTrue(
+            "QR should touch the right edge (right=${bounds[3]} of ${bitmap.width})",
+            bounds[3] >= bitmap.width - maxInsetPx,
+        )
+    }
+
+    @Test
+    fun `MINIMAL_QR QR bounds identical with and without company and job title`() = runTest {
+        val withMeta = renderMinimalQr("TOKEN-123")
+        val nameOnly = renderMinimalQr(
+            qrCodeValue = "TOKEN-123",
+            name = "MARIA EDUARDA SILVA SANTOS DE OLIVEIRA",
+            company = null,
+            jobTitle = null,
+        )
+
+        assertNotNull(withMeta)
+        assertNotNull(nameOnly)
+        assertArrayEquals(
+            "QR square should be the same with or without meta text",
+            qrBounds(withMeta),
+            qrBounds(nameOnly),
+        )
+    }
+
+    private suspend fun renderMinimalQr(
+        qrCodeValue: String,
+        name: String = "MARIA EDUARDA SILVA SANTOS DE OLIVEIRA",
+        company: String? = "EMPRESA EXEMPLO DE TECNOLOGIA E SERVIÇOS LTDA",
+        jobTitle: String? = "DIRETORA DE MARKETING E VENDAS",
+    ): Bitmap = renderer.renderFromData(
+        name = name,
+        company = company,
+        jobTitle = jobTitle,
+        qrCodeValue = qrCodeValue,
+        accessCode = null,
+        paperWidthMm = 62.0,
+        paperHeightMm = 50.0,
+        dpi = 300,
+        labelLayout = LabelLayout.MINIMAL_QR,
+    )
+
+    private fun blackBounds(bitmap: Bitmap): IntArray {
+        var top = Int.MAX_VALUE
+        var bottom = -1
+        var left = Int.MAX_VALUE
+        var right = -1
+        for (y in 0 until bitmap.height) {
+            for (x in 0 until bitmap.width) {
+                if (bitmap.getPixel(x, y) != Color.WHITE) {
+                    if (y < top) top = y
+                    if (y > bottom) bottom = y
+                    if (x < left) left = x
+                    if (x > right) right = x
+                }
+            }
+        }
+        return intArrayOf(top, bottom, left, right)
+    }
+
+    private fun qrBounds(bitmap: Bitmap): IntArray {
+        val qrAreaHeight = BadgeRenderer.mmToPixels(BadgeRenderer.MINIMAL_QR_ROLL_WIDTH_MM, 300)
+        var top = Int.MAX_VALUE
+        var bottom = -1
+        var left = Int.MAX_VALUE
+        var right = -1
+        val maxY = minOf(bitmap.height, qrAreaHeight)
+        for (y in 0 until maxY) {
+            for (x in 0 until bitmap.width) {
+                if (bitmap.getPixel(x, y) != Color.WHITE) {
+                    if (y < top) top = y
+                    if (y > bottom) bottom = y
+                    if (x < left) left = x
+                    if (x > right) right = x
+                }
+            }
+        }
+        return intArrayOf(top, bottom, left, right)
     }
 }

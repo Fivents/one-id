@@ -4,6 +4,8 @@ import com.oneid.totem.domain.model.PrintData
 
 enum class LabelLayout { STANDARD, COMPACT, MINIMAL_QR }
 
+enum class AccessCodeKeyboard { ALPHANUMERIC, NUMERIC }
+
 sealed class PrintResult {
     data class Success(val data: PrintData) : PrintResult()
     data class Error(val message: String) : PrintResult()

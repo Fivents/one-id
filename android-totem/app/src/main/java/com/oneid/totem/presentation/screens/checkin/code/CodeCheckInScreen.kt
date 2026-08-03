@@ -143,7 +143,7 @@ fun CodeCheckInScreen(
                 },
                 shape = RoundedCornerShape(20.dp),
                 keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Ascii,
+                    keyboardType = if (uiState.numericKeyboard) KeyboardType.Number else KeyboardType.Ascii,
                     imeAction = ImeAction.Go,
                 ),
                 keyboardActions = KeyboardActions(
