@@ -1020,6 +1020,8 @@ export type TranslationSchema = {
       withImage: string;
       // Search/Filter
       searchParticipants: string;
+      searchCheckins: string;
+      noCheckinsMatchSearch: string;
       selectParticipant: string;
       selectTotem: string;
       selectStatus: string;

@@ -215,6 +215,7 @@ export default function EventDetailPage() {
   const [totems, setTotems] = useState<EventTotemSubscriptionResponse[]>([]);
   const [availableTotems, setAvailableTotems] = useState<EventTotemAvailableResponse[]>([]);
   const [checkIns, setCheckIns] = useState<EventCheckInDetailResponse[]>([]);
+  const [checkInsSearch, setCheckInsSearch] = useState('');
   const [manualCheckInOpen, setManualCheckInOpen] = useState(false);
   const [manualParticipantId, setManualParticipantId] = useState('');
   const [isSubmittingManualCheckIn, setIsSubmittingManualCheckIn] = useState(false);
@@ -322,6 +323,12 @@ export default function EventDetailPage() {
     () => participants.filter((participant) => !participant.hasCheckIn),
     [participants],
   );
+
+  const filteredCheckIns = useMemo(() => {
+    const search = checkInsSearch.trim().toLowerCase();
+    if (!search) return checkIns;
+    return checkIns.filter((checkIn) => checkIn.participantName.toLowerCase().includes(search));
+  }, [checkIns, checkInsSearch]);
 
   // Effective source = this event's own override, falling back to the organization default —
   // mirrors the resolution done server-side in the participants POST route.
@@ -1696,10 +1703,26 @@ export default function EventDetailPage() {
               </div>
             </CardHeader>
             <CardContent>
+              {checkIns.length > 0 && (
+                <div className="relative mb-4 max-w-md">
+                  <Search className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
+                  <Input
+                    value={checkInsSearch}
+                    onChange={(e) => setCheckInsSearch(e.target.value)}
+                    placeholder={t('pages.eventDetail.searchCheckins')}
+                    className="pl-9"
+                  />
+                </div>
+              )}
+
               {isLoadingCheckIns ? (
                 <Skeleton className="h-40" />
               ) : checkIns.length === 0 ? (
                 <p className="text-muted-foreground py-8 text-center text-sm">{t('pages.eventDetail.noCheckins')}</p>
+              ) : filteredCheckIns.length === 0 ? (
+                <p className="text-muted-foreground py-8 text-center text-sm">
+                  {t('pages.eventDetail.noCheckinsMatchSearch')}
+                </p>
               ) : (
                 <div className="rounded-lg border">
                   <Table>
@@ -1714,7 +1737,7 @@ export default function EventDetailPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {checkIns.map((checkIn) => (
+                      {filteredCheckIns.map((checkIn) => (
                         <TableRow key={checkIn.id}>
                           <TableCell className="font-medium">{checkIn.participantName}</TableCell>
                           <TableCell className="text-muted-foreground">
