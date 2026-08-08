@@ -59,9 +59,9 @@ import {
   participantsClient,
   peopleClient,
 } from '@/core/application/client-services';
+import type { EventCheckInItemResponse } from '@/core/application/client-services/checkins/checkins-client.service';
 import type {
   EventAIConfigResponse,
-  EventCheckInDetailResponse,
   EventParticipantDetailResponse,
   EventTotemAvailableResponse,
   EventTotemSubscriptionResponse,
@@ -102,6 +102,7 @@ function calculateCheckInRate(total: number, checkedIn: number) {
 }
 
 const PARTICIPANTS_PAGE_SIZE = 20;
+const CHECKINS_PAGE_SIZE = 20;
 
 const CODE_SOURCE_FIELD_LABELS: Record<CodeSourceFieldOption, string> = {
   NONE: '',
@@ -214,8 +215,13 @@ export default function EventDetailPage() {
   const createFaceCameraStreamRef = useRef<MediaStream | null>(null);
   const [totems, setTotems] = useState<EventTotemSubscriptionResponse[]>([]);
   const [availableTotems, setAvailableTotems] = useState<EventTotemAvailableResponse[]>([]);
-  const [checkIns, setCheckIns] = useState<EventCheckInDetailResponse[]>([]);
+  const [checkIns, setCheckIns] = useState<EventCheckInItemResponse[]>([]);
   const [checkInsSearch, setCheckInsSearch] = useState('');
+  const [checkInsTotal, setCheckInsTotal] = useState(0);
+  const [checkInsHasMore, setCheckInsHasMore] = useState(false);
+  const [checkInsNextCursor, setCheckInsNextCursor] = useState<string | null>(null);
+  const [checkInsCursorHistory, setCheckInsCursorHistory] = useState<Array<string | null>>([null]);
+  const [checkInsPageIndex, setCheckInsPageIndex] = useState(0);
   const [manualCheckInOpen, setManualCheckInOpen] = useState(false);
   const [manualParticipantId, setManualParticipantId] = useState('');
   const [isSubmittingManualCheckIn, setIsSubmittingManualCheckIn] = useState(false);
@@ -309,7 +315,7 @@ export default function EventDetailPage() {
 
   const stats = useMemo(() => {
     const totalParticipants = participantsMeta.total;
-    const checkedIn = checkIns.length;
+    const checkedIn = checkInsTotal;
     const totalTotems = totems.length;
     return {
       totalParticipants,
@@ -317,18 +323,14 @@ export default function EventDetailPage() {
       totalTotems,
       checkInRate: calculateCheckInRate(totalParticipants, checkedIn),
     };
-  }, [participantsMeta.total, checkIns.length, totems.length]);
+  }, [participantsMeta.total, checkInsTotal, totems.length]);
 
   const manualCheckInParticipants = useMemo(
     () => participants.filter((participant) => !participant.hasCheckIn),
     [participants],
   );
 
-  const filteredCheckIns = useMemo(() => {
-    const search = checkInsSearch.trim().toLowerCase();
-    if (!search) return checkIns;
-    return checkIns.filter((checkIn) => checkIn.participantName.toLowerCase().includes(search));
-  }, [checkIns, checkInsSearch]);
+  const checkInsTotalPages = Math.max(1, Math.ceil(checkInsTotal / CHECKINS_PAGE_SIZE));
 
   // Effective source = this event's own override, falling back to the organization default —
   // mirrors the resolution done server-side in the participants POST route.
@@ -685,16 +687,40 @@ export default function EventDetailPage() {
   const loadCheckIns = useCallback(async () => {
     setIsLoadingCheckIns(true);
     try {
-      const response = await eventsClient.listEventCheckIns(eventId);
+      const cursor = checkInsCursorHistory[checkInsPageIndex] ?? undefined;
+      const response = await eventCheckinsClient.getCheckInsByEvent(eventId, {
+        search: checkInsSearch.trim() || undefined,
+        pageSize: CHECKINS_PAGE_SIZE,
+        cursor,
+      });
       if (!response.success) throw new Error(response.error.message);
-      setCheckIns(response.data);
+      setCheckIns(response.data.items);
+      setCheckInsTotal(response.data.total);
+      setCheckInsHasMore(response.data.hasMore);
+      setCheckInsNextCursor(response.data.nextCursor);
     } catch (error) {
       const message = error instanceof Error ? error.message : t('pages.eventDetail.loadCheckinsError');
       toast.error(message);
     } finally {
       setIsLoadingCheckIns(false);
     }
-  }, [eventId, t]);
+  }, [eventId, checkInsSearch, checkInsCursorHistory, checkInsPageIndex, t]);
+
+  function handleCheckInsSearchChange(value: string) {
+    setCheckInsSearch(value);
+    setCheckInsCursorHistory([null]);
+    setCheckInsPageIndex(0);
+  }
+
+  function handleCheckInsPreviousPage() {
+    setCheckInsPageIndex((index) => Math.max(index - 1, 0));
+  }
+
+  function handleCheckInsNextPage() {
+    if (!checkInsHasMore || !checkInsNextCursor) return;
+    setCheckInsCursorHistory((prev) => [...prev.slice(0, checkInsPageIndex + 1), checkInsNextCursor]);
+    setCheckInsPageIndex((index) => index + 1);
+  }
 
   async function handleManualCheckInSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -781,17 +807,22 @@ export default function EventDetailPage() {
     if (isAuthenticated && canView) {
       void loadEvent();
       void loadTotems();
-      void loadCheckIns();
       void loadAIConfig();
       void loadPublicLink();
     }
-  }, [isAuthenticated, canView, loadEvent, loadTotems, loadCheckIns, loadAIConfig, loadPublicLink]);
+  }, [isAuthenticated, canView, loadEvent, loadTotems, loadAIConfig, loadPublicLink]);
 
   useEffect(() => {
     if (isAuthenticated && canView) {
       void loadParticipants();
     }
   }, [isAuthenticated, canView, loadParticipants]);
+
+  useEffect(() => {
+    if (isAuthenticated && canView) {
+      void loadCheckIns();
+    }
+  }, [isAuthenticated, canView, loadCheckIns]);
 
   useEffect(() => {
     if (!isAuthenticated || !canView || !event?.organizationId) return;
@@ -1693,7 +1724,7 @@ export default function EventDetailPage() {
                 <div>
                   <CardTitle>{t('pages.eventDetail.checkinsTitle')}</CardTitle>
                   <CardDescription>
-                    {t('pages.eventDetail.checkinsDescription').replace('{count}', String(checkIns.length))}
+                    {t('pages.eventDetail.checkinsDescription').replace('{count}', String(checkInsTotal))}
                   </CardDescription>
                 </div>
                 <Button size="sm" onClick={() => setManualCheckInOpen(true)}>
@@ -1703,25 +1734,21 @@ export default function EventDetailPage() {
               </div>
             </CardHeader>
             <CardContent>
-              {checkIns.length > 0 && (
-                <div className="relative mb-4 max-w-md">
-                  <Search className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
-                  <Input
-                    value={checkInsSearch}
-                    onChange={(e) => setCheckInsSearch(e.target.value)}
-                    placeholder={t('pages.eventDetail.searchCheckins')}
-                    className="pl-9"
-                  />
-                </div>
-              )}
+              <div className="relative mb-4 max-w-md">
+                <Search className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
+                <Input
+                  value={checkInsSearch}
+                  onChange={(e) => handleCheckInsSearchChange(e.target.value)}
+                  placeholder={t('pages.eventDetail.searchCheckins')}
+                  className="pl-9"
+                />
+              </div>
 
               {isLoadingCheckIns ? (
                 <Skeleton className="h-40" />
               ) : checkIns.length === 0 ? (
-                <p className="text-muted-foreground py-8 text-center text-sm">{t('pages.eventDetail.noCheckins')}</p>
-              ) : filteredCheckIns.length === 0 ? (
                 <p className="text-muted-foreground py-8 text-center text-sm">
-                  {t('pages.eventDetail.noCheckinsMatchSearch')}
+                  {checkInsSearch ? t('pages.eventDetail.noCheckinsMatchSearch') : t('pages.eventDetail.noCheckins')}
                 </p>
               ) : (
                 <div className="rounded-lg border">
@@ -1737,16 +1764,16 @@ export default function EventDetailPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredCheckIns.map((checkIn) => (
+                      {checkIns.map((checkIn) => (
                         <TableRow key={checkIn.id}>
-                          <TableCell className="font-medium">{checkIn.participantName}</TableCell>
+                          <TableCell className="font-medium">{checkIn.participant.name}</TableCell>
                           <TableCell className="text-muted-foreground">
                             {getCheckInMethodLabel(checkIn.method)}
                           </TableCell>
                           <TableCell className="text-muted-foreground">
                             {checkIn.confidence ? `${Math.round(checkIn.confidence * 100)}%` : '—'}
                           </TableCell>
-                          <TableCell className="text-muted-foreground">{checkIn.totemLocation || 'APP'}</TableCell>
+                          <TableCell className="text-muted-foreground">{checkIn.locationName || 'APP'}</TableCell>
                           <TableCell className="text-muted-foreground">
                             {formatDateTime(checkIn.checkedInAt, locale)}
                           </TableCell>
@@ -1755,7 +1782,7 @@ export default function EventDetailPage() {
                               variant="ghost"
                               size="sm"
                               disabled={invalidatingCheckInId === checkIn.id}
-                              onClick={() => handleInvalidateCheckIn(checkIn.id, checkIn.participantName)}
+                              onClick={() => handleInvalidateCheckIn(checkIn.id, checkIn.participant.name)}
                             >
                               {invalidatingCheckInId === checkIn.id
                                 ? t('pages.eventDetail.invalidating')
@@ -1768,6 +1795,35 @@ export default function EventDetailPage() {
                   </Table>
                 </div>
               )}
+
+              <div className="mt-4 flex items-center justify-between">
+                <p className="text-muted-foreground text-sm">
+                  {t('pages.eventDetail.results').replace('{count}', String(checkInsTotal))}
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={checkInsPageIndex <= 0 || isLoadingCheckIns}
+                    onClick={handleCheckInsPreviousPage}
+                  >
+                    {t('pages.eventDetail.previous')}
+                  </Button>
+                  <span className="text-sm">
+                    {t('pages.eventDetail.pageOf')
+                      .replace('{page}', String(checkInsPageIndex + 1))
+                      .replace('{total}', String(checkInsTotalPages))}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={!checkInsHasMore || isLoadingCheckIns}
+                    onClick={handleCheckInsNextPage}
+                  >
+                    {t('pages.eventDetail.next')}
+                  </Button>
+                </div>
+              </div>
             </CardContent>
           </Card>
 
