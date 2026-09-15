@@ -17,11 +17,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.oneid.totem.data.print.PrinterConnectionType
 import com.oneid.totem.data.print.PrinterStatus
 import com.oneid.totem.domain.repository.AccessCodeKeyboard
 import com.oneid.totem.domain.repository.LabelLayout
 import com.oneid.totem.domain.repository.PrintConfig
 import com.oneid.totem.presentation.theme.*
+import com.oneid.totem.presentation.util.dismissKeyboardOnTapOutside
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -32,6 +34,7 @@ fun PrinterSetupScreen(
     val uiState by viewModel.uiState.collectAsState()
 
     Scaffold(
+        modifier = Modifier.dismissKeyboardOnTapOutside(),
         topBar = {
             TopAppBar(
                 title = {
@@ -63,46 +66,73 @@ fun PrinterSetupScreen(
             contentPadding = PaddingValues(vertical = 16.dp),
         ) {
             item {
-                ConnectionStatusCard(
+                ConnectionTypeSelector(
+                    selected = uiState.connectionType,
+                    onWifiSelected = viewModel::switchToWifi,
+                    onUsbSelected = viewModel::switchToUsb,
+                )
+            }
+
+            item {
+                ConnectionCard(
+                    connectionType = uiState.connectionType,
+                    isConnected = uiState.isConnected,
+                    isConnecting = uiState.isConnecting || uiState.isUsbConnecting,
                     connectedIp = uiState.connectedIp ?: uiState.savedIp,
+                    usbDeviceName = uiState.usbDeviceName,
                     status = uiState.connectionStatus,
-                    isConnecting = uiState.isConnecting,
+                    onDisconnect = viewModel::disconnect,
                 )
             }
 
-            item {
-                SearchSection(
-                    isSearching = uiState.isSearching,
-                    searchError = uiState.searchError,
-                    onSearch = viewModel::startSearch,
-                    onCancel = viewModel::cancelSearch,
-                )
-            }
+            if (!uiState.isConnected) {
+                if (uiState.connectionType == PrinterConnectionType.WIFI) {
+                    item {
+                        SearchSection(
+                            isSearching = uiState.isSearching,
+                            searchError = uiState.searchError,
+                            onSearch = viewModel::startSearch,
+                            onCancel = viewModel::cancelSearch,
+                        )
+                    }
 
-            if (uiState.discoveredPrinters.isNotEmpty()) {
-                item {
-                    Text(
-                        "Impressoras encontradas",
-                        style = MaterialTheme.typography.titleSmall,
-                        color = OnSurfaceVariant,
-                    )
+                    if (uiState.discoveredPrinters.isNotEmpty()) {
+                        item {
+                            Text(
+                                "Impressoras encontradas",
+                                style = MaterialTheme.typography.titleSmall,
+                                color = OnSurfaceVariant,
+                            )
+                        }
+                        items(uiState.discoveredPrinters, key = { it.ipAddress }) { printer ->
+                            PrinterCard(
+                                printer = printer,
+                                isConnected = printer.ipAddress == uiState.connectedIp,
+                                onClick = { viewModel.selectPrinter(printer.ipAddress) },
+                            )
+                        }
+                    }
+
+                    item {
+                        ManualIpSection(
+                            manualIp = uiState.manualIp,
+                            isConnecting = uiState.isConnecting,
+                            onManualIpChanged = viewModel::onManualIpChanged,
+                            onConnect = viewModel::connectManual,
+                        )
+                    }
+                } else {
+                    item {
+                        UsbSection(
+                            isAvailable = uiState.usbAvailable,
+                            deviceName = uiState.usbDeviceName,
+                            isConnecting = uiState.isUsbConnecting,
+                            isSearching = uiState.isUsbSearching,
+                            onConnect = viewModel::connectUsb,
+                            onSearch = viewModel::searchUsb,
+                        )
+                    }
                 }
-                items(uiState.discoveredPrinters, key = { it.ipAddress }) { printer ->
-                    PrinterCard(
-                        printer = printer,
-                        isConnected = printer.ipAddress == uiState.connectedIp,
-                        onClick = { viewModel.selectPrinter(printer.ipAddress) },
-                    )
-                }
-            }
-
-            item {
-                TestPrintSection(
-                    isTesting = uiState.isTesting,
-                    testResult = uiState.testResult,
-                    hasPrinter = (uiState.connectedIp ?: uiState.savedIp).isNotBlank(),
-                    onTestPrint = viewModel::testPrint,
-                )
             }
 
             item {
@@ -113,18 +143,22 @@ fun PrinterSetupScreen(
             }
 
             item {
-                uiState.printConfig?.let { config ->
-                    BadgePreviewSection(
-                        paperWidthMm = config.paperWidth,
-                        paperHeightMm = config.paperHeight,
-                        labelLayout = uiState.labelLayout,
-                        badgeRenderer = viewModel.badgeRenderer,
-                        showQrCode = config.showQrCode,
-                        showAccessCode = config.showAccessCode,
-                        eventName = "EVENTO",
-                        onLabelLayoutChange = viewModel::setLabelLayout,
-                    )
-                }
+                BadgePreviewSection(
+                    bitmap = uiState.previewBitmap,
+                    labelLayout = uiState.labelLayout,
+                    onLabelLayoutChange = viewModel::setLabelLayout,
+                    isTesting = uiState.isTesting,
+                    testResult = uiState.testResult,
+                    hasPrinter = uiState.isConnected || uiState.connectionType == PrinterConnectionType.USB || (uiState.connectedIp ?: uiState.savedIp).isNotBlank(),
+                    onTestPrint = viewModel::testPrint,
+                )
+            }
+
+            item {
+                SecurityCodeSection(
+                    enabled = uiState.settingsSecurityCodeEnabled,
+                    onEnabledChange = viewModel::setSettingsSecurityCodeEnabled,
+                )
             }
 
             item {
@@ -135,31 +169,100 @@ fun PrinterSetupScreen(
 }
 
 @Composable
-private fun ConnectionStatusCard(
-    connectedIp: String,
-    status: PrinterStatus?,
-    isConnecting: Boolean,
+private fun ConnectionTypeSelector(
+    selected: PrinterConnectionType,
+    onWifiSelected: () -> Unit,
+    onUsbSelected: () -> Unit,
 ) {
-    val isConfigured = connectedIp.isNotBlank()
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Surface),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Text(
+                "Tipo de Conexão",
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                color = OnSurface,
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "Escolha como conectar com a impressora",
+                style = MaterialTheme.typography.bodySmall,
+                color = OnSurfaceVariant,
+            )
+            Spacer(Modifier.height(16.dp))
+
+            val options = listOf(
+                PrinterConnectionType.WIFI to "WiFi (Rede)",
+                PrinterConnectionType.USB to "USB (Cabo)",
+            )
+            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                options.forEachIndexed { index, (value, label) ->
+                    SegmentedButton(
+                        selected = selected == value,
+                        onClick = {
+                            if (selected != value) {
+                                if (value == PrinterConnectionType.WIFI) onWifiSelected()
+                                else onUsbSelected()
+                            }
+                        },
+                        shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size),
+                        // Sem isso, o SegmentedButton soma o ícone de check padrão dele em
+                        // cima do nosso ícone + texto, e os dois espremidos não cabem lado
+                        // a lado no espaço do segmento.
+                        icon = {},
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                if (value == PrinterConnectionType.WIFI) Icons.Filled.Wifi else Icons.Filled.Usb,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                label,
+                                style = MaterialTheme.typography.labelMedium,
+                                maxLines = 1,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ConnectionCard(
+    connectionType: PrinterConnectionType,
+    isConnected: Boolean,
+    isConnecting: Boolean,
+    connectedIp: String,
+    usbDeviceName: String?,
+    status: PrinterStatus?,
+    onDisconnect: () -> Unit,
+) {
     val icon = when {
         isConnecting -> Icons.Filled.Sync
-        isConfigured -> Icons.Filled.CheckCircle
+        isConnected -> Icons.Filled.CheckCircle
         else -> Icons.Filled.Warning
     }
     val iconTint = when {
         isConnecting -> Primary
-        isConfigured -> Secondary
+        isConnected -> Secondary
         else -> MaterialTheme.colorScheme.error
     }
     val title = when {
         isConnecting -> "Conectando..."
-        isConfigured -> "Impressora: $connectedIp"
-        else -> "Nenhuma impressora configurada"
+        isConnected && connectionType == PrinterConnectionType.USB -> "USB: ${usbDeviceName ?: "Impressora conectada"}"
+        isConnected && connectionType == PrinterConnectionType.WIFI -> "Impressora: $connectedIp"
+        else -> "Nenhuma impressora conectada"
     }
     val subtitle = when {
         isConnecting -> "Aguardando conexão..."
-        isConfigured -> statusText(status)
-        else -> "Configure uma impressora para imprimir crachás"
+        isConnected -> statusText(status)
+        else -> "Conecte uma impressora para imprimir crachás"
     }
 
     Card(
@@ -167,29 +270,170 @@ private fun ConnectionStatusCard(
         colors = CardDefaults.cardColors(containerColor = Surface),
         modifier = Modifier.fillMaxWidth(),
     ) {
-        Row(
-            modifier = Modifier.padding(20.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            if (isConnecting) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(32.dp),
-                    color = Primary,
-                    strokeWidth = 3.dp,
-                )
+        Column(modifier = Modifier.padding(20.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (isConnecting) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(32.dp),
+                        color = Primary,
+                        strokeWidth = 3.dp,
+                    )
+                } else {
+                    Icon(
+                        icon,
+                        contentDescription = null,
+                        tint = iconTint,
+                        modifier = Modifier.size(32.dp),
+                    )
+                }
+                Spacer(Modifier.width(16.dp))
+                Column {
+                    Text(title, style = MaterialTheme.typography.bodyLarge, color = OnSurface)
+                    Spacer(Modifier.height(2.dp))
+                    Text(subtitle, style = MaterialTheme.typography.bodySmall, color = OnSurfaceVariant)
+                }
+            }
+
+            if (isConnected) {
+                Spacer(Modifier.height(16.dp))
+                OutlinedButton(
+                    onClick = onDisconnect,
+                    modifier = Modifier.fillMaxWidth().height(44.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error,
+                    ),
+                ) {
+                    Icon(Icons.Filled.LinkOff, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Desconectar")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun UsbSection(
+    isAvailable: Boolean,
+    deviceName: String?,
+    isConnecting: Boolean,
+    isSearching: Boolean,
+    onConnect: () -> Unit,
+    onSearch: () -> Unit,
+) {
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Surface),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Text(
+                "Conexão USB",
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                color = OnSurface,
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "Conecte a impressora via cabo USB ao totem",
+                style = MaterialTheme.typography.bodySmall,
+                color = OnSurfaceVariant,
+            )
+            Spacer(Modifier.height(16.dp))
+
+            if (isSearching) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        color = Primary,
+                        strokeWidth = 2.dp,
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    Text("Verificando dispositivos USB...", color = OnSurfaceVariant)
+                }
+            } else if (isAvailable && deviceName != null) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        Icons.Filled.Print,
+                        contentDescription = null,
+                        tint = Secondary,
+                        modifier = Modifier.size(28.dp),
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            deviceName,
+                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                            color = OnSurface,
+                        )
+                        Text(
+                            "Impressora Brother detectada via USB",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = OnSurfaceVariant,
+                        )
+                    }
+                }
+                Spacer(Modifier.height(12.dp))
+                Button(
+                    onClick = onConnect,
+                    enabled = !isConnecting,
+                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Primary),
+                ) {
+                    if (isConnecting) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            color = OnPrimary,
+                            strokeWidth = 2.dp,
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text("Conectando...", color = OnPrimary)
+                    } else {
+                        Icon(Icons.Filled.Usb, contentDescription = null, modifier = Modifier.size(20.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Conectar via USB", color = OnPrimary)
+                    }
+                }
             } else {
                 Icon(
-                    icon,
+                    Icons.Filled.UsbOff,
                     contentDescription = null,
-                    tint = iconTint,
-                    modifier = Modifier.size(32.dp),
+                    tint = OnSurfaceVariant,
+                    modifier = Modifier.size(48.dp),
                 )
-            }
-            Spacer(Modifier.width(16.dp))
-            Column {
-                Text(title, style = MaterialTheme.typography.bodyLarge, color = OnSurface)
-                Spacer(Modifier.height(2.dp))
-                Text(subtitle, style = MaterialTheme.typography.bodySmall, color = OnSurfaceVariant)
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "Nenhuma impressora Brother USB encontrada",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = OnSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "Verifique se o cabo USB está conectado ao totem",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = OnSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(12.dp))
+                OutlinedButton(
+                    onClick = onSearch,
+                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                    shape = RoundedCornerShape(12.dp),
+                ) {
+                    Icon(Icons.Filled.Refresh, contentDescription = null, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Verificar novamente")
+                }
             }
         }
     }
@@ -238,6 +482,39 @@ private fun AccessCodeKeyboardSection(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun SecurityCodeSection(
+    enabled: Boolean,
+    onEnabledChange: (Boolean) -> Unit,
+) {
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Surface),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            modifier = Modifier.padding(20.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    "Código de Segurança nas Configurações",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    color = OnSurface,
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "Se ativado, pede o código do totem para acessar essa tela de configurações",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = OnSurfaceVariant,
+                )
+            }
+            Spacer(Modifier.width(12.dp))
+            Switch(checked = enabled, onCheckedChange = onEnabledChange)
         }
     }
 }
@@ -331,6 +608,68 @@ private fun SearchSection(
 }
 
 @Composable
+private fun ManualIpSection(
+    manualIp: String,
+    isConnecting: Boolean,
+    onManualIpChanged: (String) -> Unit,
+    onConnect: () -> Unit,
+) {
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Surface),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Text(
+                "Conectar por IP",
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                color = OnSurface,
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "Se a busca automática não encontrar a impressora, digite o IP dela na rede",
+                style = MaterialTheme.typography.bodySmall,
+                color = OnSurfaceVariant,
+            )
+            Spacer(Modifier.height(16.dp))
+
+            OutlinedTextField(
+                value = manualIp,
+                onValueChange = onManualIpChanged,
+                label = { Text("Endereço IP") },
+                placeholder = { Text("192.168.1.100") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+
+            Spacer(Modifier.height(12.dp))
+
+            Button(
+                onClick = onConnect,
+                enabled = manualIp.isNotBlank() && !isConnecting,
+                modifier = Modifier.fillMaxWidth().height(48.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Primary),
+            ) {
+                if (isConnecting) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        color = OnPrimary,
+                        strokeWidth = 2.dp,
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text("Conectando...", color = OnPrimary)
+                } else {
+                    Icon(Icons.Filled.Cable, contentDescription = null, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Conectar", color = OnPrimary)
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun PrinterCard(
     printer: DiscoveredPrinter,
     isConnected: Boolean,
@@ -390,77 +729,3 @@ private fun PrinterCard(
     }
 }
 
-@Composable
-private fun TestPrintSection(
-    isTesting: Boolean,
-    testResult: String?,
-    hasPrinter: Boolean,
-    onTestPrint: () -> Unit,
-) {
-    Card(
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Surface),
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Column(modifier = Modifier.padding(20.dp)) {
-            Text(
-                "Impressão de Teste",
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                color = OnSurface,
-            )
-            Spacer(Modifier.height(12.dp))
-            Button(
-                onClick = onTestPrint,
-                enabled = hasPrinter && !isTesting,
-                modifier = Modifier.fillMaxWidth().height(48.dp),
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (hasPrinter) Secondary else Secondary.copy(alpha = 0.4f),
-                ),
-            ) {
-                if (isTesting) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        color = OnPrimary,
-                        strokeWidth = 2.dp,
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text("Imprimindo...", color = OnPrimary)
-                } else {
-                    Icon(Icons.Filled.Print, contentDescription = null, modifier = Modifier.size(20.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text("Imprimir Teste", color = OnPrimary)
-                }
-            }
-
-            testResult?.let { result ->
-                Spacer(Modifier.height(12.dp))
-                val isSuccess = result.startsWith("Impressão de teste bem-sucedida")
-                Card(
-                    shape = RoundedCornerShape(10.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = if (isSuccess) Secondary.copy(alpha = 0.12f) else MaterialTheme.colorScheme.error.copy(alpha = 0.12f),
-                    ),
-                ) {
-                    Row(
-                        modifier = Modifier.padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Icon(
-                            if (isSuccess) Icons.Filled.CheckCircle else Icons.Filled.Error,
-                            contentDescription = null,
-                            tint = if (isSuccess) Secondary else MaterialTheme.colorScheme.error,
-                            modifier = Modifier.size(20.dp),
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            result,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = if (isSuccess) Secondary else MaterialTheme.colorScheme.error,
-                        )
-                    }
-                }
-            }
-        }
-    }
-}

@@ -26,5 +26,5 @@ data class PrintConfig(
     val fontSizeName: Int,
     val fontSizeMeta: Int,
     val orientation: String = "PORTRAIT",
-    val labelLayout: LabelLayout = LabelLayout.STANDARD,
+    val labelLayout: LabelLayout = LabelLayout.COMPACT,
 )

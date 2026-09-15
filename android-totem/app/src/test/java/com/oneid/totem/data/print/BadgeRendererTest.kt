@@ -40,7 +40,7 @@ class BadgeRendererTest {
     }
 
     @Test
-    fun `renderFromData creates bitmap with correct dimensions`() = runTest {
+    fun `renderFromData defaults to COMPACT with fixed 9cm x 29mm dimensions`() = runTest {
         val bitmap = renderer.renderFromData(
             name = "João Silva",
             company = "ACME Corp",
@@ -53,8 +53,8 @@ class BadgeRendererTest {
         )
 
         assertNotNull(bitmap)
-        assertEquals(BadgeRenderer.mmToPixels(50.0, 300), bitmap.width)
-        assertTrue(bitmap.height in 1..BadgeRenderer.mmToPixels(62.0, 300))
+        assertEquals(BadgeRenderer.mmToPixels(BadgeRenderer.LABEL_LENGTH_MM, 300), bitmap.width)
+        assertEquals(BadgeRenderer.mmToPixels(BadgeRenderer.MINIMAL_QR_ROLL_WIDTH_MM, 300), bitmap.height)
     }
 
     @Test
@@ -71,12 +71,12 @@ class BadgeRendererTest {
         )
 
         assertNotNull(bitmap)
-        assertEquals(BadgeRenderer.mmToPixels(30.0, 300), bitmap.width)
-        assertTrue(bitmap.height in 1..BadgeRenderer.mmToPixels(62.0, 300))
+        assertEquals(BadgeRenderer.mmToPixels(BadgeRenderer.LABEL_LENGTH_MM, 300), bitmap.width)
+        assertEquals(BadgeRenderer.mmToPixels(BadgeRenderer.MINIMAL_QR_ROLL_WIDTH_MM, 300), bitmap.height)
     }
 
     @Test
-    fun `renderFromData MINIMAL_QR creates 29mm wide bitmap`() = runTest {
+    fun `renderFromData MINIMAL_QR creates fixed 9cm x 29mm bitmap`() = runTest {
         val bitmap = renderer.renderFromData(
             name = "MARIA EDUARDA SILVA SANTOS DE OLIVEIRA",
             company = "EMPRESA EXEMPLO DE TECNOLOGIA E SERVIÇOS LTDA",
@@ -90,8 +90,8 @@ class BadgeRendererTest {
         )
 
         assertNotNull(bitmap)
-        assertEquals(BadgeRenderer.mmToPixels(29.0, 300), bitmap.width)
-        assertTrue(bitmap.height in 1..BadgeRenderer.mmToPixels(120.0, 300))
+        assertEquals(BadgeRenderer.mmToPixels(BadgeRenderer.LABEL_LENGTH_MM, 300), bitmap.width)
+        assertEquals(BadgeRenderer.mmToPixels(BadgeRenderer.MINIMAL_QR_ROLL_WIDTH_MM, 300), bitmap.height)
     }
 
     @Test
@@ -165,13 +165,13 @@ class BadgeRendererTest {
         val bitmap = renderMinimalQr("https://example.com/checkin?token=" + "A".repeat(500))
 
         assertNotNull(bitmap)
-        assertEquals(BadgeRenderer.mmToPixels(29.0, 300), bitmap.width)
-        assertTrue(bitmap.height in 1..BadgeRenderer.mmToPixels(120.0, 300))
+        assertEquals(BadgeRenderer.mmToPixels(BadgeRenderer.LABEL_LENGTH_MM, 300), bitmap.width)
+        assertEquals(BadgeRenderer.mmToPixels(BadgeRenderer.MINIMAL_QR_ROLL_WIDTH_MM, 300), bitmap.height)
         assertTrue("QR should still render after fallback", blackBounds(bitmap)[0] != Int.MAX_VALUE)
     }
 
     @Test
-    fun `MINIMAL_QR black QR is flush to the label edges`() = runTest {
+    fun `MINIMAL_QR black QR is flush to the label top, left and bottom edges`() = runTest {
         val bitmap = renderMinimalQr("TOKEN-123")
 
         assertNotNull(bitmap)
@@ -180,8 +180,8 @@ class BadgeRendererTest {
         assertTrue("QR should touch the top edge (top=${bounds[0]})", bounds[0] <= maxInsetPx)
         assertTrue("QR should touch the left edge (left=${bounds[2]})", bounds[2] <= maxInsetPx)
         assertTrue(
-            "QR should touch the right edge (right=${bounds[3]} of ${bitmap.width})",
-            bounds[3] >= bitmap.width - 1 - maxInsetPx,
+            "QR should touch the bottom edge (bottom=${bounds[1]} of ${bitmap.height})",
+            bounds[1] >= bitmap.height - 1 - maxInsetPx,
         )
     }
 
@@ -205,61 +205,35 @@ class BadgeRendererTest {
     }
 
     @Test
-    fun `COMPACT creates 29mm wide bitmap sized to the actual content, not the full 150mm canvas`() = runTest {
+    fun `COMPACT creates a fixed 9cm x 29mm bitmap regardless of content`() = runTest {
         val bitmap = renderCompactQr(name = "JOÃO DA SILVA SOUZA")
 
         assertNotNull(bitmap)
-        assertEquals(BadgeRenderer.mmToPixels(29.0, 300), bitmap.width)
-        assertTrue(
-            "feed should be tightly cropped to content, well under the 150mm ceiling (height=${bitmap.height}px)",
-            bitmap.height < BadgeRenderer.mmToPixels(150.0, 300),
-        )
-        assertTrue("feed should still be positive", bitmap.height > 0)
+        assertEquals(BadgeRenderer.mmToPixels(BadgeRenderer.LABEL_LENGTH_MM, 300), bitmap.width)
+        assertEquals(BadgeRenderer.mmToPixels(BadgeRenderer.MINIMAL_QR_ROLL_WIDTH_MM, 300), bitmap.height)
     }
 
     @Test
-    fun `COMPACT feed length grows with the widest content line`() = runTest {
+    fun `COMPACT label length stays fixed at 9cm regardless of the widest content line`() = runTest {
         val short = renderCompactQr(name = "ANA", company = null, jobTitle = null)
         val long = renderCompactQr(name = "ANA", company = "A".repeat(80), jobTitle = null)
 
         assertNotNull(short)
         assertNotNull(long)
-        assertTrue(
-            "a much wider company line should require a longer feed (short=${short.height}px, long=${long.height}px)",
-            long.height > short.height,
+        assertEquals(
+            "the label is a fixed 9cm length now, content no longer changes its size",
+            short.width,
+            long.width,
         )
-        assertTrue("feed should never exceed the 150mm ceiling", long.height <= BadgeRenderer.mmToPixels(150.0, 300))
+        assertEquals(BadgeRenderer.mmToPixels(BadgeRenderer.LABEL_LENGTH_MM, 300), long.width)
     }
 
     @Test
-    fun `COMPACT lets company text use the space a wide name already reserves`() = runTest {
-        // A wide name reserves horizontal space regardless of the meta text. Company/job
-        // should be allowed to use that same space (plus a bit of extra growth) instead of
-        // being cut off at a small fixed width, which would leave a big gap before the QR.
-        val wideName = "CONSTANTINOPOLISVILA ABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLM"
-        val longCompany = "A".repeat(80)
-
-        val withWideName = renderCompactQr(name = wideName, company = longCompany, jobTitle = null)
-        val withShortName = renderCompactQr(name = "ANA", company = longCompany, jobTitle = null)
-
-        assertNotNull(withWideName)
-        assertNotNull(withShortName)
-        assertTrue(
-            "company text should stretch further when the name already reserved more space " +
-                "(wideName label=${withWideName.height}px, shortName label=${withShortName.height}px)",
-            withWideName.height > withShortName.height,
-        )
-    }
-
-    @Test
-    fun `COMPACT never exceeds the 150mm feed ceiling for a pathological single word name`() = runTest {
+    fun `COMPACT keeps the fixed 9cm length even for a pathological single word name`() = runTest {
         val bitmap = renderCompactQr(name = "A".repeat(150))
 
         assertNotNull(bitmap)
-        assertTrue(
-            "feed should never exceed the 150mm ceiling (height=${bitmap.height}px)",
-            bitmap.height <= BadgeRenderer.mmToPixels(150.0, 300),
-        )
+        assertEquals(BadgeRenderer.mmToPixels(BadgeRenderer.LABEL_LENGTH_MM, 300), bitmap.width)
         assertTrue("name should still render black pixels after truncation", blackBounds(bitmap)[0] != Int.MAX_VALUE)
     }
 
@@ -315,7 +289,7 @@ class BadgeRendererTest {
     }
 
     @Test
-    fun `COMPACT QR sits at the feed end and reaches the label edges`() = runTest {
+    fun `COMPACT QR sits at the bottom-right corner of the fixed label`() = runTest {
         val name = "MARIA EDUARDA SILVA SANTOS DE OLIVEIRA"
         val bitmap = renderCompactQr(name = name)
 
@@ -327,15 +301,15 @@ class BadgeRendererTest {
         val tolerance = BadgeRenderer.mmToPixels(3.0, dpi)
 
         assertTrue(
-            "QR should be large, filling the band below the name (black height=${bounds[3] - bounds[2]}px)",
+            "QR should be large, filling the band below the name (black width=${bounds[3] - bounds[2]}px)",
             bounds[3] - bounds[2] >= BadgeRenderer.mmToPixels(11.0, dpi),
         )
         assertTrue(
-            "QR should touch the label top edge (margin 0) (left=${bounds[2]}px)",
-            bounds[2] <= marginPx + tolerance,
+            "QR should touch the label right edge (right=${bounds[3]}px of ${bitmap.width})",
+            bounds[3] >= bitmap.width - marginPx - tolerance,
         )
         assertTrue(
-            "QR should sit at the feed end, out of the text strip (top=${bounds[0]}px of ${bitmap.height})",
+            "QR should sit at the bottom of the label, out of the text strip (top=${bounds[0]}px of ${bitmap.height})",
             bounds[0] >= bitmap.height - marginPx - qrSize - tolerance,
         )
         assertTrue("QR should have rendered black pixels", bounds[0] != Int.MAX_VALUE)
@@ -471,15 +445,21 @@ class BadgeRendererTest {
         return intArrayOf(top, bottom, left, right)
     }
 
+    /**
+     * Restricts the scan to the QR's own column range (mirrors renderMinimalQr's own
+     * qrMargin/qrSize math) so it doesn't pick up the name/meta text drawn to its right —
+     * the bitmap is no longer rotated, so height alone can't isolate the QR anymore.
+     */
     private fun qrBounds(bitmap: Bitmap): IntArray {
-        val qrAreaHeight = BadgeRenderer.mmToPixels(BadgeRenderer.MINIMAL_QR_ROLL_WIDTH_MM, 300)
+        val qrMargin = BadgeRenderer.mmToPixels(0.1, 300).coerceAtLeast(1)
+        val qrSize = (bitmap.height - qrMargin * 2).coerceAtLeast(80)
+        val maxX = (qrMargin + qrSize).coerceAtMost(bitmap.width)
         var top = Int.MAX_VALUE
         var bottom = -1
         var left = Int.MAX_VALUE
         var right = -1
-        val maxY = minOf(bitmap.height, qrAreaHeight)
-        for (y in 0 until maxY) {
-            for (x in 0 until bitmap.width) {
+        for (y in 0 until bitmap.height) {
+            for (x in 0 until maxX) {
                 if (Color.alpha(bitmap.getPixel(x, y)) != 0) {
                     if (y < top) top = y
                     if (y > bottom) bottom = y

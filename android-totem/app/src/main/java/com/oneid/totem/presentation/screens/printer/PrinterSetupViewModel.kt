@@ -1,6 +1,7 @@
 package com.oneid.totem.presentation.screens.printer
 
 import android.content.Context
+import android.graphics.Bitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.brother.sdk.lmprinter.Channel
@@ -10,7 +11,9 @@ import com.oneid.totem.data.print.BadgeRenderer
 import com.oneid.totem.data.print.PrintJobResult
 import com.oneid.totem.data.print.PrinterConfigRepository
 import com.oneid.totem.data.print.PrinterConnectionManager
+import com.oneid.totem.data.print.PrinterConnectionType
 import com.oneid.totem.data.print.PrinterStatus
+import com.oneid.totem.data.print.UsbPrinterDiscovery
 import com.oneid.totem.domain.repository.AccessCodeKeyboard
 import com.oneid.totem.domain.repository.LabelLayout
 import com.oneid.totem.domain.repository.PrintConfig
@@ -18,12 +21,25 @@ import com.oneid.totem.domain.repository.PrintRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
+
+private const val CONNECTION_POLL_INTERVAL_MS = 5_000L
+
+// Dados de exemplo usados tanto no preview quanto na impressão de teste — o mesmo
+// bitmap gerado aqui é reaproveitado nos dois lugares, então o que aparece na tela
+// é garantidamente o mesmo que sai impresso.
+private const val PREVIEW_NAME = "MARIA EDUARDA SILVA SANTOS DE OLIVEIRA"
+private const val PREVIEW_COMPANY = "EMPRESA EXEMPLO DE TECNOLOGIA E SERVIÇOS LTDA"
+private const val PREVIEW_JOB_TITLE = "DIRETORA DE MARKETING E VENDAS"
+private const val PREVIEW_QR_CODE_VALUE = "teste-print-001"
+private const val PREVIEW_EVENT_NAME = "EVENTO"
+private const val PREVIEW_DPI = 300
 
 data class DiscoveredPrinter(
     val modelName: String,
@@ -45,8 +61,16 @@ data class PrinterSetupUiState(
     val testResult: String? = null,
     val printConfig: PrintConfig? = null,
     val orientation: String = "PORTRAIT",
-    val labelLayout: LabelLayout = LabelLayout.STANDARD,
+    val labelLayout: LabelLayout = LabelLayout.COMPACT,
     val accessCodeKeyboard: AccessCodeKeyboard = AccessCodeKeyboard.ALPHANUMERIC,
+    val connectionType: PrinterConnectionType = PrinterConnectionType.WIFI,
+    val usbAvailable: Boolean = false,
+    val usbDeviceName: String? = null,
+    val isUsbConnecting: Boolean = false,
+    val isUsbSearching: Boolean = false,
+    val isConnected: Boolean = false,
+    val previewBitmap: Bitmap? = null,
+    val settingsSecurityCodeEnabled: Boolean = false,
 )
 
 @HiltViewModel
@@ -54,6 +78,7 @@ class PrinterSetupViewModel @Inject constructor(
     @ApplicationContext private val appContext: Context,
     private val printerConfigRepository: PrinterConfigRepository,
     private val printerConnectionManager: PrinterConnectionManager,
+    private val usbPrinterDiscovery: UsbPrinterDiscovery,
     val badgeRenderer: BadgeRenderer,
     private val printRepository: PrintRepository,
 ) : ViewModel() {
@@ -67,6 +92,8 @@ class PrinterSetupViewModel @Inject constructor(
         val savedOrientation = printerConfigRepository.orientationValue
         val savedLabelLayout = printerConfigRepository.labelLayoutValue
         val savedAccessCodeKeyboard = printerConfigRepository.accessCodeKeyboardValue
+        val savedConnectionType = printerConfigRepository.connectionTypeValue
+        val savedSettingsSecurityCodeEnabled = printerConfigRepository.settingsSecurityCodeEnabledValue
         _uiState.update {
             it.copy(
                 savedIp = ip,
@@ -74,10 +101,63 @@ class PrinterSetupViewModel @Inject constructor(
                 orientation = savedOrientation,
                 labelLayout = savedLabelLayout,
                 accessCodeKeyboard = savedAccessCodeKeyboard,
+                connectionType = savedConnectionType,
+                settingsSecurityCodeEnabled = savedSettingsSecurityCodeEnabled,
             )
         }
-        checkCurrentConnection(ip)
+        checkCurrentConnection()
         fetchPrintConfig()
+        checkUsbDevices()
+        startConnectionPolling()
+        regeneratePreview()
+    }
+
+    /**
+     * Gera o bitmap do preview com dados de exemplo — o mesmo bitmap é reaproveitado
+     * pelo teste de impressão, então preview e impressão de teste nunca divergem.
+     */
+    private fun regeneratePreview() {
+        viewModelScope.launch {
+            val config = _uiState.value.printConfig
+            val bitmap = badgeRenderer.renderFromData(
+                name = PREVIEW_NAME,
+                company = PREVIEW_COMPANY,
+                jobTitle = PREVIEW_JOB_TITLE,
+                qrCodeValue = PREVIEW_QR_CODE_VALUE,
+                accessCode = null,
+                showQrCode = config?.showQrCode ?: true,
+                showAccessCode = config?.showAccessCode ?: false,
+                eventName = PREVIEW_EVENT_NAME,
+                paperWidthMm = config?.paperWidth ?: 62.0,
+                paperHeightMm = config?.paperHeight ?: 100.0,
+                dpi = PREVIEW_DPI,
+                labelLayout = _uiState.value.labelLayout,
+            )
+            _uiState.update { it.copy(previewBitmap = bitmap) }
+        }
+    }
+
+    /**
+     * Verifica periodicamente, ao vivo, se a impressora ainda responde — evita que a tela
+     * continue mostrando "conectada" depois que a impressora física é desligada/desconectada
+     * enquanto a tela está aberta.
+     */
+    private fun startConnectionPolling() {
+        viewModelScope.launch {
+            while (true) {
+                delay(CONNECTION_POLL_INTERVAL_MS)
+                if (_uiState.value.isConnecting || _uiState.value.isUsbConnecting) continue
+                val connected = printerConnectionManager.isConnectedNow(_uiState.value.connectionType)
+                _uiState.update { it.copy(isConnected = connected) }
+            }
+        }
+    }
+
+    fun disconnect() {
+        printerConnectionManager.disconnect()
+        _uiState.update {
+            it.copy(isConnected = false, connectionStatus = null)
+        }
     }
 
     private fun fetchPrintConfig() {
@@ -93,27 +173,125 @@ class PrinterSetupViewModel @Inject constructor(
                     )
                 }
                 printerConfigRepository.setOrientation(config.orientation)
+                regeneratePreview()
             } catch (_: Exception) {
                 // Silently use defaults if API fetch fails
             }
         }
     }
 
-    private fun checkCurrentConnection(ip: String) {
-        if (ip.isBlank()) return
+    private fun checkCurrentConnection() {
+        val connectionType = _uiState.value.connectionType
+        if (connectionType == PrinterConnectionType.USB) {
+            if (!usbPrinterDiscovery.hasUsbPrinter()) return
+            viewModelScope.launch {
+                _uiState.update { it.copy(isConnecting = true) }
+                val usbManager = usbPrinterDiscovery.resolveUsbManager()
+                val result = printerConnectionManager.ensureConnectedUsb(appContext, usbManager)
+                if (result is PrintJobResult.Success) {
+                    _uiState.update {
+                        it.copy(
+                            isConnecting = false,
+                            isConnected = true,
+                            connectionStatus = printerConnectionManager.getStatus(),
+                        )
+                    }
+                } else {
+                    _uiState.update { it.copy(isConnecting = false, isConnected = false) }
+                }
+            }
+        } else {
+            val ip = _uiState.value.savedIp
+            if (ip.isBlank()) return
+            viewModelScope.launch {
+                _uiState.update { it.copy(isConnecting = true) }
+                val result = printerConnectionManager.ensureConnected(ip)
+                if (result is PrintJobResult.Success) {
+                    _uiState.update {
+                        it.copy(
+                            isConnecting = false,
+                            isConnected = true,
+                            connectedIp = ip,
+                            connectionStatus = printerConnectionManager.getStatus(),
+                        )
+                    }
+                } else {
+                    _uiState.update { it.copy(isConnecting = false, isConnected = false) }
+                }
+            }
+        }
+    }
+
+    private fun checkUsbDevices() {
+        val printers = usbPrinterDiscovery.findAllConnectedPrinters()
+        _uiState.update {
+            it.copy(
+                usbAvailable = printers.isNotEmpty(),
+                usbDeviceName = printers.firstOrNull()?.deviceName,
+            )
+        }
+    }
+
+    fun searchUsb() {
         viewModelScope.launch {
-            _uiState.update { it.copy(isConnecting = true) }
-            val result = printerConnectionManager.ensureConnected(ip)
+            _uiState.update { it.copy(isUsbSearching = true) }
+            checkUsbDevices()
+            _uiState.update { it.copy(isUsbSearching = false) }
+        }
+    }
+
+    fun connectUsb() {
+        viewModelScope.launch {
+            _uiState.update {
+                it.copy(
+                    isUsbConnecting = true,
+                    searchError = null,
+                )
+            }
+            val usbManager = usbPrinterDiscovery.resolveUsbManager()
+            val result = printerConnectionManager.ensureConnectedUsb(appContext, usbManager)
             if (result is PrintJobResult.Success) {
+                printerConfigRepository.setConnectionType(PrinterConnectionType.USB)
                 _uiState.update {
                     it.copy(
-                        isConnecting = false,
-                        connectedIp = ip,
+                        isUsbConnecting = false,
+                        isConnected = true,
+                        connectionType = PrinterConnectionType.USB,
                         connectionStatus = printerConnectionManager.getStatus(),
                     )
                 }
             } else {
-                _uiState.update { it.copy(isConnecting = false) }
+                _uiState.update {
+                    it.copy(
+                        isUsbConnecting = false,
+                        isConnected = false,
+                        searchError = "Falha ao conectar via USB: ${(result as PrintJobResult.Error).message}",
+                    )
+                }
+            }
+        }
+    }
+
+    fun switchToWifi() {
+        printerConfigRepository.setConnectionType(PrinterConnectionType.WIFI)
+        _uiState.update { it.copy(connectionType = PrinterConnectionType.WIFI, isConnected = false) }
+        refreshConnectionStatus(PrinterConnectionType.WIFI)
+    }
+
+    fun switchToUsb() {
+        printerConfigRepository.setConnectionType(PrinterConnectionType.USB)
+        _uiState.update { it.copy(connectionType = PrinterConnectionType.USB, isConnected = false) }
+        checkUsbDevices()
+        refreshConnectionStatus(PrinterConnectionType.USB)
+    }
+
+    /** Checagem ao vivo e leve (sem retry) usada ao trocar de aba, pra já refletir se
+     * aquele tipo de conexão está ativo sem precisar esperar o próximo ciclo do polling. */
+    private fun refreshConnectionStatus(type: PrinterConnectionType) {
+        viewModelScope.launch {
+            val connected = printerConnectionManager.isConnectedNow(type)
+            if (_uiState.value.connectionType == type) {
+                _uiState.update { it.copy(isConnected = connected) }
             }
         }
     }
@@ -195,10 +373,13 @@ class PrinterSetupViewModel @Inject constructor(
             if (result is PrintJobResult.Success) {
                 val status = printerConnectionManager.getStatus()
                 printerConfigRepository.setIp(ip)
+                printerConfigRepository.setConnectionType(PrinterConnectionType.WIFI)
                 _uiState.update {
                     it.copy(
                         isConnecting = false,
+                        isConnected = true,
                         connectedIp = ip,
+                        connectionType = PrinterConnectionType.WIFI,
                         connectionStatus = status,
                     )
                 }
@@ -206,6 +387,7 @@ class PrinterSetupViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         isConnecting = false,
+                        isConnected = false,
                         searchError = "Falha ao conectar: ${(result as PrintJobResult.Error).message}",
                     )
                 }
@@ -222,6 +404,7 @@ class PrinterSetupViewModel @Inject constructor(
     fun setLabelLayout(layout: LabelLayout) {
         _uiState.update { it.copy(labelLayout = layout) }
         printerConfigRepository.setLabelLayout(layout)
+        regeneratePreview()
     }
 
     fun setAccessCodeKeyboard(mode: AccessCodeKeyboard) {
@@ -229,33 +412,41 @@ class PrinterSetupViewModel @Inject constructor(
         printerConfigRepository.setAccessCodeKeyboard(mode)
     }
 
+    fun setSettingsSecurityCodeEnabled(enabled: Boolean) {
+        _uiState.update { it.copy(settingsSecurityCodeEnabled = enabled) }
+        printerConfigRepository.setSettingsSecurityCodeEnabled(enabled)
+    }
+
     fun testPrint() {
         viewModelScope.launch {
             _uiState.update { it.copy(isTesting = true, testResult = null) }
-            val ip = _uiState.value.connectedIp ?: _uiState.value.savedIp
-            if (ip.isBlank()) {
-                _uiState.update {
-                    it.copy(isTesting = false, testResult = "Nenhuma impressora configurada")
-                }
-                return@launch
-            }
             try {
-                val labelLayout = _uiState.value.labelLayout
-                val config = _uiState.value.printConfig
-                val paperWidth = config?.paperWidth ?: 62.0
-                val paperHeight = config?.paperHeight ?: 100.0
-                val bitmap = badgeRenderer.renderFromData(
-                    name = "MARIA EDUARDA SILVA SANTOS DE OLIVEIRA",
-                    company = "EMPRESA EXEMPLO DE TECNOLOGIA E SERVIÇOS LTDA",
-                    jobTitle = "DIRETORA DE MARKETING E VENDAS",
-                    qrCodeValue = "teste-print-001",
-                    accessCode = null,
-                    paperWidthMm = paperWidth,
-                    paperHeightMm = paperHeight,
-                    dpi = 300,
-                    labelLayout = labelLayout,
-                )
-                val result = printerConnectionManager.printWithReconnect(bitmap, ip, 1)
+                // Reaproveita o mesmo bitmap mostrado no preview — garante que o que sai
+                // impresso é exatamente o que a pessoa viu na tela antes de clicar.
+                val bitmap = _uiState.value.previewBitmap
+                if (bitmap == null) {
+                    _uiState.update {
+                        it.copy(isTesting = false, testResult = "Preview ainda não está pronto, aguarde um instante")
+                    }
+                    return@launch
+                }
+                val connectionType = _uiState.value.connectionType
+                val result = when (connectionType) {
+                    PrinterConnectionType.USB -> {
+                        val usbManager = usbPrinterDiscovery.resolveUsbManager()
+                        printerConnectionManager.printWithReconnectUsb(bitmap, appContext, usbManager, 1)
+                    }
+                    PrinterConnectionType.WIFI -> {
+                        val ip = _uiState.value.connectedIp ?: _uiState.value.savedIp
+                        if (ip.isBlank()) {
+                            _uiState.update {
+                                it.copy(isTesting = false, testResult = "Nenhuma impressora configurada")
+                            }
+                            return@launch
+                        }
+                        printerConnectionManager.printWithReconnect(bitmap, ip, 1)
+                    }
+                }
                 _uiState.update {
                     it.copy(
                         isTesting = false,

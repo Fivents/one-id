@@ -1,9 +1,11 @@
 package com.oneid.totem.data.print
 
+import android.content.Context
 import android.graphics.Bitmap
 import com.oneid.totem.domain.model.PrintData
 import com.oneid.totem.domain.repository.PrintRepository
 import com.oneid.totem.domain.repository.PrintResult
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
@@ -18,10 +20,12 @@ data class PrintJob(
 
 @Singleton
 class PrintCoordinator @Inject constructor(
+    @ApplicationContext private val appContext: Context,
     private val printRepository: PrintRepository,
     private val badgeRenderer: BadgeRenderer,
     private val printerConfigRepository: PrinterConfigRepository,
     private val connectionManager: PrinterConnectionManager,
+    private val usbPrinterDiscovery: UsbPrinterDiscovery,
 ) {
 
     suspend fun printBadge(
@@ -66,13 +70,21 @@ class PrintCoordinator @Inject constructor(
         bitmap: Bitmap,
         printData: PrintData,
     ): PrintJobResult {
-        val printerIp = printerConfigRepository.printerIpValue
+        val connectionType = printerConfigRepository.connectionTypeValue
 
-        if (printerIp.isBlank()) {
-            return PrintJobResult.Error("Impressora não configurada. Configure o IP nas configurações")
+        return when (connectionType) {
+            PrinterConnectionType.USB -> {
+                val usbManager = usbPrinterDiscovery.resolveUsbManager()
+                connectionManager.printWithReconnectUsb(bitmap, appContext, usbManager, printData.copies)
+            }
+            PrinterConnectionType.WIFI -> {
+                val printerIp = printerConfigRepository.printerIpValue
+                if (printerIp.isBlank()) {
+                    return PrintJobResult.Error("Impressora não configurada. Configure o IP nas configurações")
+                }
+                connectionManager.printWithReconnect(bitmap, printerIp, printData.copies)
+            }
         }
-
-        return connectionManager.printWithReconnect(bitmap, printerIp, printData.copies)
     }
 
     fun dispose() {

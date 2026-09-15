@@ -40,6 +40,23 @@
     *   `RepositoryModule.kt`: bindings atualizados para `DatabaseAuthRepository`, `DatabaseCheckInRepository`, `DatabasePrintRepository` (todos `@Singleton`)
     *   Scoping corrigido: `ActiveContextRepository`, `DatabaseCheckInRepository`, `DatabasePrintRepository` alterados de `@ViewModelScoped` para `@Singleton` para compatibilidade com Hilt
 
+- **Fase 4 — Suporte USB para Impressora Brother** (completa)
+
+    *   `BrotherPrinter.kt` expandido: enum `PrinterConnectionType { WIFI, USB }`, data class `UsbPrinterInfo`, método `connectUsb(context, usbManager)` na interface
+    *   `BrotherSdkPrinter.kt` expandido: implementação `connectUsb()` usando `Channel.newUsbChannel(usbManager)` + `PrinterDriverGenerator.openChannel()`, campo `activeConnectionType` para rastrear tipo de conexão
+    *   `UsbPrinterDiscovery.kt` criado: detecção de impressoras Brother USB via vendor ID (`0x04F9`), verificação de interface USB (class 0x07), `requestPermission()` com `CompletableDeferred`
+    *   `UsbPermissionReceiver.kt` criado: `BroadcastReceiver` para `ACTION_USB_PERMISSION`, `CompletableDeferred` estático para sinalizar resultado da permissão
+    *   `TotemPreferences.kt` expandido: propriedade `printerConnectionType` com persistência em EncryptedSharedPreferences
+    *   `PrinterConfigRepository.kt` expandido: `connectionType: StateFlow<PrinterConnectionType>`, `setConnectionType()`, `isConfigured()` aceita WiFi OU USB
+    *   `PrinterConnectionManager.kt` expandido: `ensureConnectedUsb()`, `printWithReconnectUsb()`, `autoDetectAndConnect()` com preferência USB
+    *   `PrintCoordinator.kt` expandido: despacha impressão para WiFi ou USB baseado em `printerConfigRepository.connectionTypeValue`
+    *   `MethodViewModel.kt` expandido: auto-detecção USB no init, campos `usbAvailable` e `connectionType` no `MethodUiState`
+    *   `PrinterSetupViewModel.kt` expandido: `searchUsb()`, `connectUsb()`, `switchToWifi()`, `switchToUsb()`, campos USB no `PrinterSetupUiState`
+    *   `PrinterSetupScreen.kt` expandido: `ConnectionTypeSelector` (WiFi/USB toggle), `UsbSection` com detecção e botão conectar, `ConnectionStatusCard` suporta USB
+    *   `MethodScreen.kt` modificado: ícone da impressora considera tanto WiFi quanto USB
+    *   `AndroidManifest.xml` expandido: `<uses-feature android.hardware.usb.host>`, receiver `UsbPermissionReceiver`
+    *   Testes atualizados: `PrinterConnectionManagerTest`, `PrintCoordinatorTest`, `PrinterConfigRepositoryTest`, `MethodViewModelTest`
+
 ### In Progress
 - **Fase 3 — Pós-build: testar integração com BD real e validar LoginViewModel**
 
@@ -84,13 +101,21 @@
 - **NOVO** `app/src/main/java/com/oneid/totem/data/database/repo/DatabaseCheckInRepository.kt`: face/code/QR check-in + self-register
 - **NOVO** `app/src/main/java/com/oneid/totem/data/database/repo/DatabasePrintRepository.kt`: print config + badge HTML + print_jobs
 - **NOVO** `app/src/main/java/com/oneid/totem/domain/model/ActiveTotemContext.kt`: ActiveTotemContext, ActiveEvent, EventAIConfig
+- **NOVO** `app/src/main/java/com/oneid/totem/data/print/UsbPrinterDiscovery.kt`: USB printer detection + permission
+- **NOVO** `app/src/main/java/com/oneid/totem/data/print/UsbPermissionReceiver.kt`: BroadcastReceiver for USB permission
 - **NOVO** `app/src/main/java/com/oneid/totem/presentation/screens/printer/PrinterSetupViewModel.kt`
 - **NOVO** `app/src/main/java/com/oneid/totem/presentation/screens/printer/PrinterSetupScreen.kt`
+- **MODIFICADO** `app/src/main/java/com/oneid/totem/data/print/BrotherPrinter.kt`: PrinterConnectionType enum + UsbPrinterInfo + connectUsb interface
+- **MODIFICADO** `app/src/main/java/com/oneid/totem/data/print/BrotherSdkPrinter.kt`: connectUsb() implementation
+- **MODIFICADO** `app/src/main/java/com/oneid/totem/data/print/PrinterConfigRepository.kt`: connectionType management
+- **MODIFICADO** `app/src/main/java/com/oneid/totem/data/print/PrinterConnectionManager.kt`: USB support + auto-detect
+- **MODIFICADO** `app/src/main/java/com/oneid/totem/data/print/PrintCoordinator.kt`: WiFi/USB dispatch
+- **MODIFICADO** `app/src/main/java/com/oneid/totem/data/local/TotemPreferences.kt`: printerConnectionType persistence
+- **MODIFICADO** `app/src/main/java/com/oneid/totem/presentation/screens/method/MethodViewModel.kt`: USB auto-detect
+- **MODIFICADO** `app/src/main/java/com/oneid/totem/presentation/screens/method/MethodScreen.kt`: printer icon for USB
+- **MODIFICADO** `app/src/main/AndroidManifest.xml`: USB feature + receiver
 - **MODIFICADO** `app/src/main/java/com/oneid/totem/data/RepositoryModule.kt`: binds Database* repos instead of Retrofit impls
 - **MODIFICADO** `app/build.gradle.kts`: added postgresql, hikaricp, jjwt
 - **MODIFICADO** `gradle/libs.versions.toml`: added postgresql=42.7.4, hikaricp=6.2.1, jwt=0.12.6
 - **MODIFICADO** `app/src/main/java/com/oneid/totem/presentation/navigation/NavGraph.kt`: PRINTER_SETUP route
-- **MODIFICADO** `app/src/main/java/com/oneid/totem/data/print/PrinterConnectionManager.kt`: getStatus()
 - **MODIFICADO** `app/src/main/java/com/oneid/totem/data/print/BadgeRenderer.kt`: QRCodeWriter
-- **MODIFICADO** `app/src/main/java/com/oneid/totem/presentation/screens/method/MethodScreen.kt`: onNavigateToPrinterSetup
-- **MODIFICADO** `app/src/main/java/com/oneid/totem/presentation/screens/method/MethodViewModel.kt`: printerIp via flow

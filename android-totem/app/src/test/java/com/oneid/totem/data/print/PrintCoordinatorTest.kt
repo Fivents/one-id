@@ -1,5 +1,6 @@
 package com.oneid.totem.data.print
 
+import android.content.Context
 import android.graphics.Bitmap
 import com.oneid.totem.domain.model.PrintData
 import com.oneid.totem.domain.repository.LabelLayout
@@ -10,6 +11,8 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.impl.annotations.MockK
+import io.mockk.mockk
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -33,6 +36,10 @@ class PrintCoordinatorTest {
     @MockK
     private lateinit var connectionManager: PrinterConnectionManager
 
+    @MockK
+    private lateinit var usbPrinterDiscovery: UsbPrinterDiscovery
+
+    private lateinit var appContext: Context
     private lateinit var coordinator: PrintCoordinator
 
     private val sampleData = PrintData(
@@ -47,12 +54,15 @@ class PrintCoordinatorTest {
 
     @Before
     fun setUp() {
-        MockKAnnotations.init(this)
+        MockKAnnotations.init(this, relaxed = true)
+        appContext = mockk(relaxed = true)
         coordinator = PrintCoordinator(
+            appContext = appContext,
             printRepository = printRepository,
             badgeRenderer = badgeRenderer,
             printerConfigRepository = printerConfigRepository,
             connectionManager = connectionManager,
+            usbPrinterDiscovery = usbPrinterDiscovery,
         )
     }
 
@@ -67,13 +77,20 @@ class PrintCoordinatorTest {
     }
 
     @Test
-    fun `printBadge returns error when IP is not configured`() = runTest {
+    fun `printBadge returns error when IP is not configured for WiFi`() = runTest {
+        val bitmap = Bitmap.createBitmap(100, 200, Bitmap.Config.ARGB_8888)
         coEvery { printRepository.printBadge(any(), any()) } returns PrintResult.Success(sampleData)
+        coEvery {
+            badgeRenderer.renderFromData(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
+        } returns bitmap
+        every { printerConfigRepository.printerIp } returns MutableStateFlow("")
+        every { printerConfigRepository.connectionType } returns MutableStateFlow(PrinterConnectionType.WIFI)
         every { printerConfigRepository.printerIpValue } returns ""
+        every { printerConfigRepository.connectionTypeValue } returns PrinterConnectionType.WIFI
 
         val result = coordinator.printBadge("ep-1", null)
 
-        assertTrue(result is PrintJobResult.Error)
+        assertTrue("Expected Error but got: $result", result is PrintJobResult.Error)
         assertTrue((result as PrintJobResult.Error).message.contains("não configurada"))
     }
 
@@ -81,6 +98,7 @@ class PrintCoordinatorTest {
     fun `printBadge returns error when render fails`() = runTest {
         coEvery { printRepository.printBadge(any(), any()) } returns PrintResult.Success(sampleData)
         every { printerConfigRepository.printerIpValue } returns "192.168.1.100"
+        every { printerConfigRepository.connectionTypeValue } returns PrinterConnectionType.WIFI
         every { printerConfigRepository.labelLayoutValue } returns LabelLayout.STANDARD
         coEvery {
             badgeRenderer.renderFromData(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
@@ -93,11 +111,12 @@ class PrintCoordinatorTest {
     }
 
     @Test
-    fun `printBadge succeeds end to end`() = runTest {
+    fun `printBadge succeeds end to end via WiFi`() = runTest {
         val bitmap = Bitmap.createBitmap(100, 200, Bitmap.Config.ARGB_8888)
 
         coEvery { printRepository.printBadge(any(), any()) } returns PrintResult.Success(sampleData)
         every { printerConfigRepository.printerIpValue } returns "192.168.1.100"
+        every { printerConfigRepository.connectionTypeValue } returns PrinterConnectionType.WIFI
         every { printerConfigRepository.labelLayoutValue } returns LabelLayout.STANDARD
         coEvery {
             badgeRenderer.renderFromData(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
@@ -122,6 +141,7 @@ class PrintCoordinatorTest {
 
         coEvery { printRepository.printBadge(any(), any()) } returns PrintResult.Success(sampleData)
         every { printerConfigRepository.printerIpValue } returns "192.168.1.100"
+        every { printerConfigRepository.connectionTypeValue } returns PrinterConnectionType.WIFI
         every { printerConfigRepository.labelLayoutValue } returns LabelLayout.MINIMAL_QR
         coEvery {
             badgeRenderer.renderFromData(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
@@ -145,6 +165,7 @@ class PrintCoordinatorTest {
 
         coEvery { printRepository.printBadge(any(), any()) } returns PrintResult.Success(sampleData)
         every { printerConfigRepository.printerIpValue } returns "192.168.1.100"
+        every { printerConfigRepository.connectionTypeValue } returns PrinterConnectionType.WIFI
         every { printerConfigRepository.labelLayoutValue } returns LabelLayout.STANDARD
         coEvery {
             badgeRenderer.renderFromData(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
@@ -158,9 +179,10 @@ class PrintCoordinatorTest {
     }
 
     @Test
-    fun `printWithBitmap delegates to connection manager`() = runTest {
+    fun `printWithBitmap delegates to connection manager via WiFi`() = runTest {
         val bitmap = Bitmap.createBitmap(50, 50, Bitmap.Config.ARGB_8888)
         every { printerConfigRepository.printerIpValue } returns "10.0.0.50"
+        every { printerConfigRepository.connectionTypeValue } returns PrinterConnectionType.WIFI
         coEvery { connectionManager.printWithReconnect(any(), any(), any()) } returns PrintJobResult.Success
 
         val result = coordinator.printWithBitmap(bitmap, sampleData)

@@ -205,14 +205,19 @@ fun MethodScreen(
                 ) {
                     IconButton(
                         onClick = {
-                            pendingAction = SecurityPendingAction.PRINTER
-                            showSecurityDialog = true
+                            if (uiState.settingsSecurityCodeEnabled) {
+                                pendingAction = SecurityPendingAction.PRINTER
+                                showSecurityDialog = true
+                            } else {
+                                onNavigateToPrinterSetup()
+                            }
                         },
                     ) {
+                        val isConfigured = uiState.printerIp.isNotBlank() || uiState.connectionType == com.oneid.totem.data.print.PrinterConnectionType.USB
                         Icon(
                             Icons.Filled.Print,
                             contentDescription = "Configurar impressora",
-                            tint = if (uiState.printerIp.isNotBlank()) Primary else OnSurfaceVariant.copy(alpha = 0.5f),
+                            tint = if (isConfigured) Primary else OnSurfaceVariant.copy(alpha = 0.5f),
                         )
                     }
 

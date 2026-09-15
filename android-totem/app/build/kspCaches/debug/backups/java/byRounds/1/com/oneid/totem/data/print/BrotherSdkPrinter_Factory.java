@@ -28,25 +28,31 @@ import javax.annotation.processing.Generated;
 public final class BrotherSdkPrinter_Factory implements Factory<BrotherSdkPrinter> {
   private final Provider<Context> appContextProvider;
 
-  public BrotherSdkPrinter_Factory(Provider<Context> appContextProvider) {
+  private final Provider<PrinterConfigRepository> printerConfigRepositoryProvider;
+
+  public BrotherSdkPrinter_Factory(Provider<Context> appContextProvider,
+      Provider<PrinterConfigRepository> printerConfigRepositoryProvider) {
     this.appContextProvider = appContextProvider;
+    this.printerConfigRepositoryProvider = printerConfigRepositoryProvider;
   }
 
   @Override
   public BrotherSdkPrinter get() {
-    return newInstance(appContextProvider.get());
+    return newInstance(appContextProvider.get(), printerConfigRepositoryProvider.get());
   }
 
-  public static BrotherSdkPrinter_Factory create(
-      javax.inject.Provider<Context> appContextProvider) {
-    return new BrotherSdkPrinter_Factory(Providers.asDaggerProvider(appContextProvider));
+  public static BrotherSdkPrinter_Factory create(javax.inject.Provider<Context> appContextProvider,
+      javax.inject.Provider<PrinterConfigRepository> printerConfigRepositoryProvider) {
+    return new BrotherSdkPrinter_Factory(Providers.asDaggerProvider(appContextProvider), Providers.asDaggerProvider(printerConfigRepositoryProvider));
   }
 
-  public static BrotherSdkPrinter_Factory create(Provider<Context> appContextProvider) {
-    return new BrotherSdkPrinter_Factory(appContextProvider);
+  public static BrotherSdkPrinter_Factory create(Provider<Context> appContextProvider,
+      Provider<PrinterConfigRepository> printerConfigRepositoryProvider) {
+    return new BrotherSdkPrinter_Factory(appContextProvider, printerConfigRepositoryProvider);
   }
 
-  public static BrotherSdkPrinter newInstance(Context appContext) {
-    return new BrotherSdkPrinter(appContext);
+  public static BrotherSdkPrinter newInstance(Context appContext,
+      PrinterConfigRepository printerConfigRepository) {
+    return new BrotherSdkPrinter(appContext, printerConfigRepository);
   }
 }

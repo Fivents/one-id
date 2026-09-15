@@ -48,9 +48,9 @@ class TotemPreferences @Inject constructor(
 
     var printerLabelLayout: LabelLayout
         get() = try {
-            LabelLayout.valueOf(prefs.getString(KEY_PRINTER_LABEL_LAYOUT, LabelLayout.STANDARD.name) ?: LabelLayout.STANDARD.name)
+            LabelLayout.valueOf(prefs.getString(KEY_PRINTER_LABEL_LAYOUT, LabelLayout.COMPACT.name) ?: LabelLayout.COMPACT.name)
         } catch (_: IllegalArgumentException) {
-            LabelLayout.STANDARD
+            LabelLayout.COMPACT
         }
         set(value) = prefs.edit().putString(KEY_PRINTER_LABEL_LAYOUT, value.name).apply()
 
@@ -61,6 +61,14 @@ class TotemPreferences @Inject constructor(
             AccessCodeKeyboard.ALPHANUMERIC
         }
         set(value) = prefs.edit().putString(KEY_ACCESS_CODE_KEYBOARD, value.name).apply()
+
+    var printerConnectionType: String
+        get() = prefs.getString(KEY_PRINTER_CONNECTION_TYPE, "WIFI") ?: "WIFI"
+        set(value) = prefs.edit().putString(KEY_PRINTER_CONNECTION_TYPE, value).apply()
+
+    var settingsSecurityCodeEnabled: Boolean
+        get() = prefs.getBoolean(KEY_SETTINGS_SECURITY_CODE_ENABLED, false)
+        set(value) = prefs.edit().putBoolean(KEY_SETTINGS_SECURITY_CODE_ENABLED, value).apply()
 
     var activeEventId: String
         get() = prefs.getString(KEY_ACTIVE_EVENT_ID, "") ?: ""
@@ -93,8 +101,12 @@ class TotemPreferences @Inject constructor(
 
     fun clearSession() {
         val savedPrinterIp = printerIp
+        val savedConnectionType = printerConnectionType
+        val savedSettingsSecurityCodeEnabled = settingsSecurityCodeEnabled
         prefs.edit().clear().apply()
         printerIp = savedPrinterIp
+        printerConnectionType = savedConnectionType
+        settingsSecurityCodeEnabled = savedSettingsSecurityCodeEnabled
     }
 
     companion object {
@@ -106,6 +118,8 @@ class TotemPreferences @Inject constructor(
         private const val KEY_PRINTER_ORIENTATION = "printer_orientation"
         private const val KEY_PRINTER_LABEL_LAYOUT = "printer_label_layout"
         private const val KEY_ACCESS_CODE_KEYBOARD = "access_code_keyboard"
+        private const val KEY_PRINTER_CONNECTION_TYPE = "printer_connection_type"
+        private const val KEY_SETTINGS_SECURITY_CODE_ENABLED = "settings_security_code_enabled"
         private const val KEY_ACTIVE_EVENT_ID = "active_event_id"
         private const val KEY_EVENT_NAME = "event_name"
         private const val KEY_TOTEM_EVENT_SUB_ID = "totem_event_sub_id"

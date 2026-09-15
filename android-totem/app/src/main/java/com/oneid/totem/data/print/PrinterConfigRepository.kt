@@ -17,8 +17,10 @@ class PrinterConfigRepository @Inject constructor(
 ) {
     private val _printerIp = MutableStateFlow("")
     private val _orientation = MutableStateFlow("PORTRAIT")
-    private val _labelLayout = MutableStateFlow(LabelLayout.STANDARD)
+    private val _labelLayout = MutableStateFlow(LabelLayout.COMPACT)
     private val _accessCodeKeyboard = MutableStateFlow(AccessCodeKeyboard.ALPHANUMERIC)
+    private val _connectionType = MutableStateFlow(PrinterConnectionType.WIFI)
+    private val _settingsSecurityCodeEnabled = MutableStateFlow(false)
 
     val printerIp: StateFlow<String> = _printerIp.asStateFlow()
 
@@ -36,6 +38,14 @@ class PrinterConfigRepository @Inject constructor(
 
     val accessCodeKeyboardValue: AccessCodeKeyboard get() = _accessCodeKeyboard.value
 
+    val connectionType: StateFlow<PrinterConnectionType> = _connectionType.asStateFlow()
+
+    val connectionTypeValue: PrinterConnectionType get() = _connectionType.value
+
+    val settingsSecurityCodeEnabled: StateFlow<Boolean> = _settingsSecurityCodeEnabled.asStateFlow()
+
+    val settingsSecurityCodeEnabledValue: Boolean get() = _settingsSecurityCodeEnabled.value
+
     fun load() {
         val saved = tokenStorage.getPrinterIp()
         if (!saved.isNullOrBlank()) {
@@ -43,7 +53,18 @@ class PrinterConfigRepository @Inject constructor(
         }
         _orientation.value = prefs.printerOrientation
         _labelLayout.value = prefs.printerLabelLayout
+        if (_labelLayout.value == LabelLayout.STANDARD) {
+            // O modo Padrão não é mais usado nos eventos; migra totems já configurados
+            // com essa preferência antiga para o novo padrão (Compacto).
+            setLabelLayout(LabelLayout.COMPACT)
+        }
         _accessCodeKeyboard.value = prefs.accessCodeKeyboard
+        _connectionType.value = try {
+            PrinterConnectionType.valueOf(prefs.printerConnectionType)
+        } catch (_: IllegalArgumentException) {
+            PrinterConnectionType.WIFI
+        }
+        _settingsSecurityCodeEnabled.value = prefs.settingsSecurityCodeEnabled
     }
 
     fun setIp(ip: String) {
@@ -68,5 +89,20 @@ class PrinterConfigRepository @Inject constructor(
         prefs.accessCodeKeyboard = mode
     }
 
-    fun isConfigured(): Boolean = _printerIp.value.isNotBlank()
+    fun setConnectionType(type: PrinterConnectionType) {
+        _connectionType.value = type
+        prefs.printerConnectionType = type.name
+    }
+
+    fun setSettingsSecurityCodeEnabled(enabled: Boolean) {
+        _settingsSecurityCodeEnabled.value = enabled
+        prefs.settingsSecurityCodeEnabled = enabled
+    }
+
+    fun isConfigured(): Boolean {
+        return when (_connectionType.value) {
+            PrinterConnectionType.USB -> true
+            PrinterConnectionType.WIFI -> _printerIp.value.isNotBlank()
+        }
+    }
 }

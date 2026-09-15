@@ -2,6 +2,7 @@ package com.oneid.totem.data.print
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.hardware.usb.UsbManager
 import com.brother.sdk.lmprinter.*
 import com.brother.sdk.lmprinter.setting.PrintImageSettings
 import com.brother.sdk.lmprinter.setting.QLPrintSettings
@@ -15,10 +16,12 @@ import javax.inject.Singleton
 @Singleton
 class BrotherSdkPrinter @Inject constructor(
     @ApplicationContext private val appContext: Context,
+    private val printerConfigRepository: PrinterConfigRepository,
 ) : BrotherPrinter {
 
     private var driver: PrinterDriver? = null
     private var connectedLabelSize: QLPrintSettings.LabelSize? = null
+    private var activeConnectionType: PrinterConnectionType = PrinterConnectionType.WIFI
 
     private val workPath: String by lazy {
         File(appContext.cacheDir, "brother_print").also { it.mkdirs() }.absolutePath
@@ -32,16 +35,53 @@ class BrotherSdkPrinter @Inject constructor(
                 val result = PrinterDriverGenerator.openChannel(channel)
                 if (result.error.code != OpenChannelError.ErrorCode.NoError) {
                     return@withContext PrintJobResult.Error(
-                        "Falha ao conectar: ${result.error.code}"
+                        "Falha ao conectar via WiFi: ${result.error.code}"
                     )
                 }
                 driver = result.driver
+                activeConnectionType = PrinterConnectionType.WIFI
 
                 connectedLabelSize = queryLabelSize(result.driver)
 
                 PrintJobResult.Success
             } catch (e: Exception) {
-                PrintJobResult.Error("Conexão falhou: ${e.message}")
+                PrintJobResult.Error("Conexão WiFi falhou: ${e.message}")
+            }
+        }
+    }
+
+    override suspend fun connectUsb(context: Context, usbManager: UsbManager): PrintJobResult {
+        return withContext(Dispatchers.IO) {
+            try {
+                close()
+
+                val device = usbManager.deviceList.values.firstOrNull { it.vendorId == 0x04F9 }
+                    ?: return@withContext PrintJobResult.Error(
+                        "Nenhuma impressora Brother USB encontrada"
+                    )
+
+                if (!usbManager.hasPermission(device)) {
+                    val permissionGranted = UsbPermissionReceiver.requestPermission(usbManager, device, context)
+                    if (!permissionGranted) {
+                        return@withContext PrintJobResult.Error("Permissão USB negada pelo usuário")
+                    }
+                }
+
+                val channel = Channel.newUsbChannel(usbManager)
+                val result = PrinterDriverGenerator.openChannel(channel)
+                if (result.error.code != OpenChannelError.ErrorCode.NoError) {
+                    return@withContext PrintJobResult.Error(
+                        "Falha ao conectar via USB: ${result.error.code}"
+                    )
+                }
+                driver = result.driver
+                activeConnectionType = PrinterConnectionType.USB
+
+                connectedLabelSize = queryLabelSize(result.driver)
+
+                PrintJobResult.Success
+            } catch (e: Exception) {
+                PrintJobResult.Error("Conexão USB falhou: ${e.message}")
             }
         }
     }
@@ -76,8 +116,16 @@ class BrotherSdkPrinter @Inject constructor(
                     isCutAtEnd = true
                     isSkipStatusCheck = false
                     hAlignment = PrintImageSettings.HorizontalAlignment.Center
-                    vAlignment = PrintImageSettings.VerticalAlignment.Center
-                    printOrientation = PrintImageSettings.Orientation.Portrait
+                    // Top em vez de Center: numa fita contínua, "vertical" é o eixo do
+                    // comprimento (feed) — Center deixava uma folga em branco antes E depois
+                    // do conteúdo quando a página calculada pelo driver é maior que o bitmap;
+                    // Top empurra essa folga toda pro final, aproveitando o início da etiqueta.
+                    vAlignment = PrintImageSettings.VerticalAlignment.Top
+                    printOrientation = if (printerConfigRepository.orientationValue == "LANDSCAPE") {
+                        PrintImageSettings.Orientation.Landscape
+                    } else {
+                        PrintImageSettings.Orientation.Portrait
+                    }
                     scaleMode = PrintImageSettings.ScaleMode.FitPageAspect
                     compress = PrintImageSettings.CompressMode.Mode9
                     workPath = this@BrotherSdkPrinter.workPath
@@ -115,6 +163,8 @@ class BrotherSdkPrinter @Inject constructor(
             false
         }
     }
+
+    fun getConnectionType(): PrinterConnectionType = activeConnectionType
 
     override fun close() {
         try {

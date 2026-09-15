@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.oneid.totem.data.print.BadgeRendererTest" tests="20" skipped="0" failures="0" errors="0" timestamp="2026-08-27T15:27:00" hostname="DESKTOP-L0NQU1E" time="7.093">
+  <properties/>
+  <testcase name="COMPACT keeps the fixed 9cm length even for a pathological single word name" classname="com.oneid.totem.data.print.BadgeRendererTest" time="4.304"/>
+  <testcase name="COMPACT QR keeps the same outer size regardless of payload length" classname="com.oneid.totem.data.print.BadgeRendererTest" time="0.457"/>
+  <testcase name="mmToPixels converts correctly" classname="com.oneid.totem.data.print.BadgeRendererTest" time="0.021"/>
+  <testcase name="renderFromData handles null fields" classname="com.oneid.totem.data.print.BadgeRendererTest" time="0.02"/>
+  <testcase name="renderFromData defaults to COMPACT with fixed 9cm x 29mm dimensions" classname="com.oneid.totem.data.print.BadgeRendererTest" time="0.15"/>
+  <testcase name="COMPACT QR sits at the bottom-right corner of the fixed label" classname="com.oneid.totem.data.print.BadgeRendererTest" time="0.155"/>
+  <testcase name="renderFromData MINIMAL_QR creates fixed 9cm x 29mm bitmap" classname="com.oneid.totem.data.print.BadgeRendererTest" time="0.131"/>
+  <testcase name="MINIMAL_QR QR bounds identical with and without company and job title" classname="com.oneid.totem.data.print.BadgeRendererTest" time="0.216"/>
+  <testcase name="MINIMAL_QR black QR is flush to the label top, left and bottom edges" classname="com.oneid.totem.data.print.BadgeRendererTest" time="0.106"/>
+  <testcase name="COMPACT name normalization uses first and last name only" classname="com.oneid.totem.data.print.BadgeRendererTest" time="0.313"/>
+  <testcase name="render parses HTML with all fields" classname="com.oneid.totem.data.print.BadgeRendererTest" time="0.045"/>
+  <testcase name="COMPACT creates a fixed 9cm x 29mm bitmap regardless of content" classname="com.oneid.totem.data.print.BadgeRendererTest" time="0.143"/>
+  <testcase name="COMPACT QR size stays the same with or without company and job title" classname="com.oneid.totem.data.print.BadgeRendererTest" time="0.344"/>
+  <testcase name="mmToPixels coerceAtLeast ensures minimum 1 pixel" classname="com.oneid.totem.data.print.BadgeRendererTest" time="0.015"/>
+  <testcase name="MINIMAL_QR falls back to automatic version when payload exceeds v10 capacity" classname="com.oneid.totem.data.print.BadgeRendererTest" time="0.139"/>
+  <testcase name="render parses HTML with only name" classname="com.oneid.totem.data.print.BadgeRendererTest" time="0.031"/>
+  <testcase name="render handles empty HTML" classname="com.oneid.totem.data.print.BadgeRendererTest" time="0.017"/>
+  <testcase name="mmToPixels handles zero" classname="com.oneid.totem.data.print.BadgeRendererTest" time="0.017"/>
+  <testcase name="MINIMAL_QR has identical QR bounding box for short and long payloads" classname="com.oneid.totem.data.print.BadgeRendererTest" time="0.2"/>
+  <testcase name="COMPACT label length stays fixed at 9cm regardless of the widest content line" classname="com.oneid.totem.data.print.BadgeRendererTest" time="0.269"/>
+  <system-out><![CDATA[WARNING: No manifest file found at .\AndroidManifest.xml.
+Falling back to the Android OS resources only.
+To remove this warning, annotate your test class with @Config(manifest=Config.NONE).
+If you're using Android Gradle Plugin, add testOptions.unitTests.includeAndroidResources = true to your build.gradle
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

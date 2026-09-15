@@ -29,7 +29,7 @@ data class BadgeElements(
     val showQrCode: Boolean = true,
     val showAccessCode: Boolean = false,
     val eventName: String = "",
-    val labelLayout: LabelLayout = LabelLayout.STANDARD,
+    val labelLayout: LabelLayout = LabelLayout.COMPACT,
 ) {
     fun isNotEmpty(): Boolean = participantName.isNotBlank()
 }
@@ -72,7 +72,7 @@ open class BadgeRenderer @Inject constructor() {
         paperWidthMm: Double,
         paperHeightMm: Double,
         dpi: Int,
-        labelLayout: LabelLayout = LabelLayout.STANDARD,
+        labelLayout: LabelLayout = LabelLayout.COMPACT,
     ): Bitmap = withContext(Dispatchers.Default) {
         if (labelLayout == LabelLayout.MINIMAL_QR) {
             return@withContext renderMinimalQr(
@@ -84,45 +84,48 @@ open class BadgeRenderer @Inject constructor() {
             )
         }
 
-        if (labelLayout == LabelLayout.COMPACT) {
-            return@withContext renderCompactQr(
-                name = name,
-                company = company,
-                jobTitle = jobTitle,
-                qrCodeValue = qrCodeValue,
-                dpi = dpi,
-            )
-        }
-
-        val rollWidthMm = paperHeightMm
-        val maxFeedMm = paperWidthMm
-
-        val rollWidthPx = mmToPixels(rollWidthMm, dpi)
-        val maxFeedPx = mmToPixels(maxFeedMm, dpi)
-
-        val bitmap = Bitmap.createBitmap(rollWidthPx, maxFeedPx, Bitmap.Config.ARGB_8888)
-        val canvas = Canvas(bitmap)
-        canvas.drawColor(Color.WHITE)
-
-        drawBadge(
-            canvas = canvas,
-            elements = BadgeElements(
-                participantName = shortenName(name),
-                company = company,
-                jobTitle = jobTitle,
-                qrCodeValue = qrCodeValue,
-                accessCode = accessCode,
-                showQrCode = showQrCode,
-                showAccessCode = showAccessCode,
-                eventName = eventName,
-                labelLayout = labelLayout,
-            ),
-            widthPx = rollWidthPx,
-            heightPx = maxFeedPx,
+        // Compacto é o padrão atual. Qualquer outro valor (incluindo STANDARD legado
+        // vindo de preferências salvas antes dessa mudança) cai aqui também, já que o
+        // modo Padrão não é mais usado nos eventos (ver bloco comentado abaixo).
+        return@withContext renderCompactQr(
+            name = name,
+            company = company,
+            jobTitle = jobTitle,
+            qrCodeValue = qrCodeValue,
             dpi = dpi,
         )
 
-        trimBitmap(bitmap, mmToPixels(2.0, dpi))
+        // Modo Padrão (LabelLayout.STANDARD) — não é mais usado nos eventos, mantido
+        // aqui comentado como referência caso seja necessário reativar no futuro.
+        // val rollWidthMm = paperHeightMm
+        // val maxFeedMm = paperWidthMm
+        //
+        // val rollWidthPx = mmToPixels(rollWidthMm, dpi)
+        // val maxFeedPx = mmToPixels(maxFeedMm, dpi)
+        //
+        // val bitmap = Bitmap.createBitmap(rollWidthPx, maxFeedPx, Bitmap.Config.ARGB_8888)
+        // val canvas = Canvas(bitmap)
+        // canvas.drawColor(Color.WHITE)
+        //
+        // drawBadge(
+        //     canvas = canvas,
+        //     elements = BadgeElements(
+        //         participantName = shortenName(name),
+        //         company = company,
+        //         jobTitle = jobTitle,
+        //         qrCodeValue = qrCodeValue,
+        //         accessCode = accessCode,
+        //         showQrCode = showQrCode,
+        //         showAccessCode = showAccessCode,
+        //         eventName = eventName,
+        //         labelLayout = labelLayout,
+        //     ),
+        //     widthPx = rollWidthPx,
+        //     heightPx = maxFeedPx,
+        //     dpi = dpi,
+        // )
+        //
+        // trimBitmap(bitmap, mmToPixels(2.0, dpi))
     }
 
     private fun renderMinimalQr(
@@ -132,7 +135,7 @@ open class BadgeRenderer @Inject constructor() {
         qrCodeValue: String?,
         dpi: Int,
     ): Bitmap {
-        val logicalW = mmToPixels(MINIMAL_QR_MAX_FEED_MM, dpi)
+        val logicalW = mmToPixels(LABEL_LENGTH_MM, dpi)
         val logicalH = mmToPixels(MINIMAL_QR_ROLL_WIDTH_MM, dpi)
         val cssScale = dpi / 96f * 2.2f
 
@@ -197,8 +200,11 @@ open class BadgeRenderer @Inject constructor() {
             }
         }
 
-        val rotated = rotateCw(bitmap)
-        return trimBitmap(rotated, mmToPixels(2.0, dpi))
+        // Sem rotação manual aqui: o bitmap já é montado "deitado" (largura = comprimento
+        // da fita, altura = 29mm) e é o próprio driver da Brother (printOrientation) que
+        // rotaciona para caber na fita estreita. Rotacionar aqui de novo duplicava a
+        // rotação e jogava o conteúdo pra ponta da etiqueta.
+        return bitmap
     }
 
     private fun renderCompactQr(
@@ -209,7 +215,7 @@ open class BadgeRenderer @Inject constructor() {
         dpi: Int,
     ): Bitmap {
         val marginPx = mmToPixels(COMPACT_MARGIN_MM, dpi)
-        val maxFeedWidthPx = mmToPixels(COMPACT_MAX_FEED_MM, dpi)
+        val maxFeedWidthPx = mmToPixels(LABEL_LENGTH_MM, dpi)
         val logicalH = mmToPixels(MINIMAL_QR_ROLL_WIDTH_MM, dpi)
         val cssScale = dpi / 96f * 2.2f
 
@@ -238,18 +244,13 @@ open class BadgeRenderer @Inject constructor() {
         val hasJobTitle = !jobTitle.isNullOrBlank()
         val hasQr = !qrCodeValue.isNullOrBlank()
 
-        // Nome: mede a largura precisando de até o comprimento máximo da etiqueta.
-        val nameMaxWidth = (maxFeedWidthPx - 2 * marginPx).coerceAtLeast(1)
-        val displayName = if (textWidth(namePaint, nameText) > nameMaxWidth) {
-            truncateLine(nameText, namePaint, nameMaxWidth)
-        } else {
-            nameText
-        }
+        // Altura do nome não depende de onde ele é cortado (mesma fonte, uma linha só),
+        // então dá pra medir com o texto completo antes de truncar — e usar isso pra
+        // calcular o tamanho real do QR antes de decidir a largura disponível pro texto.
         val nameRect = Rect()
-        namePaint.getTextBounds(displayName, 0, displayName.length, nameRect)
+        namePaint.getTextBounds(nameText, 0, nameText.length, nameRect)
         val nameBaseline = -nameRect.top.toFloat()
         val nameBlockBottom = nameBaseline + nameRect.bottom.toFloat()
-        val nameWidthPx = textWidth(namePaint, displayName)
 
         // QR: ocupa o restante da altura abaixo do nome.
         val nameToQrGapPx = mmToPixels(COMPACT_NAME_TO_QR_GAP_MM, dpi)
@@ -262,36 +263,36 @@ open class BadgeRenderer @Inject constructor() {
             0
         }
 
-        // Empresa/cargo: truncados até o espaço que já existe (o nome quase sempre é
-        // mais largo que o QR, então essa sobra já dá bastante espaço de graça) mais uma
-        // folga extra limitada — em vez de um limite fixo, que ou desperdiça o espaço que
-        // o nome já reservou (texto cortado bem antes do QR) ou deixa a etiqueta enorme.
+        // Empresa/cargo dividem a mesma faixa vertical do QR (ele ocupa a altura logo
+        // abaixo do nome), então precisam reservar espaço pra ele — o nome não: fica
+        // inteiro numa linha acima dessa faixa, então pode usar a largura toda da
+        // etiqueta sem risco de esbarrar no QR.
         val colGapPx = mmToPixels(COMPACT_QR_COL_GAP_MM, dpi)
-        val freeMetaWidthPx = (maxOf(nameWidthPx, qrSize.toFloat()) - qrSize - colGapPx).coerceAtLeast(0f)
-        val metaGrowthCapPx = mmToPixels(COMPACT_META_MAX_MM, dpi)
-        val metaTruncateCap = (freeMetaWidthPx + metaGrowthCapPx).toInt().coerceAtLeast(1)
-        val companyLine = if (hasCompany) truncateLineNoEllipsis(company!!.uppercase(), companyPaint, metaTruncateCap) else ""
-        val jobLine = if (hasJobTitle) truncateLineNoEllipsis(jobTitle!!, jobPaint, metaTruncateCap) else ""
-        val metaWidthPx = maxOf(
-            if (hasCompany) textWidth(companyPaint, companyLine) else 0f,
-            if (hasJobTitle) textWidth(jobPaint, jobLine) else 0f,
-        )
-        val metaRowWidthPx = if (hasCompany || hasJobTitle) metaWidthPx + colGapPx + qrSize else 0f
+        val qrReservedPx = if (hasQr) qrSize + colGapPx else 0
+        val textMaxWidthPx = (maxFeedWidthPx - marginPx - qrReservedPx).coerceAtLeast(1)
+        val nameMaxWidthPx = (maxFeedWidthPx - marginPx).coerceAtLeast(1)
 
-        // A etiqueta compacta só precisa ser tão comprida quanto o próprio conteúdo —
-        // nada de sobrar fita em branco antes do nome ou depois do QR.
-        val contentWidthPx = (maxOf(nameWidthPx, metaRowWidthPx, qrSize.toFloat()) + 2 * marginPx)
-            .toInt()
-            .coerceIn((qrSize + 2 * marginPx).coerceAtLeast(1), maxFeedWidthPx)
+        // Sem reticências: corta na largura disponível sem "...", igual empresa/cargo —
+        // os 3 pontinhos comiam espaço útil e ainda cortavam mais cedo que o necessário.
+        val displayName = if (textWidth(namePaint, nameText) > nameMaxWidthPx) {
+            truncateLineNoEllipsis(nameText, namePaint, nameMaxWidthPx)
+        } else {
+            nameText
+        }
+
+        val companyLine = if (hasCompany) truncateLineNoEllipsis(company!!.uppercase(), companyPaint, textMaxWidthPx) else ""
+        val jobLine = if (hasJobTitle) truncateLineNoEllipsis(jobTitle!!, jobPaint, textMaxWidthPx) else ""
+        // Comprimento fixo de 9cm (padronizado) — o conteúdo é posicionado dentro dele,
+        // sem auto-ajustar o tamanho da etiqueta ao conteúdo.
+        val contentWidthPx = maxFeedWidthPx
 
         val bitmap = Bitmap.createBitmap(contentWidthPx, logicalH, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
         canvas.drawColor(Color.WHITE)
 
-        // Nome: centralizado na etiqueta (já do tamanho do conteúdo), colado na borda superior.
-        val nameAreaWidth = (contentWidthPx - 2 * marginPx).coerceAtLeast(1)
-        val nameX = marginPx + (nameAreaWidth - nameWidthPx) / 2f
-        canvas.drawText(displayName, nameX, nameBaseline, namePaint)
+        // Nome: começa colado na borda esquerda (sem centralizar), aproveitando todo o
+        // espaço disponível em vez de deixar margem em branco antes do texto.
+        canvas.drawText(displayName, marginPx.toFloat(), nameBaseline, namePaint)
 
         // QR: colado nas bordas direita e inferior, sem quiet zone — senão o próprio
         // QR gera uma margem em branco por dentro dos módulos, mesmo já estando
@@ -316,7 +317,9 @@ open class BadgeRenderer @Inject constructor() {
             y += jobPaint.textSize
         }
 
-        return rotateCw(bitmap)
+        // Sem rotação manual: ver comentário em renderMinimalQr — o driver da Brother
+        // já rotaciona a imagem "deitada" pra encaixar na fita estreita.
+        return bitmap
     }
 
     private fun shortenName(fullName: String): String {
@@ -480,19 +483,6 @@ open class BadgeRenderer @Inject constructor() {
         return Bitmap.createBitmap(bitmap, 0, cropTop, w, cropH)
     }
 
-    private fun rotateCw(src: Bitmap): Bitmap {
-        val srcW = src.width
-        val srcH = src.height
-        val dst = Bitmap.createBitmap(srcH, srcW, Bitmap.Config.ARGB_8888)
-        dst.eraseColor(Color.WHITE)
-        for (x in 0 until srcW) {
-            for (y in 0 until srcH) {
-                dst.setPixel(srcH - 1 - y, x, src.getPixel(x, y))
-            }
-        }
-        return dst
-    }
-
     private fun drawTextAt(
         canvas: Canvas,
         text: String,
@@ -649,20 +639,19 @@ open class BadgeRenderer @Inject constructor() {
     }
 
     companion object {
+        // Comprimento fixo (padronizado) da etiqueta para os modos Compacto e Mínimo.
+        const val LABEL_LENGTH_MM = 90.0
+
         const val MINIMAL_QR_ROLL_WIDTH_MM = 29.0
-        const val MINIMAL_QR_MAX_FEED_MM = 120.0
-        const val MINIMAL_QR_ROTATION_DEGREES = 90f
         const val MINIMAL_QR_VERSION = 10
         const val MINIMAL_QR_QUIET_ZONE = 0
 
-        const val COMPACT_MAX_FEED_MM = 150.0
         const val COMPACT_QR_MAX_MM = 29.0
         const val COMPACT_QR_MIN_MM = 15.0
         const val COMPACT_QR_QUIET_ZONE = 0
         const val COMPACT_MARGIN_MM = 0.0
-        const val COMPACT_NAME_FONT_CSS = 20f
-        const val COMPACT_META_FONT_CSS = 10f
-        const val COMPACT_META_MAX_MM = 45.0
+        const val COMPACT_NAME_FONT_CSS = 18f
+        const val COMPACT_META_FONT_CSS = 8f
         const val COMPACT_NAME_TO_QR_GAP_MM = 0.4
         const val COMPACT_NAME_TO_COMPANY_GAP_MM = 0.8
         const val COMPACT_COMPANY_TO_JOB_GAP_MM = 0.4

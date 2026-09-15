@@ -19,6 +19,7 @@
     <uses-feature android:name="android.hardware.camera.autofocus" />
     <uses-feature android:name="android.hardware.bluetooth" android:required="false" />
     <uses-feature android:name="android.hardware.wifi" android:required="true" />
+    <uses-feature android:name="android.hardware.usb.host" android:required="false" />
 
     <application
         android:name=".OneIdApp"
@@ -41,5 +42,13 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <receiver
+            android:name=".data.print.UsbPermissionReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.oneid.totem.USB_PERMISSION" />
+            </intent-filter>
+        </receiver>
     </application>
 </manifest>

@@ -6,6 +6,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.Print
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -18,68 +22,35 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.oneid.totem.data.print.BadgeRenderer
 import com.oneid.totem.domain.repository.LabelLayout
+import com.oneid.totem.presentation.theme.OnPrimary
 import com.oneid.totem.presentation.theme.OnSurface
 import com.oneid.totem.presentation.theme.OnSurfaceVariant
 import com.oneid.totem.presentation.theme.Outline
 import com.oneid.totem.presentation.theme.Primary
+import com.oneid.totem.presentation.theme.Secondary
 import com.oneid.totem.presentation.theme.Surface
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import java.text.DecimalFormat
 
 private const val PREVIEW_DPI = 300
 private val MM_FORMAT = DecimalFormat("0.#")
 
+/**
+ * O bitmap exibido aqui é o mesmo que [onTestPrint] envia pra impressora — o preview
+ * é sempre fiel ao que sai na etiqueta de teste, sem dados/composição divergentes.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BadgePreviewSection(
-    paperWidthMm: Double,
-    paperHeightMm: Double,
+    bitmap: Bitmap?,
     labelLayout: LabelLayout,
-    badgeRenderer: BadgeRenderer,
-    showQrCode: Boolean,
-    showAccessCode: Boolean,
-    participantName: String = "Maria Silva",
-    company: String? = "Empresa Exemplo",
-    jobTitle: String? = "Diretora de Marketing",
-    eventName: String = "EVENTO DE TESTE",
-    accessCode: String? = "PREVIEW-001",
     onLabelLayoutChange: (LabelLayout) -> Unit = {},
+    isTesting: Boolean,
+    testResult: String?,
+    hasPrinter: Boolean,
+    onTestPrint: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var bitmap by remember { mutableStateOf<Bitmap?>(null) }
-    LaunchedEffect(
-        labelLayout,
-        showQrCode,
-        showAccessCode,
-        participantName,
-        company,
-        jobTitle,
-        eventName,
-        accessCode,
-        paperWidthMm,
-        paperHeightMm,
-    ) {
-        bitmap = withContext(Dispatchers.Default) {
-            badgeRenderer.renderFromData(
-                name = participantName,
-                company = company,
-                jobTitle = jobTitle,
-                qrCodeValue = "preview-qr-001",
-                accessCode = accessCode,
-                showQrCode = showQrCode,
-                showAccessCode = showAccessCode,
-                eventName = eventName,
-                paperWidthMm = paperWidthMm,
-                paperHeightMm = paperHeightMm,
-                dpi = PREVIEW_DPI,
-                labelLayout = labelLayout,
-            )
-        }
-    }
-
     Card(
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Surface),
@@ -116,6 +87,64 @@ fun BadgePreviewSection(
                 bitmap = bitmap,
                 dpi = PREVIEW_DPI,
             )
+
+            Spacer(Modifier.height(20.dp))
+            HorizontalDivider(color = Outline.copy(alpha = 0.3f))
+            Spacer(Modifier.height(20.dp))
+
+            Button(
+                onClick = onTestPrint,
+                enabled = hasPrinter && !isTesting,
+                modifier = Modifier.fillMaxWidth().height(48.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (hasPrinter) Secondary else Secondary.copy(alpha = 0.4f),
+                ),
+            ) {
+                if (isTesting) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        color = OnPrimary,
+                        strokeWidth = 2.dp,
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text("Imprimindo...", color = OnPrimary)
+                } else {
+                    Icon(Icons.Filled.Print, contentDescription = null, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Imprimir Teste", color = OnPrimary)
+                }
+            }
+
+            testResult?.let { result ->
+                Spacer(Modifier.height(12.dp))
+                val isSuccess = result.startsWith("Impressão de teste bem-sucedida")
+                Card(
+                    shape = RoundedCornerShape(10.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (isSuccess) Secondary.copy(alpha = 0.12f) else MaterialTheme.colorScheme.error.copy(alpha = 0.12f),
+                    ),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(
+                            if (isSuccess) Icons.Filled.CheckCircle else Icons.Filled.Error,
+                            contentDescription = null,
+                            tint = if (isSuccess) Secondary else MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(20.dp),
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            result,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (isSuccess) Secondary else MaterialTheme.colorScheme.error,
+                        )
+                    }
+                }
+            }
         }
     }
 }
@@ -127,7 +156,6 @@ private fun LabelLayoutSelector(
     onSelect: (LabelLayout) -> Unit,
 ) {
     val options = listOf(
-        LabelLayout.STANDARD to "Padrão",
         LabelLayout.COMPACT to "Compacto",
         LabelLayout.MINIMAL_QR to "Mínimo",
     )

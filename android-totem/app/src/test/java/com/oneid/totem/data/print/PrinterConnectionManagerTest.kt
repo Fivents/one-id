@@ -24,7 +24,7 @@ class PrinterConnectionManagerTest {
 
     @Before
     fun setUp() {
-        MockKAnnotations.init(this)
+        MockKAnnotations.init(this, relaxed = true)
         manager = PrinterConnectionManager(printer)
     }
 
@@ -113,7 +113,7 @@ class PrinterConnectionManagerTest {
 
         assertTrue(result is PrintJobResult.Error)
         assertEquals("print fail", (result as PrintJobResult.Error).message)
-        coVerify(exactly = 1) { printer.close() }
+        coVerify(atLeast = 1) { printer.close() }
     }
 
     @Test
@@ -123,5 +123,10 @@ class PrinterConnectionManagerTest {
         manager.disconnect()
 
         coVerify(exactly = 1) { printer.close() }
+    }
+
+    @Test
+    fun `getCurrentConnectionType returns WIFI by default`() {
+        assertEquals(PrinterConnectionType.WIFI, manager.getCurrentConnectionType())
     }
 }

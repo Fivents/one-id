@@ -1,7 +1,12 @@
 package com.oneid.totem.presentation.screens.method
 
+import android.content.Context
 import com.oneid.totem.data.local.TotemPreferences
+import com.oneid.totem.data.print.PrintJobResult
 import com.oneid.totem.data.print.PrinterConfigRepository
+import com.oneid.totem.data.print.PrinterConnectionManager
+import com.oneid.totem.data.print.PrinterConnectionType
+import com.oneid.totem.data.print.UsbPrinterDiscovery
 import com.oneid.totem.data.service.ModelDownloadState
 import com.oneid.totem.data.service.ModelDownloader
 import com.oneid.totem.domain.model.AIConfig
@@ -14,7 +19,9 @@ import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.impl.annotations.MockK
 import io.mockk.just
+import io.mockk.mockk
 import io.mockk.runs
+import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -37,11 +44,18 @@ class MethodViewModelTest {
     private lateinit var printerConfigRepository: PrinterConfigRepository
 
     @MockK
+    private lateinit var printerConnectionManager: PrinterConnectionManager
+
+    @MockK
+    private lateinit var usbPrinterDiscovery: UsbPrinterDiscovery
+
+    @MockK
     private lateinit var modelDownloader: ModelDownloader
 
     @MockK
     private lateinit var totemPreferences: TotemPreferences
 
+    private lateinit var appContext: Context
     private lateinit var viewModel: MethodViewModel
 
     @Before
@@ -49,12 +63,27 @@ class MethodViewModelTest {
         MockKAnnotations.init(this)
         Dispatchers.setMain(UnconfinedTestDispatcher())
 
+        appContext = mockk(relaxed = true)
         every { printerConfigRepository.load() } just runs
         every { printerConfigRepository.printerIp } returns MutableStateFlow("")
+        every { printerConfigRepository.connectionType } returns MutableStateFlow(PrinterConnectionType.WIFI)
+        every { printerConfigRepository.settingsSecurityCodeEnabled } returns MutableStateFlow(false)
+        every { printerConfigRepository.setConnectionType(any()) } just runs
+        every { usbPrinterDiscovery.hasUsbPrinter() } returns false
+        coEvery { printerConnectionManager.autoDetectAndConnect(any()) } returns
+            (PrintJobResult.Error("Nenhuma impressora encontrada") to PrinterConnectionType.WIFI)
         every { modelDownloader.downloadState } returns MutableStateFlow(ModelDownloadState.NotStarted)
         coEvery { authRepository.validateSession() } returns AuthResult.Success(sampleSession())
 
-        viewModel = MethodViewModel(authRepository, printerConfigRepository, modelDownloader, totemPreferences)
+        viewModel = MethodViewModel(
+            appContext = appContext,
+            authRepository = authRepository,
+            printerConfigRepository = printerConfigRepository,
+            printerConnectionManager = printerConnectionManager,
+            usbPrinterDiscovery = usbPrinterDiscovery,
+            modelDownloader = modelDownloader,
+            totemPreferences = totemPreferences,
+        )
     }
 
     @After
@@ -98,12 +127,67 @@ class MethodViewModelTest {
     }
 
     @Test
+    fun `uiState reflects settingsSecurityCodeEnabled from the repository`() {
+        every { printerConfigRepository.settingsSecurityCodeEnabled } returns MutableStateFlow(true)
+
+        viewModel = MethodViewModel(
+            appContext = appContext,
+            authRepository = authRepository,
+            printerConfigRepository = printerConfigRepository,
+            printerConnectionManager = printerConnectionManager,
+            usbPrinterDiscovery = usbPrinterDiscovery,
+            modelDownloader = modelDownloader,
+            totemPreferences = totemPreferences,
+        )
+
+        assertTrue(viewModel.uiState.value.settingsSecurityCodeEnabled)
+    }
+
+    @Test
     fun `logout sets hasLoggedOut`() {
         coEvery { authRepository.logout() } just runs
 
         viewModel.logout()
 
         assertTrue(viewModel.uiState.value.hasLoggedOut)
+    }
+
+    @Test
+    fun `autoDetectPrinter switches saved WIFI config to USB when a USB printer is detected`() {
+        coEvery { printerConnectionManager.autoDetectAndConnect(any()) } returns
+            (PrintJobResult.Success to PrinterConnectionType.USB)
+
+        viewModel = MethodViewModel(
+            appContext = appContext,
+            authRepository = authRepository,
+            printerConfigRepository = printerConfigRepository,
+            printerConnectionManager = printerConnectionManager,
+            usbPrinterDiscovery = usbPrinterDiscovery,
+            modelDownloader = modelDownloader,
+            totemPreferences = totemPreferences,
+        )
+
+        verify { printerConfigRepository.setConnectionType(PrinterConnectionType.USB) }
+        assertTrue(viewModel.uiState.value.usbAvailable)
+    }
+
+    @Test
+    fun `autoDetectPrinter keeps saved WIFI config when no USB printer is found`() {
+        coEvery { printerConnectionManager.autoDetectAndConnect(any()) } returns
+            (PrintJobResult.Error("Nenhuma impressora encontrada") to PrinterConnectionType.WIFI)
+
+        viewModel = MethodViewModel(
+            appContext = appContext,
+            authRepository = authRepository,
+            printerConfigRepository = printerConfigRepository,
+            printerConnectionManager = printerConnectionManager,
+            usbPrinterDiscovery = usbPrinterDiscovery,
+            modelDownloader = modelDownloader,
+            totemPreferences = totemPreferences,
+        )
+
+        verify(exactly = 0) { printerConfigRepository.setConnectionType(PrinterConnectionType.USB) }
+        assertFalse(viewModel.uiState.value.usbAvailable)
     }
 
     private fun sampleSession() = TotemSession(
