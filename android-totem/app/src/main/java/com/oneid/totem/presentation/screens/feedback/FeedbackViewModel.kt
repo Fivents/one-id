@@ -11,14 +11,36 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import javax.inject.Inject
 
+enum class FeedbackKind {
+    /** Check-in concluído: imprime o badge. */
+    CHECKED_IN,
+
+    /** Auto-cadastro sem check-in automático: mostra o código de acesso, não imprime. */
+    REGISTERED,
+
+    FAILED,
+    ;
+
+    companion object {
+        fun from(type: String): FeedbackKind = when (type) {
+            "registered" -> REGISTERED
+            "success" -> CHECKED_IN
+            else -> FAILED
+        }
+    }
+}
+
 data class FeedbackUiState(
     val participantName: String = "",
-    val isSuccess: Boolean = true,
+    val kind: FeedbackKind = FeedbackKind.CHECKED_IN,
+    val accessCode: String = "",
     val isPrinting: Boolean = false,
     val printSuccess: Boolean? = null,
     val printError: String? = null,
     val autoReturnDelayMs: Long = 5000L,
-)
+) {
+    val isSuccess: Boolean get() = kind != FeedbackKind.FAILED
+}
 
 @HiltViewModel
 class FeedbackViewModel @Inject constructor(
@@ -31,16 +53,26 @@ class FeedbackViewModel @Inject constructor(
     private var eventParticipantId: String = ""
     private var checkInId: String = ""
 
-    fun initialize(type: String, name: String, eventParticipantId: String = "", checkInId: String = "") {
+    fun initialize(
+        type: String,
+        name: String,
+        eventParticipantId: String = "",
+        checkInId: String = "",
+        accessCode: String = "",
+    ) {
         _uiState.value = FeedbackUiState(
             participantName = name,
-            isSuccess = type == "success",
+            kind = FeedbackKind.from(type),
+            accessCode = accessCode,
         )
         this.eventParticipantId = eventParticipantId
         this.checkInId = checkInId
     }
 
     fun startPrinting() {
+        // Cadastro sem check-in não gera badge: a pessoa recebe o badge quando voltar pra
+        // fazer o check-in de verdade.
+        if (_uiState.value.kind != FeedbackKind.CHECKED_IN) return
         if (eventParticipantId.isBlank()) return
         if (_uiState.value.isPrinting) return
 

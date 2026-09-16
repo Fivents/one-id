@@ -48,6 +48,18 @@ data class ParticipantInfo(
     val qrCodeValue: String?,
 )
 
+/**
+ * Resultado do auto-cadastro no totem. Diferente do [CheckInResult], aqui o check-in é
+ * opcional: com o check-in automático desligado a pessoa só fica inscrita no evento e
+ * [checkInId] volta null.
+ */
+data class SelfRegistration(
+    val checkInId: String?,
+    val eventParticipantId: String,
+    val checkedIn: Boolean,
+    val participant: ParticipantInfo,
+)
+
 data class PrintData(
     val jobId: String,
     val token: String,

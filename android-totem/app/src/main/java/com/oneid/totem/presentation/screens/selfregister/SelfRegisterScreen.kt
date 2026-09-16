@@ -9,6 +9,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -21,6 +22,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.oneid.totem.domain.model.SelfRegistration
 import com.oneid.totem.presentation.components.TotemTextField
 import com.oneid.totem.presentation.theme.*
 import com.oneid.totem.presentation.util.dismissKeyboardOnTapOutside
@@ -28,7 +30,7 @@ import com.oneid.totem.presentation.util.dismissKeyboardOnTapOutside
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SelfRegisterScreen(
-    onSuccess: (checkInId: String, eventParticipantId: String, participantName: String) -> Unit,
+    onSuccess: (registration: SelfRegistration) -> Unit,
     onBack: () -> Unit,
     viewModel: SelfRegisterViewModel = hiltViewModel(),
 ) {
@@ -37,7 +39,13 @@ fun SelfRegisterScreen(
     val keyboardController = LocalSoftwareKeyboardController.current
 
     LaunchedEffect(uiState.success) {
-        uiState.success?.let { (id, epId, name) -> onSuccess(id, epId, name) }
+        uiState.success?.let(onSuccess)
+    }
+
+    val submit = {
+        focusManager.clearFocus()
+        keyboardController?.hide()
+        viewModel.submit()
     }
 
     Box(
@@ -73,7 +81,7 @@ fun SelfRegisterScreen(
                 Spacer(Modifier.weight(1f))
             }
 
-            Spacer(Modifier.height(32.dp))
+            Spacer(Modifier.height(24.dp))
 
             Text(
                 text = "Auto-cadastro",
@@ -82,20 +90,36 @@ fun SelfRegisterScreen(
             )
 
             Text(
-                text = "Preencha seus dados para participar do evento",
+                text = if (uiState.autoCheckIn) {
+                    "Preencha seus dados — o check-in é feito na sequência"
+                } else {
+                    "Preencha seus dados para se inscrever no evento"
+                },
                 style = MaterialTheme.typography.bodyMedium,
                 color = OnSurfaceVariant,
                 modifier = Modifier.padding(top = 8.dp),
             )
 
-            Spacer(Modifier.height(32.dp))
+            Spacer(Modifier.height(8.dp))
+
+            Text(
+                text = "* campos obrigatórios",
+                style = MaterialTheme.typography.labelSmall,
+                color = OnSurfaceVariant.copy(alpha = 0.7f),
+                modifier = Modifier.align(Alignment.Start),
+            )
+
+            Spacer(Modifier.height(20.dp))
 
             TotemTextField(
                 value = uiState.name,
                 onValueChange = viewModel::onNameChanged,
-                label = "Nome completo",
+                label = "Nome completo *",
                 enabled = !uiState.isLoading,
+                isError = uiState.nameError != null,
+                errorMessage = uiState.nameError,
                 imeAction = ImeAction.Next,
+                maxLength = 120,
             )
 
             Spacer(Modifier.height(16.dp))
@@ -103,9 +127,40 @@ fun SelfRegisterScreen(
             TotemTextField(
                 value = uiState.email,
                 onValueChange = viewModel::onEmailChanged,
-                label = "Email",
+                label = "E-mail *",
                 enabled = !uiState.isLoading,
+                isError = uiState.emailError != null,
+                errorMessage = uiState.emailError,
                 keyboardType = KeyboardType.Email,
+                imeAction = ImeAction.Next,
+                maxLength = 160,
+            )
+
+            Spacer(Modifier.height(16.dp))
+
+            // O campo mostra o CPF mascarado, mas o ViewModel guarda só os dígitos: o que
+            // volta do onValueChange já vem com pontos e traço, e ele reextrai os números.
+            TotemTextField(
+                value = uiState.documentMasked,
+                onValueChange = viewModel::onDocumentChanged,
+                label = "CPF",
+                enabled = !uiState.isLoading,
+                isError = uiState.documentError != null,
+                errorMessage = uiState.documentError,
+                keyboardType = KeyboardType.Number,
+                imeAction = ImeAction.Next,
+            )
+
+            Spacer(Modifier.height(16.dp))
+
+            TotemTextField(
+                value = uiState.phoneMasked,
+                onValueChange = viewModel::onPhoneChanged,
+                label = "Telefone",
+                enabled = !uiState.isLoading,
+                isError = uiState.phoneError != null,
+                errorMessage = uiState.phoneError,
+                keyboardType = KeyboardType.Phone,
                 imeAction = ImeAction.Next,
             )
 
@@ -114,33 +169,57 @@ fun SelfRegisterScreen(
             TotemTextField(
                 value = uiState.company,
                 onValueChange = viewModel::onCompanyChanged,
-                label = "Empresa (opcional)",
+                label = "Empresa",
+                enabled = !uiState.isLoading,
+                imeAction = ImeAction.Next,
+                maxLength = 120,
+            )
+
+            Spacer(Modifier.height(16.dp))
+
+            TotemTextField(
+                value = uiState.jobTitle,
+                onValueChange = viewModel::onJobTitleChanged,
+                label = "Cargo",
                 enabled = !uiState.isLoading,
                 imeAction = ImeAction.Done,
-                keyboardActions = KeyboardActions(
-                    onDone = {
-                        if (!uiState.isLoading) {
-                            focusManager.clearFocus()
-                            keyboardController?.hide()
-                            viewModel.submit()
-                        }
-                    },
-                ),
+                maxLength = 120,
+                keyboardActions = KeyboardActions(onDone = { if (!uiState.isLoading) submit() }),
             )
 
             AnimatedVisibility(visible = uiState.error != null) {
-                Text(
-                    text = uiState.error ?: "",
-                    color = Error,
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(top = 8.dp),
-                )
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 16.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = ErrorContainer),
+                ) {
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(
+                            Icons.Filled.ErrorOutline,
+                            contentDescription = null,
+                            tint = Error,
+                            modifier = Modifier.size(20.dp),
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        Text(
+                            text = uiState.error ?: "",
+                            color = Error,
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                }
             }
 
-            Spacer(Modifier.height(32.dp))
+            Spacer(Modifier.height(28.dp))
 
             Button(
-                onClick = viewModel::submit,
+                onClick = submit,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
@@ -156,12 +235,16 @@ fun SelfRegisterScreen(
                     )
                 } else {
                     Text(
-                        "Cadastrar e entrar",
+                        // O rótulo acompanha o que o botão realmente faz: com o check-in
+                        // automático desligado ele só cadastra.
+                        if (uiState.autoCheckIn) "Cadastrar e fazer check-in" else "Cadastrar",
                         style = MaterialTheme.typography.titleMedium,
                         color = OnPrimary,
                     )
                 }
             }
+
+            Spacer(Modifier.height(16.dp))
         }
     }
 }

@@ -18,7 +18,12 @@ const selfRegisterSchema = z.object({
   phone: z.string().nullable().optional(),
   company: z.string().nullable().optional(),
   jobTitle: z.string().nullable().optional(),
+  // Quem decide é o totem, não o evento: o mesmo evento pode ter um totem de fila rápida
+  // (cadastra e já faz o check-in numa interação só) e outro só de cadastro prévio.
+  // Default true preserva o comportamento dos totems que ainda não mandam o campo.
+  autoCheckIn: z.boolean().optional().default(true),
 });
+
 
 export const POST = withAuth(
   withTotemAuth(
@@ -124,6 +129,33 @@ export const POST = withAuth(
             });
           }
 
+          const firstFace = await tx.personFace.findFirst({
+            where: { personId: person.id, deletedAt: null, isActive: true },
+            select: { imageUrl: true },
+            orderBy: { createdAt: 'desc' },
+          });
+
+          const participant = {
+            name: person.name,
+            company: eventParticipant.company,
+            jobTitle: eventParticipant.jobTitle,
+            imageUrl: firstFace?.imageUrl ?? null,
+            accessCode: eventParticipant.accessCode,
+            qrCodeValue: eventParticipant.qrCodeValue,
+          };
+
+          // Com o check-in automático desligado o cadastro para aqui: a pessoa fica
+          // inscrita no evento e faz o check-in depois, pelo código/QR que acabou de
+          // receber. `id` volta null porque não existe check-in nenhum ainda.
+          if (!data.autoCheckIn) {
+            return {
+              id: null as string | null,
+              eventParticipantId: eventParticipant.id,
+              checkedIn: false,
+              participant,
+            };
+          }
+
           const existingCheckIn = await tx.checkIn.findFirst({
             where: {
               eventParticipantId: eventParticipant.id,
@@ -132,16 +164,10 @@ export const POST = withAuth(
 
           if (existingCheckIn) {
             return {
-              id: existingCheckIn.id,
+              id: existingCheckIn.id as string | null,
               eventParticipantId: eventParticipant.id,
-              participant: {
-                name: person.name,
-                company: eventParticipant.company,
-                jobTitle: eventParticipant.jobTitle,
-                imageUrl: null as string | null,
-                accessCode: eventParticipant.accessCode,
-                qrCodeValue: eventParticipant.qrCodeValue,
-              },
+              checkedIn: true,
+              participant,
             };
           }
 
@@ -154,23 +180,11 @@ export const POST = withAuth(
             },
           });
 
-          const firstFace = await tx.personFace.findFirst({
-            where: { personId: person.id, deletedAt: null, isActive: true },
-            select: { imageUrl: true },
-            orderBy: { createdAt: 'desc' },
-          });
-
           return {
-            id: checkIn.id,
+            id: checkIn.id as string | null,
             eventParticipantId: eventParticipant.id,
-            participant: {
-              name: person.name,
-              company: eventParticipant.company,
-              jobTitle: eventParticipant.jobTitle,
-              imageUrl: firstFace?.imageUrl ?? null,
-              accessCode: eventParticipant.accessCode,
-              qrCodeValue: eventParticipant.qrCodeValue,
-            },
+            checkedIn: true,
+            participant,
           };
         });
 

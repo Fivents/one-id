@@ -29,17 +29,17 @@ fun FeedbackScreen(
     name: String,
     eventParticipantId: String = "",
     checkInId: String = "",
+    accessCode: String = "",
     onDone: () -> Unit,
     viewModel: FeedbackViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    LaunchedEffect(type, name, eventParticipantId, checkInId) {
-        viewModel.initialize(type, name, eventParticipantId, checkInId)
-    }
-
-    LaunchedEffect(Unit) {
-        if (type == "success" && eventParticipantId.isNotBlank()) {
+    LaunchedEffect(type, name, eventParticipantId, checkInId, accessCode) {
+        viewModel.initialize(type, name, eventParticipantId, checkInId, accessCode)
+        // Só o check-in concluído imprime badge — o ViewModel também barra, mas evitar a
+        // chamada aqui deixa o motivo visível na tela.
+        if (FeedbackKind.from(type) == FeedbackKind.CHECKED_IN && eventParticipantId.isNotBlank()) {
             viewModel.startPrinting()
         }
     }
@@ -57,7 +57,14 @@ fun FeedbackScreen(
 
     HapticEffect(trigger = uiState.isSuccess, feedbackType = android.view.HapticFeedbackConstants.CONFIRM)
 
-    val autoReturnDelay = if (uiState.isPrinting || type != "success") 8000L else 4000L
+    // O cadastro sem check-in fica mais tempo na tela: a pessoa precisa anotar o código
+    // antes de seguir pro check-in.
+    val autoReturnDelay = when {
+        uiState.kind == FeedbackKind.REGISTERED -> 15000L
+        uiState.isPrinting || uiState.kind != FeedbackKind.CHECKED_IN -> 8000L
+        else -> 4000L
+    }
+
 
     LaunchedEffect(uiState.printSuccess) {
         kotlinx.coroutines.delay(autoReturnDelay)
@@ -97,7 +104,11 @@ fun FeedbackScreen(
             Spacer(Modifier.height(32.dp))
 
             Text(
-                text = if (uiState.isSuccess) "Check-in realizado!" else "Falha no check-in",
+                text = when (uiState.kind) {
+                    FeedbackKind.CHECKED_IN -> "Check-in realizado!"
+                    FeedbackKind.REGISTERED -> "Cadastro realizado!"
+                    FeedbackKind.FAILED -> "Falha no check-in"
+                },
                 style = MaterialTheme.typography.headlineLarge.copy(
                     fontWeight = FontWeight.Bold,
                     letterSpacing = 1.sp,
@@ -109,7 +120,7 @@ fun FeedbackScreen(
 
             if (uiState.isSuccess) {
                 Text(
-                    "Bem-vindo(a)",
+                    if (uiState.kind == FeedbackKind.REGISTERED) "Inscrição confirmada" else "Bem-vindo(a)",
                     style = MaterialTheme.typography.titleMedium,
                     color = OnSurfaceVariant,
                 )
@@ -132,7 +143,32 @@ fun FeedbackScreen(
                 )
             }
 
-            if (uiState.isSuccess) {
+            if (uiState.kind == FeedbackKind.REGISTERED) {
+                Spacer(Modifier.height(32.dp))
+                Text(
+                    "Use este código para fazer seu check-in",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = OnSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                )
+                Spacer(Modifier.height(12.dp))
+                Card(
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Surface),
+                ) {
+                    Text(
+                        text = uiState.accessCode.ifBlank { "—" },
+                        style = MaterialTheme.typography.displaySmall.copy(
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 8.sp,
+                        ),
+                        color = Primary,
+                        modifier = Modifier.padding(horizontal = 28.dp, vertical = 16.dp),
+                    )
+                }
+            }
+
+            if (uiState.kind == FeedbackKind.CHECKED_IN) {
                 Spacer(Modifier.height(32.dp))
                 Card(
                     shape = RoundedCornerShape(16.dp),

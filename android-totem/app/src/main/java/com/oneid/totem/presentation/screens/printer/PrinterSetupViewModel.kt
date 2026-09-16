@@ -72,6 +72,7 @@ data class PrinterSetupUiState(
     val previewBitmap: Bitmap? = null,
     val settingsSecurityCodeEnabled: Boolean = false,
     val checkInHintMessage: String = "",
+    val selfRegisterAutoCheckIn: Boolean = true,
 )
 
 @HiltViewModel
@@ -96,6 +97,7 @@ class PrinterSetupViewModel @Inject constructor(
         val savedConnectionType = printerConfigRepository.connectionTypeValue
         val savedSettingsSecurityCodeEnabled = printerConfigRepository.settingsSecurityCodeEnabledValue
         val savedCheckInHintMessage = printerConfigRepository.checkInHintMessageValue
+        val savedSelfRegisterAutoCheckIn = printerConfigRepository.selfRegisterAutoCheckInValue
         _uiState.update {
             it.copy(
                 savedIp = ip,
@@ -106,6 +108,7 @@ class PrinterSetupViewModel @Inject constructor(
                 connectionType = savedConnectionType,
                 settingsSecurityCodeEnabled = savedSettingsSecurityCodeEnabled,
                 checkInHintMessage = savedCheckInHintMessage,
+                selfRegisterAutoCheckIn = savedSelfRegisterAutoCheckIn,
             )
         }
         checkCurrentConnection()
@@ -429,6 +432,11 @@ class PrinterSetupViewModel @Inject constructor(
     fun setSettingsSecurityCodeEnabled(enabled: Boolean) {
         _uiState.update { it.copy(settingsSecurityCodeEnabled = enabled) }
         printerConfigRepository.setSettingsSecurityCodeEnabled(enabled)
+    }
+
+    fun setSelfRegisterAutoCheckIn(enabled: Boolean) {
+        _uiState.update { it.copy(selfRegisterAutoCheckIn = enabled) }
+        printerConfigRepository.setSelfRegisterAutoCheckIn(enabled)
     }
 
     fun setCheckInHintMessage(message: String) {

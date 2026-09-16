@@ -154,6 +154,13 @@ fun PrinterSetupScreen(
             }
 
             item {
+                SelfRegisterAutoCheckInSection(
+                    enabled = uiState.selfRegisterAutoCheckIn,
+                    onEnabledChange = viewModel::setSelfRegisterAutoCheckIn,
+                )
+            }
+
+            item {
                 BadgePreviewSection(
                     bitmap = uiState.previewBitmap,
                     labelLayout = uiState.labelLayout,
@@ -555,6 +562,49 @@ private fun CheckInHintMessageSection(
                 color = OnSurfaceVariant.copy(alpha = 0.7f),
                 modifier = Modifier.align(Alignment.End),
             )
+        }
+    }
+}
+
+@Composable
+private fun SelfRegisterAutoCheckInSection(
+    enabled: Boolean,
+    onEnabledChange: (Boolean) -> Unit,
+) {
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Surface),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            modifier = Modifier.padding(20.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    "Check-in Automático no Auto-cadastro",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    color = OnSurface,
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    if (enabled) {
+                        "Ligado: quem se cadastra no totem já entra com o check-in feito e o badge sai na hora — uma interação só."
+                    } else {
+                        "Desligado: o totem só faz o cadastro e entrega o código de acesso. O check-in fica para depois."
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = OnSurfaceVariant,
+                )
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    "O auto-cadastro em si é habilitado pelo evento, no painel web.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = OnSurfaceVariant.copy(alpha = 0.7f),
+                )
+            }
+            Spacer(Modifier.width(12.dp))
+            Switch(checked = enabled, onCheckedChange = onEnabledChange)
         }
     }
 }

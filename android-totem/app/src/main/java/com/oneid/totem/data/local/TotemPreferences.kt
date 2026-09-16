@@ -76,7 +76,18 @@ class TotemPreferences @Inject constructor(
         get() = prefs.getString(KEY_CHECKIN_HINT_MESSAGE, "") ?: ""
         set(value) = prefs.edit().putString(KEY_CHECKIN_HINT_MESSAGE, value.trim()).apply()
 
+    /**
+     * Se o auto-cadastro já faz o check-in junto, numa interação só. Fica no totem (e não
+     * nas configurações do evento) porque o mesmo evento pode ter um totem de fila rápida
+     * na porta e outro só de cadastro prévio. Quem habilita o auto-cadastro em si continua
+     * sendo o admin web, via event.allowSelfRegistration.
+     */
+    var selfRegisterAutoCheckIn: Boolean
+        get() = prefs.getBoolean(KEY_SELF_REGISTER_AUTO_CHECKIN, true)
+        set(value) = prefs.edit().putBoolean(KEY_SELF_REGISTER_AUTO_CHECKIN, value).apply()
+
     var settingsSecurityCodeEnabled: Boolean
+
         get() = prefs.getBoolean(KEY_SETTINGS_SECURITY_CODE_ENABLED, false)
         set(value) = prefs.edit().putBoolean(KEY_SETTINGS_SECURITY_CODE_ENABLED, value).apply()
 
@@ -114,11 +125,13 @@ class TotemPreferences @Inject constructor(
         val savedConnectionType = printerConnectionType
         val savedSettingsSecurityCodeEnabled = settingsSecurityCodeEnabled
         val savedCheckInHintMessage = checkInHintMessage
+        val savedSelfRegisterAutoCheckIn = selfRegisterAutoCheckIn
         prefs.edit().clear().apply()
         printerIp = savedPrinterIp
         printerConnectionType = savedConnectionType
         settingsSecurityCodeEnabled = savedSettingsSecurityCodeEnabled
         checkInHintMessage = savedCheckInHintMessage
+        selfRegisterAutoCheckIn = savedSelfRegisterAutoCheckIn
     }
 
     companion object {
@@ -133,6 +146,7 @@ class TotemPreferences @Inject constructor(
         private const val KEY_PRINTER_CONNECTION_TYPE = "printer_connection_type"
         private const val KEY_SETTINGS_SECURITY_CODE_ENABLED = "settings_security_code_enabled"
         private const val KEY_CHECKIN_HINT_MESSAGE = "checkin_hint_message"
+        private const val KEY_SELF_REGISTER_AUTO_CHECKIN = "self_register_auto_checkin"
         private const val KEY_ACTIVE_EVENT_ID = "active_event_id"
         private const val KEY_EVENT_NAME = "event_name"
         private const val KEY_TOTEM_EVENT_SUB_ID = "totem_event_sub_id"

@@ -22,6 +22,7 @@ class PrinterConfigRepository @Inject constructor(
     private val _connectionType = MutableStateFlow(PrinterConnectionType.WIFI)
     private val _settingsSecurityCodeEnabled = MutableStateFlow(false)
     private val _checkInHintMessage = MutableStateFlow("")
+    private val _selfRegisterAutoCheckIn = MutableStateFlow(true)
 
     val printerIp: StateFlow<String> = _printerIp.asStateFlow()
 
@@ -51,6 +52,10 @@ class PrinterConfigRepository @Inject constructor(
 
     val checkInHintMessageValue: String get() = _checkInHintMessage.value
 
+    val selfRegisterAutoCheckIn: StateFlow<Boolean> = _selfRegisterAutoCheckIn.asStateFlow()
+
+    val selfRegisterAutoCheckInValue: Boolean get() = _selfRegisterAutoCheckIn.value
+
     fun load() {
         val saved = tokenStorage.getPrinterIp()
         if (!saved.isNullOrBlank()) {
@@ -71,6 +76,7 @@ class PrinterConfigRepository @Inject constructor(
         }
         _settingsSecurityCodeEnabled.value = prefs.settingsSecurityCodeEnabled
         _checkInHintMessage.value = prefs.checkInHintMessage
+        _selfRegisterAutoCheckIn.value = prefs.selfRegisterAutoCheckIn
     }
 
     fun setIp(ip: String) {
@@ -103,6 +109,11 @@ class PrinterConfigRepository @Inject constructor(
     fun setSettingsSecurityCodeEnabled(enabled: Boolean) {
         _settingsSecurityCodeEnabled.value = enabled
         prefs.settingsSecurityCodeEnabled = enabled
+    }
+
+    fun setSelfRegisterAutoCheckIn(enabled: Boolean) {
+        _selfRegisterAutoCheckIn.value = enabled
+        prefs.selfRegisterAutoCheckIn = enabled
     }
 
     fun setCheckInHintMessage(message: String) {
