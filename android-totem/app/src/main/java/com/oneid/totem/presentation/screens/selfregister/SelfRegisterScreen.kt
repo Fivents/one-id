@@ -25,6 +25,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.oneid.totem.domain.model.SelfRegistration
 import com.oneid.totem.presentation.components.TotemTextField
 import com.oneid.totem.presentation.theme.*
+import com.oneid.totem.presentation.util.CpfVisualTransformation
+import com.oneid.totem.presentation.util.PhoneVisualTransformation
 import com.oneid.totem.presentation.util.dismissKeyboardOnTapOutside
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -138,10 +140,10 @@ fun SelfRegisterScreen(
 
             Spacer(Modifier.height(16.dp))
 
-            // O campo mostra o CPF mascarado, mas o ViewModel guarda só os dígitos: o que
-            // volta do onValueChange já vem com pontos e traço, e ele reextrai os números.
+            // Valor cru (só dígitos) + máscara como VisualTransformation: é o que mantém o
+            // cursor no lugar enquanto se digita, inclusive no meio do número.
             TotemTextField(
-                value = uiState.documentMasked,
+                value = uiState.document,
                 onValueChange = viewModel::onDocumentChanged,
                 label = "CPF",
                 enabled = !uiState.isLoading,
@@ -149,12 +151,13 @@ fun SelfRegisterScreen(
                 errorMessage = uiState.documentError,
                 keyboardType = KeyboardType.Number,
                 imeAction = ImeAction.Next,
+                visualTransformation = CpfVisualTransformation,
             )
 
             Spacer(Modifier.height(16.dp))
 
             TotemTextField(
-                value = uiState.phoneMasked,
+                value = uiState.phone,
                 onValueChange = viewModel::onPhoneChanged,
                 label = "Telefone",
                 enabled = !uiState.isLoading,
@@ -162,6 +165,7 @@ fun SelfRegisterScreen(
                 errorMessage = uiState.phoneError,
                 keyboardType = KeyboardType.Phone,
                 imeAction = ImeAction.Next,
+                visualTransformation = PhoneVisualTransformation,
             )
 
             Spacer(Modifier.height(16.dp))

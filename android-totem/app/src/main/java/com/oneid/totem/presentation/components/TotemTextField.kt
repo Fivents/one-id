@@ -12,6 +12,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import com.oneid.totem.presentation.theme.OnSurface
 import com.oneid.totem.presentation.theme.OnSurfaceVariant
@@ -33,6 +34,7 @@ fun TotemTextField(
     keyboardActions: KeyboardActions = KeyboardActions.Default,
     singleLine: Boolean = true,
     maxLength: Int = Int.MAX_VALUE,
+    visualTransformation: VisualTransformation = VisualTransformation.None,
 ) {
     OutlinedTextField(
         value = value,
@@ -46,6 +48,7 @@ fun TotemTextField(
             { Text(errorMessage, color = MaterialTheme.colorScheme.error) }
         } else null,
         shape = RoundedCornerShape(12.dp),
+        visualTransformation = visualTransformation,
         keyboardOptions = KeyboardOptions(keyboardType = keyboardType, imeAction = imeAction),
         keyboardActions = keyboardActions,
         colors = OutlinedTextFieldDefaults.colors(

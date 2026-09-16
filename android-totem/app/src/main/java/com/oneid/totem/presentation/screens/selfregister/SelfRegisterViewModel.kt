@@ -30,10 +30,7 @@ data class SelfRegisterUiState(
     val isLoading: Boolean = false,
     val error: String? = null,
     val success: SelfRegistration? = null,
-) {
-    val documentMasked: String get() = BrazilianFormats.formatCpf(document)
-    val phoneMasked: String get() = BrazilianFormats.formatPhone(phone)
-}
+)
 
 @HiltViewModel
 class SelfRegisterViewModel @Inject constructor(

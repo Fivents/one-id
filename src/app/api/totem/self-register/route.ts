@@ -7,6 +7,7 @@ import { withAuth, withTotemAuth, withTotemRoutingGuard } from '@/core/infrastru
 import { getTotemAuth } from '@/core/infrastructure/http/types';
 import { prisma } from '@/core/infrastructure/prisma-client';
 import { generateCheckInCredential, resolveTotemAccessCodeLength } from '@/core/utils/checkin-credentials';
+import { Prisma } from '@/generated/prisma/client';
 
 import { resolveActiveTotemEventContextByTotemId } from '../_lib/active-totem-context';
 
@@ -202,7 +203,43 @@ export const POST = withAuth(
           return NextResponse.json({ error: error.issues[0]?.message ?? 'Invalid request.' }, { status: 400 });
         }
 
-        console.error('[totem-self-register] Unhandled error:', error);
+        // Person tem unique em [email, organizationId] e em [document, organizationId].
+        // Sem esse tratamento, alguém se cadastrando com um CPF que já existe na
+        // organização (mesmo com outro e-mail) virava um 500 opaco no totem, sem nenhuma
+        // pista do que corrigir.
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+          const target = Array.isArray(error.meta?.target)
+            ? (error.meta?.target as string[])
+            : [String(error.meta?.target ?? '')];
+
+          if (target.some((field) => field.includes('document'))) {
+            return NextResponse.json(
+              {
+                error: 'This document is already registered for another person.',
+                code: 'PARTICIPANT_DOCUMENT_TAKEN',
+              },
+              { status: 409 },
+            );
+          }
+
+          if (target.some((field) => field.includes('email'))) {
+            return NextResponse.json(
+              { error: 'This e-mail is already registered.', code: 'PARTICIPANT_EMAIL_TAKEN' },
+              { status: 409 },
+            );
+          }
+
+          return NextResponse.json(
+            { error: 'Duplicate registration data.', code: 'PARTICIPANT_DUPLICATE_DATA' },
+            { status: 409 },
+          );
+        }
+
+        // Inclui o código do Prisma na mensagem: o catch genérico é o que transforma
+        // qualquer falha de banco num 500 sem rastro nenhum no lado do totem.
+        const prismaCode =
+          error instanceof Prisma.PrismaClientKnownRequestError ? ` (prisma ${error.code})` : '';
+        console.error(`[totem-self-register] Unhandled error${prismaCode}:`, error);
         return NextResponse.json({ error: 'Internal server error.' }, { status: 500 });
       }
     }),

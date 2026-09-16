@@ -225,6 +225,9 @@ class CheckInHttpRepository @Inject constructor(
             }
             "LOW_LIVENESS" -> "Prova de vida falhou. Mantenha os olhos abertos."
             "PARTICIPANT_ALREADY_REGISTERED" -> "Este e-mail já está inscrito neste evento"
+            "PARTICIPANT_DOCUMENT_TAKEN" -> "Este CPF já está cadastrado com outro e-mail"
+            "PARTICIPANT_EMAIL_TAKEN" -> "Este e-mail já está cadastrado"
+            "PARTICIPANT_DUPLICATE_DATA" -> "Já existe um cadastro com esses dados"
             "SELF_REGISTRATION_DISABLED" -> "Auto-cadastro não está habilitado neste evento"
             "COOLDOWN" -> "Aguarde alguns segundos antes de tentar novamente"
             "TOTEM_NO_ACTIVE_EVENT" -> "Totem sem evento ativo"

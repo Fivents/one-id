@@ -163,15 +163,14 @@ class SelfRegisterViewModelTest {
     }
 
     @Test
-    fun `masked values are exposed for the fields while the state keeps digits only`() {
-        viewModel.onDocumentChanged("52998224725")
-        viewModel.onPhoneChanged("11999998888")
+    fun `state keeps digits only so the mask can be a visual transformation`() {
+        // Se o state guardasse o texto mascarado, o cursor pularia pro fim a cada tecla.
+        viewModel.onDocumentChanged("529.982.247-25")
+        viewModel.onPhoneChanged("(11) 99999-8888")
 
         val state = viewModel.uiState.value
         assertEquals("52998224725", state.document)
-        assertEquals("529.982.247-25", state.documentMasked)
         assertEquals("11999998888", state.phone)
-        assertEquals("(11) 99999-8888", state.phoneMasked)
     }
 
     private fun registration(checkedIn: Boolean) = SelfRegistration(
