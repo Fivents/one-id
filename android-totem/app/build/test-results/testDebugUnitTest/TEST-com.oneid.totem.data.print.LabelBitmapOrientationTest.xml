@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.oneid.totem.data.print.LabelBitmapOrientationTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-09-16T04:00:06" hostname="DESKTOP-L0NQU1E" time="0.065">
+  <properties/>
+  <testcase name="badge deitado vira em pe para casar com a pagina da etiqueta" classname="com.oneid.totem.data.print.LabelBitmapOrientationTest" time="0.035"/>
+  <testcase name="orientacao LANDSCAPE gira para o lado oposto" classname="com.oneid.totem.data.print.LabelBitmapOrientationTest" time="0.015"/>
+  <testcase name="bitmap que ja esta em pe nao e girado" classname="com.oneid.totem.data.print.LabelBitmapOrientationTest" time="0.014"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

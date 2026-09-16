@@ -52,7 +52,7 @@ class PrintCoordinator @Inject constructor(
                 dpi = printData.printerDpi,
                 labelLayout = printerConfigRepository.labelLayoutValue,
             )
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             return@withContext PrintJobResult.Error("Falha ao renderizar badge: ${e.message}")
         }
 

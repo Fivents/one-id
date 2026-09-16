@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.oneid.totem.data.print.PrintCoordinatorTest" tests="8" skipped="0" failures="0" errors="0" timestamp="2026-09-16T04:00:06" hostname="DESKTOP-L0NQU1E" time="3.016">
+  <properties/>
+  <testcase name="printWithBitmap delegates to connection manager via WiFi" classname="com.oneid.totem.data.print.PrintCoordinatorTest" time="2.377"/>
+  <testcase name="printBadge returns error when repository fails" classname="com.oneid.totem.data.print.PrintCoordinatorTest" time="0.084"/>
+  <testcase name="printBadge passes configured label layout to renderer" classname="com.oneid.totem.data.print.PrintCoordinatorTest" time="0.217"/>
+  <testcase name="printBadge returns error when render fails" classname="com.oneid.totem.data.print.PrintCoordinatorTest" time="0.056"/>
+  <testcase name="printBadge returns error when IP is not configured for WiFi" classname="com.oneid.totem.data.print.PrintCoordinatorTest" time="0.093"/>
+  <testcase name="dispose disconnects printer" classname="com.oneid.totem.data.print.PrintCoordinatorTest" time="0.056"/>
+  <testcase name="printBadge returns connection error when print fails" classname="com.oneid.totem.data.print.PrintCoordinatorTest" time="0.061"/>
+  <testcase name="printBadge succeeds end to end via WiFi" classname="com.oneid.totem.data.print.PrintCoordinatorTest" time="0.07"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

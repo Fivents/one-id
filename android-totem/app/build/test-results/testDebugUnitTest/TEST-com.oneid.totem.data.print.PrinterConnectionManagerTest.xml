@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.oneid.totem.data.print.PrinterConnectionManagerTest" tests="9" skipped="0" failures="0" errors="0" timestamp="2026-09-16T04:00:10" hostname="DESKTOP-L0NQU1E" time="0.478">
+  <properties/>
+  <testcase name="ensureConnected connects when printer not connected" classname="com.oneid.totem.data.print.PrinterConnectionManagerTest" time="0.185"/>
+  <testcase name="disconnect closes printer" classname="com.oneid.totem.data.print.PrinterConnectionManagerTest" time="0.033"/>
+  <testcase name="ensureConnected reconnects when probe fails on same IP" classname="com.oneid.totem.data.print.PrinterConnectionManagerTest" time="0.04"/>
+  <testcase name="printWithReconnect closes on print failure" classname="com.oneid.totem.data.print.PrinterConnectionManagerTest" time="0.045"/>
+  <testcase name="ensureConnected retries up to MAX_RETRIES then fails" classname="com.oneid.totem.data.print.PrinterConnectionManagerTest" time="0.041"/>
+  <testcase name="ensureConnected reuses existing connection to same IP" classname="com.oneid.totem.data.print.PrinterConnectionManagerTest" time="0.031"/>
+  <testcase name="printWithReconnect succeeds when connect and print succeed" classname="com.oneid.totem.data.print.PrinterConnectionManagerTest" time="0.04"/>
+  <testcase name="ensureConnected reconnects when IP changes" classname="com.oneid.totem.data.print.PrinterConnectionManagerTest" time="0.04"/>
+  <testcase name="getCurrentConnectionType returns WIFI by default" classname="com.oneid.totem.data.print.PrinterConnectionManagerTest" time="0.023"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

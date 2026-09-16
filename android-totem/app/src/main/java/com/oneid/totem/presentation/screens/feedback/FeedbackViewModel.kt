@@ -52,7 +52,9 @@ class FeedbackViewModel @Inject constructor(
                 }
             } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
                 PrintJobResult.Error("Tempo limite de impressão excedido (30s)")
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
+                // Throwable: falhas da lib nativa da Brother chegam como Error e escapariam
+                // de um catch de Exception, derrubando o app no meio do check-in.
                 PrintJobResult.Error("Erro inesperado: ${e.message}")
             }
 

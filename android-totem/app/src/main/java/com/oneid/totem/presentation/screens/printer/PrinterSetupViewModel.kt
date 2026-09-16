@@ -119,20 +119,27 @@ class PrinterSetupViewModel @Inject constructor(
     private fun regeneratePreview() {
         viewModelScope.launch {
             val config = _uiState.value.printConfig
-            val bitmap = badgeRenderer.renderFromData(
-                name = PREVIEW_NAME,
-                company = PREVIEW_COMPANY,
-                jobTitle = PREVIEW_JOB_TITLE,
-                qrCodeValue = PREVIEW_QR_CODE_VALUE,
-                accessCode = null,
-                showQrCode = config?.showQrCode ?: true,
-                showAccessCode = config?.showAccessCode ?: false,
-                eventName = PREVIEW_EVENT_NAME,
-                paperWidthMm = config?.paperWidth ?: 62.0,
-                paperHeightMm = config?.paperHeight ?: 100.0,
-                dpi = PREVIEW_DPI,
-                labelLayout = _uiState.value.labelLayout,
-            )
+            val bitmap = try {
+                badgeRenderer.renderFromData(
+                    name = PREVIEW_NAME,
+                    company = PREVIEW_COMPANY,
+                    jobTitle = PREVIEW_JOB_TITLE,
+                    qrCodeValue = PREVIEW_QR_CODE_VALUE,
+                    accessCode = null,
+                    showQrCode = config?.showQrCode ?: true,
+                    showAccessCode = config?.showAccessCode ?: false,
+                    eventName = PREVIEW_EVENT_NAME,
+                    paperWidthMm = config?.paperWidth ?: 62.0,
+                    paperHeightMm = config?.paperHeight ?: 100.0,
+                    dpi = PREVIEW_DPI,
+                    labelLayout = _uiState.value.labelLayout,
+                )
+            } catch (e: Throwable) {
+                // Sem catch aqui, uma falha ao montar o bitmap escapava da coroutine e
+                // matava o app — o preview simplesmente não aparecer é bem melhor.
+                _uiState.update { it.copy(testResult = "Falha ao gerar o preview: ${e.message}") }
+                return@launch
+            }
             _uiState.update { it.copy(previewBitmap = bitmap) }
         }
     }
@@ -146,7 +153,11 @@ class PrinterSetupViewModel @Inject constructor(
         viewModelScope.launch {
             while (true) {
                 delay(CONNECTION_POLL_INTERVAL_MS)
-                if (_uiState.value.isConnecting || _uiState.value.isUsbConnecting) continue
+                // isTesting entra na lista: o polling consulta o status da impressora, e
+                // fazer isso no meio de um job de impressão disputa o driver da Brother com o
+                // printImage — além de deixar o status piscando "desconectado" durante o job.
+                val state = _uiState.value
+                if (state.isConnecting || state.isUsbConnecting || state.isTesting) continue
                 val connected = printerConnectionManager.isConnectedNow(_uiState.value.connectionType)
                 _uiState.update { it.copy(isConnected = connected) }
             }
@@ -456,7 +467,10 @@ class PrinterSetupViewModel @Inject constructor(
                         },
                     )
                 }
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
+                // Throwable e não Exception: a lib nativa da Brother pode estourar Error
+                // (UnsatisfiedLinkError, OutOfMemoryError...), que escaparia de um catch de
+                // Exception e derrubaria o app inteiro em vez de virar mensagem na tela.
                 _uiState.update {
                     it.copy(isTesting = false, testResult = "Erro inesperado: ${e.message}")
                 }

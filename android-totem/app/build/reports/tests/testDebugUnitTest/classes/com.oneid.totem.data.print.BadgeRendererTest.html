@@ -41,7 +41,7 @@
 </td>
 <td>
 <div class="infoBox" id="duration">
-<div class="counter">7.093s</div>
+<div class="counter">8.398s</div>
 <p>duration</p>
 </div>
 </td>
@@ -79,102 +79,102 @@
 </thead>
 <tr>
 <td class="success">COMPACT QR keeps the same outer size regardless of payload length</td>
-<td class="success">0.457s</td>
+<td class="success">0.575s</td>
 <td class="success">passed</td>
 </tr>
 <tr>
 <td class="success">COMPACT QR sits at the bottom-right corner of the fixed label</td>
-<td class="success">0.155s</td>
+<td class="success">0.184s</td>
 <td class="success">passed</td>
 </tr>
 <tr>
 <td class="success">COMPACT QR size stays the same with or without company and job title</td>
-<td class="success">0.344s</td>
+<td class="success">0.319s</td>
 <td class="success">passed</td>
 </tr>
 <tr>
 <td class="success">COMPACT creates a fixed 9cm x 29mm bitmap regardless of content</td>
-<td class="success">0.143s</td>
+<td class="success">0.156s</td>
 <td class="success">passed</td>
 </tr>
 <tr>
 <td class="success">COMPACT keeps the fixed 9cm length even for a pathological single word name</td>
-<td class="success">4.304s</td>
+<td class="success">5.320s</td>
 <td class="success">passed</td>
 </tr>
 <tr>
 <td class="success">COMPACT label length stays fixed at 9cm regardless of the widest content line</td>
-<td class="success">0.269s</td>
+<td class="success">0.285s</td>
 <td class="success">passed</td>
 </tr>
 <tr>
 <td class="success">COMPACT name normalization uses first and last name only</td>
-<td class="success">0.313s</td>
+<td class="success">0.304s</td>
 <td class="success">passed</td>
 </tr>
 <tr>
 <td class="success">MINIMAL_QR QR bounds identical with and without company and job title</td>
-<td class="success">0.216s</td>
+<td class="success">0.231s</td>
 <td class="success">passed</td>
 </tr>
 <tr>
 <td class="success">MINIMAL_QR black QR is flush to the label top, left and bottom edges</td>
-<td class="success">0.106s</td>
+<td class="success">0.116s</td>
 <td class="success">passed</td>
 </tr>
 <tr>
 <td class="success">MINIMAL_QR falls back to automatic version when payload exceeds v10 capacity</td>
-<td class="success">0.139s</td>
-<td class="success">passed</td>
-</tr>
-<tr>
-<td class="success">MINIMAL_QR has identical QR bounding box for short and long payloads</td>
-<td class="success">0.200s</td>
-<td class="success">passed</td>
-</tr>
-<tr>
-<td class="success">mmToPixels coerceAtLeast ensures minimum 1 pixel</td>
-<td class="success">0.015s</td>
-<td class="success">passed</td>
-</tr>
-<tr>
-<td class="success">mmToPixels converts correctly</td>
-<td class="success">0.021s</td>
-<td class="success">passed</td>
-</tr>
-<tr>
-<td class="success">mmToPixels handles zero</td>
-<td class="success">0.017s</td>
-<td class="success">passed</td>
-</tr>
-<tr>
-<td class="success">render handles empty HTML</td>
-<td class="success">0.017s</td>
-<td class="success">passed</td>
-</tr>
-<tr>
-<td class="success">render parses HTML with all fields</td>
-<td class="success">0.045s</td>
-<td class="success">passed</td>
-</tr>
-<tr>
-<td class="success">render parses HTML with only name</td>
-<td class="success">0.031s</td>
-<td class="success">passed</td>
-</tr>
-<tr>
-<td class="success">renderFromData MINIMAL_QR creates fixed 9cm x 29mm bitmap</td>
-<td class="success">0.131s</td>
-<td class="success">passed</td>
-</tr>
-<tr>
-<td class="success">renderFromData defaults to COMPACT with fixed 9cm x 29mm dimensions</td>
 <td class="success">0.150s</td>
 <td class="success">passed</td>
 </tr>
 <tr>
+<td class="success">MINIMAL_QR has identical QR bounding box for short and long payloads</td>
+<td class="success">0.239s</td>
+<td class="success">passed</td>
+</tr>
+<tr>
+<td class="success">mmToPixels coerceAtLeast ensures minimum 1 pixel</td>
+<td class="success">0.016s</td>
+<td class="success">passed</td>
+</tr>
+<tr>
+<td class="success">mmToPixels converts correctly</td>
+<td class="success">0.025s</td>
+<td class="success">passed</td>
+</tr>
+<tr>
+<td class="success">mmToPixels handles zero</td>
+<td class="success">0.018s</td>
+<td class="success">passed</td>
+</tr>
+<tr>
+<td class="success">render handles empty HTML</td>
+<td class="success">0.025s</td>
+<td class="success">passed</td>
+</tr>
+<tr>
+<td class="success">render parses HTML with all fields</td>
+<td class="success">0.054s</td>
+<td class="success">passed</td>
+</tr>
+<tr>
+<td class="success">render parses HTML with only name</td>
+<td class="success">0.036s</td>
+<td class="success">passed</td>
+</tr>
+<tr>
+<td class="success">renderFromData MINIMAL_QR creates fixed 9cm x 29mm bitmap</td>
+<td class="success">0.130s</td>
+<td class="success">passed</td>
+</tr>
+<tr>
+<td class="success">renderFromData defaults to COMPACT with fixed 9cm x 29mm dimensions</td>
+<td class="success">0.185s</td>
+<td class="success">passed</td>
+</tr>
+<tr>
 <td class="success">renderFromData handles null fields</td>
-<td class="success">0.020s</td>
+<td class="success">0.030s</td>
 <td class="success">passed</td>
 </tr>
 </table>
@@ -197,7 +197,7 @@ If you're using Android Gradle Plugin, add testOptions.unitTests.includeAndroidR
 <input id="line-wrapping-toggle" type="checkbox" autocomplete="off"/>
 </label>
 </div>Generated by 
-<a href="http://www.gradle.org">Gradle 8.11.1</a> at Aug 27, 2026, 12:27:08 PM</p>
+<a href="http://www.gradle.org">Gradle 8.11.1</a> at Sep 16, 2026, 1:00:11 AM</p>
 </div>
 </div>
 </body>
