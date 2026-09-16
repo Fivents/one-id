@@ -31,6 +31,7 @@ class CodeCheckInViewModelTest {
     fun setUp() {
         MockKAnnotations.init(this)
         Dispatchers.setMain(UnconfinedTestDispatcher())
+        every { totemPreferences.checkInHintMessage } returns ""
     }
 
     @After
@@ -65,6 +66,31 @@ class CodeCheckInViewModelTest {
         viewModel = CodeCheckInViewModel(checkInRepository, totemPreferences)
 
         assertEquals(true, viewModel.uiState.value.numericKeyboard)
+    }
+
+    @Test
+    fun `hint message configured by the admin reaches the ui state`() {
+        every { totemPreferences.accessCodeKeyboard } returns AccessCodeKeyboard.ALPHANUMERIC
+        every { totemPreferences.checkInHintMessage } returns "O código está no seu e-mail"
+
+        viewModel = CodeCheckInViewModel(checkInRepository, totemPreferences)
+
+        assertEquals("O código está no seu e-mail", viewModel.uiState.value.hintMessage)
+    }
+
+    @Test
+    fun `clearCode keeps the totem settings instead of resetting them`() {
+        every { totemPreferences.accessCodeKeyboard } returns AccessCodeKeyboard.NUMERIC
+        every { totemPreferences.checkInHintMessage } returns "Procure o código no convite"
+        viewModel = CodeCheckInViewModel(checkInRepository, totemPreferences)
+
+        viewModel.onCodeChanged("1234")
+        viewModel.clearCode()
+
+        val state = viewModel.uiState.value
+        assertEquals("", state.code)
+        assertEquals(true, state.numericKeyboard)
+        assertEquals("Procure o código no convite", state.hintMessage)
     }
 
     @Test

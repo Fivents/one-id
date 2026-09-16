@@ -71,6 +71,7 @@ data class PrinterSetupUiState(
     val isConnected: Boolean = false,
     val previewBitmap: Bitmap? = null,
     val settingsSecurityCodeEnabled: Boolean = false,
+    val checkInHintMessage: String = "",
 )
 
 @HiltViewModel
@@ -94,6 +95,7 @@ class PrinterSetupViewModel @Inject constructor(
         val savedAccessCodeKeyboard = printerConfigRepository.accessCodeKeyboardValue
         val savedConnectionType = printerConfigRepository.connectionTypeValue
         val savedSettingsSecurityCodeEnabled = printerConfigRepository.settingsSecurityCodeEnabledValue
+        val savedCheckInHintMessage = printerConfigRepository.checkInHintMessageValue
         _uiState.update {
             it.copy(
                 savedIp = ip,
@@ -103,6 +105,7 @@ class PrinterSetupViewModel @Inject constructor(
                 accessCodeKeyboard = savedAccessCodeKeyboard,
                 connectionType = savedConnectionType,
                 settingsSecurityCodeEnabled = savedSettingsSecurityCodeEnabled,
+                checkInHintMessage = savedCheckInHintMessage,
             )
         }
         checkCurrentConnection()
@@ -426,6 +429,13 @@ class PrinterSetupViewModel @Inject constructor(
     fun setSettingsSecurityCodeEnabled(enabled: Boolean) {
         _uiState.update { it.copy(settingsSecurityCodeEnabled = enabled) }
         printerConfigRepository.setSettingsSecurityCodeEnabled(enabled)
+    }
+
+    fun setCheckInHintMessage(message: String) {
+        printerConfigRepository.setCheckInHintMessage(message)
+        // Lê de volta do repositório em vez de usar o texto cru: é ele que aplica o
+        // limite de caracteres, então o campo na tela para de aceitar junto.
+        _uiState.update { it.copy(checkInHintMessage = printerConfigRepository.checkInHintMessageValue) }
     }
 
     fun testPrint() {

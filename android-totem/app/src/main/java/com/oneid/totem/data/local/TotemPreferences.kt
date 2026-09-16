@@ -66,6 +66,16 @@ class TotemPreferences @Inject constructor(
         get() = prefs.getString(KEY_PRINTER_CONNECTION_TYPE, "WIFI") ?: "WIFI"
         set(value) = prefs.edit().putString(KEY_PRINTER_CONNECTION_TYPE, value).apply()
 
+    /**
+     * Mensagem livre que o admin escreve nas configurações do totem e que aparece como
+     * dica pro participante na tela de digitar o código de acesso. Fica só no totem (não
+     * vem da API), porque cada totem pode estar num ponto diferente do evento e precisar
+     * de uma instrução diferente.
+     */
+    var checkInHintMessage: String
+        get() = prefs.getString(KEY_CHECKIN_HINT_MESSAGE, "") ?: ""
+        set(value) = prefs.edit().putString(KEY_CHECKIN_HINT_MESSAGE, value.trim()).apply()
+
     var settingsSecurityCodeEnabled: Boolean
         get() = prefs.getBoolean(KEY_SETTINGS_SECURITY_CODE_ENABLED, false)
         set(value) = prefs.edit().putBoolean(KEY_SETTINGS_SECURITY_CODE_ENABLED, value).apply()
@@ -103,10 +113,12 @@ class TotemPreferences @Inject constructor(
         val savedPrinterIp = printerIp
         val savedConnectionType = printerConnectionType
         val savedSettingsSecurityCodeEnabled = settingsSecurityCodeEnabled
+        val savedCheckInHintMessage = checkInHintMessage
         prefs.edit().clear().apply()
         printerIp = savedPrinterIp
         printerConnectionType = savedConnectionType
         settingsSecurityCodeEnabled = savedSettingsSecurityCodeEnabled
+        checkInHintMessage = savedCheckInHintMessage
     }
 
     companion object {
@@ -120,6 +132,7 @@ class TotemPreferences @Inject constructor(
         private const val KEY_ACCESS_CODE_KEYBOARD = "access_code_keyboard"
         private const val KEY_PRINTER_CONNECTION_TYPE = "printer_connection_type"
         private const val KEY_SETTINGS_SECURITY_CODE_ENABLED = "settings_security_code_enabled"
+        private const val KEY_CHECKIN_HINT_MESSAGE = "checkin_hint_message"
         private const val KEY_ACTIVE_EVENT_ID = "active_event_id"
         private const val KEY_EVENT_NAME = "event_name"
         private const val KEY_TOTEM_EVENT_SUB_ID = "totem_event_sub_id"

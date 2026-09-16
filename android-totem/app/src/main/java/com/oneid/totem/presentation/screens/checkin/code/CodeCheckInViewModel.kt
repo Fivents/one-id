@@ -19,6 +19,7 @@ data class CodeCheckInUiState(
     val success: Triple<String, String, String>? = null,
     val attemptCount: Int = 0,
     val numericKeyboard: Boolean = false,
+    val hintMessage: String = "",
 )
 
 @HiltViewModel
@@ -27,11 +28,14 @@ class CodeCheckInViewModel @Inject constructor(
     private val totemPreferences: TotemPreferences,
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(
-        CodeCheckInUiState(
-            numericKeyboard = totemPreferences.accessCodeKeyboard == AccessCodeKeyboard.NUMERIC,
-        ),
+    // Configurações do totem (teclado e mensagem do admin) são lidas uma vez e guardadas
+    // aqui pra que clearCode() possa recriar o estado sem perdê-las.
+    private val initialState = CodeCheckInUiState(
+        numericKeyboard = totemPreferences.accessCodeKeyboard == AccessCodeKeyboard.NUMERIC,
+        hintMessage = totemPreferences.checkInHintMessage,
     )
+
+    private val _uiState = MutableStateFlow(initialState)
     val uiState = _uiState.asStateFlow()
 
     fun onCodeChanged(code: String) {
@@ -76,6 +80,6 @@ class CodeCheckInViewModel @Inject constructor(
     }
 
     fun clearCode() {
-        _uiState.value = CodeCheckInUiState()
+        _uiState.value = initialState
     }
 }

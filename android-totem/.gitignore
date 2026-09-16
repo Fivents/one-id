@@ -1,22 +1,38 @@
+# Saída de build do Gradle. Sem a barra no fim do começo do padrão, "build/" pega
+# qualquer nível — inclusive app/build/, que é onde mora a maior parte do lixo gerado
+# (KSP, Hilt, classes, intermediates, relatórios de teste).
+.gradle/
+build/
+captures/
+.cxx/
+.externalNativeBuild/
+.kotlin/
+
+# IDE / máquina local
 *.iml
-.gradle
-/local.properties
-/.idea
-.DS_Store
-/build
-/captures
-.externalNativeBuild
-.cxx
+.idea/
+local.properties
+
+# Artefatos empacotados
 *.apk
 *.aab
 *.ap_
 *.dex
+*.class
 
-# ONNX model (63MB, downloaded separately)
+# Chaves de assinatura — nunca versionar
+*.jks
+*.keystore
+
+# Baixados por script, não versionados (ver scripts/)
+# Modelo ONNX de reconhecimento facial (63MB): scripts/download_arcface_model.sh
 app/src/main/assets/arcface_mobilefacenet.onnx
-
-# Brother SDK binary (not distributable via git)
+# SDK da Brother (binário não redistribuível): scripts/download_brother_sdk.sh
 app/libs/*.aar
 
-# Environment variables (contains DB credentials)
+# Variáveis de ambiente (contém credenciais)
 .env
+
+# Sistema operacional
+.DS_Store
+Thumbs.db

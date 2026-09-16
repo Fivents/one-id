@@ -21,6 +21,7 @@ class PrinterConfigRepository @Inject constructor(
     private val _accessCodeKeyboard = MutableStateFlow(AccessCodeKeyboard.ALPHANUMERIC)
     private val _connectionType = MutableStateFlow(PrinterConnectionType.WIFI)
     private val _settingsSecurityCodeEnabled = MutableStateFlow(false)
+    private val _checkInHintMessage = MutableStateFlow("")
 
     val printerIp: StateFlow<String> = _printerIp.asStateFlow()
 
@@ -46,6 +47,10 @@ class PrinterConfigRepository @Inject constructor(
 
     val settingsSecurityCodeEnabledValue: Boolean get() = _settingsSecurityCodeEnabled.value
 
+    val checkInHintMessage: StateFlow<String> = _checkInHintMessage.asStateFlow()
+
+    val checkInHintMessageValue: String get() = _checkInHintMessage.value
+
     fun load() {
         val saved = tokenStorage.getPrinterIp()
         if (!saved.isNullOrBlank()) {
@@ -65,6 +70,7 @@ class PrinterConfigRepository @Inject constructor(
             PrinterConnectionType.WIFI
         }
         _settingsSecurityCodeEnabled.value = prefs.settingsSecurityCodeEnabled
+        _checkInHintMessage.value = prefs.checkInHintMessage
     }
 
     fun setIp(ip: String) {
@@ -99,10 +105,22 @@ class PrinterConfigRepository @Inject constructor(
         prefs.settingsSecurityCodeEnabled = enabled
     }
 
+    fun setCheckInHintMessage(message: String) {
+        // Corta no limite antes de salvar: a dica divide a tela com o campo do código e
+        // um texto muito longo empurraria o teclado pra fora da área visível.
+        val normalized = message.take(CHECKIN_HINT_MAX_LENGTH)
+        _checkInHintMessage.value = normalized
+        prefs.checkInHintMessage = normalized
+    }
+
     fun isConfigured(): Boolean {
         return when (_connectionType.value) {
             PrinterConnectionType.USB -> true
             PrinterConnectionType.WIFI -> _printerIp.value.isNotBlank()
         }
+    }
+
+    companion object {
+        const val CHECKIN_HINT_MAX_LENGTH = 160
     }
 }

@@ -1,6 +1,7 @@
 package com.oneid.totem.presentation.screens.method
 
 import android.content.Context
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.oneid.totem.data.local.TotemPreferences
@@ -88,7 +89,10 @@ class MethodViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)
             when (val result = authRepository.validateSession()) {
-                is AuthResult.Success -> _uiState.value = _uiState.value.copy(session = result.session, isLoading = false)
+                is AuthResult.Success -> {
+                    _uiState.value = _uiState.value.copy(session = result.session, isLoading = false)
+                    prefetchFaceModelIfEnabled(result.session.activeEvent.faceEnabled)
+                }
                 is AuthResult.Error -> {
                     authRepository.logout()
                     _uiState.value = _uiState.value.copy(
@@ -97,6 +101,28 @@ class MethodViewModel @Inject constructor(
                         hasLoggedOut = true,
                     )
                 }
+            }
+        }
+    }
+
+    /**
+     * O modelo de reconhecimento facial tem 63MB, então só vale a pena baixar quando o
+     * evento realmente usa esse método de check-in — num totem só de QR/código isso seria
+     * banda jogada fora, o que pesa especialmente em 4G. Esta é a primeira hora em que
+     * dá pra saber: a sessão do totem (e com ela o faceEnabled do evento) só chega depois
+     * do login.
+     *
+     * É só um adiantamento: o FaceProcessingServiceImpl chama downloadIfNeeded() de novo
+     * ao inicializar, então mesmo se o download falhar aqui a câmera continua funcionando.
+     */
+    private fun prefetchFaceModelIfEnabled(faceEnabled: Boolean) {
+        if (!faceEnabled) return
+        if (modelDownloader.isModelDownloaded()) return
+        viewModelScope.launch {
+            try {
+                modelDownloader.downloadIfNeeded()
+            } catch (e: Throwable) {
+                Log.e("MODEL", "Falha ao baixar modelo facial", e)
             }
         }
     }

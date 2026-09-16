@@ -1,2 +1,0 @@
--keep,allowobfuscation,allowshrinking class com.oneid.totem.presentation.screens.checkin.code.CodeCheckInViewModel
--keep,allowobfuscation,allowshrinking class com.oneid.totem.presentation.screens.checkin.code.CodeCheckInViewModel

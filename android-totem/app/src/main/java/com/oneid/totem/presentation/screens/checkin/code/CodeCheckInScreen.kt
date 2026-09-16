@@ -14,6 +14,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -117,7 +118,38 @@ fun CodeCheckInScreen(
                 modifier = Modifier.padding(top = 8.dp),
             )
 
-            Spacer(Modifier.height(40.dp))
+            // Dica escrita pelo admin nas configurações do totem. Some por completo quando
+            // está em branco, pra não deixar um card vazio ocupando a tela.
+            if (uiState.hintMessage.isNotBlank()) {
+                Spacer(Modifier.height(20.dp))
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Primary.copy(alpha = 0.10f)),
+                ) {
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(
+                            Icons.Filled.Lightbulb,
+                            contentDescription = null,
+                            tint = Primary,
+                            modifier = Modifier.size(22.dp),
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        Text(
+                            text = uiState.hintMessage,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = OnSurface,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                }
+                Spacer(Modifier.height(20.dp))
+            } else {
+                Spacer(Modifier.height(40.dp))
+            }
 
             OutlinedTextField(
                 value = uiState.code,

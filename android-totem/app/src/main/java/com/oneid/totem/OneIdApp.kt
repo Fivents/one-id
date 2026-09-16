@@ -2,21 +2,10 @@ package com.oneid.totem
 
 import android.app.Application
 import android.util.Log
-import com.oneid.totem.data.local.TotemPreferences
-import com.oneid.totem.data.service.ModelDownloader
 import dagger.hilt.android.HiltAndroidApp
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.launch
-import javax.inject.Inject
 
 @HiltAndroidApp
 class OneIdApp : Application() {
-
-    @Inject lateinit var modelDownloader: ModelDownloader
-
-    private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun onCreate() {
         super.onCreate()
@@ -32,16 +21,11 @@ class OneIdApp : Application() {
             defaultHandler?.uncaughtException(thread, throwable)
         }
 
-        startModelDownload()
-    }
-
-    private fun startModelDownload() {
-        appScope.launch {
-            try {
-                modelDownloader.downloadIfNeeded()
-            } catch (e: Exception) {
-                Log.e("MODEL", "Falha ao baixar modelo facial", e)
-            }
-        }
+        // O modelo de reconhecimento facial (63MB) NÃO é baixado aqui. Ele só faz sentido
+        // quando o evento tem o check-in por reconhecimento facial ligado, e nesse ponto
+        // ainda não sabemos disso — a sessão do totem só é validada depois do login. Quem
+        // dispara o download é o MethodViewModel, ao ver event.faceEnabled, e o
+        // FaceProcessingServiceImpl garante o download sob demanda se alguém chegar na
+        // câmera antes. Assim um totem só com QR/código nunca gasta os 63MB de dados.
     }
 }

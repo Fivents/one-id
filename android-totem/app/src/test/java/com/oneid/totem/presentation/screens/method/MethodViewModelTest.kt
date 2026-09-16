@@ -14,8 +14,11 @@ import com.oneid.totem.domain.model.EventConfig
 import com.oneid.totem.domain.model.TotemSession
 import com.oneid.totem.domain.repository.AuthRepository
 import com.oneid.totem.domain.repository.AuthResult
+import java.io.File
 import io.mockk.MockKAnnotations
 import io.mockk.coEvery
+import io.mockk.coVerify
+import io.mockk.clearMocks
 import io.mockk.every
 import io.mockk.impl.annotations.MockK
 import io.mockk.just
@@ -73,6 +76,8 @@ class MethodViewModelTest {
         coEvery { printerConnectionManager.autoDetectAndConnect(any()) } returns
             (PrintJobResult.Error("Nenhuma impressora encontrada") to PrinterConnectionType.WIFI)
         every { modelDownloader.downloadState } returns MutableStateFlow(ModelDownloadState.NotStarted)
+        every { modelDownloader.isModelDownloaded() } returns false
+        coEvery { modelDownloader.downloadIfNeeded() } returns Result.success(File("model.onnx"))
         coEvery { authRepository.validateSession() } returns AuthResult.Success(sampleSession())
 
         viewModel = MethodViewModel(
@@ -190,7 +195,60 @@ class MethodViewModelTest {
         assertFalse(viewModel.uiState.value.usbAvailable)
     }
 
-    private fun sampleSession() = TotemSession(
+    @Test
+    fun `face model is downloaded when the event has facial check-in enabled`() {
+        forgetDownloaderCallsFromSetUp()
+        coEvery { authRepository.validateSession() } returns AuthResult.Success(sampleSession(faceEnabled = true))
+
+        viewModel = buildViewModel()
+
+        coVerify(exactly = 1) { modelDownloader.downloadIfNeeded() }
+    }
+
+    @Test
+    fun `face model is not downloaded when facial check-in is disabled`() {
+        // O modelo tem 63MB: num totem que só faz QR/código isso seria banda paga à toa.
+        forgetDownloaderCallsFromSetUp()
+        coEvery { authRepository.validateSession() } returns AuthResult.Success(sampleSession(faceEnabled = false))
+
+        viewModel = buildViewModel()
+
+        coVerify(exactly = 0) { modelDownloader.downloadIfNeeded() }
+    }
+
+    @Test
+    fun `face model is not downloaded again when it is already on disk`() {
+        forgetDownloaderCallsFromSetUp()
+        every { modelDownloader.isModelDownloaded() } returns true
+        coEvery { authRepository.validateSession() } returns AuthResult.Success(sampleSession(faceEnabled = true))
+
+        viewModel = buildViewModel()
+
+        coVerify(exactly = 0) { modelDownloader.downloadIfNeeded() }
+    }
+
+    /**
+     * O setUp já monta um MethodViewModel com uma sessão de reconhecimento facial ligado,
+     * então o mock chega nestes testes com uma chamada de download registrada. Zera só o
+     * histórico (answers = false mantém as respostas configuradas) pra que o coVerify conte
+     * apenas o ViewModel construído dentro do teste.
+     */
+    private fun forgetDownloaderCallsFromSetUp() {
+        clearMocks(modelDownloader, answers = false)
+    }
+
+    private fun buildViewModel() = MethodViewModel(
+        appContext = appContext,
+        authRepository = authRepository,
+        printerConfigRepository = printerConfigRepository,
+        printerConnectionManager = printerConnectionManager,
+        usbPrinterDiscovery = usbPrinterDiscovery,
+        modelDownloader = modelDownloader,
+        totemPreferences = totemPreferences,
+    )
+
+    private fun sampleSession(faceEnabled: Boolean = true) = TotemSession(
+
         sessionId = "s1",
         expiresAt = "2026-08-03",
         totemId = "t1",
@@ -198,7 +256,7 @@ class MethodViewModelTest {
         activeEvent = EventConfig(
             id = "e1",
             name = "Evento Teste",
-            faceEnabled = true,
+            faceEnabled = faceEnabled,
             qrEnabled = true,
             codeEnabled = false,
             allowSelfRegistration = false,

@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
@@ -14,9 +15,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.oneid.totem.data.print.PrinterConfigRepository
 import com.oneid.totem.data.print.PrinterConnectionType
 import com.oneid.totem.data.print.PrinterStatus
 import com.oneid.totem.domain.repository.AccessCodeKeyboard
@@ -139,6 +143,13 @@ fun PrinterSetupScreen(
                 AccessCodeKeyboardSection(
                     selected = uiState.accessCodeKeyboard,
                     onSelect = viewModel::setAccessCodeKeyboard,
+                )
+            }
+
+            item {
+                CheckInHintMessageSection(
+                    message = uiState.checkInHintMessage,
+                    onMessageChange = viewModel::setCheckInHintMessage,
                 )
             }
 
@@ -482,6 +493,68 @@ private fun AccessCodeKeyboardSection(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun CheckInHintMessageSection(
+    message: String,
+    onMessageChange: (String) -> Unit,
+) {
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Surface),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Text(
+                "Mensagem para o Participante",
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                color = OnSurface,
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "Aparece como dica na tela de digitar o código de acesso. Deixe em branco para não mostrar nada.",
+                style = MaterialTheme.typography.bodySmall,
+                color = OnSurfaceVariant,
+            )
+            Spacer(Modifier.height(16.dp))
+
+            OutlinedTextField(
+                value = message,
+                onValueChange = onMessageChange,
+                modifier = Modifier.fillMaxWidth(),
+                minLines = 2,
+                maxLines = 4,
+                placeholder = {
+                    Text(
+                        "Ex.: O código está no e-mail de confirmação da sua inscrição",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = OnSurfaceVariant.copy(alpha = 0.6f),
+                    )
+                },
+                shape = RoundedCornerShape(12.dp),
+                keyboardOptions = KeyboardOptions(
+                    capitalization = KeyboardCapitalization.Sentences,
+                    imeAction = ImeAction.Done,
+                ),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Primary,
+                    unfocusedBorderColor = Outline,
+                    cursorColor = Primary,
+                    focusedTextColor = OnSurface,
+                    unfocusedTextColor = OnSurface,
+                ),
+            )
+
+            Spacer(Modifier.height(6.dp))
+            Text(
+                "${message.length}/${PrinterConfigRepository.CHECKIN_HINT_MAX_LENGTH}",
+                style = MaterialTheme.typography.labelSmall,
+                color = OnSurfaceVariant.copy(alpha = 0.7f),
+                modifier = Modifier.align(Alignment.End),
+            )
         }
     }
 }
