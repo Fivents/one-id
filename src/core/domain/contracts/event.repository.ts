@@ -19,6 +19,7 @@ export interface CreateEventData {
   qrCodeSource?: CodeSourceField | null;
   labelPrintPromptEnabled?: boolean;
   labelPrintPromptTimeoutSeconds?: number;
+  printEnabled?: boolean;
   startsAt: Date;
   endsAt: Date;
   organizationId: string;
@@ -42,6 +43,7 @@ export interface UpdateEventData {
   qrCodeSource?: CodeSourceField | null;
   labelPrintPromptEnabled?: boolean;
   labelPrintPromptTimeoutSeconds?: number;
+  printEnabled?: boolean;
   startsAt?: Date;
   endsAt?: Date;
   printConfigId?: string | null;

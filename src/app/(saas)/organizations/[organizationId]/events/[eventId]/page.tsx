@@ -294,7 +294,8 @@ export default function EventDetailPage() {
     minFaceSize: DEFAULT_AI_CONFIG.minFaceSize,
   });
   const [isSavingAIConfig, setIsSavingAIConfig] = useState(false);
-  const [printConfigEnabled, setPrintConfigEnabled] = useState(false);
+  // Printing starts on: an event with no print config yet is treated as "to be configured", not "off".
+  const [printConfigEnabled, setPrintConfigEnabled] = useState(true);
   const [printConfigDraft, setPrintConfigDraft] = useState<EditablePrintConfig>(() => createDefaultPrintConfig());
   const [printPromptEnabled, setPrintPromptEnabled] = useState(true);
   const [printPromptTimeoutSeconds, setPrintPromptTimeoutSeconds] = useState(15);
@@ -333,6 +334,10 @@ export default function EventDetailPage() {
       checkInRate: calculateCheckInRate(totalParticipants, checkedIn),
     };
   }, [participantsMeta.total, checkInsTotal, totems.length]);
+
+  // Printing a label needs an actual PrintConfig linked to the event — a stricter condition
+  // than the printEnabled switch, which can be on before anything has been configured.
+  const canPrintLabels = printConfigEnabled && Boolean(event?.printConfigId);
 
   const allCheckInsOnPageSelected = useMemo(
     () => checkIns.length > 0 && checkIns.every((checkIn) => selectedCheckInIds.has(checkIn.id)),
@@ -391,7 +396,7 @@ export default function EventDetailPage() {
       setQrEnabled(response.data.qrEnabled);
       setCodeEnabled(response.data.codeEnabled);
       setAllowSelfRegistration(response.data.allowSelfRegistration);
-      setPrintConfigEnabled(Boolean(response.data.printConfigId));
+      setPrintConfigEnabled(response.data.printEnabled);
       setPrintPromptEnabled(response.data.labelPrintPromptEnabled);
       setPrintPromptTimeoutSeconds(response.data.labelPrintPromptTimeoutSeconds);
 
@@ -1191,9 +1196,12 @@ export default function EventDetailPage() {
         qrEnabled,
         codeEnabled,
         allowSelfRegistration,
+        printEnabled: printConfigEnabled,
         startsAt: startDate,
         endsAt: endDate,
       });
+
+      await savePrintConfig(event);
 
       if (settingsStatus !== event.status) {
         const transition = `${event.status}->${settingsStatus}`;
@@ -1324,19 +1332,17 @@ export default function EventDetailPage() {
     };
   }, [event?.printConfigId, printConfigDraft]);
 
-  async function handleSavePrintConfig(e: React.FormEvent) {
-    e.preventDefault();
-
-    if (!event) {
-      return;
-    }
-
+  /**
+   * Persists the print configuration. Called from the settings form submit — the print box now
+   * lives inside that card, so a single Save covers both.
+   */
+  async function savePrintConfig(currentEvent: EventResponse) {
     setIsSavingPrintConfig(true);
 
     try {
       if (!printConfigEnabled) {
-        if (event.printConfigId) {
-          const response = await eventsClient.updateEvent(event.id, {
+        if (currentEvent.printConfigId) {
+          const response = await eventsClient.updateEvent(currentEvent.id, {
             printConfigId: null,
           });
 
@@ -1346,19 +1352,17 @@ export default function EventDetailPage() {
 
           setEvent(response.data);
         }
-
-        toast.success(t('pages.eventDetail.saveSettings'));
         return;
       }
 
-      const response = await eventsClient.updateEventPrintConfig(event.id, printConfigDraft);
+      const response = await eventsClient.updateEventPrintConfig(currentEvent.id, printConfigDraft);
       if (!response.success) {
         throw new Error(response.error.message);
       }
 
       setPrintConfigDraft(toEditablePrintConfig(response.data));
 
-      if (event.printConfigId !== response.data.id) {
+      if (currentEvent.printConfigId !== response.data.id) {
         setEvent((current) => {
           if (!current) return current;
           return {
@@ -1367,11 +1371,6 @@ export default function EventDetailPage() {
           };
         });
       }
-
-      toast.success(t('pages.eventDetail.printConfigCreated'));
-    } catch (error) {
-      const message = error instanceof Error ? error.message : t('pages.eventDetail.printConfigError');
-      toast.error(message);
     } finally {
       setIsSavingPrintConfig(false);
     }
@@ -1613,10 +1612,10 @@ export default function EventDetailPage() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              disabled={!participant.hasCheckIn || !printConfigEnabled}
+                              disabled={!participant.hasCheckIn || !canPrintLabels}
                               onClick={() => setPrintLabelParticipant(participant)}
                               title={
-                                !printConfigEnabled
+                                !canPrintLabels
                                   ? 'Impressão não configurada'
                                   : !participant.hasCheckIn
                                     ? 'Participante sem check-in'
@@ -2006,26 +2005,6 @@ export default function EventDetailPage() {
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="settings-timezone">{t('pages.eventDetail.timezone')} *</Label>
-                  <Input
-                    id="settings-timezone"
-                    value={settingsTimezone}
-                    onChange={(e) => setSettingsTimezone(e.target.value)}
-                    required
-                  />
-                </div>
-
-                <EventAddressEditor
-                  idPrefix="settings-event-address"
-                  label={t('pages.eventDetail.address')}
-                  placeholder={t('pages.organizationEvents.addressPlaceholder')}
-                  address={settingsAddress}
-                  addressDetails={settingsAddressDetails}
-                  onAddressChange={setSettingsAddress}
-                  onAddressDetailsChange={setSettingsAddressDetails}
-                />
-
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="settings-start">{t('pages.eventDetail.startDate')} *</Label>
@@ -2084,9 +2063,218 @@ export default function EventDetailPage() {
                   </div>
                 )}
 
+                <div className="space-y-4 rounded-lg border p-4">
+                  <p className="text-sm font-medium">Configurações de impressão</p>
+                  <p className="text-muted-foreground text-xs">
+                    O crachá é impresso pelo totem após o check-in, usando estas definições.
+                  </p>
+
+                  {isSuperAdmin() && (
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium">Impressão automática</p>
+                        <p className="text-muted-foreground text-xs">
+                          Imprime o crachá após qualquer check-in (facial, QR ou código)
+                        </p>
+                      </div>
+                      <Switch checked={printConfigEnabled} onCheckedChange={setPrintConfigEnabled} />
+                    </div>
+                  )}
+
+                  {printConfigEnabled ? (
+                    <>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium">Mostrar QR Code</p>
+                          <p className="text-muted-foreground text-xs">Imprime o QR Code no crachá</p>
+                        </div>
+                        <Switch
+                          checked={printConfigDraft.showQrCode}
+                          onCheckedChange={(checked) => updatePrintConfigField('showQrCode', checked)}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium">Mostrar código de acesso</p>
+                          <p className="text-muted-foreground text-xs">Imprime o código de acesso no crachá</p>
+                        </div>
+                        <Switch
+                          checked={printConfigDraft.showAccessCode}
+                          onCheckedChange={(checked) => updatePrintConfigField('showAccessCode', checked)}
+                        />
+                      </div>
+
+                      {isSuperAdmin() && (
+                        <div className="grid gap-4 border-t pt-4 md:grid-cols-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="print-paper-width">{t('labelConfig.paper.width')}</Label>
+                            <Input
+                              id="print-paper-width"
+                              type="number"
+                              min={20}
+                              max={300}
+                              value={printConfigDraft.paperWidth}
+                              onChange={(e) =>
+                                updatePrintConfigField('paperWidth', parseNumber(e.currentTarget.value, 100))
+                              }
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="print-paper-height">{t('labelConfig.paper.height')}</Label>
+                            <Input
+                              id="print-paper-height"
+                              type="number"
+                              min={20}
+                              max={500}
+                              value={printConfigDraft.paperHeight}
+                              onChange={(e) =>
+                                updatePrintConfigField('paperHeight', parseNumber(e.currentTarget.value, 62))
+                              }
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="print-orientation">{t('labelConfig.paper.orientation')}</Label>
+                            <Select
+                              value={printConfigDraft.orientation}
+                              onValueChange={(value) =>
+                                updatePrintConfigField('orientation', value as 'PORTRAIT' | 'LANDSCAPE')
+                              }
+                            >
+                              <SelectTrigger id="print-orientation">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="PORTRAIT">{t('labelConfig.paper.portrait')}</SelectItem>
+                                <SelectItem value="LANDSCAPE">{t('labelConfig.paper.landscape')}</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="print-dpi">DPI</Label>
+                            <Input
+                              id="print-dpi"
+                              type="number"
+                              min={72}
+                              max={1200}
+                              value={printConfigDraft.printerDpi}
+                              onChange={(e) =>
+                                updatePrintConfigField('printerDpi', parseNumber(e.currentTarget.value, 300))
+                              }
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="print-copies">{t('labelConfig.printer.copies')}</Label>
+                            <Input
+                              id="print-copies"
+                              type="number"
+                              min={1}
+                              max={10}
+                              value={printConfigDraft.copies}
+                              onChange={(e) => updatePrintConfigField('copies', parseNumber(e.currentTarget.value, 1))}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="print-qr-content">Conteúdo do QR Code</Label>
+                            <Select
+                              value={printConfigDraft.qrCodeContent}
+                              onValueChange={(value) =>
+                                updatePrintConfigField(
+                                  'qrCodeContent',
+                                  value as 'participant_id' | 'access_code' | 'qr_code_value',
+                                )
+                              }
+                            >
+                              <SelectTrigger id="print-qr-content">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="participant_id">ID do participante</SelectItem>
+                                <SelectItem value="access_code">Código de acesso</SelectItem>
+                                <SelectItem value="qr_code_value">Valor do QR Code</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="print-font-name">Tamanho do nome (px)</Label>
+                            <Input
+                              id="print-font-name"
+                              type="number"
+                              min={8}
+                              max={24}
+                              value={printConfigDraft.fontSizeName}
+                              onChange={(e) =>
+                                updatePrintConfigField('fontSizeName', parseNumber(e.currentTarget.value, 13))
+                              }
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="print-font-meta">Tamanho do cargo/empresa (px)</Label>
+                            <Input
+                              id="print-font-meta"
+                              type="number"
+                              min={6}
+                              max={18}
+                              value={printConfigDraft.fontSizeMeta}
+                              onChange={(e) =>
+                                updatePrintConfigField('fontSizeMeta', parseNumber(e.currentTarget.value, 9))
+                              }
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <p className="text-muted-foreground text-sm">
+                      Impressão desativada. Nenhum crachá será impresso após o check-in.
+                    </p>
+                  )}
+                </div>
+
                 <div className="flex justify-end">
-                  <Button type="submit" disabled={isSavingSettings}>
-                    {isSavingSettings ? t('pages.eventDetail.saving') : t('pages.eventDetail.saveSettings')}
+                  <Button type="submit" disabled={isSavingSettings || isSavingPrintConfig || isLoadingPrintConfig}>
+                    {isSavingSettings || isSavingPrintConfig
+                      ? t('pages.eventDetail.saving')
+                      : t('pages.eventDetail.saveSettings')}
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>{t('pages.eventDetail.additionalInfoTitle')}</CardTitle>
+              <CardDescription>{t('pages.eventDetail.additionalInfoDescription')}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {/* Shares handleSaveSettings: both cards read the same event state, so either
+                  Save button persists exactly what is on screen. */}
+              <form onSubmit={handleSaveSettings} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="settings-timezone">{t('pages.eventDetail.timezone')} *</Label>
+                  <Input
+                    id="settings-timezone"
+                    value={settingsTimezone}
+                    onChange={(e) => setSettingsTimezone(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <EventAddressEditor
+                  idPrefix="settings-event-address"
+                  label={t('pages.eventDetail.address')}
+                  placeholder={t('pages.organizationEvents.addressPlaceholder')}
+                  address={settingsAddress}
+                  addressDetails={settingsAddressDetails}
+                  onAddressChange={setSettingsAddress}
+                  onAddressDetailsChange={setSettingsAddressDetails}
+                />
+
+                <div className="flex justify-end">
+                  <Button type="submit" disabled={isSavingSettings || isSavingPrintConfig || isLoadingPrintConfig}>
+                    {isSavingSettings || isSavingPrintConfig
+                      ? t('pages.eventDetail.saving')
+                      : t('pages.eventDetail.saveSettings')}
                   </Button>
                 </div>
               </form>
@@ -2216,240 +2404,6 @@ export default function EventDetailPage() {
               </CardContent>
             </Card>
           )}
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Printer className="h-5 w-5" />
-                {t('pages.eventDetail.printConfig')}
-              </CardTitle>
-              <CardDescription>Configure o ticket impresso e visualize um preview fiel da impressão.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSavePrintConfig} className="space-y-6">
-                {isSuperAdmin() && (
-                  <div className="flex items-center justify-between rounded-lg border p-4">
-                    <div>
-                      <p className="text-sm font-medium">Impressão automática</p>
-                      <p className="text-muted-foreground text-xs">
-                        Ao ativar, o ticket será impresso após qualquer check-in (facial, QR ou código).
-                      </p>
-                    </div>
-                    <Switch checked={printConfigEnabled} onCheckedChange={setPrintConfigEnabled} />
-                  </div>
-                )}
-
-                {printConfigEnabled ? (
-                  <>
-                    {isSuperAdmin() && (
-                      <div className="grid gap-4 md:grid-cols-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="print-paper-width">{t('labelConfig.paper.width')}</Label>
-                          <Input
-                            id="print-paper-width"
-                            type="number"
-                            min={20}
-                            max={300}
-                            value={printConfigDraft.paperWidth}
-                            onChange={(e) =>
-                              updatePrintConfigField('paperWidth', parseNumber(e.currentTarget.value, 100))
-                            }
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="print-paper-height">{t('labelConfig.paper.height')}</Label>
-                          <Input
-                            id="print-paper-height"
-                            type="number"
-                            min={20}
-                            max={500}
-                            value={printConfigDraft.paperHeight}
-                            onChange={(e) =>
-                              updatePrintConfigField('paperHeight', parseNumber(e.currentTarget.value, 62))
-                            }
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="print-orientation">{t('labelConfig.paper.orientation')}</Label>
-                          <Select
-                            value={printConfigDraft.orientation}
-                            onValueChange={(value) =>
-                              updatePrintConfigField('orientation', value as 'PORTRAIT' | 'LANDSCAPE')
-                            }
-                          >
-                            <SelectTrigger id="print-orientation">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="PORTRAIT">{t('labelConfig.paper.portrait')}</SelectItem>
-                              <SelectItem value="LANDSCAPE">{t('labelConfig.paper.landscape')}</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="print-dpi">DPI</Label>
-                          <Input
-                            id="print-dpi"
-                            type="number"
-                            min={72}
-                            max={1200}
-                            value={printConfigDraft.printerDpi}
-                            onChange={(e) =>
-                              updatePrintConfigField('printerDpi', parseNumber(e.currentTarget.value, 300))
-                            }
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="print-copies">{t('labelConfig.printer.copies')}</Label>
-                          <Input
-                            id="print-copies"
-                            type="number"
-                            min={1}
-                            max={10}
-                            value={printConfigDraft.copies}
-                            onChange={(e) => updatePrintConfigField('copies', parseNumber(e.currentTarget.value, 1))}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="print-qr-content">Conteúdo do QR Code</Label>
-                          <Select
-                            value={printConfigDraft.qrCodeContent}
-                            onValueChange={(value) =>
-                              updatePrintConfigField(
-                                'qrCodeContent',
-                                value as 'participant_id' | 'access_code' | 'qr_code_value',
-                              )
-                            }
-                          >
-                            <SelectTrigger id="print-qr-content">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="participant_id">ID do participante</SelectItem>
-                              <SelectItem value="access_code">Código de acesso</SelectItem>
-                              <SelectItem value="qr_code_value">Valor do QR Code</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="flex items-center gap-6">
-                      <div className="flex items-center gap-3 rounded-lg border p-3">
-                        <input
-                          id="print-show-qr"
-                          type="checkbox"
-                          checked={printConfigDraft.showQrCode}
-                          onChange={(e) => updatePrintConfigField('showQrCode', e.target.checked)}
-                          className="h-4 w-4"
-                        />
-                        <Label htmlFor="print-show-qr" className="flex-1 cursor-pointer text-sm font-medium">
-                          Mostrar QR Code
-                        </Label>
-                      </div>
-                      <div className="flex items-center gap-3 rounded-lg border p-3">
-                        <input
-                          id="print-show-access-code"
-                          type="checkbox"
-                          checked={printConfigDraft.showAccessCode}
-                          onChange={(e) => updatePrintConfigField('showAccessCode', e.target.checked)}
-                          className="h-4 w-4"
-                        />
-                        <Label htmlFor="print-show-access-code" className="flex-1 cursor-pointer text-sm font-medium">
-                          Mostrar Código de Acesso
-                        </Label>
-                      </div>
-                    </div>
-
-                    {isSuperAdmin() && (
-                      <div className="grid gap-4 md:grid-cols-2">
-                        <div className="space-y-2">
-                          <Label htmlFor="print-font-name">Tamanho do nome (px)</Label>
-                          <Input
-                            id="print-font-name"
-                            type="number"
-                            min={8}
-                            max={24}
-                            value={printConfigDraft.fontSizeName}
-                            onChange={(e) =>
-                              updatePrintConfigField('fontSizeName', parseNumber(e.currentTarget.value, 13))
-                            }
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="print-font-meta">Tamanho do cargo/empresa (px)</Label>
-                          <Input
-                            id="print-font-meta"
-                            type="number"
-                            min={6}
-                            max={18}
-                            value={printConfigDraft.fontSizeMeta}
-                            onChange={(e) =>
-                              updatePrintConfigField('fontSizeMeta', parseNumber(e.currentTarget.value, 9))
-                            }
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <p className="text-muted-foreground text-sm">
-                    Impressão desativada. Nenhum ticket será impresso após check-in.
-                  </p>
-                )}
-
-                {isSuperAdmin() && (
-                  <div className="flex justify-end gap-2">
-                    {printConfigEnabled && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        disabled={isSavingPrintConfig || isLoadingPrintConfig}
-                        onClick={async () => {
-                          try {
-                            const response = await fetch(`/api/events/${event?.id}/print/test`, { method: 'POST' });
-                            if (!response.ok) {
-                              const err = await response.json().catch(() => ({ error: 'Erro ao testar impressão' }));
-                              throw new Error(err.error);
-                            }
-                            const data = await response.json();
-                            const silent = await getSilentPrinterAvailability();
-                            if (silent.available) {
-                              const { printBadgeSilently } =
-                                await import('@/core/application/client-services/totem/print.client');
-                              await printBadgeSilently(
-                                data.html,
-                                data.copies,
-                                data.printerDpi,
-                                data.paperWidth,
-                                data.paperHeight,
-                              );
-                            } else {
-                              const testWindow = window.open('', '_blank');
-                              if (testWindow) {
-                                testWindow.document.write(data.html);
-                                testWindow.document.close();
-                                testWindow.print();
-                              }
-                            }
-                            toast.success('Impressão de teste enviada');
-                          } catch (err) {
-                            toast.error(err instanceof Error ? err.message : 'Erro ao testar impressão');
-                          }
-                        }}
-                      >
-                        <Printer className="mr-2 h-4 w-4" />
-                        Testar Impressão
-                      </Button>
-                    )}
-                    <Button type="submit" disabled={isSavingPrintConfig || isLoadingPrintConfig}>
-                      {isSavingPrintConfig ? t('pages.eventDetail.saving') : t('pages.eventDetail.saveSettings')}
-                    </Button>
-                  </div>
-                )}
-              </form>
-            </CardContent>
-          </Card>
         </TabsContent>
       </Tabs>
 

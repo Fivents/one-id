@@ -128,6 +128,7 @@ export function CreateEventModal({ open, onOpenChange, organizationId }: CreateE
         autoLinkNewPeople: false,
         labelPrintPromptEnabled: true,
         labelPrintPromptTimeoutSeconds: 15,
+        printEnabled: true,
         startsAt: startDate,
         endsAt: endDate,
         organizationId,

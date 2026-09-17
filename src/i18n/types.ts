@@ -866,6 +866,8 @@ export type TranslationSchema = {
       totemsDescription: string;
       checkinsDescription: string;
       settingsDescription: string;
+      additionalInfoTitle: string;
+      additionalInfoDescription: string;
       aiDescription: string;
       facialRecognitionDescription: string;
       participantDetailsDescription: string;

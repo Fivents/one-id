@@ -26,6 +26,8 @@ export interface EventProps {
   qrCodeSource?: CodeSourceField | null;
   labelPrintPromptEnabled: boolean;
   labelPrintPromptTimeoutSeconds: number;
+  // Explicit badge-printing switch, independent of whether a PrintConfig is linked.
+  printEnabled: boolean;
   startsAt: Date;
   endsAt: Date;
   organizationId: string;
@@ -143,6 +145,10 @@ export class EventEntity extends BaseEntity {
     return this.props.labelPrintPromptTimeoutSeconds;
   }
 
+  get printEnabled(): boolean {
+    return this.props.printEnabled;
+  }
+
   get startsAt(): Date {
     return this.props.startsAt;
   }
@@ -242,6 +248,7 @@ export class EventEntity extends BaseEntity {
       qrCodeSource: this.props.qrCodeSource ?? null,
       labelPrintPromptEnabled: this.props.labelPrintPromptEnabled,
       labelPrintPromptTimeoutSeconds: this.props.labelPrintPromptTimeoutSeconds,
+      printEnabled: this.props.printEnabled,
       startsAt: this.props.startsAt,
       endsAt: this.props.endsAt,
       organizationId: this.props.organizationId,

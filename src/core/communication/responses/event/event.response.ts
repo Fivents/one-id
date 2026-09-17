@@ -21,6 +21,7 @@ export interface EventResponse {
   qrCodeSource: CodeSourceField | null;
   labelPrintPromptEnabled: boolean;
   labelPrintPromptTimeoutSeconds: number;
+  printEnabled: boolean;
   startsAt: Date;
   endsAt: Date;
   organizationId: string;

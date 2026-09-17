@@ -307,6 +307,10 @@ model Event {
   labelPrintPromptEnabled        Boolean @default(true) @map("label_print_prompt_enabled")
   labelPrintPromptTimeoutSeconds Int     @default(15) @map("label_print_prompt_timeout_seconds")
 
+  // Whether badge printing is on for this event. Separate from printConfigId so that
+  // "never configured" (new event, defaults to on) is distinguishable from "explicitly off".
+  printEnabled Boolean @default(true) @map("print_enabled")
+
   status EventStatus @default(DRAFT)
 
   publicSlug String? @unique @map("public_slug")
