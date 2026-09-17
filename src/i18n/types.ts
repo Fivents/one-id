@@ -1079,6 +1079,39 @@ export type TranslationSchema = {
       downloadTemplate: string;
       importSpreadsheet: string;
       exportSpreadsheet: string;
+      // Bulk check-in
+      manualCheckinSearchPlaceholder: string;
+      selectAllOnPage: string;
+      selectedParticipantsCount: string;
+      clearSelection: string;
+      bulkCheckinAction: string;
+      bulkCheckinSuccess: string;
+      bulkCheckinPartial: string;
+      bulkCheckinError: string;
+      // Spreadsheet check-in
+      importCheckinsTitle: string;
+      importCheckinsDescription: string;
+      importCheckinsAction: string;
+      importCheckinsResultTitle: string;
+      checkinsCreatedCount: string;
+      checkinsSkippedCount: string;
+      checkinsErrorsCount: string;
+      spreadsheetFileLabel: string;
+      spreadsheetDropzone: string;
+      spreadsheetValidationErrors: string;
+      spreadsheetPreview: string;
+      spreadsheetReadError: string;
+      spreadsheetRowLabel: string;
+      importing: string;
+      close: string;
+      selectedCheckinsCount: string;
+      // Bulk invalidate
+      invalidateSelected: string;
+      invalidateSelectedTitle: string;
+      invalidateSelectedDescription: string;
+      invalidateSelectedConfirm: string;
+      bulkInvalidateSuccess: string;
+      bulkInvalidateError: string;
     };
     adminOrganizations: Record<string, string>;
     adminOrganizationsTable: Record<string, string>;

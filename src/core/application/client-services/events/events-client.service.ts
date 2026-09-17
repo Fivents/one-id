@@ -134,12 +134,13 @@ class EventsClientService extends BaseClient {
 
   async listEventParticipants(
     eventId: string,
-    params?: { search?: string; page?: number; pageSize?: number },
+    params?: { search?: string; page?: number; pageSize?: number; checkedIn?: boolean },
   ): Promise<ApiResponse<PaginatedEventParticipantsResponse>> {
     const searchParams = new URLSearchParams();
     if (params?.search) searchParams.set('search', params.search);
     if (params?.page) searchParams.set('page', String(params.page));
     if (params?.pageSize) searchParams.set('pageSize', String(params.pageSize));
+    if (params?.checkedIn !== undefined) searchParams.set('checkedIn', String(params.checkedIn));
 
     const query = searchParams.toString();
     const suffix = query ? `?${query}` : '';
@@ -210,9 +211,7 @@ class EventsClientService extends BaseClient {
     return this.patch(`/events/${encodeURIComponent(eventId)}/print-config`, data);
   }
 
-  async exportEventParticipants(
-    eventId: string,
-  ): Promise<ApiResponse<Record<string, unknown>[]>> {
+  async exportEventParticipants(eventId: string): Promise<ApiResponse<Record<string, unknown>[]>> {
     return this.get(`/events/${encodeURIComponent(eventId)}/participants/export`);
   }
 

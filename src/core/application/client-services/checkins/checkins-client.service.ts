@@ -62,6 +62,20 @@ export interface EventCheckInRealtimeResponse {
   alerts: Array<{ type: 'LOW_CONFIDENCE' | 'PEAK' | 'TOTEM_OFFLINE'; message: string }>;
 }
 
+export interface BulkCheckInIdentifier {
+  row?: number;
+  name?: string;
+  email?: string;
+  document?: string;
+  accessCode?: string;
+}
+
+export interface BulkCheckInResponse {
+  created: number;
+  skipped: Array<{ participantId: string; name: string }>;
+  errors: Array<{ row?: number; identifier?: string; message: string }>;
+}
+
 export interface CheckInListParams {
   search?: string;
   method?: CheckInMethod;
@@ -83,6 +97,21 @@ class EventCheckinsClientService extends BaseClient {
     ApiResponse<{ id: string; method: CheckInMethod; confidence: number | null; checkedInAt: Date; source: 'APP' }>
   > {
     return this.post(`/events/${encodeURIComponent(eventId)}/checkins`, data);
+  }
+
+  /** Registers many check-ins at once, either from selected participants or from spreadsheet rows. */
+  async bulkCheckIn(
+    eventId: string,
+    data: { participantIds?: string[]; identifiers?: BulkCheckInIdentifier[]; method?: CheckInMethod },
+  ): Promise<ApiResponse<BulkCheckInResponse>> {
+    return this.post(`/events/${encodeURIComponent(eventId)}/checkins/bulk`, data);
+  }
+
+  async bulkInvalidateCheckIns(
+    eventId: string,
+    checkInIds: string[],
+  ): Promise<ApiResponse<{ deleted: number; notFound: string[] }>> {
+    return this.post(`/events/${encodeURIComponent(eventId)}/checkins/bulk-invalidate`, { checkInIds });
   }
 
   async getCheckInsByEvent(eventId: string, params: CheckInListParams): Promise<ApiResponse<EventCheckInListResponse>> {

@@ -3,3 +3,5 @@ export { EditEventModal } from './edit-event-modal';
 export { EventAddressEditor } from './event-address-editor';
 export { EventStatusBadge } from './event-status-badge';
 export { EventsTable } from './events-table';
+export { ImportCheckInsDialog } from './import-checkins-dialog';
+export { ManualCheckInDialog } from './manual-checkin-dialog';

@@ -80,6 +80,7 @@ open class BadgeRenderer @Inject constructor() {
                 company = company,
                 jobTitle = jobTitle,
                 qrCodeValue = qrCodeValue,
+                showQrCode = showQrCode,
                 dpi = dpi,
             )
         }
@@ -92,6 +93,7 @@ open class BadgeRenderer @Inject constructor() {
             company = company,
             jobTitle = jobTitle,
             qrCodeValue = qrCodeValue,
+            showQrCode = showQrCode,
             dpi = dpi,
         )
 
@@ -133,6 +135,7 @@ open class BadgeRenderer @Inject constructor() {
         company: String?,
         jobTitle: String?,
         qrCodeValue: String?,
+        showQrCode: Boolean,
         dpi: Int,
     ): Bitmap {
         val logicalW = mmToPixels(LABEL_LENGTH_MM, dpi)
@@ -143,10 +146,14 @@ open class BadgeRenderer @Inject constructor() {
         val canvas = Canvas(bitmap)
         canvas.drawColor(Color.WHITE)
 
+        // showQrCode vem do PrintConfig do evento (painel web). Com ele desligado o QR
+        // some e o texto passa a ocupar a etiqueta inteira, em vez de sobrar um quadrado
+        // em branco no lugar dele.
+        val hasQr = showQrCode && !qrCodeValue.isNullOrBlank()
         val qrMargin = mmToPixels(0.1, dpi).coerceAtLeast(1)
-        val qrSize = (logicalH - qrMargin * 2).coerceAtLeast(80)
-        if (!qrCodeValue.isNullOrBlank()) {
-            drawQrCode(canvas, qrCodeValue, qrMargin, qrMargin, qrSize, quietZone = MINIMAL_QR_QUIET_ZONE, fixedVersion = MINIMAL_QR_VERSION)
+        val qrSize = if (hasQr) (logicalH - qrMargin * 2).coerceAtLeast(80) else 0
+        if (hasQr) {
+            drawQrCode(canvas, qrCodeValue!!, qrMargin, qrMargin, qrSize, quietZone = MINIMAL_QR_QUIET_ZONE, fixedVersion = MINIMAL_QR_VERSION)
         }
 
         val namePaint = Paint().apply {
@@ -164,7 +171,11 @@ open class BadgeRenderer @Inject constructor() {
 
         val gapTight = mmToPixels(0.3, dpi).toFloat()
         val lineHeightFactor = 1.05f
-        val textLeft = (qrMargin + qrSize + mmToPixels(1.5, dpi)).toFloat()
+        val textLeft = if (hasQr) {
+            (qrMargin + qrSize + mmToPixels(1.5, dpi)).toFloat()
+        } else {
+            qrMargin.toFloat()
+        }
         val textAreaWidth = (logicalW - qrMargin - textLeft).toInt().coerceAtLeast(40)
 
         val hasTitle = !jobTitle.isNullOrBlank()
@@ -212,6 +223,7 @@ open class BadgeRenderer @Inject constructor() {
         company: String?,
         jobTitle: String?,
         qrCodeValue: String?,
+        showQrCode: Boolean,
         dpi: Int,
     ): Bitmap {
         val marginPx = mmToPixels(COMPACT_MARGIN_MM, dpi)
@@ -242,7 +254,9 @@ open class BadgeRenderer @Inject constructor() {
 
         val hasCompany = !company.isNullOrBlank()
         val hasJobTitle = !jobTitle.isNullOrBlank()
-        val hasQr = !qrCodeValue.isNullOrBlank()
+        // showQrCode vem do PrintConfig do evento (painel web); sem ele o espaço que o QR
+        // reservava à direita é devolvido pra empresa/cargo.
+        val hasQr = showQrCode && !qrCodeValue.isNullOrBlank()
 
         // Altura do nome não depende de onde ele é cortado (mesma fonte, uma linha só),
         // então dá pra medir com o texto completo antes de truncar — e usar isso pra

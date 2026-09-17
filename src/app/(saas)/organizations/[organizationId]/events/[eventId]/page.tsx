@@ -28,7 +28,12 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 
-import { EventAddressEditor, EventStatusBadge } from '@/components/organizations/events';
+import {
+  EventAddressEditor,
+  EventStatusBadge,
+  ImportCheckInsDialog,
+  ManualCheckInDialog,
+} from '@/components/organizations/events';
 import { EventPeopleSettingsDialog } from '@/components/organizations/events/event-people-settings-dialog';
 import { ImportEventParticipantsDialog } from '@/components/organizations/events/import-event-participants-dialog';
 import { useConfirm } from '@/components/shared/confirm-dialog';
@@ -36,6 +41,7 @@ import { LabelPrintConfirmationModal } from '@/components/shared/label-print-con
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Dialog,
   DialogContent,
@@ -84,6 +90,7 @@ import type { EventResponse } from '@/core/communication/responses/event';
 import { AI_CONFIG_CONSTRAINTS, DEFAULT_AI_CONFIG } from '@/core/domain/constants/ai-config.constants';
 import { getValidTransitions, isFinalStatus } from '@/core/domain/constants/event-transitions.constants';
 import type { EventAddress } from '@/core/domain/value-objects';
+import { excelEventCheckins } from '@/core/utils/excel-event-checkins';
 import type { ParticipantExportRow } from '@/core/utils/excel-event-participants';
 import { excelEventParticipants } from '@/core/utils/excel-event-participants';
 import { useI18n } from '@/i18n';
@@ -223,9 +230,11 @@ export default function EventDetailPage() {
   const [checkInsCursorHistory, setCheckInsCursorHistory] = useState<Array<string | null>>([null]);
   const [checkInsPageIndex, setCheckInsPageIndex] = useState(0);
   const [manualCheckInOpen, setManualCheckInOpen] = useState(false);
-  const [manualParticipantId, setManualParticipantId] = useState('');
-  const [isSubmittingManualCheckIn, setIsSubmittingManualCheckIn] = useState(false);
+  const [importCheckInsOpen, setImportCheckInsOpen] = useState(false);
   const [invalidatingCheckInId, setInvalidatingCheckInId] = useState<string | null>(null);
+  // Bulk invalidation is scoped to the rows currently on screen.
+  const [selectedCheckInIds, setSelectedCheckInIds] = useState<Set<string>>(new Set());
+  const [isBulkInvalidating, setIsBulkInvalidating] = useState(false);
 
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -325,9 +334,9 @@ export default function EventDetailPage() {
     };
   }, [participantsMeta.total, checkInsTotal, totems.length]);
 
-  const manualCheckInParticipants = useMemo(
-    () => participants.filter((participant) => !participant.hasCheckIn),
-    [participants],
+  const allCheckInsOnPageSelected = useMemo(
+    () => checkIns.length > 0 && checkIns.every((checkIn) => selectedCheckInIds.has(checkIn.id)),
+    [checkIns, selectedCheckInIds],
   );
 
   const checkInsTotalPages = Math.max(1, Math.ceil(checkInsTotal / CHECKINS_PAGE_SIZE));
@@ -698,6 +707,7 @@ export default function EventDetailPage() {
       setCheckInsTotal(response.data.total);
       setCheckInsHasMore(response.data.hasMore);
       setCheckInsNextCursor(response.data.nextCursor);
+      setSelectedCheckInIds(new Set());
     } catch (error) {
       const message = error instanceof Error ? error.message : t('pages.eventDetail.loadCheckinsError');
       toast.error(message);
@@ -722,33 +732,49 @@ export default function EventDetailPage() {
     setCheckInsPageIndex((index) => index + 1);
   }
 
-  async function handleManualCheckInSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!manualParticipantId) {
-      toast.error(t('pages.eventDetail.selectParticipantError'));
-      return;
-    }
+  async function refreshCheckInsAndParticipants() {
+    await Promise.all([loadCheckIns(), loadParticipants()]);
+  }
 
-    setIsSubmittingManualCheckIn(true);
+  function toggleCheckInSelection(checkInId: string) {
+    setSelectedCheckInIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(checkInId)) next.delete(checkInId);
+      else next.add(checkInId);
+      return next;
+    });
+  }
+
+  function toggleAllCheckInsOnPage() {
+    setSelectedCheckInIds(allCheckInsOnPageSelected ? new Set() : new Set(checkIns.map((checkIn) => checkIn.id)));
+  }
+
+  async function handleBulkInvalidateCheckIns() {
+    if (selectedCheckInIds.size === 0) return;
+
+    const accepted = await confirm.confirm({
+      title: t('pages.eventDetail.invalidateSelectedTitle'),
+      description: t('pages.eventDetail.invalidateSelectedDescription', {
+        count: String(selectedCheckInIds.size),
+      }),
+      confirmLabel: t('pages.eventDetail.invalidateSelectedConfirm'),
+      variant: 'destructive',
+    });
+
+    if (!accepted) return;
+
+    setIsBulkInvalidating(true);
     try {
-      const response = await eventCheckinsClient.registerAppCheckIn(eventId, {
-        eventParticipantId: manualParticipantId,
-        method: 'MANUAL',
-      });
-
-      if (!response.success) {
-        throw new Error(response.error.message);
-      }
-
-      toast.success(t('pages.eventDetail.manualCheckinSuccess'));
-      setManualCheckInOpen(false);
-      setManualParticipantId('');
-      await Promise.all([loadCheckIns(), loadParticipants()]);
+      const response = await eventCheckinsClient.bulkInvalidateCheckIns(eventId, [...selectedCheckInIds]);
+      if (!response.success) throw new Error(response.error.message);
+      toast.success(t('pages.eventDetail.bulkInvalidateSuccess', { count: String(response.data.deleted) }));
+      setSelectedCheckInIds(new Set());
+      await refreshCheckInsAndParticipants();
     } catch (error) {
-      const message = error instanceof Error ? error.message : t('pages.eventDetail.manualCheckinError');
+      const message = error instanceof Error ? error.message : t('pages.eventDetail.bulkInvalidateError');
       toast.error(message);
     } finally {
-      setIsSubmittingManualCheckIn(false);
+      setIsBulkInvalidating(false);
     }
   }
 
@@ -1475,11 +1501,7 @@ export default function EventDetailPage() {
                     <Download className="mr-2 h-4 w-4" />
                     {t('pages.eventDetail.downloadTemplate')}
                   </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setImportParticipantsOpen(true)}
-                  >
+                  <Button size="sm" variant="outline" onClick={() => setImportParticipantsOpen(true)}>
                     <Upload className="mr-2 h-4 w-4" />
                     {t('pages.eventDetail.importSpreadsheet')}
                   </Button>
@@ -1727,10 +1749,20 @@ export default function EventDetailPage() {
                     {t('pages.eventDetail.checkinsDescription').replace('{count}', String(checkInsTotal))}
                   </CardDescription>
                 </div>
-                <Button size="sm" onClick={() => setManualCheckInOpen(true)}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  {t('pages.eventDetail.manualAppCheckin')}
-                </Button>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" onClick={() => excelEventCheckins.generateTemplate()}>
+                    <Download className="mr-2 h-4 w-4" />
+                    {t('pages.eventDetail.downloadTemplate')}
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => setImportCheckInsOpen(true)}>
+                    <Upload className="mr-2 h-4 w-4" />
+                    {t('pages.eventDetail.importSpreadsheet')}
+                  </Button>
+                  <Button size="sm" onClick={() => setManualCheckInOpen(true)}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    {t('pages.eventDetail.manualAppCheckin')}
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent>
@@ -1751,48 +1783,83 @@ export default function EventDetailPage() {
                   {checkInsSearch ? t('pages.eventDetail.noCheckinsMatchSearch') : t('pages.eventDetail.noCheckins')}
                 </p>
               ) : (
-                <div className="rounded-lg border">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>{t('pages.eventDetail.participant')}</TableHead>
-                        <TableHead>{t('pages.eventDetail.method')}</TableHead>
-                        <TableHead>{t('pages.eventDetail.confidence')}</TableHead>
-                        <TableHead>{t('pages.eventDetail.totemLocation')}</TableHead>
-                        <TableHead>{t('pages.eventDetail.time')}</TableHead>
-                        <TableHead>{t('pages.eventDetail.actions')}</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {checkIns.map((checkIn) => (
-                        <TableRow key={checkIn.id}>
-                          <TableCell className="font-medium">{checkIn.participant.name}</TableCell>
-                          <TableCell className="text-muted-foreground">
-                            {getCheckInMethodLabel(checkIn.method)}
-                          </TableCell>
-                          <TableCell className="text-muted-foreground">
-                            {checkIn.confidence ? `${Math.round(checkIn.confidence * 100)}%` : '—'}
-                          </TableCell>
-                          <TableCell className="text-muted-foreground">{checkIn.locationName || 'APP'}</TableCell>
-                          <TableCell className="text-muted-foreground">
-                            {formatDateTime(checkIn.checkedInAt, locale)}
-                          </TableCell>
-                          <TableCell>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              disabled={invalidatingCheckInId === checkIn.id}
-                              onClick={() => handleInvalidateCheckIn(checkIn.id, checkIn.participant.name)}
-                            >
-                              {invalidatingCheckInId === checkIn.id
-                                ? t('pages.eventDetail.invalidating')
-                                : t('pages.eventDetail.invalidate')}
-                            </Button>
-                          </TableCell>
+                <div className="space-y-3">
+                  {selectedCheckInIds.size > 0 && (
+                    <div className="bg-muted/40 flex items-center justify-between rounded-lg border px-4 py-2">
+                      <span className="text-muted-foreground text-sm">
+                        {t('pages.eventDetail.selectedCheckinsCount', { count: String(selectedCheckInIds.size) })}
+                      </span>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        disabled={isBulkInvalidating}
+                        onClick={handleBulkInvalidateCheckIns}
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        {isBulkInvalidating
+                          ? t('pages.eventDetail.invalidating')
+                          : t('pages.eventDetail.invalidateSelected')}
+                      </Button>
+                    </div>
+                  )}
+
+                  <div className="rounded-lg border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-10">
+                            <Checkbox
+                              checked={allCheckInsOnPageSelected}
+                              onCheckedChange={toggleAllCheckInsOnPage}
+                              aria-label={t('pages.eventDetail.selectAllOnPage')}
+                            />
+                          </TableHead>
+                          <TableHead>{t('pages.eventDetail.participant')}</TableHead>
+                          <TableHead>{t('pages.eventDetail.method')}</TableHead>
+                          <TableHead>{t('pages.eventDetail.confidence')}</TableHead>
+                          <TableHead>{t('pages.eventDetail.totemLocation')}</TableHead>
+                          <TableHead>{t('pages.eventDetail.time')}</TableHead>
+                          <TableHead>{t('pages.eventDetail.actions')}</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {checkIns.map((checkIn) => (
+                          <TableRow key={checkIn.id}>
+                            <TableCell>
+                              <Checkbox
+                                checked={selectedCheckInIds.has(checkIn.id)}
+                                onCheckedChange={() => toggleCheckInSelection(checkIn.id)}
+                                aria-label={checkIn.participant.name}
+                              />
+                            </TableCell>
+                            <TableCell className="font-medium">{checkIn.participant.name}</TableCell>
+                            <TableCell className="text-muted-foreground">
+                              {getCheckInMethodLabel(checkIn.method)}
+                            </TableCell>
+                            <TableCell className="text-muted-foreground">
+                              {checkIn.confidence ? `${Math.round(checkIn.confidence * 100)}%` : '—'}
+                            </TableCell>
+                            <TableCell className="text-muted-foreground">{checkIn.locationName || 'APP'}</TableCell>
+                            <TableCell className="text-muted-foreground">
+                              {formatDateTime(checkIn.checkedInAt, locale)}
+                            </TableCell>
+                            <TableCell>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                disabled={invalidatingCheckInId === checkIn.id}
+                                onClick={() => handleInvalidateCheckIn(checkIn.id, checkIn.participant.name)}
+                              >
+                                {invalidatingCheckInId === checkIn.id
+                                  ? t('pages.eventDetail.invalidating')
+                                  : t('pages.eventDetail.invalidate')}
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
                 </div>
               )}
 
@@ -2130,7 +2197,9 @@ export default function EventDetailPage() {
                     />
                     <Label htmlFor="ai-liveness" className="flex-1 cursor-pointer">
                       {t('pages.eventDetail.enableLiveness')}
-                      <span className="text-muted-foreground ml-2 text-xs">({t('pages.eventDetail.experimental')})</span>
+                      <span className="text-muted-foreground ml-2 text-xs">
+                        ({t('pages.eventDetail.experimental')})
+                      </span>
                     </Label>
                   </div>
 
@@ -2174,92 +2243,94 @@ export default function EventDetailPage() {
                   <>
                     {isSuperAdmin() && (
                       <div className="grid gap-4 md:grid-cols-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="print-paper-width">{t('labelConfig.paper.width')}</Label>
-                        <Input
-                          id="print-paper-width"
-                          type="number"
-                          min={20}
-                          max={300}
-                          value={printConfigDraft.paperWidth}
-                          onChange={(e) => updatePrintConfigField('paperWidth', parseNumber(e.currentTarget.value, 100))}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="print-paper-height">{t('labelConfig.paper.height')}</Label>
-                        <Input
-                          id="print-paper-height"
-                          type="number"
-                          min={20}
-                          max={500}
-                          value={printConfigDraft.paperHeight}
-                          onChange={(e) =>
-                            updatePrintConfigField('paperHeight', parseNumber(e.currentTarget.value, 62))
-                          }
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="print-orientation">{t('labelConfig.paper.orientation')}</Label>
-                        <Select
-                          value={printConfigDraft.orientation}
-                          onValueChange={(value) =>
-                            updatePrintConfigField('orientation', value as 'PORTRAIT' | 'LANDSCAPE')
-                          }
-                        >
-                          <SelectTrigger id="print-orientation">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="PORTRAIT">{t('labelConfig.paper.portrait')}</SelectItem>
-                            <SelectItem value="LANDSCAPE">{t('labelConfig.paper.landscape')}</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="print-dpi">DPI</Label>
-                        <Input
-                          id="print-dpi"
-                          type="number"
-                          min={72}
-                          max={1200}
-                          value={printConfigDraft.printerDpi}
-                          onChange={(e) =>
-                            updatePrintConfigField('printerDpi', parseNumber(e.currentTarget.value, 300))
-                          }
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="print-copies">{t('labelConfig.printer.copies')}</Label>
-                        <Input
-                          id="print-copies"
-                          type="number"
-                          min={1}
-                          max={10}
-                          value={printConfigDraft.copies}
-                          onChange={(e) => updatePrintConfigField('copies', parseNumber(e.currentTarget.value, 1))}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="print-qr-content">Conteúdo do QR Code</Label>
-                        <Select
-                          value={printConfigDraft.qrCodeContent}
-                          onValueChange={(value) =>
-                            updatePrintConfigField(
-                              'qrCodeContent',
-                              value as 'participant_id' | 'access_code' | 'qr_code_value',
-                            )
-                          }
-                        >
-                          <SelectTrigger id="print-qr-content">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="participant_id">ID do participante</SelectItem>
-                            <SelectItem value="access_code">Código de acesso</SelectItem>
-                            <SelectItem value="qr_code_value">Valor do QR Code</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="print-paper-width">{t('labelConfig.paper.width')}</Label>
+                          <Input
+                            id="print-paper-width"
+                            type="number"
+                            min={20}
+                            max={300}
+                            value={printConfigDraft.paperWidth}
+                            onChange={(e) =>
+                              updatePrintConfigField('paperWidth', parseNumber(e.currentTarget.value, 100))
+                            }
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="print-paper-height">{t('labelConfig.paper.height')}</Label>
+                          <Input
+                            id="print-paper-height"
+                            type="number"
+                            min={20}
+                            max={500}
+                            value={printConfigDraft.paperHeight}
+                            onChange={(e) =>
+                              updatePrintConfigField('paperHeight', parseNumber(e.currentTarget.value, 62))
+                            }
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="print-orientation">{t('labelConfig.paper.orientation')}</Label>
+                          <Select
+                            value={printConfigDraft.orientation}
+                            onValueChange={(value) =>
+                              updatePrintConfigField('orientation', value as 'PORTRAIT' | 'LANDSCAPE')
+                            }
+                          >
+                            <SelectTrigger id="print-orientation">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="PORTRAIT">{t('labelConfig.paper.portrait')}</SelectItem>
+                              <SelectItem value="LANDSCAPE">{t('labelConfig.paper.landscape')}</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="print-dpi">DPI</Label>
+                          <Input
+                            id="print-dpi"
+                            type="number"
+                            min={72}
+                            max={1200}
+                            value={printConfigDraft.printerDpi}
+                            onChange={(e) =>
+                              updatePrintConfigField('printerDpi', parseNumber(e.currentTarget.value, 300))
+                            }
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="print-copies">{t('labelConfig.printer.copies')}</Label>
+                          <Input
+                            id="print-copies"
+                            type="number"
+                            min={1}
+                            max={10}
+                            value={printConfigDraft.copies}
+                            onChange={(e) => updatePrintConfigField('copies', parseNumber(e.currentTarget.value, 1))}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="print-qr-content">Conteúdo do QR Code</Label>
+                          <Select
+                            value={printConfigDraft.qrCodeContent}
+                            onValueChange={(value) =>
+                              updatePrintConfigField(
+                                'qrCodeContent',
+                                value as 'participant_id' | 'access_code' | 'qr_code_value',
+                              )
+                            }
+                          >
+                            <SelectTrigger id="print-qr-content">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="participant_id">ID do participante</SelectItem>
+                              <SelectItem value="access_code">Código de acesso</SelectItem>
+                              <SelectItem value="qr_code_value">Valor do QR Code</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
                       </div>
                     )}
 
@@ -2300,7 +2371,9 @@ export default function EventDetailPage() {
                             min={8}
                             max={24}
                             value={printConfigDraft.fontSizeName}
-                            onChange={(e) => updatePrintConfigField('fontSizeName', parseNumber(e.currentTarget.value, 13))}
+                            onChange={(e) =>
+                              updatePrintConfigField('fontSizeName', parseNumber(e.currentTarget.value, 13))
+                            }
                           />
                         </div>
                         <div className="space-y-2">
@@ -2311,7 +2384,9 @@ export default function EventDetailPage() {
                             min={6}
                             max={18}
                             value={printConfigDraft.fontSizeMeta}
-                            onChange={(e) => updatePrintConfigField('fontSizeMeta', parseNumber(e.currentTarget.value, 9))}
+                            onChange={(e) =>
+                              updatePrintConfigField('fontSizeMeta', parseNumber(e.currentTarget.value, 9))
+                            }
                           />
                         </div>
                       </div>
@@ -2340,10 +2415,15 @@ export default function EventDetailPage() {
                             const data = await response.json();
                             const silent = await getSilentPrinterAvailability();
                             if (silent.available) {
-                              const { printBadgeSilently } = await import(
-                                '@/core/application/client-services/totem/print.client'
+                              const { printBadgeSilently } =
+                                await import('@/core/application/client-services/totem/print.client');
+                              await printBadgeSilently(
+                                data.html,
+                                data.copies,
+                                data.printerDpi,
+                                data.paperWidth,
+                                data.paperHeight,
                               );
-                              await printBadgeSilently(data.html, data.copies, data.printerDpi, data.paperWidth, data.paperHeight);
                             } else {
                               const testWindow = window.open('', '_blank');
                               if (testWindow) {
@@ -2435,57 +2515,6 @@ export default function EventDetailPage() {
               </Button>
               <Button type="submit" disabled={isAssigningTotem}>
                 {isAssigningTotem ? t('pages.eventDetail.assigning') : t('pages.eventDetail.assignTotem')}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog
-        open={manualCheckInOpen}
-        onOpenChange={(open) => {
-          setManualCheckInOpen(open);
-          if (!open) {
-            setManualParticipantId('');
-          }
-        }}
-      >
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>{t('pages.eventDetail.manualCheckinTitle')}</DialogTitle>
-            <DialogDescription>{t('pages.eventDetail.manualCheckinDescription')}</DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleManualCheckInSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label>{t('pages.eventDetail.participant')} *</Label>
-              <Select value={manualParticipantId} onValueChange={setManualParticipantId}>
-                <SelectTrigger>
-                  <SelectValue placeholder={t('pages.eventDetail.selectParticipant')} />
-                </SelectTrigger>
-                <SelectContent>
-                  {manualCheckInParticipants.length > 0
-                    ? manualCheckInParticipants.map((participant) => (
-                        <SelectItem key={participant.id} value={participant.id}>
-                          {participant.name} ({participant.email})
-                        </SelectItem>
-                      ))
-                    : null}
-                </SelectContent>
-              </Select>
-              {manualCheckInParticipants.length === 0 ? (
-                <p className="text-muted-foreground text-xs">{t('pages.eventDetail.allHaveCheckin')}</p>
-              ) : null}
-            </div>
-
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setManualCheckInOpen(false)}>
-                {t('pages.eventDetail.cancel')}
-              </Button>
-              <Button
-                type="submit"
-                disabled={isSubmittingManualCheckIn || !manualParticipantId || manualCheckInParticipants.length === 0}
-              >
-                {isSubmittingManualCheckIn ? t('pages.eventDetail.saving') : t('pages.eventDetail.createCheckin')}
               </Button>
             </DialogFooter>
           </form>
@@ -2621,8 +2650,8 @@ export default function EventDetailPage() {
                 {effectiveAccessCodeSource !== 'NONE' &&
                   !(participantUseDocumentAsAccessCode && participantDocument.trim()) && (
                     <p className="text-muted-foreground text-xs">
-                      Gerado automaticamente a partir do {CODE_SOURCE_FIELD_LABELS[effectiveAccessCodeSource]}{' '}
-                      (settings do evento/organização).
+                      Gerado automaticamente a partir do {CODE_SOURCE_FIELD_LABELS[effectiveAccessCodeSource]} (settings
+                      do evento/organização).
                     </p>
                   )}
               </div>
@@ -3072,9 +3101,8 @@ export default function EventDetailPage() {
             }
             const silentAvailability = await getSilentPrinterAvailability();
             if (silentAvailability.available) {
-              await import('@/core/application/client-services/totem/print.client').then(
-                ({ printBadgeSilently }) =>
-                  printBadgeSilently(job.html, job.copies, job.printerDpi, job.paperWidth, job.paperHeight),
+              await import('@/core/application/client-services/totem/print.client').then(({ printBadgeSilently }) =>
+                printBadgeSilently(job.html, job.copies, job.printerDpi, job.paperWidth, job.paperHeight),
               );
             } else {
               window.open(`/api/print/${job.token}`, '_blank');
@@ -3096,6 +3124,20 @@ export default function EventDetailPage() {
         onImportComplete={() => {
           loadParticipants();
         }}
+      />
+
+      <ManualCheckInDialog
+        open={manualCheckInOpen}
+        onOpenChange={setManualCheckInOpen}
+        eventId={eventId}
+        onCompleted={refreshCheckInsAndParticipants}
+      />
+
+      <ImportCheckInsDialog
+        open={importCheckInsOpen}
+        onOpenChange={setImportCheckInsOpen}
+        eventId={eventId}
+        onImportComplete={refreshCheckInsAndParticipants}
       />
 
       {event && (

@@ -32,6 +32,9 @@ export const GET = withAuth(
     const pageSizeRaw = Number(req.nextUrl.searchParams.get('pageSize') ?? '20') || 20;
     const pageSize = Math.min(Math.max(pageSizeRaw, 1), 100);
 
+    // Optional, additive filter used by the manual check-in picker; omitted = previous behaviour.
+    const checkedInParam = req.nextUrl.searchParams.get('checkedIn');
+
     const where = {
       eventId,
       deletedAt: null,
@@ -45,6 +48,8 @@ export const GET = withAuth(
             ],
           }
         : {}),
+      ...(checkedInParam === 'false' ? { checkIns: { none: {} } } : {}),
+      ...(checkedInParam === 'true' ? { checkIns: { some: {} } } : {}),
     };
 
     const [total, participants] = await Promise.all([

@@ -9,6 +9,7 @@ import com.oneid.totem.domain.repository.LabelLayout
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -142,6 +143,32 @@ class BadgeRendererTest {
 
         assertNotNull(bitmap)
         assertEquals(732, bitmap.width)
+    }
+
+    @Test
+    fun `COMPACT hides the QR when showQrCode is off`() = runTest {
+        // showQrCode é a flag do PrintConfig do evento (painel web). Desligada, a etiqueta
+        // tem que sair igualzinha à de um participante sem QR nenhum — não basta o QR
+        // sumir, o espaço reservado pra ele também tem que voltar pro texto.
+        val hidden = renderCompactQr(name = "MARIA OLIVEIRA", showQrCode = false)
+        val noQrValue = renderCompactQr(name = "MARIA OLIVEIRA", qrCodeValue = null)
+        val visible = renderCompactQr(name = "MARIA OLIVEIRA", showQrCode = true)
+
+        assertTrue("etiqueta sem QR por flag deve ser idêntica à sem QR por dado", samePixels(hidden, noQrValue))
+        assertFalse("desligar a flag tem que mudar a etiqueta", samePixels(hidden, visible))
+    }
+
+    // Nota: o Robolectric não rasteriza canvas.drawText (só drawRect), então nenhum teste
+    // aqui consegue afirmar onde o texto foi parar — só a presença/ausência do QR. A
+    // reflow do texto pra esquerda quando o QR some tem que ser conferida no preview.
+    @Test
+    fun `MINIMAL_QR hides the QR when showQrCode is off`() = runTest {
+        val hidden = renderMinimalQr(qrCodeValue = "TOKEN-123", showQrCode = false)
+        val noQrValue = renderMinimalQr(qrCodeValue = null)
+        val visible = renderMinimalQr(qrCodeValue = "TOKEN-123")
+
+        assertTrue("etiqueta sem QR por flag deve ser idêntica à sem QR por dado", samePixels(hidden, noQrValue))
+        assertFalse("desligar a flag tem que mudar a etiqueta", samePixels(hidden, visible))
     }
 
     @Test
@@ -342,12 +369,14 @@ class BadgeRendererTest {
         name: String,
         company: String? = "EMPRESA EXEMPLO DE TECNOLOGIA E SERVIÇOS LTDA",
         jobTitle: String? = "DIRETORA DE MARKETING E VENDAS",
-        qrCodeValue: String = "TOKEN-123",
+        qrCodeValue: String? = "TOKEN-123",
+        showQrCode: Boolean = true,
     ): Bitmap = textRenderer.renderFromData(
         name = name,
         company = company,
         jobTitle = jobTitle,
         qrCodeValue = qrCodeValue,
+        showQrCode = showQrCode,
         accessCode = null,
         paperWidthMm = 62.0,
         paperHeightMm = 50.0,
@@ -411,21 +440,33 @@ class BadgeRendererTest {
     }
 
     private suspend fun renderMinimalQr(
-        qrCodeValue: String,
+        qrCodeValue: String?,
         name: String = "MARIA EDUARDA SILVA SANTOS DE OLIVEIRA",
         company: String? = "EMPRESA EXEMPLO DE TECNOLOGIA E SERVIÇOS LTDA",
         jobTitle: String? = "DIRETORA DE MARKETING E VENDAS",
+        showQrCode: Boolean = true,
     ): Bitmap = renderer.renderFromData(
         name = name,
         company = company,
         jobTitle = jobTitle,
         qrCodeValue = qrCodeValue,
+        showQrCode = showQrCode,
         accessCode = null,
         paperWidthMm = 62.0,
         paperHeightMm = 50.0,
         dpi = 300,
         labelLayout = LabelLayout.MINIMAL_QR,
     )
+
+    private fun samePixels(a: Bitmap, b: Bitmap): Boolean {
+        if (a.width != b.width || a.height != b.height) return false
+        for (y in 0 until a.height) {
+            for (x in 0 until a.width) {
+                if (a.getPixel(x, y) != b.getPixel(x, y)) return false
+            }
+        }
+        return true
+    }
 
     private fun blackBounds(bitmap: Bitmap): IntArray {
         var top = Int.MAX_VALUE
