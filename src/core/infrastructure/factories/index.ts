@@ -249,3 +249,10 @@ export {
   makeMarkAllNotificationsAsReadUseCase,
   makeMarkNotificationAsReadUseCase,
 } from './make-notification.factory';
+
+// Sympla
+export {
+  makeConnectSymplaUseCase,
+  makeDisconnectSymplaUseCase,
+  makeGetSymplaConnectionStatusUseCase,
+} from './make-sympla.factory';

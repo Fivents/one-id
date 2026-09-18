@@ -236,3 +236,10 @@ export {
   makeGetPrintConfigController,
   makeUpdatePrintConfigController,
 } from './make-print-config-controllers.factory';
+
+// Sympla
+export {
+  makeConnectSymplaController,
+  makeDisconnectSymplaController,
+  makeGetSymplaConnectionStatusController,
+} from './make-sympla-controllers.factory';

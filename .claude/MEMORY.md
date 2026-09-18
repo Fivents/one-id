@@ -273,3 +273,53 @@ Match Participant → Check-in Record
   </div>
 </div>
 ```
+
+## 🔌 Integração Sympla — Decisões de Arquitetura (P0, 2026-09-18)
+
+### Escopo entregue (P0 — Fundação)
+
+Conexão por organização, cliente HTTP, fila de jobs e tooling de testes. A ingestão de
+participantes (P1) e o espelhamento de check-in (P2) ainda não existem.
+
+### Decisões
+
+- **`EventParticipant` é o ingresso.** Não haverá tabela `Ticket`. `Person` vira identidade
+  opcional por cima do slot. A compra em lote (1 pedido → N ingressos repetindo e-mail/CPF do
+  comprador) é o motivo: o modelo atual proíbe isso via `Person @@unique([email, organizationId])`,
+  `@@unique([document, organizationId])` e `EventParticipant @@unique([personId, eventId])`.
+- **O desacoplamento `Person`↔`EventParticipant` é fase própria (P1a)**, a ser mergeada e
+  verificada antes da ingestão. Raio de impacto: ~44 arquivos tocam `personId`, e o
+  `INNER JOIN event_participants ON person_id` do `postgres-vector-db.repository.ts` passa a
+  poder devolver N linhas por face.
+- **Fila no Postgres, não worker.** `BackgroundJob` + claim com `FOR UPDATE SKIP LOCKED`,
+  drenada por `POST/GET /api/cron` (Vercel Cron, 1/min). Escolhido por ser serverless-safe e
+  não exigir infra nova.
+- **Token cifrado com AES-256-GCM** (`SecretCipherService`), mesmo envelope do
+  `EmbeddingEncryptionService`, mas com chave própria (`SYMPLA_TOKEN_KEY`) — rotacionar a chave
+  de token nunca toca biometria.
+- **`SymplaConnectionEntity.toJSON()` omite o token de propósito.** Controllers retornam
+  `entity.toJSON()` verbatim, então manter o segredo fora do `toJSON()` é a única garantia
+  confiável de que ele não vaza numa resposta HTTP.
+- **Env vars são opcionais no schema** (`SYMPLA_TOKEN_KEY`, `CRON_SECRET`): `validateEnv()` faz
+  `process.exit(1)`, então torná-las obrigatórias quebraria todo deploy que ainda não adotou a
+  integração. A ausência vira `SymplaNotConfiguredError` no momento do uso.
+
+### Armadilha registrada
+
+`resolveDerivedCode` (`src/core/utils/derived-code.ts`) dá prioridade à política da org/evento
+**sobre** o valor explícito. No caminho Sympla o QR precisa ser passado com
+`sourceField: 'NONE'` — caso contrário uma org com `qrCodeSource=DOCUMENT` sobrescreve o
+`ticket_num_qr_code`, quebrando a compatibilidade com os leitores da Sympla.
+
+### Estado do repositório descoberto no caminho
+
+- Não há `Either`/`Result` no backend: use-cases **lançam** `AppError` tipado.
+- i18n é custom (`useI18n`, `src/i18n/translations.ts`), **não next-intl**, com 5 locales
+  (`pt en fr es zh`) e paridade garantida pelo type `TranslationSchema`.
+- `pnpm typecheck` (novo) passava com **zero** erros no baseline — o gate é zero.
+- `pnpm lint` **já falhava antes** desta integração, em arquivos pré-existentes
+  (`label-print-confirmation-modal.tsx`, `face-embedding.client.ts`, `(saas)/layout.tsx` e outros).
+- O union `AuditAction` do domínio estava dessincronizado do enum Prisma (faltavam
+  `EVENT_AUTO_LINK_BACKFILL` e `PEOPLE_CODE_RECALCULATED`) — ressincronizado.
+- O banco Neon tem uma migration ausente do repositório:
+  `20260526233827_add_email_settings_and_logs`.

@@ -42,12 +42,19 @@ export type {
 export type { CreatePlanFeatureData, IPlanFeatureRepository } from './plan-feature.repository';
 export type { CreatePrintConfigData, IPrintConfigRepository, UpdatePrintConfigData } from './print-config.repository';
 export type { IPrintJobRepository, UpdatePrintJobData } from './print-job.repository';
+export type { EncryptedSecret, ISecretCipher } from './secret-cipher.service';
+export { isEncryptedSecret } from './secret-cipher.service';
 export type { CreateSessionData, CreateTotemSessionData, ISessionRepository } from './session.repository';
 export type {
   CreateSubscriptionData,
   ISubscriptionRepository,
   UpdateSubscriptionData,
 } from './subscription.repository';
+export type {
+  ISymplaConnectionRepository,
+  RecordSyncOutcomeData,
+  UpsertSymplaConnectionData,
+} from './sympla-connection.repository';
 export type {
   ITemplateAggregationService,
   TemplateData,

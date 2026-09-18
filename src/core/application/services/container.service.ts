@@ -7,6 +7,8 @@ import type {
   IEmbeddingEncryptionService,
   IFaceQualityService,
   IMultiTenantAuditService,
+  ISecretCipher,
+  ISymplaConnectionRepository,
   ITemplateAggregationService,
 } from '@/core/domain/contracts';
 import { env } from '@/core/infrastructure/environment/env';
@@ -15,6 +17,7 @@ import { BcryptPasswordHasher } from '@/core/infrastructure/providers/bcrypt-pas
 import { EmbeddingEncryptionService } from '@/core/infrastructure/providers/embedding-encryption.service';
 import { GoogleOAuthProvider } from '@/core/infrastructure/providers/google-oauth.provider';
 import { JoseTokenProvider } from '@/core/infrastructure/providers/jose-token-provider';
+import { SecretCipherService } from '@/core/infrastructure/providers/secret-cipher.service';
 import { PrismaAuditLogRepository } from '@/core/infrastructure/repositories/prisma-audit-log.repository';
 import { PrismaAuthIdentityRepository } from '@/core/infrastructure/repositories/prisma-auth-identity.repository';
 import { PrismaCheckInRepository } from '@/core/infrastructure/repositories/prisma-check-in.repository';
@@ -33,6 +36,7 @@ import { PrismaPlanFeatureRepository } from '@/core/infrastructure/repositories/
 import { PrismaPrintConfigRepository } from '@/core/infrastructure/repositories/prisma-print-config.repository';
 import { PrismaSessionRepository } from '@/core/infrastructure/repositories/prisma-session.repository';
 import { PrismaSubscriptionRepository } from '@/core/infrastructure/repositories/prisma-subscription.repository';
+import { PrismaSymplaConnectionRepository } from '@/core/infrastructure/repositories/prisma-sympla-connection.repository';
 import { PrismaTotemRepository } from '@/core/infrastructure/repositories/prisma-totem.repository';
 import { PrismaTotemEventSubscriptionRepository } from '@/core/infrastructure/repositories/prisma-totem-event-subscription.repository';
 import { PrismaTotemOrganizationSubscriptionRepository } from '@/core/infrastructure/repositories/prisma-totem-organization-subscription.repository';
@@ -44,6 +48,7 @@ import { ConfidenceThresholdService } from './confidence-threshold.service';
 import { CooldownService } from './cooldown.service';
 import { FaceQualityService } from './face-quality.service';
 import { MultiTenantAuditService } from './multi-tenant-audit.service';
+import { SymplaClientProvider } from './sympla-client.provider';
 import { TemplateAggregationService } from './template-aggregation.service';
 
 /**
@@ -90,6 +95,10 @@ class ContainerService {
   private checkInMetricsService: ICheckInMetricsService | null = null;
   // FASE 5: Security - Embedding Encryption
   private embeddingEncryptionService: IEmbeddingEncryptionService | null = null;
+  // Third-party credentials at rest (Sympla token)
+  private secretCipher: ISecretCipher | null = null;
+  private symplaConnectionRepository: ISymplaConnectionRepository | null = null;
+  private symplaClientProvider: SymplaClientProvider | null = null;
   // FASE 5: Compliance - Multi-Tenant Audit
   private multiTenantAuditService: IMultiTenantAuditService | null = null;
 
@@ -326,6 +335,30 @@ class ContainerService {
       this.embeddingEncryptionService = new EmbeddingEncryptionService();
     }
     return this.embeddingEncryptionService;
+  }
+
+  getSecretCipher(): ISecretCipher {
+    if (!this.secretCipher) {
+      this.secretCipher = new SecretCipherService(env.SYMPLA_TOKEN_KEY);
+    }
+    return this.secretCipher;
+  }
+
+  getSymplaConnectionRepository(): ISymplaConnectionRepository {
+    if (!this.symplaConnectionRepository) {
+      this.symplaConnectionRepository = new PrismaSymplaConnectionRepository(this.prismaClient);
+    }
+    return this.symplaConnectionRepository;
+  }
+
+  getSymplaClientProvider(): SymplaClientProvider {
+    if (!this.symplaClientProvider) {
+      this.symplaClientProvider = new SymplaClientProvider(
+        this.getSymplaConnectionRepository(),
+        this.getSecretCipher(),
+      );
+    }
+    return this.symplaClientProvider;
   }
 
   getMultiTenantAuditService(): IMultiTenantAuditService {

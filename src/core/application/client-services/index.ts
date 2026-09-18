@@ -24,6 +24,12 @@ export { peopleClient } from './people-client.service';
 export { type PlanResponse, plansClient } from './plans-client.service';
 export { type SubscriptionResponse, subscriptionsClient } from './subscriptions-client.service';
 export {
+  symplaClient,
+  type SymplaConnectionStatusResponse,
+  type SymplaSyncError,
+  type SymplaSyncResult,
+} from './sympla-client.service';
+export {
   clearTotemToken,
   getEventAIConfig,
   getTotemSession,

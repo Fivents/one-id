@@ -96,6 +96,20 @@ enum PrintJobStatus {
   CANCELLED
 }
 
+enum SymplaSyncStatus {
+  IDLE
+  SYNCING
+  COMPLETED
+  FAILED
+}
+
+enum BackgroundJobStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
 enum AuditAction {
   CHECK_IN
   CHECK_IN_APPROVED
@@ -143,6 +157,15 @@ enum AuditAction {
   SUBSCRIPTION_DELETED
   EVENT_AUTO_LINK_BACKFILL
   PEOPLE_CODE_RECALCULATED
+  SYMPLA_CONNECTION_CREATED
+  SYMPLA_CONNECTION_REMOVED
+  SYMPLA_EVENT_LINKED
+  SYMPLA_EVENT_UNLINKED
+  SYMPLA_SYNC_STARTED
+  SYMPLA_SYNC_COMPLETED
+  SYMPLA_SYNC_FAILED
+  SYMPLA_CHECKIN_MIRRORED
+  SYMPLA_CHECKIN_RECONCILED
 }
 
 enum CodeSourceField {
@@ -182,6 +205,7 @@ model Organization {
   auditLogs                      AuditLog[]
   planChangeRequests             PlanChangeRequest[]
   peopleSettings                 OrganizationPeopleSettings?
+  symplaConnection               SymplaConnection?
 
   @@map("organizations")
 }
@@ -888,4 +912,65 @@ model CheckInMetrics {
   @@index([organizationId])
   @@index([hour])
   @@map("check_in_metrics")
+}
+
+
+// ── Sympla Integration ─────────────────────────────────────────────
+
+model SymplaConnection {
+  id String @id @default(uuid())
+
+  organizationId String @unique @map("organization_id")
+
+  // AES-256-GCM envelope: { version, iv, ciphertext, authTag }. Never returned by the API.
+  tokenEncrypted Json @map("token_encrypted")
+
+  isActive Boolean @default(true) @map("is_active")
+
+  lastSyncAt     DateTime?        @map("last_sync_at")
+  lastSyncStatus SymplaSyncStatus @default(IDLE) @map("last_sync_status")
+  lastSyncResult Json?            @map("last_sync_result")
+
+  // Drives the "reconnect your Sympla account" nudge once the token starts failing.
+  consecutiveFailures Int @default(0) @map("consecutive_failures")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("sympla_connections")
+}
+
+// ── Background Jobs ────────────────────────────────────────────────
+
+model BackgroundJob {
+  id String @id @default(uuid())
+
+  kind String
+
+  // Collapses duplicate work (one sync per org, one mirror per check-in).
+  dedupeKey String? @unique @map("dedupe_key")
+
+  payload Json
+  status  BackgroundJobStatus @default(PENDING)
+
+  attempts    Int @default(0)
+  maxAttempts Int @default(5) @map("max_attempts")
+
+  runAt    DateTime  @default(now()) @map("run_at")
+  lockedAt DateTime? @map("locked_at")
+
+  lastError String? @map("last_error")
+
+  organizationId String? @map("organization_id")
+
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  completedAt DateTime? @map("completed_at")
+
+  @@index([status, runAt])
+  @@index([organizationId])
+  @@index([kind])
+  @@map("background_jobs")
 }

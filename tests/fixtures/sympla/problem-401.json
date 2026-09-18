@@ -1,0 +1,7 @@
+{
+  "type": "https://developers.sympla.com.br/errors/unauthorized",
+  "title": "Unauthorized",
+  "status": 401,
+  "detail": "Invalid or revoked s_token.",
+  "instance": "/public/v1.6.0/events"
+}

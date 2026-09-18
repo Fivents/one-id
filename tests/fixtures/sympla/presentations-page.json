@@ -1,0 +1,22 @@
+{
+  "data": [
+    {
+      "id": 9001,
+      "event_id": "a1b2c3d4e5f6",
+      "start_date": "2026-10-15 09:00:00",
+      "end_date": "2026-10-15 18:00:00",
+      "start_date_utc": "2026-10-15T12:00:00Z",
+      "end_date_utc": "2026-10-15T21:00:00Z",
+      "published": true,
+      "closed": false,
+      "enabled": true,
+      "private_presentation": false,
+      "presentation_url": null,
+      "sectors": [
+        { "id": 501, "name": "Pista", "has_online_sale_available": true },
+        { "id": 502, "name": "Camarote VIP", "has_online_sale_available": false }
+      ]
+    }
+  ],
+  "pagination": { "has_next": false, "quantity": 1, "next_cursor": null }
+}
