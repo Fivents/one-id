@@ -830,7 +830,7 @@ export default function OrganizationPeoplePage() {
 
       const people = response.data || [];
       const orgName = activeOrganization?.name || 'pessoas';
-      excelPeople.exportToExcel(people as any, orgName);
+      excelPeople.exportToExcel(people, orgName);
       toast.success('Planilha exportada com sucesso.');
     } catch {
       toast.error('Erro ao exportar pessoas.');

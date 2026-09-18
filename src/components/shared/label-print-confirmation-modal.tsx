@@ -46,13 +46,17 @@ export function LabelPrintConfirmationModal({
 }: LabelPrintConfirmationModalProps) {
   const [secondsLeft, setSecondsLeft] = useState(timeoutSeconds);
 
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
+  // Resetting the countdown during render is React's documented way to adjust state when a
+  // prop changes — an effect would cost an extra render pass and fire after the first tick.
+  const countdownKey = `${open}:${timeoutSeconds}`;
+  const [lastCountdownKey, setLastCountdownKey] = useState(countdownKey);
 
-    setSecondsLeft(timeoutSeconds);
-  }, [open, timeoutSeconds]);
+  if (countdownKey !== lastCountdownKey) {
+    setLastCountdownKey(countdownKey);
+    if (open) {
+      setSecondsLeft(timeoutSeconds);
+    }
+  }
 
   useEffect(() => {
     if (!open || isPrinting) {

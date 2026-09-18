@@ -1,4 +1,5 @@
 import type { CreatePersonRequest, UpdatePersonRequest } from '@/core/communication/requests/person';
+import type { ExcelPersonExportRow } from '@/core/utils/excel-people';
 
 import type { ApiResponse } from './base/api-response';
 import { BaseClient } from './base/base-client';
@@ -107,7 +108,7 @@ class PeopleClientService extends BaseClient {
     return this.delete(`/people/${encodeURIComponent(personId)}/events/${encodeURIComponent(eventId)}`);
   }
 
-  async exportPeople(organizationId: string): Promise<ApiResponse<Record<string, unknown>[]>> {
+  async exportPeople(organizationId: string): Promise<ApiResponse<ExcelPersonExportRow[]>> {
     return this.get(`/people/export?organizationId=${encodeURIComponent(organizationId)}`);
   }
 

@@ -1,3 +1,4 @@
+import type { FaceDetector as MediaPipeFaceDetector } from '@mediapipe/tasks-vision';
 import type * as OrtType from 'onnxruntime-web';
 
 let ort: typeof import('onnxruntime-web') | null = null;
@@ -39,8 +40,9 @@ const LAPLACIAN_HIGH_VARIANCE = 900;
 
 let faceDetectorPromise: Promise<FaceDetector> | null = null;
 let preloadedMediaPipeModelBuffer: Uint8Array | null = null;
-// FaceDetector type will be referenced dynamically; declare any to satisfy TS at module scope
-type FaceDetector = any;
+// The module itself is imported dynamically (it must not land in the SSR bundle), but the type
+// is erased at compile time, so importing it costs nothing at runtime.
+type FaceDetector = MediaPipeFaceDetector;
 
 type TensorLayout = 'NCHW' | 'NHWC';
 type SessionWithInputMetadata = OrtType.InferenceSession & {
@@ -222,11 +224,13 @@ async function extractArcFaceEmbedding(bitmap: ImageBitmap): Promise<number[]> {
     }
   }
 
-  if (!result || !ArrayBuffer.isView((result as any).data)) {
+  const outputTensor = result as OrtType.Tensor | undefined;
+
+  if (!outputTensor || !ArrayBuffer.isView(outputTensor.data)) {
     throw new Error('ArcFace model returned invalid output tensor.');
   }
 
-  const values = Array.from(result.data as ArrayLike<number>);
+  const values = Array.from(outputTensor.data as ArrayLike<number>);
   if (values.length === 0) {
     throw new Error('ArcFace output produced an empty embedding vector.');
   }

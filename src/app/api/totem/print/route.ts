@@ -2,12 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { z } from 'zod/v4';
 
-import { PrismaPrintJobRepository } from '@/core/infrastructure/repositories/prisma-print-job.repository';
-import { PrismaPrintConfigRepository } from '@/core/infrastructure/repositories/prisma-print-config.repository';
+import { PrintJobService } from '@/core/application/services/print-job.service';
 import { withAuth, withTotemAuth, withTotemRoutingGuard } from '@/core/infrastructure/http/middlewares';
 import { getTotemAuth } from '@/core/infrastructure/http/types';
 import { prisma } from '@/core/infrastructure/prisma-client';
-import { PrintJobService } from '@/core/application/services/print-job.service';
+import { PrismaPrintConfigRepository } from '@/core/infrastructure/repositories/prisma-print-config.repository';
+import { PrismaPrintJobRepository } from '@/core/infrastructure/repositories/prisma-print-job.repository';
 
 import { resolveActiveTotemEventContextByTotemId } from '../_lib/active-totem-context';
 

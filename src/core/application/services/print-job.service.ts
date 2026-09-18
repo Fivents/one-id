@@ -1,13 +1,12 @@
-import crypto from 'node:crypto';
-
 import * as jose from 'jose';
+import crypto from 'node:crypto';
 
 import type { IPrintJobRepository } from '@/core/domain/contracts/print-job.repository';
 import type { PrintConfigEntity } from '@/core/domain/entities';
 import type { CreatePrintJobData, PrintJobEntity } from '@/core/domain/entities/print-job.entity';
 import { env } from '@/core/infrastructure/environment/env';
 
-import { LabelGeneratorService, type LabelConfig, type LabelData } from './label-generator.service';
+import { type LabelConfig, type LabelData,LabelGeneratorService } from './label-generator.service';
 
 export interface PrintJobResult {
   job: PrintJobEntity;
