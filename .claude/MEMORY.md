@@ -323,3 +323,46 @@ participantes (P1) e o espelhamento de check-in (P2) ainda não existem.
   `EVENT_AUTO_LINK_BACKFILL` e `PEOPLE_CODE_RECALCULATED`) — ressincronizado.
 - O banco Neon tem uma migration ausente do repositório:
   `20260526233827_add_email_settings_and_logs`.
+
+## 👤 P1a — Person desacoplado de EventParticipant (2026-09-22)
+
+`EventParticipant` passou a ser **o ingresso**: um slot de participação autônomo.
+`Person` virou identidade **opcional** por cima dele.
+
+### O que mudou no banco (migration aplicada, 3772 participantes backfillados)
+
+- `people.email` nullable e **sem unique**; `people.document` **sem unique**. Índices simples
+  (`organization_id, email` / `organization_id, document`) substituem os únicos.
+- `event_participants.person_id` nullable; `@@unique([personId, eventId])` removido.
+- `event_participants` ganhou snapshot próprio: `attendee_full_name`, `attendee_email`,
+  `attendee_document`, `attendee_document_type`.
+
+### Regra de identidade (`src/core/utils/participant-identity.ts`)
+
+**Person vence quando está vinculada**; o snapshot é o fallback e o registro durável do que o
+ingresso declarou. Isso preserva o comportamento atual (editar uma Person continua refletindo
+nos participantes) e fica correto para a Sympla, porque a política de ingestão do P1b só vincula
+um slot a uma Person quando ela de fato é o participante.
+
+**Todo caminho de criação escreve o snapshot** (`buildAttendeeSnapshot`): POST manual, import
+XLSX do evento, import de pessoas da org, auto-link, vínculo pessoa→evento, backfill e
+self-register do totem. Um slot que não sabe dizer quem é seu participante sem um join não é
+autônomo, e snapshots pela metade fariam features de identidade funcionarem para um tipo de
+participante e silenciosamente pularem o outro.
+
+### Dois bugs encontrados no caminho
+
+1. `findParticipantByCredential` (totem) filtrava por `person: { deletedAt: null }`. Filtro de
+   relação to-one **exclui linhas cuja relação é nula** — todo ingresso sem identidade ficaria
+   impossível de creditar. Agora aceita as duas formas, combinado com `AND` (os dois são `OR`;
+   espalhar um sobre o outro descartava silenciosamente o primeiro).
+2. O import XLSX gravava `email: ''` para contatos sem e-mail. Sob o unique antigo, só **uma**
+   pessoa por organização podia ter `''` — importar a segunda colidia. Agora grava `null`.
+
+### Ainda pendente (P1c)
+
+A busca vetorial (`postgres-vector-db.repository.ts`) faz
+`INNER JOIN event_participants ep ON ep.person_id = p.id` e particiona por `p.id`. Com N
+ingressos por Person no mesmo evento, o `ROW_NUMBER` escolhe **um slot arbitrário**. Nenhum dado
+tem N ainda, mas isso precisa da regra de desambiguação do P1c antes da ingestão Sympla entrar
+em produção.
