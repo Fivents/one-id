@@ -366,3 +366,45 @@ A busca vetorial (`postgres-vector-db.repository.ts`) faz
 ingressos por Person no mesmo evento, o `ROW_NUMBER` escolhe **um slot arbitrário**. Nenhum dado
 tem N ainda, mas isso precisa da regra de desambiguação do P1c antes da ingestão Sympla entrar
 em produção.
+
+## 🎟️ P1b — Catálogo Sympla e ingestão de ingressos (2026-09-22)
+
+Ingressos vendidos na Sympla viram slots de participação no ONE-ID, com tipo, setor, lugar,
+pedido e as respostas do formulário de compra.
+
+### Modelos novos
+
+`SymplaEventLink`, `Presentation`, `Sector`, `TicketType`, `SymplaOrder`. `Event.symplaLinked`
+é denormalizado para a UI e listagens não precisarem de join. `EventParticipant` ganhou o
+ingresso em si + `customFields` + **`@@unique([eventId, ticketNumber])`** como âncora de
+idempotência (NULLs distintos no Postgres — validado contra os 3773 participantes existentes).
+
+### Decisões que evitam dano silencioso
+
+1. **Credenciais só na criação.** O `update` do sync não toca `accessCode`/`qrCodeValue`.
+   Rederivar a cada sync rotacionaria o código de um ingresso cujo crachá já foi impresso e cujo
+   QR já está na carteira do participante.
+2. **O QR da Sympla entra como valor explícito `MANUAL` com `sourceField: 'NONE'`.**
+   `resolveDerivedCode` dá prioridade à política da org sobre o valor explícito — uma org com
+   `qrCodeSource=DOCUMENT` sobrescreveria o `ticket_num_qr_code` e quebraria os leitores da
+   própria Sympla.
+3. **Datas:** toda requisição fixa `timezone=UTC`, então timestamp ingênuo é UTC por construção.
+   Sem aritmética de fuso IANA na entrada. Formatos com offset explícito continuam respeitados.
+4. **Status do evento não é forçado.** Cancelamento na Sympla vira `cancelledOnSympla` + aviso na
+   UI; dirigir a máquina de status do ONE-ID daqui poderia jogar um evento para um estado final
+   e deixar os totems órfãos.
+
+### Agendamento sem estado novo
+
+O job é enfileirado sob `dedupeKey` por evento com um `runAt`, e a chave só é liberada quando o
+job encerra — então **o atraso escolhido É o intervalo**. Evento dentro da janela de ±7 dias
+sincroniza a cada tick do cron; os demais a cada 15 min.
+
+### Política de identidade na ingestão
+
+Reusa uma `Person` só quando **e-mail E nome** batem. E-mail repetido sob outro nome gera
+identidade própria — senão o totem saudaria três pessoas com o nome do comprador. Ingresso sem
+nome nenhum fica como slot puro, sem criar `Person` anônima poluindo a base de contatos.
+
+Erros são por ingresso, registrados em `lastSyncResult`; uma linha malformada não aborta as
+outras milhares nem dispara o alerta de reconexão.
