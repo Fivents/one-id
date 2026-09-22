@@ -28,6 +28,7 @@ export interface EventProps {
   labelPrintPromptTimeoutSeconds: number;
   // Explicit badge-printing switch, independent of whether a PrintConfig is linked.
   printEnabled: boolean;
+  symplaLinked: boolean;
   startsAt: Date;
   endsAt: Date;
   organizationId: string;
@@ -149,6 +150,10 @@ export class EventEntity extends BaseEntity {
     return this.props.printEnabled;
   }
 
+  get symplaLinked(): boolean {
+    return this.props.symplaLinked;
+  }
+
   get startsAt(): Date {
     return this.props.startsAt;
   }
@@ -249,6 +254,7 @@ export class EventEntity extends BaseEntity {
       labelPrintPromptEnabled: this.props.labelPrintPromptEnabled,
       labelPrintPromptTimeoutSeconds: this.props.labelPrintPromptTimeoutSeconds,
       printEnabled: this.props.printEnabled,
+      symplaLinked: this.props.symplaLinked,
       startsAt: this.props.startsAt,
       endsAt: this.props.endsAt,
       organizationId: this.props.organizationId,

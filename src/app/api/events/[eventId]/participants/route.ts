@@ -96,6 +96,31 @@ export const GET = withAuth(
 
     const totalPages = Math.max(Math.ceil(total / pageSize), 1);
 
+    // Duplicate detection runs across the whole event, not the current page — a bulk order
+    // routinely straddles a page boundary, and a per-page check would miss exactly the case
+    // the badge exists for.
+    const [duplicateDocuments, duplicateEmails] = await Promise.all([
+      prisma.eventParticipant.groupBy({
+        by: ['attendeeDocument'],
+        where: { eventId, deletedAt: null, attendeeDocument: { not: null } },
+        _count: { _all: true },
+        having: { attendeeDocument: { _count: { gt: 1 } } },
+      }),
+      prisma.eventParticipant.groupBy({
+        by: ['attendeeEmail'],
+        where: { eventId, deletedAt: null, attendeeEmail: { not: null } },
+        _count: { _all: true },
+        having: { attendeeEmail: { _count: { gt: 1 } } },
+      }),
+    ]);
+
+    const duplicateDocumentSet = new Set(
+      duplicateDocuments.map((row) => row.attendeeDocument).filter((value): value is string => value !== null),
+    );
+    const duplicateEmailSet = new Set(
+      duplicateEmails.map((row) => row.attendeeEmail).filter((value): value is string => value !== null),
+    );
+
     const result = participants.map((participant) => ({
       id: participant.id,
       personId: participant.personId,
@@ -113,6 +138,16 @@ export const GET = withAuth(
       lastCheckInId: participant.checkIns[0]?.id ?? null,
       faceId: participant.person?.faces[0]?.id ?? null,
       faceImageUrl: participant.person?.faces[0]?.imageUrl ?? null,
+      ticketNumber: participant.ticketNumber,
+      ticketName: participant.ticketName,
+      ticketStatus: participant.ticketStatus,
+      sectorName: participant.sectorName,
+      seatLabel: participant.seatLabel,
+      symplaCheckedIn: participant.symplaCheckedIn,
+      customFields: participant.customFields ?? [],
+      duplicateDocument:
+        participant.attendeeDocument !== null && duplicateDocumentSet.has(participant.attendeeDocument),
+      duplicateEmail: participant.attendeeEmail !== null && duplicateEmailSet.has(participant.attendeeEmail),
     }));
 
     return NextResponse.json({ items: result, page, pageSize, total, totalPages }, { status: 200 });

@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { createHash, timingSafeEqual } from 'node:crypto';
 
+import { containerService } from '@/core/application/services/container.service';
 import { env } from '@/core/infrastructure/environment/env';
 import { drainJobs, JobQueue } from '@/core/infrastructure/jobs';
 import { prisma } from '@/core/infrastructure/prisma-client';
@@ -59,9 +60,13 @@ async function handle(req: NextRequest): Promise<NextResponse> {
   const startedAt = Date.now();
 
   try {
+    // Enqueue before draining so a due sync runs in this same tick rather than the next one.
+    // Per-event dedupe keys make this safe to call every minute.
+    const scheduled = await containerService.getSymplaSchedulerService().enqueueDueSyncs();
+
     const result = await drainJobs({ queue: new JobQueue(prisma), budgetMs: DRAIN_BUDGET_MS });
 
-    return NextResponse.json({ ...result, durationMs: Date.now() - startedAt }, { status: 200 });
+    return NextResponse.json({ ...result, scheduled, durationMs: Date.now() - startedAt }, { status: 200 });
   } catch (error) {
     Logger.error('Job drain failed', { error: error instanceof Error ? error.message : String(error) });
 

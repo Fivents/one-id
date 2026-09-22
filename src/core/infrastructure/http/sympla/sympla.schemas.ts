@@ -195,6 +195,7 @@ export function symplaPageSchema<T extends z.ZodTypeAny>(item: T) {
   });
 }
 
+export type SymplaAddress = z.infer<typeof symplaAddressSchema>;
 export type SymplaEvent = z.infer<typeof symplaEventSchema>;
 export type SymplaPresentation = z.infer<typeof symplaPresentationSchema>;
 export type SymplaSector = z.infer<typeof symplaSectorSchema>;

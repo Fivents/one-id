@@ -25,6 +25,17 @@ export interface EventParticipantDetailResponse {
   lastCheckInId: string | null;
   faceId: string | null;
   faceImageUrl: string | null;
+  // ── Ticket (present only on Sympla-linked events) ──
+  ticketNumber: string | null;
+  ticketName: string | null;
+  ticketStatus: string | null;
+  sectorName: string | null;
+  seatLabel: string | null;
+  symplaCheckedIn: boolean | null;
+  customFields: Array<{ name: string; value: string }>;
+  /** Another slot in this event shares this document / e-mail — likely one bulk purchase. */
+  duplicateDocument: boolean;
+  duplicateEmail: boolean;
 }
 
 export interface PaginatedEventParticipantsResponse {

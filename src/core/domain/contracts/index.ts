@@ -56,6 +56,10 @@ export type {
   UpsertSymplaConnectionData,
 } from './sympla-connection.repository';
 export type {
+  CreateSymplaEventLinkData,
+  ISymplaEventLinkRepository,
+} from './sympla-event-link.repository';
+export type {
   ITemplateAggregationService,
   TemplateData,
   TemplatePosition,

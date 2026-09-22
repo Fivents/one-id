@@ -26,6 +26,8 @@ export { type SubscriptionResponse, subscriptionsClient } from './subscriptions-
 export {
   symplaClient,
   type SymplaConnectionStatusResponse,
+  type SymplaEventLinkResponse,
+  type SymplaEventOptionResponse,
   type SymplaSyncError,
   type SymplaSyncResult,
 } from './sympla-client.service';

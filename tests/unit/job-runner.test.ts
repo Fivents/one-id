@@ -101,7 +101,9 @@ describe('drainJobs', () => {
   });
 
   it('fails a job whose kind has no handler instead of retrying it forever', async () => {
-    const queue = makeQueue([[makeJob({ kind: 'sympla.sync.event' })]]);
+    // A kind that is deliberately never registered, so adding real handlers cannot make this
+    // test silently stop testing anything.
+    const queue = makeQueue([[makeJob({ kind: 'sympla.kind.that.does.not.exist' })]]);
     const result = await drainJobs({ queue });
 
     expect(result).toMatchObject({ failed: 1, completed: 0, retrying: 0 });

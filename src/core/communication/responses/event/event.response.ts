@@ -22,6 +22,7 @@ export interface EventResponse {
   labelPrintPromptEnabled: boolean;
   labelPrintPromptTimeoutSeconds: number;
   printEnabled: boolean;
+  symplaLinked: boolean;
   startsAt: Date;
   endsAt: Date;
   organizationId: string;

@@ -255,4 +255,7 @@ export {
   makeConnectSymplaUseCase,
   makeDisconnectSymplaUseCase,
   makeGetSymplaConnectionStatusUseCase,
+  makeLinkEventToSymplaUseCase,
+  makeListSymplaEventsUseCase,
+  makeUnlinkEventFromSymplaUseCase,
 } from './make-sympla.factory';

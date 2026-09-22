@@ -9,3 +9,13 @@ export const connectSymplaRequestSchema = z.object({
 });
 
 export type ConnectSymplaRequest = z.infer<typeof connectSymplaRequestSchema>;
+
+export const linkEventToSymplaRequestSchema = z.object({
+  symplaEventIdHash: z
+    .string()
+    .trim()
+    .min(1, 'Selecione um evento da Sympla.')
+    .max(200, 'Identificador de evento inválido.'),
+});
+
+export type LinkEventToSymplaRequest = z.infer<typeof linkEventToSymplaRequestSchema>;

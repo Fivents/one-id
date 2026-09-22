@@ -36,6 +36,7 @@ import {
 } from '@/components/organizations/events';
 import { EventPeopleSettingsDialog } from '@/components/organizations/events/event-people-settings-dialog';
 import { ImportEventParticipantsDialog } from '@/components/organizations/events/import-event-participants-dialog';
+import { SymplaLinkCard } from '@/components/organizations/events/sympla-link-card';
 import { useConfirm } from '@/components/shared/confirm-dialog';
 import { LabelPrintConfirmationModal } from '@/components/shared/label-print-confirmation-modal';
 import { Badge } from '@/components/ui/badge';
@@ -338,6 +339,7 @@ export default function EventDetailPage() {
   // Printing a label needs an actual PrintConfig linked to the event — a stricter condition
   // than the printEnabled switch, which can be on before anything has been configured.
   const canPrintLabels = printConfigEnabled && Boolean(event?.printConfigId);
+  const isSymplaLinked = Boolean(event?.symplaLinked);
 
   const allCheckInsOnPageSelected = useMemo(
     () => checkIns.length > 0 && checkIns.every((checkIn) => selectedCheckInIds.has(checkIn.id)),
@@ -1557,6 +1559,14 @@ export default function EventDetailPage() {
                         <TableHead>{t('pages.eventDetail.face')}</TableHead>
                         <TableHead>{t('pages.eventDetail.accessCode')}</TableHead>
                         <TableHead>{t('pages.eventDetail.qrCode')}</TableHead>
+                        {isSymplaLinked && (
+                          <>
+                            <TableHead>{t('integrations.sympla.participants.ticket')}</TableHead>
+                            <TableHead>{t('integrations.sympla.participants.ticketType')}</TableHead>
+                            <TableHead>{t('integrations.sympla.participants.sector')}</TableHead>
+                            <TableHead>{t('integrations.sympla.participants.seat')}</TableHead>
+                          </>
+                        )}
                         <TableHead>{t('pages.eventDetail.checkinStatus')}</TableHead>
                         <TableHead className="w-24">{t('pages.eventDetail.actions')}</TableHead>
                       </TableRow>
@@ -1564,7 +1574,20 @@ export default function EventDetailPage() {
                     <TableBody>
                       {participants.map((participant) => (
                         <TableRow key={participant.id}>
-                          <TableCell className="font-medium">{participant.name}</TableCell>
+                          <TableCell className="font-medium">
+                            <div className="flex items-center gap-2">
+                              <span>{participant.name}</span>
+                              {(participant.duplicateDocument || participant.duplicateEmail) && (
+                                <Badge
+                                  variant="outline"
+                                  className="bg-amber-500/10 text-amber-600"
+                                  title={t('integrations.sympla.participants.duplicateTooltip')}
+                                >
+                                  {t('integrations.sympla.participants.duplicate')}
+                                </Badge>
+                              )}
+                            </div>
+                          </TableCell>
                           <TableCell className="text-muted-foreground">{participant.email}</TableCell>
                           <TableCell className="text-muted-foreground">{participant.company ?? '—'}</TableCell>
                           <TableCell className="text-muted-foreground">{participant.jobTitle ?? '—'}</TableCell>
@@ -1585,6 +1608,22 @@ export default function EventDetailPage() {
                           </TableCell>
                           <TableCell className="text-muted-foreground">{participant.accessCode ?? '—'}</TableCell>
                           <TableCell className="text-muted-foreground">{participant.qrCodeValue ?? '—'}</TableCell>
+                          {isSymplaLinked && (
+                            <>
+                              <TableCell className="text-muted-foreground font-mono text-xs">
+                                {participant.ticketNumber ?? '—'}
+                              </TableCell>
+                              <TableCell className="text-muted-foreground">
+                                {participant.ticketName ?? '—'}
+                              </TableCell>
+                              <TableCell className="text-muted-foreground">
+                                {participant.sectorName ?? '—'}
+                              </TableCell>
+                              <TableCell className="text-muted-foreground">
+                                {participant.seatLabel ?? '—'}
+                              </TableCell>
+                            </>
+                          )}
                           <TableCell>
                             <Badge
                               variant="outline"
@@ -2027,6 +2066,12 @@ export default function EventDetailPage() {
                     />
                   </div>
                 </div>
+
+                <SymplaLinkCard
+                  eventId={eventId}
+                  organizationId={organizationId}
+                  canManage={hasPermission('EVENT_UPDATE')}
+                />
 
                 {isSuperAdmin() && (
                   <div className="space-y-4 rounded-lg border p-4">

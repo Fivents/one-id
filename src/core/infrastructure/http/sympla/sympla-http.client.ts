@@ -28,6 +28,7 @@ import {
   symplaPresentationSchema,
   symplaProblemDetailsSchema,
 } from './sympla.schemas';
+import { SYMPLA_REQUEST_TIMEZONE } from './sympla-date';
 
 export const SYMPLA_BASE_URL = 'https://api.sympla.com.br/public/v1.6.0';
 
@@ -163,7 +164,7 @@ export class SymplaHttpClient {
         published: params.published === 'all' ? 'all' : params.published,
         from: params.from,
         to: params.to,
-        timezone: params.timezone,
+        timezone: params.timezone ?? SYMPLA_REQUEST_TIMEZONE,
         field_sort: params.fieldSort,
         sort: params.sort,
         page_size: params.pageSize ?? SYMPLA_DEFAULT_PAGE_SIZE,
@@ -202,7 +203,7 @@ export class SymplaHttpClient {
       query: {
         from: params.from,
         to: params.to,
-        timezone: params.timezone,
+        timezone: params.timezone ?? SYMPLA_REQUEST_TIMEZONE,
         cancelled_filter: params.cancelledFilter,
         buyer_email: params.buyerEmail,
         page_size: params.pageSize ?? SYMPLA_DEFAULT_PAGE_SIZE,
@@ -231,7 +232,7 @@ export class SymplaHttpClient {
       query: {
         from: params.from,
         to: params.to,
-        timezone: params.timezone,
+        timezone: params.timezone ?? SYMPLA_REQUEST_TIMEZONE,
         cancelled_filter: params.cancelledFilter,
         participant_email: params.participantEmail,
         page_size: params.pageSize ?? SYMPLA_PARTICIPANT_PAGE_SIZE,

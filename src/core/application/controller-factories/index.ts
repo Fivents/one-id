@@ -242,4 +242,7 @@ export {
   makeConnectSymplaController,
   makeDisconnectSymplaController,
   makeGetSymplaConnectionStatusController,
+  makeLinkEventToSymplaController,
+  makeListSymplaEventsController,
+  makeUnlinkEventFromSymplaController,
 } from './make-sympla-controllers.factory';
