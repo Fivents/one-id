@@ -1,5 +1,6 @@
 import type { EventParticipantEntity } from '../entities/event-participant.entity';
 import type { CodeProvenance } from '../entities/organization-people-settings.entity';
+import type { DocumentType } from '../entities/person.entity';
 
 export interface CreateEventParticipantData {
   company?: string | null;
@@ -9,7 +10,12 @@ export interface CreateEventParticipantData {
   useDocumentAsAccessCode?: boolean;
   accessCodeProvenance?: CodeProvenance;
   qrCodeProvenance?: CodeProvenance;
-  personId: string;
+  attendeeFullName?: string | null;
+  attendeeEmail?: string | null;
+  attendeeDocument?: string | null;
+  attendeeDocumentType?: DocumentType | null;
+  /** Optional: a ticket slot can exist before any identity is attached to it. */
+  personId?: string | null;
   eventId: string;
 }
 
@@ -21,6 +27,10 @@ export interface UpdateEventParticipantData {
   useDocumentAsAccessCode?: boolean;
   accessCodeProvenance?: CodeProvenance;
   qrCodeProvenance?: CodeProvenance;
+  attendeeFullName?: string | null;
+  attendeeEmail?: string | null;
+  attendeeDocument?: string | null;
+  attendeeDocumentType?: DocumentType | null;
 }
 
 export interface IEventParticipantRepository {

@@ -10,6 +10,7 @@ import { getTotemAuth } from '@/core/infrastructure/http/types';
 import { prisma } from '@/core/infrastructure/prisma-client';
 import { PostgresVectorDbRepository } from '@/core/infrastructure/repositories/postgres-vector-db.repository';
 import { PrismaAuditLogRepository } from '@/core/infrastructure/repositories/prisma-audit-log.repository';
+import { resolveParticipantName } from '@/core/utils/participant-identity';
 
 import { resolveActiveTotemEventContextByTotemId } from '../_lib/active-totem-context';
 
@@ -61,10 +62,13 @@ type CredentialParticipantMatch = {
   jobTitle: string | null;
   accessCode: string | null;
   qrCodeValue: string | null;
+  attendeeFullName: string | null;
+  attendeeEmail: string | null;
+  attendeeDocument: string | null;
   person: {
     name: string;
     faces: Array<{ imageUrl: string | null }>;
-  };
+  } | null;
 };
 
 function makeCheckInService(): TotemCheckInService {
@@ -176,8 +180,12 @@ async function findParticipantByCredential(
     where: {
       eventId: context.event.id,
       deletedAt: null,
-      person: { deletedAt: null },
-      ...whereCredential,
+      // Both clauses are ORs, so they have to be ANDed explicitly — spreading one over the
+      // other would silently drop it. The first says the identity, if any, is not soft-deleted:
+      // a to-one relation filter excludes rows where the relation is null, so a bare
+      // `person: { deletedAt: null }` would make every identity-less ticket impossible to
+      // check in. The second is the credential match itself.
+      AND: [{ OR: [{ personId: null }, { person: { deletedAt: null } }] }, whereCredential],
     },
     select: {
       id: true,
@@ -185,6 +193,9 @@ async function findParticipantByCredential(
       jobTitle: true,
       accessCode: true,
       qrCodeValue: true,
+      attendeeFullName: true,
+      attendeeEmail: true,
+      attendeeDocument: true,
       person: {
         select: {
           name: true,
@@ -273,10 +284,10 @@ async function executeCredentialCheckIn(
       eventParticipantId: participant.id,
       totemEventSubscriptionId: context.totemEventSubscriptionId,
       participant: {
-        name: participant.person.name,
+        name: resolveParticipantName(participant),
         company: participant.company,
         jobTitle: participant.jobTitle,
-        imageUrl: participant.person.faces[0]?.imageUrl ?? null,
+        imageUrl: participant.person?.faces[0]?.imageUrl ?? null,
         accessCode: participant.accessCode,
         qrCodeValue: participant.qrCodeValue,
       },

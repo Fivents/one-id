@@ -11,6 +11,10 @@ import { prisma } from '@/core/infrastructure/prisma-client';
 import { resolveTotemAccessCodeLength } from '@/core/utils/checkin-credentials';
 import { type CodeSourceField, resolveDerivedCodeUnique } from '@/core/utils/derived-code';
 import { parseWithZod } from '@/core/utils/parse-with-zod';
+import {
+  buildAttendeeSnapshot,
+  type PersonSnapshotSource,
+} from '@/core/utils/participant-identity';
 import { Prisma } from '@/generated/prisma/client';
 
 import { assertOrganizationAccess } from './_lib/access';
@@ -23,7 +27,7 @@ async function linkPersonToAutoLinkEvents(
     accessCodeProvenance: CodeProvenance;
     qrCodeValue: string;
     qrCodeProvenance: CodeProvenance;
-  },
+  } & PersonSnapshotSource,
 ): Promise<void> {
   const autoLinkEvents = await prisma.event.findMany({
     where: { organizationId, deletedAt: null, autoLinkNewPeople: true },
@@ -42,6 +46,7 @@ async function linkPersonToAutoLinkEvents(
           accessCode: person.accessCode,
           accessCodeProvenance: person.accessCodeProvenance,
           qrCodeProvenance: person.qrCodeProvenance,
+          ...buildAttendeeSnapshot(person),
         },
       }),
     ),
@@ -250,6 +255,10 @@ export const POST = withAuth(
           accessCodeProvenance: accessCodeResolved.provenance,
           qrCodeValue: restored.qrCodeValue ?? qrCodeResolved.value,
           qrCodeProvenance: qrCodeResolved.provenance,
+          name: restored.name,
+          email: restored.email,
+          document: restored.document,
+          documentType: restored.documentType,
         });
 
         return NextResponse.json(restored, { status: 200 });
@@ -272,6 +281,10 @@ export const POST = withAuth(
           accessCodeProvenance: accessCodeResolved.provenance,
           qrCodeValue: qrCodeResolved.value,
           qrCodeProvenance: qrCodeResolved.provenance,
+          name: data.name,
+          email: data.email,
+          document: data.document,
+          documentType: data.documentType,
         });
       }
 

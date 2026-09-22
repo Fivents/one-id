@@ -8,6 +8,7 @@ import { getTotemAuth } from '@/core/infrastructure/http/types';
 import { prisma } from '@/core/infrastructure/prisma-client';
 import { PrismaPrintConfigRepository } from '@/core/infrastructure/repositories/prisma-print-config.repository';
 import { PrismaPrintJobRepository } from '@/core/infrastructure/repositories/prisma-print-job.repository';
+import { resolveParticipantName } from '@/core/utils/participant-identity';
 
 import { resolveActiveTotemEventContextByTotemId } from '../_lib/active-totem-context';
 
@@ -89,7 +90,7 @@ export const POST = withAuth(
           },
           {
             id: eventParticipant.id,
-            name: eventParticipant.person.name,
+            name: resolveParticipantName(eventParticipant),
             company: eventParticipant.company,
             jobTitle: eventParticipant.jobTitle,
             accessCode: eventParticipant.accessCode,
@@ -108,7 +109,7 @@ export const POST = withAuth(
             paperHeight: printConfig.paperHeight,
             printerDpi: printConfig.printerDpi,
             copies: printConfig.copies,
-            participantName: eventParticipant.person.name,
+            participantName: resolveParticipantName(eventParticipant),
             company: eventParticipant.company,
             jobTitle: eventParticipant.jobTitle,
             qrCodeValue: eventParticipant.qrCodeValue,

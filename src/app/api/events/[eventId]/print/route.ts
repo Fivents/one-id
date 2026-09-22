@@ -8,6 +8,7 @@ import type { RouteContext } from '@/core/infrastructure/http/types';
 import { prisma } from '@/core/infrastructure/prisma-client';
 import { PrismaPrintConfigRepository } from '@/core/infrastructure/repositories/prisma-print-config.repository';
 import { PrismaPrintJobRepository } from '@/core/infrastructure/repositories/prisma-print-job.repository';
+import { resolveParticipantName } from '@/core/utils/participant-identity';
 
 import { getAuthorizedEvent } from '../../_lib/access';
 
@@ -81,7 +82,7 @@ export const POST = withAuth(
             },
             {
               id: participant.id,
-              name: participant.person.name,
+              name: resolveParticipantName(participant),
               company: participant.company,
               jobTitle: participant.jobTitle,
               accessCode: participant.accessCode,

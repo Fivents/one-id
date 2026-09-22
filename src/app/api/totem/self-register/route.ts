@@ -7,6 +7,7 @@ import { withAuth, withTotemAuth, withTotemRoutingGuard } from '@/core/infrastru
 import { getTotemAuth } from '@/core/infrastructure/http/types';
 import { prisma } from '@/core/infrastructure/prisma-client';
 import { generateCheckInCredential, resolveTotemAccessCodeLength } from '@/core/utils/checkin-credentials';
+import { buildAttendeeSnapshot } from '@/core/utils/participant-identity';
 import { Prisma } from '@/generated/prisma/client';
 
 import { resolveActiveTotemEventContextByTotemId } from '../_lib/active-totem-context';
@@ -97,7 +98,9 @@ export const POST = withAuth(
             },
           });
 
-          let eventParticipant: { id: string; company: string | null; jobTitle: string | null; accessCode: string | null; qrCodeValue: string | null; personId: string };
+          // Widened to the row type: EventParticipant gained the attendee snapshot columns and
+          // personId became nullable, so spelling the shape out by hand only invites drift.
+          let eventParticipant: Awaited<ReturnType<typeof tx.eventParticipant.create>>;
 
           if (existingParticipant) {
             if (existingParticipant.deletedAt) {
@@ -109,6 +112,12 @@ export const POST = withAuth(
                   qrCodeValue,
                   accessCode,
                   deletedAt: null,
+                  ...buildAttendeeSnapshot({
+                    name: data.name,
+                    email: data.email,
+                    document: data.document,
+                    documentType: data.documentType,
+                  }),
                 },
               });
             } else {
@@ -126,6 +135,12 @@ export const POST = withAuth(
                 accessCode,
                 personId: person.id,
                 eventId: activeContext.event.id,
+                ...buildAttendeeSnapshot({
+                  name: data.name,
+                  email: data.email,
+                  document: data.document,
+                  documentType: data.documentType,
+                }),
               },
             });
           }

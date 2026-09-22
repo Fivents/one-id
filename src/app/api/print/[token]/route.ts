@@ -5,6 +5,7 @@ import * as jose from 'jose';
 import { LabelGeneratorService } from '@/core/application/services/label-generator.service';
 import { env } from '@/core/infrastructure/environment/env';
 import { prisma } from '@/core/infrastructure/prisma-client';
+import { resolveParticipantName } from '@/core/utils/participant-identity';
 
 export const dynamic = 'force-dynamic';
 
@@ -69,7 +70,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ toke
   const html = await generator.generateBadgeHtml(
     {
       eventName: eventParticipant.event.name,
-      participantName: eventParticipant.person.name,
+      participantName: resolveParticipantName(eventParticipant),
       company: eventParticipant.company,
       jobTitle: eventParticipant.jobTitle,
       qrContent,

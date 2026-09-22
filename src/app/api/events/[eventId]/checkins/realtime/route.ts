@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withAuth, withRBAC } from '@/core/infrastructure/http/middlewares';
 import type { RouteContext } from '@/core/infrastructure/http/types';
 import { prisma } from '@/core/infrastructure/prisma-client';
+import { resolveParticipantName } from '@/core/utils/participant-identity';
 
 import { getAuthorizedEvent } from '../../../_lib/access';
 
@@ -132,7 +133,7 @@ export const GET = withAuth(
         checkInsPerMinute,
         lastCheckIn: lastCheckIn
           ? {
-              participantName: lastCheckIn.eventParticipant.person.name,
+              participantName: resolveParticipantName(lastCheckIn.eventParticipant),
               method: lastCheckIn.method,
               checkedInAt: lastCheckIn.checkedInAt,
             }

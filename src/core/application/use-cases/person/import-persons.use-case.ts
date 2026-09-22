@@ -7,6 +7,7 @@ import type {
 } from '@/core/domain/contracts';
 import type { DocumentType, PersonEntity } from '@/core/domain/entities';
 import { type CodeSourceField, resolveDerivedCodeUnique } from '@/core/utils/derived-code';
+import { buildAttendeeSnapshot } from '@/core/utils/participant-identity';
 
 export interface ImportPersonItem {
   name: string;
@@ -135,6 +136,12 @@ export class ImportPersonsUseCase {
               accessCode: accessCodeResolved.value,
               accessCodeProvenance: accessCodeResolved.provenance,
               qrCodeProvenance: qrCodeResolved.provenance,
+              ...buildAttendeeSnapshot({
+                name: created.name,
+                email: created.email,
+                document: created.document,
+                documentType: created.documentType,
+              }),
             });
           }
         }
