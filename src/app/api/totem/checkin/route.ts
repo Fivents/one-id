@@ -50,6 +50,9 @@ const codeCheckInSchema = z.object({
   accessCode: z.string().trim().min(1, 'Access code is required.'),
 });
 
+/** Sympla ticket_status values that mean the ticket is no longer valid. */
+const CANCELLED_TICKET_STATUSES = ['C', 'R', 'CANCELED', 'CANCELLED', 'REFUNDED'];
+
 const checkInSchema = z.union([faceCheckInSchema, qrCheckInSchema, codeCheckInSchema, legacyFaceCheckInSchema]);
 
 type TotemCheckInRequest = z.infer<typeof checkInSchema>;
@@ -65,6 +68,11 @@ type CredentialParticipantMatch = {
   attendeeFullName: string | null;
   attendeeEmail: string | null;
   attendeeDocument: string | null;
+  ticketNumber: string | null;
+  ticketName: string | null;
+  ticketStatus: string | null;
+  sectorName: string | null;
+  seatLabel: string | null;
   person: {
     name: string;
     faces: Array<{ imageUrl: string | null }>;
@@ -196,6 +204,11 @@ async function findParticipantByCredential(
       attendeeFullName: true,
       attendeeEmail: true,
       attendeeDocument: true,
+      ticketNumber: true,
+      ticketName: true,
+      ticketStatus: true,
+      sectorName: true,
+      seatLabel: true,
       person: {
         select: {
           name: true,
@@ -235,6 +248,25 @@ async function executeCredentialCheckIn(
         code: 'CHECKIN_PARTICIPANT_NOT_FOUND',
       },
       { status: 404 },
+    );
+  }
+
+  // A cancelled or refunded ticket must not open the gate. Sympla keeps the row on the list
+  // precisely so the gate can tell the difference between "not found" and "no longer valid",
+  // and the attendee deserves to hear which one it is.
+  if (participant.ticketStatus && CANCELLED_TICKET_STATUSES.includes(participant.ticketStatus.toUpperCase())) {
+    await logDeniedAttempt(context, totemId, 'CHECKIN_TICKET_CANCELLED', 'TICKET_CANCELLED', {
+      method: input.method,
+      eventParticipantId: participant.id,
+      ticketStatus: participant.ticketStatus,
+    });
+
+    return NextResponse.json(
+      {
+        error: 'Este ingresso foi cancelado ou reembolsado.',
+        code: 'CHECKIN_TICKET_CANCELLED',
+      },
+      { status: 409 },
     );
   }
 
@@ -290,6 +322,10 @@ async function executeCredentialCheckIn(
         imageUrl: participant.person?.faces[0]?.imageUrl ?? null,
         accessCode: participant.accessCode,
         qrCodeValue: participant.qrCodeValue,
+        ticketNumber: participant.ticketNumber,
+        ticketName: participant.ticketName,
+        sectorName: participant.sectorName,
+        seatLabel: participant.seatLabel,
       },
     },
     { status: 201 },

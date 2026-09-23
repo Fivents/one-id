@@ -43,6 +43,10 @@ export const POST = withAuth(
             jobTitle: true,
             accessCode: true,
             qrCodeValue: true,
+            attendeeFullName: true,
+            ticketName: true,
+            sectorName: true,
+            seatLabel: true,
             eventId: true,
             event: {
               select: {
@@ -95,6 +99,9 @@ export const POST = withAuth(
             jobTitle: eventParticipant.jobTitle,
             accessCode: eventParticipant.accessCode,
             qrCodeValue: eventParticipant.qrCodeValue,
+            ticketName: eventParticipant.ticketName,
+            sectorName: eventParticipant.sectorName,
+            seatLabel: eventParticipant.seatLabel,
           },
           { name: context.event.name },
           printConfig,

@@ -87,6 +87,11 @@ export interface TotemCheckInResponse {
     imageUrl: string | null;
     accessCode: string | null;
     qrCodeValue: string | null;
+    // Present only on Sympla-linked events; optional so older clients stay compatible.
+    ticketNumber?: string | null;
+    ticketName?: string | null;
+    sectorName?: string | null;
+    seatLabel?: string | null;
   };
 }
 

@@ -21,6 +21,19 @@ interface PrintTokenPayload {
   iat: number;
 }
 
+/** What a badge needs to know about whoever it is being printed for. */
+export interface BadgeParticipant {
+  id?: string;
+  name: string;
+  company: string | null;
+  jobTitle: string | null;
+  accessCode: string | null;
+  qrCodeValue: string | null;
+  ticketName?: string | null;
+  sectorName?: string | null;
+  seatLabel?: string | null;
+}
+
 export class PrintJobService {
   private readonly labelGenerator: LabelGeneratorService;
   private readonly jwtSecret: Uint8Array;
@@ -35,7 +48,7 @@ export class PrintJobService {
   }
 
   async generateBadgeHtml(
-    participant: { id?: string; name: string; company: string | null; jobTitle: string | null; accessCode: string | null; qrCodeValue: string | null },
+    participant: BadgeParticipant,
     event: { name: string },
     printConfig: PrintConfigEntity,
   ): Promise<string> {
@@ -51,6 +64,9 @@ export class PrintJobService {
       accessCodeDisplay,
       showQrCode: printConfig.showQrCode,
       showAccessCode: printConfig.showAccessCode,
+      ticketName: participant.ticketName,
+      sectorName: participant.sectorName,
+      seatLabel: participant.seatLabel,
     };
 
     const labelConfig: LabelConfig = {
@@ -67,7 +83,7 @@ export class PrintJobService {
 
   async executePrint(
     data: CreatePrintJobData,
-    participant: { id?: string; name: string; company: string | null; jobTitle: string | null; accessCode: string | null; qrCodeValue: string | null },
+    participant: BadgeParticipant,
     event: { name: string },
     printConfig: PrintConfigEntity,
   ): Promise<PrintJobResult> {

@@ -9,6 +9,10 @@ export interface LabelData {
   accessCodeDisplay: string;
   showQrCode: boolean;
   showAccessCode: boolean;
+  /** Sympla ticket details; absent on events that are not linked. */
+  ticketName?: string | null;
+  sectorName?: string | null;
+  seatLabel?: string | null;
 }
 
 export interface LabelConfig {
@@ -64,6 +68,15 @@ export class LabelGeneratorService {
     const metaLine = jobTitleDisplay || companyDisplay
       ? escapeHtml(jobTitleDisplay) + (companyDisplay && jobTitleDisplay ? ' • ' : '') + escapeHtml(companyDisplay)
       : '';
+
+    // Ticket type, sector and seat are what the staff at the door actually reads off the badge
+    // to point someone the right way. Rendered as its own line so it never competes with the
+    // name for space.
+    const ticketLine = [label.ticketName, label.sectorName, label.seatLabel]
+      .map((part) => part?.trim())
+      .filter((part): part is string => Boolean(part))
+      .map((part) => escapeHtml(part))
+      .join(' • ');
 
     const accessCodeSection = label.showAccessCode
       ? `      <div class="separator"></div>
@@ -152,6 +165,13 @@ export class LabelGeneratorService {
     line-height: 1.4;
     margin-bottom: 1.5mm;
   }
+  .ticket-line {
+    font-size: ${config.fontSizeMeta}px;
+    font-weight: 600;
+    color: #0f172a;
+    line-height: 1.4;
+    margin-bottom: 1.5mm;
+  }
   .timestamp {
     font-size: 4px;
     color: #94a3b8;
@@ -185,6 +205,7 @@ ${qrPanel}
       <div class="event-name">${escapeHtml(label.eventName)}</div>
       <div class="participant-name">${escapeHtml(label.participantName)}</div>
       <div class="meta">${metaLine}</div>
+${ticketLine ? `      <div class="ticket-line">${ticketLine}</div>` : ''}
 ${accessCodeSection}
     </div>
   </div>

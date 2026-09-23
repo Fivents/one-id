@@ -90,6 +90,7 @@ export class PostgresVectorDbRepository implements IVectorDbRepository {
       Array<{
         face_id: string;
         event_participant_id: string;
+        person_id: string;
         person_name: string;
         company: string | null;
         job_title: string | null;
@@ -127,6 +128,7 @@ export class PostgresVectorDbRepository implements IVectorDbRepository {
       SELECT
         face_id,
         event_participant_id,
+        person_id,
         person_name,
         company,
         job_title,
@@ -143,6 +145,7 @@ export class PostgresVectorDbRepository implements IVectorDbRepository {
     // Map database columns to VectorSearchResult
     return results.map((row) => ({
       faceId: row.face_id,
+      personId: row.person_id,
       eventParticipantId: row.event_participant_id,
       personName: row.person_name,
       company: row.company,

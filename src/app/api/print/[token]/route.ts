@@ -37,6 +37,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ toke
       jobTitle: true,
       accessCode: true,
       qrCodeValue: true,
+      attendeeFullName: true,
+      ticketName: true,
+      sectorName: true,
+      seatLabel: true,
       event: {
         select: {
           name: true,
@@ -73,6 +77,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ toke
       participantName: resolveParticipantName(eventParticipant),
       company: eventParticipant.company,
       jobTitle: eventParticipant.jobTitle,
+      ticketName: eventParticipant.ticketName,
+      sectorName: eventParticipant.sectorName,
+      seatLabel: eventParticipant.seatLabel,
       qrContent,
       accessCodeDisplay,
       showQrCode: config.showQrCode,

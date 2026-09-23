@@ -12,6 +12,8 @@
 export interface VectorSearchResult {
   faceId: string;
   eventParticipantId: string;
+  /** Needed to detect a Person holding several tickets for the same event. */
+  personId: string;
   personName: string;
   company: string | null;
   jobTitle: string | null;
