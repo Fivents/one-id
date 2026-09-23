@@ -408,3 +408,44 @@ nome nenhum fica como slot puro, sem criar `Person` anônima poluindo a base de 
 
 Erros são por ingresso, registrados em `lastSyncResult`; uma linha malformada não aborta as
 outras milhares nem dispara o alerta de reconexão.
+
+## 🔁 P2 — Bidirecionalidade de check-in (2026-09-22)
+
+### Espelhamento
+
+Job `sympla.checkin.mirror`, nunca inline: a portaria não pode esperar por terceiro, e uma
+oscilação de rede na porta não pode custar um check-in. **Os 5 pontos que criam `CheckIn`**
+(totem credencial, totem facial, app/manual, bulk, self-register) chamam o mesmo
+`enqueueMirrorCheckIn`, que **nunca lança**. Nos dois caminhos dentro de transação, o enfileiramento
+acontece **após o commit** — dentro dela deixaria jobs apontando para check-ins que um rollback apagou.
+
+**Decisão de retry:** 429/5xx/rede são relançados para a fila fazer backoff; 404/422 **resolvem**
+em vez de lançar. Retentar rejeição definitiva para sempre manteria a linha quente sem nunca
+suceder — vira divergência auditada, entregue ao reconciliador.
+
+### Reconciliação
+
+Compara colunas locais (o sync já mantém `symplaCheckedIn` fresco), mas **força um passe completo
+antes**: o sync incremental filtra por `ticket_updated_at` e não há garantia de que um check-in do
+lado da Sympla altere esse timestamp. Check-in importado carrega o **timestamp da Sympla** — o
+check-in mais antigo é o verdadeiro, e inventar "agora" reportaria a chegada errada.
+
+Diariedade não pode vir do `dedupeKey` (liberado quando o job encerra), então a trava é
+"já terminou uma reconciliação hoje?".
+
+### Fallback na portaria
+
+Credencial desconhecida em evento vinculado → consulta a Sympla uma vez (3s, sem retry) e persiste.
+**Limite documentado honestamente:** a Sympla busca por `ticket_number`, mas um QR escaneado carrega
+`ticket_num_qr_code` — campos diferentes. Só resolve quando o valor escaneado É o número do
+ingresso. Fechar essa lacuna exige o payload QR assinado da Sympla, que um leitor comum não produz.
+
+### Estado do credenciamento (contexto do usuário, set/2026)
+
+**Facial NÃO está em uso** — só QR code e código de acesso. Por isso:
+- Ingresso cancelado/reembolsado **não abre a portaria** (checado nos caminhos ativos).
+- Overlay e crachá mostram tipo de ingresso, setor e lugar.
+- O facial ficou **protegido, não concluído**: com N ingressos sob uma identidade a busca vetorial
+  devolve slot arbitrário, então resolve para o único ingresso em aberto quando há exatamente um e
+  recusa com `CHECKIN_AMBIGUOUS_TICKET` quando há mais. A UX completa de desambiguação fica aberta
+  até o facial ser ligado.
