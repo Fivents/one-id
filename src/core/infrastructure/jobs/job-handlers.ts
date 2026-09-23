@@ -48,7 +48,15 @@ export const jobHandlers: Partial<Record<JobKind, JobHandler>> = {
     await service.syncOrganization(readString(payload, 'organizationId'));
   },
 
-  // sympla.checkin.mirror / sympla.checkin.reconcile land in P2.
+  'sympla.checkin.mirror': async (payload) => {
+    const { containerService } = await import('@/core/application/services/container.service');
+    await containerService.getSymplaCheckInMirrorService().mirror(readString(payload, 'checkInId'));
+  },
+
+  'sympla.checkin.reconcile': async (payload) => {
+    const { containerService } = await import('@/core/application/services/container.service');
+    await containerService.getSymplaReconcileService().reconcileEvent(readString(payload, 'eventId'));
+  },
 };
 
 export function getJobHandler(kind: string): JobHandler | undefined {

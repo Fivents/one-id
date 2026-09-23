@@ -9,6 +9,8 @@ import type {
 } from '@/core/domain/contracts';
 import type { PrismaClient } from '@/generated/prisma/client';
 
+import { enqueueMirrorCheckIn } from './sympla/enqueue-mirror-checkin';
+
 // ── Types ────────────────────────────────────────────────────────────
 
 const FACE_EMBEDDING_DIMENSION = 512;
@@ -390,6 +392,8 @@ export class TotemCheckInService {
           totemEventSubscriptionId: context.totemEventSubscriptionId,
         },
       });
+
+      await enqueueMirrorCheckIn(checkIn.id, context.organizationId);
 
       // ── FASE 3: Register successful check-in (resets cooldown) ────────
       if (this.cooldownService) {

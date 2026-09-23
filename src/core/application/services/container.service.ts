@@ -51,7 +51,14 @@ import { ConfidenceThresholdService } from './confidence-threshold.service';
 import { CooldownService } from './cooldown.service';
 import { FaceQualityService } from './face-quality.service';
 import { MultiTenantAuditService } from './multi-tenant-audit.service';
-import { SymplaSchedulerService, SymplaSyncService } from './sympla';
+import {
+  SymplaCheckInMirrorService,
+  SymplaGateFallbackService,
+  SymplaParticipantSyncService,
+  SymplaReconcileService,
+  SymplaSchedulerService,
+  SymplaSyncService,
+} from './sympla';
 import { SymplaClientProvider } from './sympla-client.provider';
 import { TemplateAggregationService } from './template-aggregation.service';
 
@@ -107,6 +114,9 @@ class ContainerService {
   private symplaSyncService: SymplaSyncService | null = null;
   private symplaSchedulerService: SymplaSchedulerService | null = null;
   private jobQueue: JobQueue | null = null;
+  private symplaCheckInMirrorService: SymplaCheckInMirrorService | null = null;
+  private symplaReconcileService: SymplaReconcileService | null = null;
+  private symplaGateFallbackService: SymplaGateFallbackService | null = null;
   // FASE 5: Compliance - Multi-Tenant Audit
   private multiTenantAuditService: IMultiTenantAuditService | null = null;
 
@@ -399,6 +409,38 @@ class ContainerService {
       this.jobQueue = new JobQueue(this.prismaClient);
     }
     return this.jobQueue;
+  }
+
+  getSymplaCheckInMirrorService(): SymplaCheckInMirrorService {
+    if (!this.symplaCheckInMirrorService) {
+      this.symplaCheckInMirrorService = new SymplaCheckInMirrorService(
+        this.prismaClient,
+        this.getSymplaClientProvider(),
+      );
+    }
+    return this.symplaCheckInMirrorService;
+  }
+
+  getSymplaGateFallbackService(): SymplaGateFallbackService {
+    if (!this.symplaGateFallbackService) {
+      this.symplaGateFallbackService = new SymplaGateFallbackService(
+        this.prismaClient,
+        this.getSymplaClientProvider(),
+        new SymplaParticipantSyncService(this.prismaClient),
+      );
+    }
+    return this.symplaGateFallbackService;
+  }
+
+  getSymplaReconcileService(): SymplaReconcileService {
+    if (!this.symplaReconcileService) {
+      this.symplaReconcileService = new SymplaReconcileService(
+        this.prismaClient,
+        this.getJobQueue(),
+        this.getSymplaSyncService(),
+      );
+    }
+    return this.symplaReconcileService;
   }
 
   getMultiTenantAuditService(): IMultiTenantAuditService {

@@ -137,6 +137,43 @@ export class SymplaParticipantSyncService {
     return result;
   }
 
+  /**
+   * Fetches and upserts exactly one ticket.
+   *
+   * Used at the gate: a QR that does not match locally on a linked event is usually a ticket
+   * bought after the last sync, and making the attendee wait for the next scheduled run is a
+   * worse answer than one extra API call.
+   */
+  async syncSingleTicket(input: {
+    eventId: string;
+    organizationId: string;
+    symplaEventIdHash: string;
+    ticketNumber: string;
+    client: SymplaHttpClient;
+    signal?: AbortSignal;
+  }): Promise<string | null> {
+    const participant = await input.client.getParticipantByTicketNumber(
+      input.symplaEventIdHash,
+      input.ticketNumber,
+      input.signal,
+    );
+
+    const context = await this.loadContext(input.eventId, input.organizationId);
+
+    await this.upsertTicket(participant, context, {
+      presentationIds: await this.loadPresentationIds(input.eventId),
+      orderIds: await this.loadOrderIds(input.eventId),
+      knownTicketTypes: new Set<string>(),
+    });
+
+    const stored = await this.db.eventParticipant.findUnique({
+      where: { eventId_ticketNumber: { eventId: input.eventId, ticketNumber: participant.ticket_number } },
+      select: { id: true },
+    });
+
+    return stored?.id ?? null;
+  }
+
   private async loadContext(eventId: string, organizationId: string): Promise<EventSyncContext> {
     const [event, peopleSettings, credentialLength] = await Promise.all([
       this.db.event.findUniqueOrThrow({

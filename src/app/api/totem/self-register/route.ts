@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { z } from 'zod/v4';
 
+import { enqueueMirrorCheckIn } from '@/core/application/services/sympla/enqueue-mirror-checkin';
 import { AppError } from '@/core/errors';
 import { withAuth, withTotemAuth, withTotemRoutingGuard } from '@/core/infrastructure/http/middlewares';
 import { getTotemAuth } from '@/core/infrastructure/http/types';
@@ -56,6 +57,9 @@ export const POST = withAuth(
         const credentialLength = await resolveTotemAccessCodeLength(prisma, activeContext.organizationId);
         const qrCodeValue = generateCheckInCredential(credentialLength);
         const accessCode = generateCheckInCredential(credentialLength);
+
+        let mirrorCheckInId: string | null = null;
+
 
         const result = await prisma.$transaction(async (tx) => {
           let person = await tx.person.findFirst({
@@ -196,6 +200,8 @@ export const POST = withAuth(
             },
           });
 
+          mirrorCheckInId = checkIn.id;
+
           return {
             id: checkIn.id as string | null,
             eventParticipantId: eventParticipant.id,
@@ -206,6 +212,12 @@ export const POST = withAuth(
 
         if ('error' in result) {
           return NextResponse.json({ error: result.error, code: result.code }, { status: 409 });
+        }
+
+        // After the commit, never inside it: a rolled-back transaction would otherwise leave a
+        // job pointing at a check-in that does not exist.
+        if (mirrorCheckInId) {
+          await enqueueMirrorCheckIn(mirrorCheckInId, activeContext.organizationId);
         }
 
         return NextResponse.json(result, { status: 201 });

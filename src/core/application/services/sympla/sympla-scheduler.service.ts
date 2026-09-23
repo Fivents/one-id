@@ -19,6 +19,7 @@ export const IDLE_SYNC_DELAY_MS = 15 * 60 * 1000;
 export interface ScheduleResult {
   enqueued: number;
   deduped: number;
+  reconcilesQueued: number;
 }
 
 export class SymplaSchedulerService {
@@ -28,7 +29,7 @@ export class SymplaSchedulerService {
   ) {}
 
   async enqueueDueSyncs(now: Date = new Date()): Promise<ScheduleResult> {
-    const result: ScheduleResult = { enqueued: 0, deduped: 0 };
+    const result: ScheduleResult = { enqueued: 0, deduped: 0, reconcilesQueued: 0 };
 
     const links = await this.db.symplaEventLink.findMany({
       where: {
@@ -59,6 +60,17 @@ export class SymplaSchedulerService {
 
         if (outcome.deduped) result.deduped += 1;
         else result.enqueued += 1;
+
+        if (await this.shouldReconcileToday(link.eventId, now)) {
+          const reconcile = await this.jobQueue.enqueue({
+            kind: JOB_KIND.SYMPLA_CHECKIN_RECONCILE,
+            payload: { eventId: link.eventId },
+            dedupeKey: `sympla:reconcile:${link.eventId}`,
+            organizationId: link.event.organizationId,
+          });
+
+          if (!reconcile.deduped) result.reconcilesQueued += 1;
+        }
       } catch (error) {
         Logger.error('Failed to schedule Sympla sync', {
           eventId: link.eventId,
@@ -68,6 +80,27 @@ export class SymplaSchedulerService {
     }
 
     return result;
+  }
+
+  /**
+   * Reconciliation is a full re-read, so it runs once a day per event.
+   *
+   * The dedupe key alone cannot express that: it is released when the job settles, which would
+   * let the very next tick queue another one. So the gate is "did one already finish today".
+   */
+  private async shouldReconcileToday(eventId: string, now: Date): Promise<boolean> {
+    const startOfDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+
+    const recent = await this.db.backgroundJob.findFirst({
+      where: {
+        kind: JOB_KIND.SYMPLA_CHECKIN_RECONCILE,
+        completedAt: { gte: startOfDay },
+        payload: { path: ['eventId'], equals: eventId },
+      },
+      select: { id: true },
+    });
+
+    return recent === null;
   }
 
   private isWithinActiveWindow(startsAt: Date, endsAt: Date, now: Date): boolean {

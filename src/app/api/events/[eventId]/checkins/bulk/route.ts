@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { z } from 'zod/v4';
 
+import { enqueueMirrorCheckIn } from '@/core/application/services/sympla/enqueue-mirror-checkin';
 import { withAuth, withRBAC } from '@/core/infrastructure/http/middlewares';
 import type { RouteContext } from '@/core/infrastructure/http/types';
 import { getUserAuth } from '@/core/infrastructure/http/types';
@@ -155,6 +156,8 @@ export const POST = withAuth(
 
       let createdCount = 0;
 
+      let createdCheckInIds: string[] = [];
+
       if (toCreate.length > 0) {
         const latestSession = await prisma.session.findFirst({
           where: { userId: auth.userId },
@@ -181,6 +184,8 @@ export const POST = withAuth(
             select: { id: true, eventParticipantId: true, method: true },
           });
 
+          createdCheckInIds = created.map((checkIn) => checkIn.id);
+
           // One audit row per check-in: the check-ins listing resolves `handledBy` by matching
           // `metadata.checkInId` / `metadata.eventParticipantId`.
           await tx.auditLog.createMany({
@@ -203,6 +208,12 @@ export const POST = withAuth(
 
           return created.length;
         });
+      }
+
+      // After the commit, never inside it: a rolled-back transaction would otherwise leave
+      // jobs pointing at check-ins that do not exist.
+      for (const checkInId of createdCheckInIds) {
+        await enqueueMirrorCheckIn(checkInId, eventOrResponse.organizationId);
       }
 
       return NextResponse.json({ created: createdCount, skipped, errors }, { status: 200 });

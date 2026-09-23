@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { z } from 'zod/v4';
 
+import { enqueueMirrorCheckIn } from '@/core/application/services/sympla/enqueue-mirror-checkin';
 import { withAuth, withRBAC } from '@/core/infrastructure/http/middlewares';
 import type { RouteContext } from '@/core/infrastructure/http/types';
 import { getUserAuth } from '@/core/infrastructure/http/types';
@@ -225,6 +226,8 @@ export const POST = withAuth(
           totemEventSubscriptionId: null,
         },
       });
+
+      await enqueueMirrorCheckIn(checkIn.id, eventOrResponse.organizationId);
 
       const latestSession = await prisma.session.findFirst({
         where: {

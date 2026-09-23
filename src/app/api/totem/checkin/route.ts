@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod/v4';
 
 import { containerService } from '@/core/application/services/container.service';
+import { enqueueMirrorCheckIn } from '@/core/application/services/sympla/enqueue-mirror-checkin';
 import { TotemCheckInService } from '@/core/application/services/totem-checkin.service';
 import { faceEmbeddingSchema } from '@/core/communication/requests/person-face';
 import { withAuth, withTotemAuth, withTotemRoutingGuard } from '@/core/infrastructure/http/middlewares';
@@ -235,7 +236,21 @@ async function executeCredentialCheckIn(
 ) {
   const normalizedValue = input.method === 'CODE' ? input.accessCode.trim().toUpperCase() : input.qrCodeValue.trim();
 
-  const participant = await findParticipantByCredential(context, input.method, normalizedValue);
+  let participant = await findParticipantByCredential(context, input.method, normalizedValue);
+
+  // A credential that matches nothing locally on a linked event is usually a ticket bought
+  // after the last sync. Ask Sympla once, persist what comes back, and retry the local lookup
+  // — the attendee gets in instead of being told their valid ticket does not exist. See
+  // SymplaGateFallbackService for which credential shapes this can actually resolve.
+  if (!participant) {
+    const resolvedId = await containerService
+      .getSymplaGateFallbackService()
+      .resolveByTicketNumber(context.event.id, normalizedValue);
+
+    if (resolvedId) {
+      participant = await findParticipantByCredential(context, input.method, normalizedValue);
+    }
+  }
 
   if (!participant) {
     await logDeniedAttempt(context, totemId, 'CHECKIN_PARTICIPANT_NOT_FOUND', 'PARTICIPANT_NOT_FOUND', {
@@ -307,6 +322,8 @@ async function executeCredentialCheckIn(
     participant.id,
     input.method === 'QR' ? 'QR_CODE' : 'ACCESS_CODE',
   );
+
+  await enqueueMirrorCheckIn(checkIn.id, context.organizationId);
 
   return NextResponse.json(
     {
