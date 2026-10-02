@@ -67,6 +67,42 @@ export type SymplaEventLinkResponse =
       lastSeedAt: string | null;
     };
 
+export interface SymplaBreakdownRow {
+  label: string;
+  tickets: number;
+  valid: number;
+  cancelled: number;
+  checkedIn: number;
+  checkInRate: number | null;
+  revenue: number;
+}
+
+export interface SymplaUtmRow {
+  source: string;
+  campaign: string;
+  orders: number;
+  tickets: number;
+  checkedIn: number;
+  checkInRate: number | null;
+  revenue: number;
+}
+
+export interface SymplaEventMetricsResponse {
+  totals: {
+    tickets: number;
+    valid: number;
+    cancelled: number;
+    checkedIn: number;
+    checkInRate: number | null;
+    grossRevenue: number;
+    netRevenue: number;
+    orders: number;
+  };
+  byTicketType: SymplaBreakdownRow[];
+  bySector: SymplaBreakdownRow[];
+  byUtmSource: SymplaUtmRow[];
+}
+
 class SymplaClientService extends BaseClient {
   async getStatus(organizationId: string): Promise<ApiResponse<SymplaConnectionStatusResponse>> {
     return this.get(`/organizations/${encodeURIComponent(organizationId)}/integrations/sympla`);
@@ -99,6 +135,10 @@ class SymplaClientService extends BaseClient {
 
   async unlinkEvent(eventId: string): Promise<ApiResponse<void>> {
     return this.delete(`/events/${encodeURIComponent(eventId)}/sympla/link`);
+  }
+
+  async getEventMetrics(eventId: string): Promise<ApiResponse<SymplaEventMetricsResponse>> {
+    return this.get(`/events/${encodeURIComponent(eventId)}/sympla/metrics`);
   }
 
   async syncEvent(

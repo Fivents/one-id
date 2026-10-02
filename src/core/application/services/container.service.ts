@@ -54,6 +54,7 @@ import { MultiTenantAuditService } from './multi-tenant-audit.service';
 import {
   SymplaCheckInMirrorService,
   SymplaGateFallbackService,
+  SymplaMetricsService,
   SymplaParticipantSyncService,
   SymplaReconcileService,
   SymplaSchedulerService,
@@ -117,6 +118,7 @@ class ContainerService {
   private symplaCheckInMirrorService: SymplaCheckInMirrorService | null = null;
   private symplaReconcileService: SymplaReconcileService | null = null;
   private symplaGateFallbackService: SymplaGateFallbackService | null = null;
+  private symplaMetricsService: SymplaMetricsService | null = null;
   // FASE 5: Compliance - Multi-Tenant Audit
   private multiTenantAuditService: IMultiTenantAuditService | null = null;
 
@@ -430,6 +432,13 @@ class ContainerService {
       );
     }
     return this.symplaGateFallbackService;
+  }
+
+  getSymplaMetricsService(): SymplaMetricsService {
+    if (!this.symplaMetricsService) {
+      this.symplaMetricsService = new SymplaMetricsService(this.prismaClient);
+    }
+    return this.symplaMetricsService;
   }
 
   getSymplaReconcileService(): SymplaReconcileService {

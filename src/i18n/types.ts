@@ -1360,6 +1360,27 @@ export type TranslationSchema = {
         duplicate: string;
         duplicateTooltip: string;
       };
+      metrics: {
+        title: string;
+        description: string;
+        validTickets: string;
+        checkedIn: string;
+        checkInRate: string;
+        grossRevenue: string;
+        netRevenue: string;
+        orders: string;
+        cancelled: string;
+        byTicketType: string;
+        bySector: string;
+        byUtmSource: string;
+        source: string;
+        campaign: string;
+        tickets: string;
+        revenue: string;
+        empty: string;
+        loadError: string;
+        refresh: string;
+      };
       gate: {
         title: string;
         description: string;

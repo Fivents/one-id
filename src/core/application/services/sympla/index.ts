@@ -12,6 +12,12 @@ export {
 export { SymplaGateFallbackService } from './sympla-gate-fallback.service';
 export type { IdentityCandidate, IdentityResolution, PersonLookup } from './sympla-identity-policy';
 export { makePersonLookup, resolveTicketIdentity } from './sympla-identity-policy';
+export type {
+  SymplaBreakdownRow,
+  SymplaEventMetrics,
+  SymplaUtmRow,
+} from './sympla-metrics.service';
+export { SymplaMetricsService } from './sympla-metrics.service';
 export type { SyncParticipantsInput, SyncParticipantsResult } from './sympla-participant-sync.service';
 export { SymplaParticipantSyncService } from './sympla-participant-sync.service';
 export type { ReconcileResult } from './sympla-reconcile.service';

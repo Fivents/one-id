@@ -37,6 +37,7 @@ import {
 import { EventPeopleSettingsDialog } from '@/components/organizations/events/event-people-settings-dialog';
 import { ImportEventParticipantsDialog } from '@/components/organizations/events/import-event-participants-dialog';
 import { SymplaLinkCard } from '@/components/organizations/events/sympla-link-card';
+import { SymplaMetricsCard } from '@/components/organizations/events/sympla-metrics-card';
 import { useConfirm } from '@/components/shared/confirm-dialog';
 import { LabelPrintConfirmationModal } from '@/components/shared/label-print-confirmation-modal';
 import { Badge } from '@/components/ui/badge';
@@ -1778,6 +1779,10 @@ export default function EventDetailPage() {
         </TabsContent>
 
         <TabsContent value="checkins" className="space-y-4">
+          {/* Only for linked events: without Sympla there is no ticket type, sector or UTM to
+              break anything down by, and an all-dashes table would just be noise. */}
+          {isSymplaLinked && <SymplaMetricsCard eventId={eventId} />}
+
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between gap-3">
