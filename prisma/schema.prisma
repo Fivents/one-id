@@ -472,6 +472,19 @@ model TotemEventSubscription {
   revokedAt DateTime? @map("revoked_at")
   revokedReason String? @map("revoked_reason")
 
+  // ── Gate policy ──────────────────────────────────────────────────
+  // Which sectors / ticket types this gate accepts, as arrays of names. Null or empty means
+  // "accept everything", so every existing assignment keeps working untouched.
+  //
+  // Lives here rather than on Totem on purpose: a totem serves different events over time and
+  // sectors belong to an event, so a totem-level rule would leak across events and silently
+  // start rejecting the wrong people the moment the device is reassigned.
+  //
+  // Matched by name because that is what a ticket slot carries (sectorName / ticketName,
+  // denormalized from Sympla per participant) — no join, and names survive a re-sync.
+  allowedSectors     Json? @map("allowed_sectors")
+  allowedTicketTypes Json? @map("allowed_ticket_types")
+
   // FASE 3: Performance & Adaptive Thresholds
   confidenceThresholdAdaptive Boolean @default(false) @map("confidence_threshold_adaptive")
   confidenceThresholdMin      Float   @default(0.50) @map("confidence_threshold_min")

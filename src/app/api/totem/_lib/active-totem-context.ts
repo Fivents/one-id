@@ -1,3 +1,4 @@
+import { type GatePolicy, parseGateAllowList } from '@/core/domain/value-objects/gate-policy';
 import { prisma } from '@/core/infrastructure/prisma-client';
 
 export interface EventAIConfigDTO {
@@ -35,6 +36,8 @@ export interface ActiveTotemContext {
   };
   totemOrganizationSubscriptionId: string;
   totemEventSubscriptionId: string;
+  /** Which sectors / ticket types this gate accepts. Empty lists mean no restriction. */
+  gatePolicy: GatePolicy;
   aiConfig: EventAIConfigDTO;
 }
 
@@ -138,6 +141,8 @@ async function resolveFromWhere(where: { id?: string; accessCode?: string }): Pr
             },
             select: {
               id: true,
+              allowedSectors: true,
+              allowedTicketTypes: true,
               event: {
                 select: {
                   id: true,
@@ -201,6 +206,10 @@ async function resolveFromWhere(where: { id?: string; accessCode?: string }): Pr
     },
     totemOrganizationSubscriptionId: orgSubscription.id,
     totemEventSubscriptionId: eventSubscription.id,
+    gatePolicy: {
+      allowedSectors: parseGateAllowList(eventSubscription.allowedSectors),
+      allowedTicketTypes: parseGateAllowList(eventSubscription.allowedTicketTypes),
+    },
     aiConfig,
   };
 }

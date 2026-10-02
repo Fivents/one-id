@@ -7,8 +7,10 @@ import { useParams, useRouter } from 'next/navigation';
 import { Loader2, MonitorCheck } from 'lucide-react';
 import { toast } from 'sonner';
 
+import { GatePolicyDialog } from '@/components/organizations/totems/gate-policy-dialog';
 import { TotemStatusBadge } from '@/components/organizations/totems/totem-status-badge';
 import { useConfirm } from '@/components/shared/confirm-dialog';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -70,6 +72,7 @@ export default function OrganizationTotemsPage() {
 
   const [isLoading, setIsLoading] = useState(true);
   const [totems, setTotems] = useState<OrganizationTotemListResponse[]>([]);
+  const [gateTotem, setGateTotem] = useState<OrganizationTotemListResponse | null>(null);
   const [events, setEvents] = useState<EventSummaryResponse[]>([]);
   const [assigningTotem, setAssigningTotem] = useState<OrganizationTotemListResponse | null>(null);
   const [isAssigning, setIsAssigning] = useState(false);
@@ -311,12 +314,41 @@ export default function OrganizationTotemsPage() {
                     {formatDateTime(totem.startsAt, locale)} - {formatDateTime(totem.endsAt, locale)}
                   </TableCell>
                   <TableCell>{totem.activeEvent?.eventName ?? t('pages.organizationTotems.noActiveEvent')}</TableCell>
-                  <TableCell>{totem.activeEvent?.locationName ?? '-'}</TableCell>
+                  <TableCell>
+                    {totem.activeEvent ? (
+                      <div className="space-y-1">
+                        <span>{totem.activeEvent.locationName}</span>
+                        {totem.activeEvent.allowedSectors.length + totem.activeEvent.allowedTicketTypes.length >
+                        0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {[...totem.activeEvent.allowedSectors, ...totem.activeEvent.allowedTicketTypes].map(
+                              (entry) => (
+                                <Badge key={entry} variant="outline" className="text-xs">
+                                  {entry}
+                                </Badge>
+                              ),
+                            )}
+                          </div>
+                        ) : (
+                          <p className="text-muted-foreground text-xs">
+                            {t('integrations.sympla.gate.unrestricted')}
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      '-'
+                    )}
+                  </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
                       {canManage && (
                         <Button variant="outline" size="sm" onClick={() => openAssignModal(totem)}>
                           {t('pages.organizationTotems.assignEvent')}
+                        </Button>
+                      )}
+                      {canManage && totem.activeEvent && (
+                        <Button variant="outline" size="sm" onClick={() => setGateTotem(totem)}>
+                          {t('integrations.sympla.gate.configure')}
                         </Button>
                       )}
                       {canManage && totem.activeEvent && (
@@ -332,6 +364,19 @@ export default function OrganizationTotemsPage() {
           </TableBody>
         </Table>
       </div>
+
+      {gateTotem?.activeEvent && (
+        <GatePolicyDialog
+          open
+          onOpenChange={(open) => !open && setGateTotem(null)}
+          eventId={gateTotem.activeEvent.eventId}
+          subscriptionId={gateTotem.activeEvent.id}
+          locationName={gateTotem.activeEvent.locationName}
+          initialSectors={gateTotem.activeEvent.allowedSectors}
+          initialTicketTypes={gateTotem.activeEvent.allowedTicketTypes}
+          onSaved={() => void loadData()}
+        />
+      )}
 
       <Dialog open={!!assigningTotem} onOpenChange={(open) => !open && closeAssignModal()}>
         <DialogContent>

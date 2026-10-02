@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+import { parseGateAllowList } from '@/core/domain/value-objects/gate-policy';
 import { withAuth, withRBAC } from '@/core/infrastructure/http/middlewares';
 import type { RouteContext } from '@/core/infrastructure/http/types';
 import { prisma } from '@/core/infrastructure/prisma-client';
@@ -49,6 +50,8 @@ export const GET = withAuth(
             locationName: true,
             startsAt: true,
             endsAt: true,
+            allowedSectors: true,
+            allowedTicketTypes: true,
             event: {
               select: {
                 id: true,
@@ -84,6 +87,9 @@ export const GET = withAuth(
               locationName: subscription.eventSubscriptions[0].locationName,
               startsAt: subscription.eventSubscriptions[0].startsAt,
               endsAt: subscription.eventSubscriptions[0].endsAt,
+              allowedSectors: parseGateAllowList(subscription.eventSubscriptions[0].allowedSectors) ?? [],
+              allowedTicketTypes:
+                parseGateAllowList(subscription.eventSubscriptions[0].allowedTicketTypes) ?? [],
             }
           : null,
       })),

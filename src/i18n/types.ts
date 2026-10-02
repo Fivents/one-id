@@ -1360,6 +1360,23 @@ export type TranslationSchema = {
         duplicate: string;
         duplicateTooltip: string;
       };
+      gate: {
+        title: string;
+        description: string;
+        configure: string;
+        unrestricted: string;
+        restrictedTo: string;
+        sectors: string;
+        ticketTypes: string;
+        noSectors: string;
+        noTicketTypes: string;
+        clearAll: string;
+        save: string;
+        saving: string;
+        saved: string;
+        loadError: string;
+        hint: string;
+      };
     };
   };
 };

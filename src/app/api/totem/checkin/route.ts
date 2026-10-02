@@ -6,6 +6,7 @@ import { containerService } from '@/core/application/services/container.service'
 import { enqueueMirrorCheckIn } from '@/core/application/services/sympla/enqueue-mirror-checkin';
 import { TotemCheckInService } from '@/core/application/services/totem-checkin.service';
 import { faceEmbeddingSchema } from '@/core/communication/requests/person-face';
+import { evaluateGatePolicy } from '@/core/domain/value-objects/gate-policy';
 import { withAuth, withTotemAuth, withTotemRoutingGuard } from '@/core/infrastructure/http/middlewares';
 import { getTotemAuth } from '@/core/infrastructure/http/types';
 import { prisma } from '@/core/infrastructure/prisma-client';
@@ -263,6 +264,33 @@ async function executeCredentialCheckIn(
         code: 'CHECKIN_PARTICIPANT_NOT_FOUND',
       },
       { status: 404 },
+    );
+  }
+
+  // ── Gate policy ──────────────────────────────────────────────────
+  // Same evaluation the face path uses, so a rule cannot hold at one door and not another.
+  const gateDecision = evaluateGatePolicy(context.gatePolicy, {
+    sectorName: participant.sectorName,
+    ticketName: participant.ticketName,
+  });
+
+  if (!gateDecision.allowed) {
+    await logDeniedAttempt(context, totemId, 'CHECKIN_WRONG_GATE', gateDecision.reason, {
+      method: input.method,
+      eventParticipantId: participant.id,
+      sectorName: participant.sectorName,
+      ticketName: participant.ticketName,
+    });
+
+    return NextResponse.json(
+      {
+        error:
+          gateDecision.reason === 'SECTOR_NOT_ALLOWED'
+            ? 'Este ingresso não é válido nesta portaria.'
+            : 'Este tipo de ingresso não é aceito nesta portaria.',
+        code: 'CHECKIN_WRONG_GATE',
+      },
+      { status: 403 },
     );
   }
 

@@ -7,6 +7,7 @@ import type {
   ICooldownService,
   IVectorDbRepository,
 } from '@/core/domain/contracts';
+import { evaluateGatePolicy } from '@/core/domain/value-objects/gate-policy';
 import type { PrismaClient } from '@/generated/prisma/client';
 
 import { enqueueMirrorCheckIn } from './sympla/enqueue-mirror-checkin';
@@ -270,6 +271,33 @@ export class TotemCheckInService {
           participantName: bestMatch.participantName,
           eventParticipantId: bestMatch.eventParticipantId,
         });
+      }
+
+      // ── Gate policy ───────────────────────────────────────────────
+      // Read from the slot the match landed on, using the same evaluation as the credential
+      // paths; a rule that held at one door and not another would be miserable to debug.
+      const gateSlot = await this.db.eventParticipant.findUnique({
+        where: { id: bestMatch.eventParticipantId },
+        select: { sectorName: true, ticketName: true },
+      });
+
+      const gateDecision = evaluateGatePolicy(context.gatePolicy, {
+        sectorName: gateSlot?.sectorName ?? null,
+        ticketName: gateSlot?.ticketName ?? null,
+      });
+
+      if (!gateDecision.allowed) {
+        failureReason = gateDecision.reason;
+        return this.deny(
+          'CHECKIN_WRONG_GATE',
+          gateDecision.reason === 'SECTOR_NOT_ALLOWED'
+            ? 'Este ingresso não é válido nesta portaria.'
+            : 'Este tipo de ingresso não é aceito nesta portaria.',
+          403,
+          context,
+          totemId,
+          { eventParticipantId: bestMatch.eventParticipantId },
+        );
       }
 
       // ── Ticket ambiguity ──────────────────────────────────────────

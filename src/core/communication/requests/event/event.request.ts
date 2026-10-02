@@ -104,3 +104,13 @@ export const duplicateEventRequestSchema = z.object({
 });
 
 export type DuplicateEventRequest = z.infer<typeof duplicateEventRequestSchema>;
+
+/** Gate restriction: which sectors / ticket types a totem accepts at a given event. */
+export const updateGatePolicyRequestSchema = z.object({
+  // Empty arrays are meaningful — they clear the restriction — so both default to [] rather
+  // than being optional, and the route turns [] into NULL on the way to the column.
+  allowedSectors: z.array(z.string().trim().min(1)).max(200).default([]),
+  allowedTicketTypes: z.array(z.string().trim().min(1)).max(200).default([]),
+});
+
+export type UpdateGatePolicyRequest = z.infer<typeof updateGatePolicyRequestSchema>;
