@@ -149,4 +149,32 @@ describe('SymplaCheckInMirrorService', () => {
 
     await expect(harness.service.mirror('ci-1')).rejects.toMatchObject({ code: 'SYMPLA_RATE_LIMITED' });
   });
+
+  it('treats "already checked in" as success, not a divergence', async () => {
+    // Sympla answers 400 checkin:already_performed. The goal state already holds, so recording a
+    // rejection would leave symplaCheckedIn false and make the reconciler re-push it forever.
+    const alreadyIn = new SymplaApiError(400, {
+      type: 'checkin:already_performed',
+      title: 'Check-In já realizado',
+      detail: 'This participant has already completed check-in',
+    });
+    const harness = makeHarness(makeCheckIn(), alreadyIn);
+
+    await expect(harness.service.mirror('ci-1')).resolves.toBe('ALREADY_MIRRORED');
+
+    // And it records the state locally, which is what stops the churn.
+    expect(harness.updates[0].data).toMatchObject({ symplaCheckedIn: true });
+    expect(harness.audits[0].metadata).toMatchObject({ alreadyPerformedOnSympla: true });
+  });
+
+  it('retries rather than claiming success when Sympla answers 2xx without confirming', async () => {
+    // The live API does this: the POST registers the check-in but does not echo confirmation.
+    // Throwing hands it to the queue's backoff, and the retry resolves it definitively — the
+    // second attempt gets either a confirmation or 400 already_performed.
+    const harness = makeHarness(makeCheckIn());
+    harness.checkInByParticipantId.mockResolvedValueOnce({ check_in: false } as never);
+
+    await expect(harness.service.mirror('ci-1')).rejects.toThrowError(/did not confirm/);
+    expect(harness.updates).toHaveLength(0);
+  });
 });

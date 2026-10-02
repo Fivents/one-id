@@ -49,10 +49,11 @@ function mapUpstreamStatus(upstreamStatus: number): SymplaErrorMapping {
         message: 'QR code expirado na Sympla. Peça ao participante para atualizar o ingresso.',
         retryable: false,
       };
+    case 400:
     case 422:
       return {
         code: ErrorCode.SYMPLA_VALIDATION,
-        httpStatus: 422,
+        httpStatus: upstreamStatus,
         message: 'A Sympla recusou os dados enviados.',
         retryable: false,
       };
@@ -82,13 +83,29 @@ export class SymplaApiError extends AppError {
   public readonly retryable: boolean;
   public readonly problem?: SymplaProblemDetails;
 
+  /**
+   * True when Sympla refused because the check-in it was asked to make already exists.
+   *
+   * Worth its own predicate because the correct response is the opposite of what a 400 usually
+   * means: the desired state already holds, so this is success, not a divergence to report.
+   */
+  get isCheckInAlreadyPerformed(): boolean {
+    const type = this.problem?.type?.toLowerCase() ?? '';
+    const detail = this.problem?.detail?.toLowerCase() ?? '';
+
+    return type.includes('already_performed') || detail.includes('already completed check-in');
+  }
+
   constructor(upstreamStatus: number, problem?: SymplaProblemDetails, context?: Record<string, unknown>) {
     const mapping = mapUpstreamStatus(upstreamStatus);
 
     // The 422 detail is the only upstream copy worth surfacing verbatim — it names the
     // offending field, which our generic message cannot.
     const detail = problem?.detail?.trim();
-    const message = upstreamStatus === 422 && detail ? `${mapping.message} ${detail}` : mapping.message;
+    const message =
+      (upstreamStatus === 400 || upstreamStatus === 422) && detail
+        ? `${mapping.message} ${detail}`
+        : mapping.message;
 
     super({
       code: mapping.code,

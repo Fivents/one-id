@@ -70,11 +70,30 @@ export class SymplaCheckInMirrorService {
     try {
       const result = await this.postCheckIn(client, symplaEventIdHash, participant);
 
+      // Only claim it was mirrored when Sympla actually says so. Assuming success from a 2xx
+      // would be worse than failing: the reconciler compares this flag to decide whether the two
+      // sides agree, so a false positive makes a real divergence permanently invisible.
+      //
+      // Observed against the live API: the POST sometimes answers 2xx without echoing the
+      // confirmation even though the check-in did register. Throwing rather than returning hands
+      // it to the queue's backoff, and the retry gets a definitive answer either way — a second
+      // success, or 400 already_performed, which the catch below reads as the goal state. That
+      // converges in seconds instead of waiting for the daily reconciliation.
+      if (result.check_in !== true) {
+        Logger.warn('Sympla accepted the check-in request without confirming it; will retry', {
+          checkInId: checkIn.id,
+          ticketNumber: participant.ticketNumber,
+        });
+
+        throw new Error('Sympla did not confirm the check-in');
+      }
+
       await this.db.eventParticipant.update({
         where: { id: participant.id },
         data: {
-          symplaCheckedIn: result.check_in ?? true,
+          symplaCheckedIn: true,
           symplaCheckInDate: checkIn.checkedInAt,
+          // Documented but absent from both response shapes in practice; stored when present.
           symplaCheckInId: result.check_in_id ?? null,
         },
       });
@@ -91,6 +110,26 @@ export class SymplaCheckInMirrorService {
       // A retryable failure (429, 5xx, network) is rethrown so the queue backs off and tries
       // again. A definitive rejection is not: retrying a 404 or a 422 forever would keep the
       // row hot and never succeed. It is recorded as a divergence for the reconciler instead.
+      // Sympla answers 400 checkin:already_performed when the ticket is already in — which is
+      // the goal state, not a failure. It happens whenever someone was checked in through the
+      // organizer's own app and then also scans at one of our gates. Recording it as a rejection
+      // would leave symplaCheckedIn false and have the reconciler re-push it forever.
+      if (error instanceof SymplaApiError && error.isCheckInAlreadyPerformed) {
+        await this.db.eventParticipant.update({
+          where: { id: participant.id },
+          data: { symplaCheckedIn: true, symplaCheckInDate: checkIn.checkedInAt },
+        });
+
+        await this.audit(participant.eventId, participant.event.organizationId, 'SYMPLA_CHECKIN_MIRRORED', {
+          checkInId: checkIn.id,
+          eventParticipantId: participant.id,
+          ticketNumber: participant.ticketNumber,
+          alreadyPerformedOnSympla: true,
+        });
+
+        return 'ALREADY_MIRRORED';
+      }
+
       if (error instanceof SymplaApiError && !error.retryable) {
         await this.audit(participant.eventId, participant.event.organizationId, 'SYMPLA_CHECKIN_MIRRORED', {
           checkInId: checkIn.id,

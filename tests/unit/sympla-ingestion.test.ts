@@ -11,7 +11,10 @@ import {
   type PersonLookup,
   resolveTicketIdentity,
 } from '@/core/application/services/sympla/sympla-identity-policy';
-import { symplaParticipantSchema } from '@/core/infrastructure/http/sympla/sympla.schemas';
+import {
+  symplaCheckInStatusSchema,
+  symplaParticipantSchema,
+} from '@/core/infrastructure/http/sympla/sympla.schemas';
 
 const FIXTURES = path.resolve(__dirname, '../fixtures/sympla');
 
@@ -206,5 +209,29 @@ describe('bulk order end to end', () => {
     // The buyer put her own CPF on both paid tickets — exactly the duplication that used to be
     // impossible to store, and the reason the duplicate badge exists in the UI.
     expect(documents).toEqual(['123.456.789-00', '123.456.789-00', null]);
+  });
+});
+
+describe('check-in status shape', () => {
+  it('reads the object form the participant GET returns', () => {
+    expect(symplaCheckInStatusSchema.parse({ check_in: false })).toMatchObject({ check_in: false });
+  });
+
+  it('reads the array form the check-in POST returns', () => {
+    // Measured against the live API: the POST answers with an array, the GET with an object, and
+    // neither carries check_in_id despite the documentation saying it does.
+    expect(
+      symplaCheckInStatusSchema.parse([{ check_in: true, check_in_date: '2026-10-02T16:01:47Z' }]),
+    ).toMatchObject({ check_in: true, check_in_date: '2026-10-02T16:01:47Z' });
+  });
+
+  it('picks the confirmed entry when the array holds several', () => {
+    expect(
+      symplaCheckInStatusSchema.parse([{ check_in: false }, { check_in: true, check_in_date: 'x' }]),
+    ).toMatchObject({ check_in: true });
+  });
+
+  it('survives an empty array instead of throwing mid-sync', () => {
+    expect(symplaCheckInStatusSchema.parse([])).toMatchObject({ check_in: null });
   });
 });

@@ -72,6 +72,41 @@ interface EventSyncContext {
   credentialLength: number;
 }
 
+/**
+ * Decides what to write for the Sympla-side check-in state.
+ *
+ * Measured against the live API: a GET issued right after a successful check-in POST can still
+ * report `check_in: false` — the read is eventually consistent. Writing that stale false back
+ * would un-mark a check-in we know succeeded, and the reconciler would then re-push it on every
+ * pass, producing endless churn and making its divergence signal meaningless.
+ *
+ * So a slot that has a local check-in is never downgraded from mirrored to not-mirrored. Sympla
+ * does let an organizer undo a check-in, but when we hold the gate record, our record is the
+ * better evidence of what happened; a genuine undo is a decision for a human, not something to
+ * infer from a possibly-stale read. A slot with no local check-in trusts Sympla either way.
+ */
+function resolveMirroredState(
+  participant: SymplaParticipant,
+  existing: { symplaCheckedIn: boolean | null; checkIns: Array<{ id: string }> } | null,
+): { symplaCheckedIn: boolean | null; symplaCheckInDate: Date | null; symplaCheckInId: number | null } {
+  const reported = participant.checkin?.check_in ?? null;
+  const reportedDate = parseSymplaDateTime(participant.checkin?.check_in_date);
+  const reportedId = participant.checkin?.check_in_id ?? null;
+
+  const weHaveACheckIn = (existing?.checkIns.length ?? 0) > 0;
+  const alreadyMirrored = existing?.symplaCheckedIn === true;
+
+  if (reported !== true && alreadyMirrored && weHaveACheckIn) {
+    return {
+      symplaCheckedIn: true,
+      symplaCheckInDate: reportedDate,
+      symplaCheckInId: reportedId,
+    };
+  }
+
+  return { symplaCheckedIn: reported, symplaCheckInDate: reportedDate, symplaCheckInId: reportedId };
+}
+
 export class SymplaParticipantSyncService {
   constructor(private readonly db: PrismaClient) {}
 
@@ -248,7 +283,12 @@ export class SymplaParticipantSyncService {
     return this.db.$transaction(async (tx) => {
       const existing = await tx.eventParticipant.findUnique({
         where: { eventId_ticketNumber: { eventId: context.eventId, ticketNumber: participant.ticket_number } },
-        select: { id: true, personId: true },
+        select: {
+          id: true,
+          personId: true,
+          symplaCheckedIn: true,
+          checkIns: { select: { id: true }, take: 1 },
+        },
       });
 
       const personId = existing?.personId ?? (await this.resolvePersonId(tx, context, { fullName, email, document }));
@@ -261,9 +301,7 @@ export class SymplaParticipantSyncService {
         ticketNetValue: participant.ticket_net_value ?? null,
         sectorName: participant.sector_name ?? null,
         seatLabel: participant.marked_place_name ?? null,
-        symplaCheckedIn: participant.checkin?.check_in ?? null,
-        symplaCheckInDate: parseSymplaDateTime(participant.checkin?.check_in_date),
-        symplaCheckInId: participant.checkin?.check_in_id ?? null,
+        ...resolveMirroredState(participant, existing),
         customFields: customFields as unknown as Prisma.InputJsonValue,
         attendeeFullName: fullName,
         attendeeEmail: email,

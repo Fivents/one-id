@@ -132,11 +132,32 @@ export const symplaCustomFormFieldSchema = z.object({
   value: z.unknown().nullish(),
 });
 
-export const symplaCheckInStatusSchema = z.object({
+const symplaCheckInStatusObjectSchema = z.object({
   check_in: z.boolean().nullish(),
   check_in_date: z.string().nullish(),
   check_in_id: z.number().nullish(),
 });
+
+/**
+ * The same field arrives in two shapes, confirmed against the live API: the participant GET
+ * returns an object (`{check_in: false}`) while the check-in POST returns an array
+ * (`[{check_in: true, check_in_date: ...}]`). Neither carries check_in_id in practice, despite
+ * the documentation.
+ *
+ * Normalizing to the object form here means no caller has to know, and — more to the point — a
+ * mirror cannot mistake an unparsed array for "no confirmation" and then assume success.
+ */
+export const symplaCheckInStatusSchema = z
+  .union([symplaCheckInStatusObjectSchema, z.array(symplaCheckInStatusObjectSchema)])
+  .transform((value) => {
+    if (!Array.isArray(value)) return value;
+
+    // Several entries would mean several check-ins; the confirmed one is what matters.
+    return (
+      value.find((entry) => entry.check_in === true) ??
+      value[0] ?? { check_in: null, check_in_date: null, check_in_id: null }
+    );
+  });
 
 export const symplaParticipantSchema = z.object({
   id: stringId,
