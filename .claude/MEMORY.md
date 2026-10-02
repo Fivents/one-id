@@ -449,3 +449,40 @@ ingresso. Fechar essa lacuna exige o payload QR assinado da Sympla, que um leito
   devolve slot arbitrário, então resolve para o único ingresso em aberto quando há exatamente um e
   recusa com `CHECKIN_AMBIGUOUS_TICKET` quando há mais. A UX completa de desambiguação fica aberta
   até o facial ser ligado.
+
+## 🚪 P3 — Restrição de portaria e métricas (2026-10-02)
+
+### Restrição por portaria
+
+Allow-lists de setor e tipo de ingresso em **`TotemEventSubscription`**, não em `Totem`.
+O plano original dizia `Totem`, e isso estava errado: um totem serve eventos diferentes ao longo
+do tempo e setores pertencem a um evento, então regra no device vazaria entre eventos e passaria a
+recusar as pessoas erradas no momento em que o totem fosse reatribuído. A subscription já carrega
+`locationName` — ela **é** a portaria.
+
+- Casamento **por nome**, não id: é o que o slot carrega (`sectorName`/`ticketName`, denormalizados
+  da Sympla por participante). Sem join, e nomes sobrevivem a re-sync. Comparação ignora caixa e
+  espaços porque a própria Sympla varia entre catálogo e ingresso.
+- **Direções de falha opostas, de propósito:** allow-list malformada lê como "sem restrição"
+  (config ruim não pode virar parede para quem tem ingresso válido); ingresso **sem setor** falha
+  uma restrição de setor (senão a restrição não restringe nada, já que ingresso não sincronizado
+  não tem setor).
+- A decisão é **uma função pura** (`src/core/domain/value-objects/gate-policy.ts`) compartilhada
+  por QR, código e facial. Regra que vale numa porta e não na outra seria péssima de depurar no
+  meio do evento, então não existe segunda implementação para divergir.
+- O seletor de setores lê nomes do catálogo **e dos próprios ingressos**: um ingresso pode nomear
+  setor que nenhuma apresentação declarou.
+
+### Métricas
+
+Taxa de check-in por tipo de ingresso e setor, receita, e atribuição UTM ligada ao comparecimento
+real.
+
+**Não é gráfico, de propósito:** magnitude por linha nomeada sobre poucas categorias lê mais rápido
+como tabela com medidor inline, e não exige paleta categórica nenhuma — identidade vem do rótulo,
+números usam tokens de texto, medidor é a hue única do projeto.
+
+**`EXISTS`, nunca join em `check_ins`.** Join faria fan-out de participante com 2 check-ins em 2
+linhas e **dobraria silenciosamente o preço do ingresso** na soma de receita. Validado contra dado
+real (3314 participantes, 1124 check-ins, 33,9%) com cross-check contra contagens independentes do
+Prisma — exatamente o que quebraria se houvesse fan-out.
