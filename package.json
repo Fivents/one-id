@@ -26,7 +26,8 @@
     "migrate:deploy": "prisma migrate deploy",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:live": "vitest run --config vitest.live.config.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "5.2.2",

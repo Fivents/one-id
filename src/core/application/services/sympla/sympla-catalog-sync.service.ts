@@ -27,13 +27,34 @@ export interface SyncCatalogResult {
   errors: SymplaSyncError[];
 }
 
+function blankToNull(value: string | null | undefined): string | null {
+  const trimmed = value?.trim();
+
+  return trimmed ? trimmed : null;
+}
+
 function formatAddress(address: SymplaAddress | null | undefined): string | null {
   if (!address) return null;
 
-  const street = [address.address, address.address_num].filter(Boolean).join(', ');
-  const parts = [street, address.neighborhood, address.city, address.state].filter(Boolean);
+  const street = blankToNull(address.address);
+  // A house number without a street is noise, not an address. A venue still being decided comes
+  // back as address:'' with address_num:'0', which would otherwise render as "0 - Diadema - SP".
+  const number = street ? blankToNull(address.address_num) : null;
 
-  return parts.length ? parts.join(' - ') : (address.name ?? null);
+  const parts = [
+    [street, number].filter(Boolean).join(', ') || null,
+    blankToNull(address.neighborhood),
+    blankToNull(address.city),
+    blankToNull(address.state),
+  ].filter((part): part is string => Boolean(part));
+
+  if (parts.length === 0) return blankToNull(address.name);
+
+  // Lead with the venue name when there is one; "Arena X - Av. Paulista, 1000 - São Paulo"
+  // reads the way a person would write it.
+  const venue = blankToNull(address.name);
+
+  return venue ? [venue, ...parts].join(' - ') : parts.join(' - ');
 }
 
 export class SymplaCatalogSyncService {
@@ -202,13 +223,14 @@ export class SymplaCatalogSyncService {
           orderDate: parseSymplaDateTime(order.order_date),
           approvedDate: parseSymplaDateTime(order.approved_date),
           updatedDate: parseSymplaDateTime(order.updated_date),
-          buyerFirstName: order.buyer_first_name ?? null,
-          buyerLastName: order.buyer_last_name ?? null,
-          buyerEmail: order.buyer_email ?? null,
+          buyerFirstName: blankToNull(order.buyer_first_name),
+          buyerLastName: blankToNull(order.buyer_last_name),
+          // Sympla sends '' rather than omitting an absent buyer e-mail.
+          buyerEmail: blankToNull(order.buyer_email),
           totalSalePrice: order.order_total_sale_price ?? 0,
           totalNetValue: order.order_total_net_value ?? 0,
-          discountCode: order.discount_code ?? null,
-          transactionType: order.transaction_type ?? null,
+          discountCode: blankToNull(order.discount_code),
+          transactionType: blankToNull(order.transaction_type),
           presentationId: order.presentation_id ?? null,
           invoiceInfo: (order.invoice_info ?? null) as unknown as Prisma.InputJsonValue,
           utmTracking: (order.utm ?? null) as unknown as Prisma.InputJsonValue,

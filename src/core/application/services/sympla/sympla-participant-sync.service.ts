@@ -30,11 +30,20 @@ import { makePersonLookup, resolveTicketIdentity } from './sympla-identity-polic
 const MAX_TICKETS_PER_RUN = 20_000;
 
 /**
- * Sympla filters participants by ticket_updated_at, and its clock is not ours. Rewinding the
- * watermark a little makes the incremental pass re-see anything written around the boundary;
- * the upsert makes re-seeing free.
+ * How far the incremental watermark is rewound before asking Sympla for changes.
+ *
+ * Deliberately larger than any real timezone offset. A live check against the API found that
+ * Sympla does NOT render every timestamp in the timezone the request asks for: within a single
+ * order, `order_date` honoured `timezone=UTC` while `updated_date` came back in the account's
+ * local time — the two differed by exactly three hours. Whether `ticket_updated_at` and the
+ * `from` filter agree with each other is therefore not something to assume, and guessing wrong
+ * in the unsafe direction means silently skipping hours of tickets.
+ *
+ * Rewinding past any possible offset makes the question moot: the pass re-reads some tickets it
+ * already has, and the upsert keyed on (eventId, ticketNumber) makes that free. Cheap insurance
+ * against the one failure mode here that nobody would notice.
  */
-const WATERMARK_OVERLAP_MS = 5 * 60 * 1000;
+const WATERMARK_OVERLAP_MS = 15 * 60 * 60 * 1000;
 
 export interface SyncParticipantsInput {
   eventId: string;
@@ -226,6 +235,8 @@ export class SymplaParticipantSyncService {
   ): Promise<'CREATED' | 'UPDATED'> {
     const customFields = normalizeCustomForm(participant.custom_form);
     const fullName = buildFullName(participant.first_name, participant.last_name);
+    // Sympla sends '' for an absent e-mail; '' would otherwise read as a shared address and
+    // trip the duplicate-participant badge for every ticket without one.
     const email = participant.email?.trim() || null;
     const document = extractDocumentFromCustomForm(customFields);
 
