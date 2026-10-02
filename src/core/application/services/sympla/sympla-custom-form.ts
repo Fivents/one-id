@@ -41,13 +41,23 @@ export function normalizeCustomForm(fields: SymplaCustomFormField[] | null | und
 // Sympla has no dedicated document field, so the organizer collects it as a custom question.
 // These are the labels that show up in practice; anything else simply leaves the slot without
 // a document, which is a supported state.
-const DOCUMENT_FIELD_HINTS = ['cpf', 'documento', 'doc', 'rg', 'identidade', 'passaporte', 'passport'];
+const DOCUMENT_FIELD_HINTS = ['cpf', 'cnpj', 'documento', 'doc', 'rg', 'identidade', 'passaporte', 'passport'];
+
+/**
+ * Matched on word boundaries, never as a bare substring.
+ *
+ * Real data made the reason obvious: a form asking "Cargo" (job title) was being read as a
+ * document, because "cargo" contains "rg". The job title then landed in attendeeDocument, which
+ * feeds access-code derivation and duplicate detection — so a loose match here quietly corrupts
+ * two other features.
+ */
+const DOCUMENT_FIELD_PATTERN = new RegExp(`(?:^|[^a-z0-9])(?:${DOCUMENT_FIELD_HINTS.join('|')})(?:[^a-z0-9]|$)`);
 
 export function extractDocumentFromCustomForm(fields: NormalizedCustomField[]): string | null {
   for (const field of fields) {
     const key = normalizeKey(field.name);
 
-    if (DOCUMENT_FIELD_HINTS.some((hint) => key === hint || key.includes(hint))) {
+    if (DOCUMENT_FIELD_PATTERN.test(key)) {
       const value = field.value.trim();
       if (value) return value;
     }

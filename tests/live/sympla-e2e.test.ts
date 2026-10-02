@@ -172,6 +172,66 @@ describe('Sympla end to end', () => {
     expect(logs[0]?.action).toBe('SYMPLA_SYNC_COMPLETED');
   });
 
+  it('validates whatever real tickets are synced on the event', async () => {
+    const slots = await prisma.eventParticipant.findMany({
+      where: { eventId, deletedAt: null, ticketNumber: { not: null } },
+      select: {
+        ticketNumber: true,
+        qrCodeValue: true,
+        qrCodeProvenance: true,
+        accessCode: true,
+        attendeeFullName: true,
+        attendeeEmail: true,
+        attendeeDocument: true,
+        customFields: true,
+        personId: true,
+        orderId: true,
+        ticketStatus: true,
+      },
+    });
+
+    if (slots.length === 0) {
+       
+      console.warn('[e2e] no tickets issued on Sympla yet — ticket assertions skipped');
+      return;
+    }
+
+     
+    console.info(`[e2e] ${slots.length} real ticket(s) synced:`, slots);
+
+    for (const slot of slots) {
+      // Sympla encodes the QR as the ticket number with its hyphens stripped; this is the
+      // relationship the gate relies on, verified against the live API.
+      expect(slot.qrCodeValue).toBe(slot.ticketNumber?.replace(/-/g, ''));
+      expect(slot.qrCodeProvenance).toBe('MANUAL');
+
+      // Every slot must be independently checkable in, which is what the access code is for.
+      expect(slot.accessCode).toBeTruthy();
+
+      // The attendee snapshot is what the gate greets and the badge prints.
+      expect(slot.attendeeFullName).toBeTruthy();
+
+      // Orders are synced before participants, so a ticket from an order must be linked to it.
+      expect(slot.orderId).toBeTruthy();
+
+      // A job title must never end up in the document field — real data caught this once, when
+      // "Cargo" matched because it contains "rg".
+      const fields = (slot.customFields ?? []) as Array<{ name: string; value: string }>;
+      const jobTitle = fields.find((field) => field.name.toLowerCase() === 'cargo')?.value;
+      if (jobTitle) {
+        expect(slot.attendeeDocument).not.toBe(jobTitle);
+      }
+    }
+
+    // Access codes are per ticket and must not collide, however much the attendees repeat.
+    const accessCodes = slots.map((slot) => slot.accessCode);
+    expect(new Set(accessCodes).size).toBe(accessCodes.length);
+
+    // Ticket numbers are the idempotency anchor.
+    const numbers = slots.map((slot) => slot.ticketNumber);
+    expect(new Set(numbers).size).toBe(numbers.length);
+  });
+
   it('schedules and drains through the job queue', async () => {
     const scheduled = await containerService.getSymplaSchedulerService().enqueueDueSyncs();
 

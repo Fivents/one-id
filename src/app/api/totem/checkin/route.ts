@@ -172,6 +172,36 @@ async function logApprovedAttempt(
   });
 }
 
+const CREDENTIAL_PARTICIPANT_SELECT = {
+  id: true,
+  company: true,
+  jobTitle: true,
+  accessCode: true,
+  qrCodeValue: true,
+  attendeeFullName: true,
+  attendeeEmail: true,
+  attendeeDocument: true,
+  ticketNumber: true,
+  ticketName: true,
+  ticketStatus: true,
+  sectorName: true,
+  seatLabel: true,
+  person: {
+    select: {
+      name: true,
+      faces: {
+        where: { deletedAt: null, isActive: true },
+        select: { imageUrl: true },
+        take: 1,
+      },
+    },
+  },
+} as const;
+
+async function findParticipantById(id: string): Promise<CredentialParticipantMatch | null> {
+  return prisma.eventParticipant.findUnique({ where: { id }, select: CREDENTIAL_PARTICIPANT_SELECT });
+}
+
 async function findParticipantByCredential(
   context: NonNullable<Awaited<ReturnType<typeof resolveActiveTotemEventContextByTotemId>>>,
   method: CredentialCheckInMethod,
@@ -197,37 +227,35 @@ async function findParticipantByCredential(
       // check in. The second is the credential match itself.
       AND: [{ OR: [{ personId: null }, { person: { deletedAt: null } }] }, whereCredential],
     },
-    select: {
-      id: true,
-      company: true,
-      jobTitle: true,
-      accessCode: true,
-      qrCodeValue: true,
-      attendeeFullName: true,
-      attendeeEmail: true,
-      attendeeDocument: true,
-      ticketNumber: true,
-      ticketName: true,
-      ticketStatus: true,
-      sectorName: true,
-      seatLabel: true,
-      person: {
-        select: {
-          name: true,
-          faces: {
-            where: {
-              deletedAt: null,
-              isActive: true,
-            },
-            select: {
-              imageUrl: true,
-            },
-            take: 1,
-          },
-        },
-      },
-    },
+    select: CREDENTIAL_PARTICIPANT_SELECT,
   });
+}
+
+/**
+ * Resolves a scanned QR against the hyphen-stripped ticket number.
+ *
+ * Expressed as raw SQL because Prisma's filters cannot call replace(). It runs only after the
+ * indexed lookup has already missed, so the sequential scan it implies is on the failure path
+ * rather than the hot one.
+ */
+async function findParticipantByStrippedTicketNumber(
+  context: NonNullable<Awaited<ReturnType<typeof resolveActiveTotemEventContextByTotemId>>>,
+  value: string,
+): Promise<CredentialParticipantMatch | null> {
+  const rows = await prisma.$queryRaw<Array<{ id: string }>>`
+    SELECT id
+    FROM event_participants
+    WHERE event_id = ${context.event.id}
+      AND deleted_at IS NULL
+      AND ticket_number IS NOT NULL
+      AND replace(ticket_number, '-', '') = ${value}
+    LIMIT 1
+  `;
+
+  const id = rows[0]?.id;
+  if (!id) return null;
+
+  return findParticipantById(id);
 }
 
 async function executeCredentialCheckIn(
@@ -239,10 +267,18 @@ async function executeCredentialCheckIn(
 
   let participant = await findParticipantByCredential(context, input.method, normalizedValue);
 
-  // A credential that matches nothing locally on a linked event is usually a ticket bought
-  // after the last sync. Ask Sympla once, persist what comes back, and retry the local lookup
-  // — the attendee gets in instead of being told their valid ticket does not exist. See
-  // SymplaGateFallbackService for which credential shapes this can actually resolve.
+  // A Sympla QR carries the ticket number with its hyphens stripped: ticket "UVKL-LL-QDAT" is
+  // encoded as "UVKLLLQDAT" (verified against the live API). Normally the scan matches
+  // qrCodeValue directly, but when ticket_num_qr_code did not come down we generated a random QR
+  // instead — and then the attendee's real QR matches nothing. Comparing against the stripped
+  // ticket number closes that gap locally, with no extra API call.
+  if (!participant && input.method === 'QR') {
+    participant = await findParticipantByStrippedTicketNumber(context, normalizedValue);
+  }
+
+  // Still nothing: usually a ticket bought after the last sync. Ask Sympla once, persist what
+  // comes back, and retry the local lookup — the attendee gets in instead of being told their
+  // valid ticket does not exist. See SymplaGateFallbackService for what this can resolve.
   if (!participant) {
     const resolvedId = await containerService
       .getSymplaGateFallbackService()

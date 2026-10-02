@@ -5,13 +5,17 @@
  * after the last sync. Asking Sympla directly turns "ingresso não encontrado" into a working
  * check-in, and the ticket is persisted on the way through so the next scan is local again.
  *
- * Known limitation: Sympla's lookup endpoint keys on `ticket_number`, while a scanned QR
- * carries `ticket_num_qr_code` — different fields. So this resolves a ticket only where the
- * scanned value *is* the ticket number (a typed access code, or a QR the organizer encoded
- * that way). Where they differ the call 404s, which costs one bounded request and leaves the
- * caller with the same honest "not found" it already had. Closing that gap needs Sympla's
- * signed QR payload (itemId/signature/timestamp/walletId), which a plain scanner does not
- * produce — so it is a real gap, not an oversight.
+ * Known limitation, now measured rather than assumed: Sympla's lookup endpoint keys on
+ * `ticket_number` and accepts nothing else. A real ticket "UVKL-LL-QDAT" encodes its QR as
+ * "UVKLLLQDAT" — the same string without hyphens — and that form returns 404 from this endpoint.
+ * So a scanned QR for a ticket we have never synced cannot be resolved here; a typed access code
+ * or ticket number can. The failed call costs one bounded request and leaves the caller with the
+ * same honest "not found" it already had.
+ *
+ * The gap that mattered in practice was different and is closed elsewhere: a ticket we *have*
+ * synced whose `ticket_num_qr_code` never came down got a generated QR, so the attendee's real QR
+ * matched nothing. The check-in route now also compares the scan against the hyphen-stripped
+ * ticket number, which needs no API call at all.
  */
 
 import { Logger } from '@/core/utils/logger';

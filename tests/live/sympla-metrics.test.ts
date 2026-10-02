@@ -7,7 +7,6 @@
  */
 
 import { loadEnvFile } from 'node:process';
-
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 let prisma: typeof import('@/core/infrastructure/prisma-client').prisma;
@@ -40,7 +39,7 @@ describe('Sympla metrics against real data', () => {
 
     const metrics = await containerService.getSymplaMetricsService().forEvent(biggest.id);
 
-    // eslint-disable-next-line no-console
+     
     console.info(`[metrics] "${biggest.name}" (${biggest._count.participants} participants):`, {
       totals: metrics.totals,
       ticketTypes: metrics.byTicketType.length,
@@ -77,17 +76,29 @@ describe('Sympla metrics against real data', () => {
     }
   });
 
-  it('returns zeroes rather than failing on an event with nothing synced', async () => {
+  it('holds its invariants on a linked event, whatever is synced there', async () => {
     const link = await prisma.symplaEventLink.findFirst({ select: { eventId: true } });
     if (!link) return;
 
     const metrics = await containerService.getSymplaMetricsService().forEvent(link.eventId);
 
-    // eslint-disable-next-line no-console
-    console.info('[metrics] linked test event:', metrics.totals);
+     
+    console.info('[metrics] linked event:', metrics.totals);
 
-    expect(metrics.totals.tickets).toBe(0);
-    expect(metrics.totals.checkInRate).toBeNull();
-    expect(metrics.byUtmSource).toEqual([]);
+    // Asserting invariants rather than a count: real tickets arrive on this event over time, and
+    // a test that hardcodes "0" fails the moment the integration starts working.
+    const participants = await prisma.eventParticipant.count({
+      where: { eventId: link.eventId, deletedAt: null },
+    });
+
+    expect(metrics.totals.tickets).toBe(participants);
+    expect(metrics.totals.valid + metrics.totals.cancelled).toBe(metrics.totals.tickets);
+    expect(metrics.totals.checkedIn).toBeLessThanOrEqual(metrics.totals.tickets);
+
+    if (metrics.totals.valid === 0) {
+      expect(metrics.totals.checkInRate).toBeNull();
+    } else {
+      expect(metrics.totals.checkInRate).not.toBeNull();
+    }
   });
 });

@@ -81,6 +81,31 @@ describe('extractDocumentFromCustomForm', () => {
     expect(extractDocumentFromCustomForm([{ name: 'CPF', value: '  ' }])).toBeNull();
     expect(extractDocumentFromCustomForm([])).toBeNull();
   });
+
+  it('does not mistake a label that merely contains a hint for a document', () => {
+    // Found in real data: a form asking "Cargo" was read as a document because "cargo" contains
+    // "rg", so the job title landed in attendeeDocument — which feeds access-code derivation and
+    // duplicate detection.
+    expect(
+      extractDocumentFromCustomForm([
+        { name: 'Cargo', value: 'Dev' },
+        { name: 'Empresa', value: 'Fivents' },
+      ]),
+    ).toBeNull();
+    expect(extractDocumentFromCustomForm([{ name: 'Encargos', value: 'x' }])).toBeNull();
+    expect(extractDocumentFromCustomForm([{ name: 'Doces preferidos', value: 'brigadeiro' }])).toBeNull();
+  });
+
+  it('still matches a real document label next to one of those', () => {
+    expect(
+      extractDocumentFromCustomForm([
+        { name: 'Cargo', value: 'Dev' },
+        { name: 'RG', value: '12.345.678-9' },
+      ]),
+    ).toBe('12.345.678-9');
+    expect(extractDocumentFromCustomForm([{ name: 'Nº do RG', value: '123' }])).toBe('123');
+    expect(extractDocumentFromCustomForm([{ name: 'CPF/CNPJ', value: '000' }])).toBe('000');
+  });
 });
 
 describe('buildFullName', () => {
