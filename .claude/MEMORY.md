@@ -486,3 +486,46 @@ números usam tokens de texto, medidor é a hue única do projeto.
 linhas e **dobraria silenciosamente o preço do ingresso** na soma de receita. Validado contra dado
 real (3314 participantes, 1124 check-ins, 33,9%) com cross-check contra contagens independentes do
 Prisma — exatamente o que quebraria se houvesse fan-out.
+
+## ✅ Validação contra a API real da Sympla (2026-10-02)
+
+Rodada com token de produtor real, evento publicado, 11 ingressos emitidos e check-ins
+espelhados de verdade. `pnpm test:live` (opt-in, fora do CI); escritas na Sympla exigem
+**`SYMPLA_ALLOW_WRITES=1`** por cima disso.
+
+### A documentação estava errada em três pontos
+
+1. **Datas divergem por endpoint E por campo.** `listEvents` manda `...Z`, `getEvent` manda
+   `...-03:00`. Dentro de um pedido, `order_date` respeita `timezone=UTC` mas `updated_date` volta
+   em hora local. Por isso `WATERMARK_OVERLAP_MS` = **15h**, maior que qualquer offset.
+2. **Resposta do check-in não é `{check_in, check_in_date, check_in_id}`.** O POST devolve o
+   participante inteiro com `checkin` como **array**; o GET devolve como **objeto**; nenhum traz
+   `check_in_id`. O schema normaliza as duas formas.
+3. **QR = `ticket_number` sem hífens.** `UVKL-LL-QDAT` → `UVKLLLQDAT`. O endpoint de busca aceita
+   **só** a forma com hífens (200 vs 404, testado nos dois sentidos).
+
+### Comportamentos medidos que mudaram o código
+
+- **Leituras são eventualmente consistentes.** GET logo após o POST pode dizer `false`. O sync
+  **não rebaixa** mais um slot já espelhado quando temos o check-in local — senão o reconciliador
+  reempurrava para sempre.
+- **`checkin:already_performed` (HTTP 400) é sucesso**, não divergência. Acontece quando alguém é
+  creditado no app da Sympla e também escaneia no nosso totem.
+- **POST às vezes responde 2xx sem confirmar**, embora registre. O job **lança** em vez de
+  retornar, para a fila retentar e obter resposta definitiva em segundos.
+- **Check-in na Sympla NÃO altera `ticket_updated_at`.** O sync incremental perderia mudanças de
+  estado de check-in — é exatamente por isso que o reconciliador força passe completo.
+- **Pedido APPROVED com zero participantes é forma real** (3 deles num evento).
+- **Strings vazias** (`''`) em vez de campos ausentes; `utm: {}`.
+
+### Bug meu encontrado por dado real
+
+Extração de documento casava **"Cargo"** porque `'cargo'` contém `'rg'` — cargo gravado como
+documento, e esse campo alimenta derivação de código de acesso e detecção de duplicidade. Agora
+casa por **limite de palavra**.
+
+### Estado do evento de teste
+
+Org **Fivents**, evento `teste-sympla-integracao` vinculado a `s36fe08`. Conexão Sympla ativa.
+Os testes live dependem desses dois. Há também `teste-sympla-ingestao`, criado e destruído pelo
+próprio teste de ingestão.
