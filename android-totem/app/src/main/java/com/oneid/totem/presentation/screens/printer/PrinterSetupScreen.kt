@@ -4,6 +4,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -12,6 +13,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -26,6 +28,7 @@ import com.oneid.totem.data.print.PrinterStatus
 import com.oneid.totem.domain.repository.AccessCodeKeyboard
 import com.oneid.totem.domain.repository.LabelLayout
 import com.oneid.totem.domain.repository.PrintConfig
+import com.oneid.totem.domain.repository.SelfRegisterField
 import com.oneid.totem.presentation.theme.*
 import com.oneid.totem.presentation.util.dismissKeyboardOnTapOutside
 
@@ -36,152 +39,236 @@ fun PrinterSetupScreen(
     viewModel: PrinterSetupViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    var selectedTab by rememberSaveable { mutableIntStateOf(SettingsTab.GENERAL.ordinal) }
 
     Scaffold(
         modifier = Modifier.dismissKeyboardOnTapOutside(),
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        "Configurar Impressora",
-                        fontWeight = FontWeight.Bold,
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
+            Column {
+                TopAppBar(
+                    title = {
+                        Text(
+                            "Configurações",
+                            fontWeight = FontWeight.Bold,
+                        )
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar")
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = Surface,
+                        titleContentColor = OnSurface,
+                        navigationIconContentColor = OnSurface,
+                    ),
+                )
+                // Abas sem HorizontalPager de propósito: num totem, um swipe acidental
+                // trocaria de aba sem o operador perceber.
+                PrimaryTabRow(
+                    selectedTabIndex = selectedTab,
                     containerColor = Surface,
-                    titleContentColor = OnSurface,
-                    navigationIconContentColor = OnSurface,
-                ),
-            )
-        },
-        containerColor = Background,
-    ) { padding ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(horizontal = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            contentPadding = PaddingValues(vertical = 16.dp),
-        ) {
-            item {
-                ConnectionTypeSelector(
-                    selected = uiState.connectionType,
-                    onWifiSelected = viewModel::switchToWifi,
-                    onUsbSelected = viewModel::switchToUsb,
-                )
-            }
-
-            item {
-                ConnectionCard(
-                    connectionType = uiState.connectionType,
-                    isConnected = uiState.isConnected,
-                    isConnecting = uiState.isConnecting || uiState.isUsbConnecting,
-                    connectedIp = uiState.connectedIp ?: uiState.savedIp,
-                    usbDeviceName = uiState.usbDeviceName,
-                    status = uiState.connectionStatus,
-                    onDisconnect = viewModel::disconnect,
-                )
-            }
-
-            if (!uiState.isConnected) {
-                if (uiState.connectionType == PrinterConnectionType.WIFI) {
-                    item {
-                        SearchSection(
-                            isSearching = uiState.isSearching,
-                            searchError = uiState.searchError,
-                            onSearch = viewModel::startSearch,
-                            onCancel = viewModel::cancelSearch,
-                        )
-                    }
-
-                    if (uiState.discoveredPrinters.isNotEmpty()) {
-                        item {
-                            Text(
-                                "Impressoras encontradas",
-                                style = MaterialTheme.typography.titleSmall,
-                                color = OnSurfaceVariant,
-                            )
-                        }
-                        items(uiState.discoveredPrinters, key = { it.ipAddress }) { printer ->
-                            PrinterCard(
-                                printer = printer,
-                                isConnected = printer.ipAddress == uiState.connectedIp,
-                                onClick = { viewModel.selectPrinter(printer.ipAddress) },
-                            )
-                        }
-                    }
-
-                    item {
-                        ManualIpSection(
-                            manualIp = uiState.manualIp,
-                            isConnecting = uiState.isConnecting,
-                            onManualIpChanged = viewModel::onManualIpChanged,
-                            onConnect = viewModel::connectManual,
-                        )
-                    }
-                } else {
-                    item {
-                        UsbSection(
-                            isAvailable = uiState.usbAvailable,
-                            deviceName = uiState.usbDeviceName,
-                            isConnecting = uiState.isUsbConnecting,
-                            isSearching = uiState.isUsbSearching,
-                            onConnect = viewModel::connectUsb,
-                            onSearch = viewModel::searchUsb,
+                    contentColor = Primary,
+                ) {
+                    SettingsTab.entries.forEach { tab ->
+                        Tab(
+                            selected = selectedTab == tab.ordinal,
+                            onClick = { selectedTab = tab.ordinal },
+                            selectedContentColor = Primary,
+                            unselectedContentColor = OnSurfaceVariant,
+                            text = {
+                                Text(
+                                    tab.label,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.SemiBold,
+                                )
+                            },
                         )
                     }
                 }
             }
+        },
+        containerColor = Background,
+    ) { padding ->
+        when (SettingsTab.entries[selectedTab]) {
+            SettingsTab.GENERAL -> GeneralTab(
+                uiState = uiState,
+                viewModel = viewModel,
+                modifier = Modifier.padding(padding),
+            )
+            SettingsTab.SELF_REGISTER -> SelfRegisterTab(
+                uiState = uiState,
+                viewModel = viewModel,
+                modifier = Modifier.padding(padding),
+            )
+        }
+    }
+}
 
-            item {
-                AccessCodeKeyboardSection(
-                    selected = uiState.accessCodeKeyboard,
-                    onSelect = viewModel::setAccessCodeKeyboard,
-                )
-            }
+private enum class SettingsTab(val label: String) {
+    GENERAL("Geral"),
+    SELF_REGISTER("Auto-cadastro"),
+}
 
-            item {
-                CheckInHintMessageSection(
-                    message = uiState.checkInHintMessage,
-                    onMessageChange = viewModel::setCheckInHintMessage,
-                )
-            }
+@Composable
+private fun SettingsTabContent(
+    modifier: Modifier = Modifier,
+    content: LazyListScope.() -> Unit,
+) {
+    LazyColumn(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(horizontal = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        contentPadding = PaddingValues(vertical = 16.dp),
+        content = content,
+    )
+}
 
-            item {
-                SelfRegisterAutoCheckInSection(
-                    enabled = uiState.selfRegisterAutoCheckIn,
-                    onEnabledChange = viewModel::setSelfRegisterAutoCheckIn,
-                )
-            }
+@Composable
+private fun SelfRegisterTab(
+    uiState: PrinterSetupUiState,
+    viewModel: PrinterSetupViewModel,
+    modifier: Modifier = Modifier,
+) {
+    SettingsTabContent(modifier = modifier) {
+        item {
+            SelfRegisterAutoCheckInSection(
+                enabled = uiState.selfRegisterAutoCheckIn,
+                onEnabledChange = viewModel::setSelfRegisterAutoCheckIn,
+            )
+        }
 
-            item {
-                BadgePreviewSection(
-                    bitmap = uiState.previewBitmap,
-                    labelLayout = uiState.labelLayout,
-                    onLabelLayoutChange = viewModel::setLabelLayout,
-                    isTesting = uiState.isTesting,
-                    testResult = uiState.testResult,
-                    hasPrinter = uiState.isConnected || uiState.connectionType == PrinterConnectionType.USB || (uiState.connectedIp ?: uiState.savedIp).isNotBlank(),
-                    onTestPrint = viewModel::testPrint,
-                )
-            }
+        item {
+            SelfRegisterFieldsSection(
+                visibleFields = uiState.selfRegisterVisibleFields,
+                onFieldVisibleChange = viewModel::setSelfRegisterFieldVisible,
+            )
+        }
 
-            item {
-                SecurityCodeSection(
-                    enabled = uiState.settingsSecurityCodeEnabled,
-                    onEnabledChange = viewModel::setSettingsSecurityCodeEnabled,
-                )
-            }
+        item {
+            Text(
+                "O auto-cadastro em si é habilitado pelo evento, no painel web.",
+                style = MaterialTheme.typography.labelSmall,
+                color = OnSurfaceVariant.copy(alpha = 0.7f),
+                modifier = Modifier.padding(horizontal = 4.dp),
+            )
+        }
+    }
+}
 
-            item {
-                Spacer(Modifier.height(16.dp))
+@Composable
+private fun GeneralTab(
+    uiState: PrinterSetupUiState,
+    viewModel: PrinterSetupViewModel,
+    modifier: Modifier = Modifier,
+) {
+    SettingsTabContent(modifier = modifier) {
+        item {
+            ConnectionTypeSelector(
+                selected = uiState.connectionType,
+                onWifiSelected = viewModel::switchToWifi,
+                onUsbSelected = viewModel::switchToUsb,
+            )
+        }
+
+        item {
+            ConnectionCard(
+                connectionType = uiState.connectionType,
+                isConnected = uiState.isConnected,
+                isConnecting = uiState.isConnecting || uiState.isUsbConnecting,
+                connectedIp = uiState.connectedIp ?: uiState.savedIp,
+                usbDeviceName = uiState.usbDeviceName,
+                status = uiState.connectionStatus,
+                onDisconnect = viewModel::disconnect,
+            )
+        }
+
+        if (!uiState.isConnected) {
+            if (uiState.connectionType == PrinterConnectionType.WIFI) {
+                item {
+                    SearchSection(
+                        isSearching = uiState.isSearching,
+                        searchError = uiState.searchError,
+                        onSearch = viewModel::startSearch,
+                        onCancel = viewModel::cancelSearch,
+                    )
+                }
+
+                if (uiState.discoveredPrinters.isNotEmpty()) {
+                    item {
+                        Text(
+                            "Impressoras encontradas",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = OnSurfaceVariant,
+                        )
+                    }
+                    items(uiState.discoveredPrinters, key = { it.ipAddress }) { printer ->
+                        PrinterCard(
+                            printer = printer,
+                            isConnected = printer.ipAddress == uiState.connectedIp,
+                            onClick = { viewModel.selectPrinter(printer.ipAddress) },
+                        )
+                    }
+                }
+
+                item {
+                    ManualIpSection(
+                        manualIp = uiState.manualIp,
+                        isConnecting = uiState.isConnecting,
+                        onManualIpChanged = viewModel::onManualIpChanged,
+                        onConnect = viewModel::connectManual,
+                    )
+                }
+            } else {
+                item {
+                    UsbSection(
+                        isAvailable = uiState.usbAvailable,
+                        deviceName = uiState.usbDeviceName,
+                        isConnecting = uiState.isUsbConnecting,
+                        isSearching = uiState.isUsbSearching,
+                        onConnect = viewModel::connectUsb,
+                        onSearch = viewModel::searchUsb,
+                    )
+                }
             }
+        }
+
+        item {
+            AccessCodeKeyboardSection(
+                selected = uiState.accessCodeKeyboard,
+                onSelect = viewModel::setAccessCodeKeyboard,
+            )
+        }
+
+        item {
+            CheckInHintMessageSection(
+                message = uiState.checkInHintMessage,
+                onMessageChange = viewModel::setCheckInHintMessage,
+            )
+        }
+
+        item {
+            BadgePreviewSection(
+                bitmap = uiState.previewBitmap,
+                labelLayout = uiState.labelLayout,
+                onLabelLayoutChange = viewModel::setLabelLayout,
+                isTesting = uiState.isTesting,
+                testResult = uiState.testResult,
+                hasPrinter = uiState.isConnected || uiState.connectionType == PrinterConnectionType.USB || (uiState.connectedIp ?: uiState.savedIp).isNotBlank(),
+                onTestPrint = viewModel::testPrint,
+            )
+        }
+
+        item {
+            SecurityCodeSection(
+                enabled = uiState.settingsSecurityCodeEnabled,
+                onEnabledChange = viewModel::setSettingsSecurityCodeEnabled,
+            )
+        }
+
+        item {
+            Spacer(Modifier.height(16.dp))
         }
     }
 }
@@ -596,18 +683,99 @@ private fun SelfRegisterAutoCheckInSection(
                     style = MaterialTheme.typography.bodySmall,
                     color = OnSurfaceVariant,
                 )
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    "O auto-cadastro em si é habilitado pelo evento, no painel web.",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = OnSurfaceVariant.copy(alpha = 0.7f),
-                )
             }
             Spacer(Modifier.width(12.dp))
             Switch(checked = enabled, onCheckedChange = onEnabledChange)
         }
     }
 }
+
+@Composable
+private fun SelfRegisterFieldsSection(
+    visibleFields: Set<SelfRegisterField>,
+    onFieldVisibleChange: (SelfRegisterField, Boolean) -> Unit,
+) {
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Surface),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Text(
+                "Campos do Cadastro",
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                color = OnSurface,
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "Escolha quais campos opcionais aparecem na tela de auto-cadastro deste totem.",
+                style = MaterialTheme.typography.bodySmall,
+                color = OnSurfaceVariant,
+            )
+            Spacer(Modifier.height(8.dp))
+
+            SelfRegisterFieldRow(label = "Nome completo", required = true, checked = true, onCheckedChange = null)
+            SelfRegisterFieldRow(label = "E-mail", required = true, checked = true, onCheckedChange = null)
+            SelfRegisterField.entries.forEach { field ->
+                SelfRegisterFieldRow(
+                    label = field.label,
+                    required = false,
+                    checked = field in visibleFields,
+                    onCheckedChange = { onFieldVisibleChange(field, it) },
+                )
+            }
+
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "Nome e e-mail são sempre obrigatórios. Campos desligados não aparecem na tela de cadastro.",
+                style = MaterialTheme.typography.labelSmall,
+                color = OnSurfaceVariant.copy(alpha = 0.7f),
+            )
+        }
+    }
+}
+
+@Composable
+private fun SelfRegisterFieldRow(
+    label: String,
+    required: Boolean,
+    checked: Boolean,
+    onCheckedChange: ((Boolean) -> Unit)?,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                label,
+                style = MaterialTheme.typography.bodyLarge,
+                color = OnSurface,
+            )
+            Text(
+                if (required) "Obrigatório" else "Opcional",
+                style = MaterialTheme.typography.labelSmall,
+                color = OnSurfaceVariant,
+            )
+        }
+        Spacer(Modifier.width(12.dp))
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            enabled = onCheckedChange != null,
+        )
+    }
+}
+
+private val SelfRegisterField.label: String
+    get() = when (this) {
+        SelfRegisterField.DOCUMENT -> "CPF"
+        SelfRegisterField.PHONE -> "Telefone"
+        SelfRegisterField.COMPANY -> "Empresa"
+        SelfRegisterField.JOB_TITLE -> "Cargo"
+    }
 
 @Composable
 private fun SecurityCodeSection(

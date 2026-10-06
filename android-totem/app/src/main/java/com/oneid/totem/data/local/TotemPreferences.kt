@@ -6,6 +6,7 @@ import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import com.oneid.totem.domain.repository.AccessCodeKeyboard
 import com.oneid.totem.domain.repository.LabelLayout
+import com.oneid.totem.domain.repository.SelfRegisterField
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -86,6 +87,23 @@ class TotemPreferences @Inject constructor(
         get() = prefs.getBoolean(KEY_SELF_REGISTER_AUTO_CHECKIN, true)
         set(value) = prefs.edit().putBoolean(KEY_SELF_REGISTER_AUTO_CHECKIN, value).apply()
 
+    /**
+     * Campos opcionais exibidos no auto-cadastro. Fica no totem pelo mesmo motivo do
+     * auto check-in: um totem de fila rápida pode pedir só nome e e-mail, enquanto outro
+     * coleta os dados completos. Sem valor salvo, todos os campos aparecem.
+     */
+    var selfRegisterVisibleFields: Set<SelfRegisterField>
+        get() {
+            val saved = prefs.getStringSet(KEY_SELF_REGISTER_VISIBLE_FIELDS, null)
+                ?: return SelfRegisterField.entries.toSet()
+            return saved.mapNotNull { name ->
+                SelfRegisterField.entries.firstOrNull { it.name == name }
+            }.toSet()
+        }
+        set(value) = prefs.edit()
+            .putStringSet(KEY_SELF_REGISTER_VISIBLE_FIELDS, value.map { it.name }.toSet())
+            .apply()
+
     var settingsSecurityCodeEnabled: Boolean
 
         get() = prefs.getBoolean(KEY_SETTINGS_SECURITY_CODE_ENABLED, false)
@@ -126,12 +144,14 @@ class TotemPreferences @Inject constructor(
         val savedSettingsSecurityCodeEnabled = settingsSecurityCodeEnabled
         val savedCheckInHintMessage = checkInHintMessage
         val savedSelfRegisterAutoCheckIn = selfRegisterAutoCheckIn
+        val savedSelfRegisterVisibleFields = selfRegisterVisibleFields
         prefs.edit().clear().apply()
         printerIp = savedPrinterIp
         printerConnectionType = savedConnectionType
         settingsSecurityCodeEnabled = savedSettingsSecurityCodeEnabled
         checkInHintMessage = savedCheckInHintMessage
         selfRegisterAutoCheckIn = savedSelfRegisterAutoCheckIn
+        selfRegisterVisibleFields = savedSelfRegisterVisibleFields
     }
 
     companion object {
@@ -147,6 +167,7 @@ class TotemPreferences @Inject constructor(
         private const val KEY_SETTINGS_SECURITY_CODE_ENABLED = "settings_security_code_enabled"
         private const val KEY_CHECKIN_HINT_MESSAGE = "checkin_hint_message"
         private const val KEY_SELF_REGISTER_AUTO_CHECKIN = "self_register_auto_checkin"
+        private const val KEY_SELF_REGISTER_VISIBLE_FIELDS = "self_register_visible_fields"
         private const val KEY_ACTIVE_EVENT_ID = "active_event_id"
         private const val KEY_EVENT_NAME = "event_name"
         private const val KEY_TOTEM_EVENT_SUB_ID = "totem_event_sub_id"

@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.oneid.totem.data.print.PrinterConfigRepository
 import com.oneid.totem.domain.model.SelfRegistration
 import com.oneid.totem.domain.repository.CheckInRepository
+import com.oneid.totem.domain.repository.SelfRegisterField
 import com.oneid.totem.domain.repository.SelfRegisterResult
 import com.oneid.totem.presentation.util.BrazilianFormats
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -27,6 +28,7 @@ data class SelfRegisterUiState(
     val documentError: String? = null,
     val phoneError: String? = null,
     val autoCheckIn: Boolean = true,
+    val visibleFields: Set<SelfRegisterField> = SelfRegisterField.entries.toSet(),
     val isLoading: Boolean = false,
     val error: String? = null,
     val success: SelfRegistration? = null,
@@ -39,7 +41,10 @@ class SelfRegisterViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(
-        SelfRegisterUiState(autoCheckIn = printerConfigRepository.selfRegisterAutoCheckInValue),
+        SelfRegisterUiState(
+            autoCheckIn = printerConfigRepository.selfRegisterAutoCheckInValue,
+            visibleFields = printerConfigRepository.selfRegisterVisibleFieldsValue,
+        ),
     )
     val uiState = _uiState.asStateFlow()
 
@@ -73,6 +78,14 @@ class SelfRegisterViewModel @Inject constructor(
         val state = _uiState.value
         if (state.isLoading) return
 
+        // Campos desligados nas configurações não aparecem na tela, então não são validados
+        // nem enviados. Usa o conjunto do estado (o que a pessoa viu) e não o valor atual
+        // da preferência, pra validação e formulário nunca divergirem.
+        val document = state.document.takeIf { SelfRegisterField.DOCUMENT in state.visibleFields }.orEmpty()
+        val phone = state.phone.takeIf { SelfRegisterField.PHONE in state.visibleFields }.orEmpty()
+        val company = state.company.takeIf { SelfRegisterField.COMPANY in state.visibleFields }.orEmpty()
+        val jobTitle = state.jobTitle.takeIf { SelfRegisterField.JOB_TITLE in state.visibleFields }.orEmpty()
+
         // Só nome e e-mail são obrigatórios. CPF e telefone valem a validação quando
         // preenchidos: um dado errado no cadastro vira trabalho manual depois, e aqui a
         // pessoa ainda está na frente do totem pra corrigir.
@@ -83,13 +96,13 @@ class SelfRegisterViewModel @Inject constructor(
             else -> null
         }
         val documentError = when {
-            state.document.isBlank() -> null
-            !BrazilianFormats.isValidCpf(state.document) -> "CPF inválido"
+            document.isBlank() -> null
+            !BrazilianFormats.isValidCpf(document) -> "CPF inválido"
             else -> null
         }
         val phoneError = when {
-            state.phone.isBlank() -> null
-            !BrazilianFormats.isValidPhone(state.phone) -> "Telefone incompleto"
+            phone.isBlank() -> null
+            !BrazilianFormats.isValidPhone(phone) -> "Telefone incompleto"
             else -> null
         }
 
@@ -115,10 +128,10 @@ class SelfRegisterViewModel @Inject constructor(
             val result = checkInRepository.selfRegister(
                 name = state.name.trim(),
                 email = state.email.trim(),
-                document = state.document.ifBlank { null },
-                phone = state.phone.ifBlank { null },
-                company = state.company.trim().ifBlank { null },
-                jobTitle = state.jobTitle.trim().ifBlank { null },
+                document = document.ifBlank { null },
+                phone = phone.ifBlank { null },
+                company = company.trim().ifBlank { null },
+                jobTitle = jobTitle.trim().ifBlank { null },
                 autoCheckIn = autoCheckIn,
             )
 

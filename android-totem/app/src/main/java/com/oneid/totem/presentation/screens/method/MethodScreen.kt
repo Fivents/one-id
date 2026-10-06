@@ -241,7 +241,7 @@ fun MethodScreen(
             SecurityCodeDialog(
                 description = when (action) {
                     SecurityPendingAction.PRINTER ->
-                        "Digite o código do totem para acessar as configurações da impressora."
+                        "Digite o código do totem para acessar as configurações."
                     SecurityPendingAction.LOGOUT ->
                         "Digite o código do totem para sair do totem."
                 },

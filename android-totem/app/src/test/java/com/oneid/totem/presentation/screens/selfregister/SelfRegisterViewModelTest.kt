@@ -4,6 +4,7 @@ import com.oneid.totem.data.print.PrinterConfigRepository
 import com.oneid.totem.domain.model.ParticipantInfo
 import com.oneid.totem.domain.model.SelfRegistration
 import com.oneid.totem.domain.repository.CheckInRepository
+import com.oneid.totem.domain.repository.SelfRegisterField
 import com.oneid.totem.domain.repository.SelfRegisterResult
 import io.mockk.MockKAnnotations
 import io.mockk.coEvery
@@ -39,6 +40,7 @@ class SelfRegisterViewModelTest {
         MockKAnnotations.init(this)
         Dispatchers.setMain(UnconfinedTestDispatcher())
         every { printerConfigRepository.selfRegisterAutoCheckInValue } returns true
+        every { printerConfigRepository.selfRegisterVisibleFieldsValue } returns SelfRegisterField.entries.toSet()
         coEvery {
             checkInRepository.selfRegister(any(), any(), any(), any(), any(), any(), any())
         } returns SelfRegisterResult.Success(registration(checkedIn = true))
@@ -171,6 +173,99 @@ class SelfRegisterViewModelTest {
         val state = viewModel.uiState.value
         assertEquals("52998224725", state.document)
         assertEquals("11999998888", state.phone)
+    }
+
+    @Test
+    fun `visible fields come from the totem settings`() {
+        every { printerConfigRepository.selfRegisterVisibleFieldsValue } returns setOf(SelfRegisterField.COMPANY)
+
+        val viewModel = SelfRegisterViewModel(checkInRepository, printerConfigRepository)
+
+        assertEquals(setOf(SelfRegisterField.COMPANY), viewModel.uiState.value.visibleFields)
+    }
+
+    @Test
+    fun `hidden document and phone are neither validated nor sent`() {
+        every { printerConfigRepository.selfRegisterVisibleFieldsValue } returns
+            setOf(SelfRegisterField.COMPANY, SelfRegisterField.JOB_TITLE)
+        val viewModel = SelfRegisterViewModel(checkInRepository, printerConfigRepository)
+
+        viewModel.onNameChanged("Maria Oliveira")
+        viewModel.onEmailChanged("maria@empresa.com")
+        viewModel.onDocumentChanged("123.456.789-00")
+        viewModel.onPhoneChanged("1199")
+        viewModel.onCompanyChanged("Empresa Exemplo")
+        viewModel.onJobTitleChanged("Diretora de Marketing")
+
+        viewModel.submit()
+
+        val state = viewModel.uiState.value
+        assertNull(state.documentError)
+        assertNull(state.phoneError)
+        assertNotNull(state.success)
+        coVerify(exactly = 1) {
+            checkInRepository.selfRegister(
+                name = "Maria Oliveira",
+                email = "maria@empresa.com",
+                document = null,
+                phone = null,
+                company = "Empresa Exemplo",
+                jobTitle = "Diretora de Marketing",
+                autoCheckIn = true,
+            )
+        }
+    }
+
+    @Test
+    fun `hidden company and job title are sent as null`() {
+        every { printerConfigRepository.selfRegisterVisibleFieldsValue } returns
+            setOf(SelfRegisterField.DOCUMENT, SelfRegisterField.PHONE)
+        val viewModel = SelfRegisterViewModel(checkInRepository, printerConfigRepository)
+
+        viewModel.onNameChanged("Maria Oliveira")
+        viewModel.onEmailChanged("maria@empresa.com")
+        viewModel.onDocumentChanged("529.982.247-25")
+        viewModel.onPhoneChanged("(11) 99999-8888")
+        viewModel.onCompanyChanged("Empresa Exemplo")
+        viewModel.onJobTitleChanged("Diretora de Marketing")
+
+        viewModel.submit()
+
+        coVerify(exactly = 1) {
+            checkInRepository.selfRegister(
+                name = "Maria Oliveira",
+                email = "maria@empresa.com",
+                document = "52998224725",
+                phone = "11999998888",
+                company = null,
+                jobTitle = null,
+                autoCheckIn = true,
+            )
+        }
+    }
+
+    @Test
+    fun `only name and email are sent when every optional field is hidden`() {
+        every { printerConfigRepository.selfRegisterVisibleFieldsValue } returns emptySet()
+        val viewModel = SelfRegisterViewModel(checkInRepository, printerConfigRepository)
+
+        viewModel.onNameChanged("Maria Oliveira")
+        viewModel.onEmailChanged("maria@empresa.com")
+        viewModel.onDocumentChanged("123")
+
+        viewModel.submit()
+
+        coVerify(exactly = 1) {
+            checkInRepository.selfRegister(
+                name = "Maria Oliveira",
+                email = "maria@empresa.com",
+                document = null,
+                phone = null,
+                company = null,
+                jobTitle = null,
+                autoCheckIn = true,
+            )
+        }
     }
 
     private fun registration(checkedIn: Boolean) = SelfRegistration(

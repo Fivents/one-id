@@ -18,6 +18,7 @@ import com.oneid.totem.domain.repository.AccessCodeKeyboard
 import com.oneid.totem.domain.repository.LabelLayout
 import com.oneid.totem.domain.repository.PrintConfig
 import com.oneid.totem.domain.repository.PrintRepository
+import com.oneid.totem.domain.repository.SelfRegisterField
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -73,6 +74,7 @@ data class PrinterSetupUiState(
     val settingsSecurityCodeEnabled: Boolean = false,
     val checkInHintMessage: String = "",
     val selfRegisterAutoCheckIn: Boolean = true,
+    val selfRegisterVisibleFields: Set<SelfRegisterField> = SelfRegisterField.entries.toSet(),
 )
 
 @HiltViewModel
@@ -98,6 +100,7 @@ class PrinterSetupViewModel @Inject constructor(
         val savedSettingsSecurityCodeEnabled = printerConfigRepository.settingsSecurityCodeEnabledValue
         val savedCheckInHintMessage = printerConfigRepository.checkInHintMessageValue
         val savedSelfRegisterAutoCheckIn = printerConfigRepository.selfRegisterAutoCheckInValue
+        val savedSelfRegisterVisibleFields = printerConfigRepository.selfRegisterVisibleFieldsValue
         _uiState.update {
             it.copy(
                 savedIp = ip,
@@ -109,6 +112,7 @@ class PrinterSetupViewModel @Inject constructor(
                 settingsSecurityCodeEnabled = savedSettingsSecurityCodeEnabled,
                 checkInHintMessage = savedCheckInHintMessage,
                 selfRegisterAutoCheckIn = savedSelfRegisterAutoCheckIn,
+                selfRegisterVisibleFields = savedSelfRegisterVisibleFields,
             )
         }
         checkCurrentConnection()
@@ -437,6 +441,13 @@ class PrinterSetupViewModel @Inject constructor(
     fun setSelfRegisterAutoCheckIn(enabled: Boolean) {
         _uiState.update { it.copy(selfRegisterAutoCheckIn = enabled) }
         printerConfigRepository.setSelfRegisterAutoCheckIn(enabled)
+    }
+
+    fun setSelfRegisterFieldVisible(field: SelfRegisterField, visible: Boolean) {
+        printerConfigRepository.setSelfRegisterFieldVisible(field, visible)
+        _uiState.update {
+            it.copy(selfRegisterVisibleFields = printerConfigRepository.selfRegisterVisibleFieldsValue)
+        }
     }
 
     fun setCheckInHintMessage(message: String) {

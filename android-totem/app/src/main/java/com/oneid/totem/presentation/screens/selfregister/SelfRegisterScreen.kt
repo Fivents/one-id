@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.oneid.totem.domain.model.SelfRegistration
+import com.oneid.totem.domain.repository.SelfRegisterField
 import com.oneid.totem.presentation.components.TotemTextField
 import com.oneid.totem.presentation.theme.*
 import com.oneid.totem.presentation.util.CpfVisualTransformation
@@ -126,6 +127,16 @@ fun SelfRegisterScreen(
 
             Spacer(Modifier.height(16.dp))
 
+            // Campos opcionais podem ser desligados nas configurações do totem. O último
+            // campo visível é quem recebe o "Concluir" do teclado e envia o formulário.
+            val visibleFields = uiState.visibleFields
+            val lastVisibleField = SelfRegisterField.entries.lastOrNull { it in visibleFields }
+            val submitAction = KeyboardActions(onDone = { if (!uiState.isLoading) submit() })
+            fun imeActionFor(field: SelfRegisterField?) =
+                if (field == lastVisibleField) ImeAction.Done else ImeAction.Next
+            fun keyboardActionsFor(field: SelfRegisterField?) =
+                if (field == lastVisibleField) submitAction else KeyboardActions.Default
+
             TotemTextField(
                 value = uiState.email,
                 onValueChange = viewModel::onEmailChanged,
@@ -134,62 +145,74 @@ fun SelfRegisterScreen(
                 isError = uiState.emailError != null,
                 errorMessage = uiState.emailError,
                 keyboardType = KeyboardType.Email,
-                imeAction = ImeAction.Next,
+                imeAction = imeActionFor(null),
+                keyboardActions = keyboardActionsFor(null),
                 maxLength = 160,
             )
 
-            Spacer(Modifier.height(16.dp))
+            if (SelfRegisterField.DOCUMENT in visibleFields) {
+                Spacer(Modifier.height(16.dp))
 
-            // Valor cru (só dígitos) + máscara como VisualTransformation: é o que mantém o
-            // cursor no lugar enquanto se digita, inclusive no meio do número.
-            TotemTextField(
-                value = uiState.document,
-                onValueChange = viewModel::onDocumentChanged,
-                label = "CPF",
-                enabled = !uiState.isLoading,
-                isError = uiState.documentError != null,
-                errorMessage = uiState.documentError,
-                keyboardType = KeyboardType.Number,
-                imeAction = ImeAction.Next,
-                visualTransformation = CpfVisualTransformation,
-            )
+                // Valor cru (só dígitos) + máscara como VisualTransformation: é o que mantém o
+                // cursor no lugar enquanto se digita, inclusive no meio do número.
+                TotemTextField(
+                    value = uiState.document,
+                    onValueChange = viewModel::onDocumentChanged,
+                    label = "CPF",
+                    enabled = !uiState.isLoading,
+                    isError = uiState.documentError != null,
+                    errorMessage = uiState.documentError,
+                    keyboardType = KeyboardType.Number,
+                    imeAction = imeActionFor(SelfRegisterField.DOCUMENT),
+                    keyboardActions = keyboardActionsFor(SelfRegisterField.DOCUMENT),
+                    visualTransformation = CpfVisualTransformation,
+                )
+            }
 
-            Spacer(Modifier.height(16.dp))
+            if (SelfRegisterField.PHONE in visibleFields) {
+                Spacer(Modifier.height(16.dp))
 
-            TotemTextField(
-                value = uiState.phone,
-                onValueChange = viewModel::onPhoneChanged,
-                label = "Telefone",
-                enabled = !uiState.isLoading,
-                isError = uiState.phoneError != null,
-                errorMessage = uiState.phoneError,
-                keyboardType = KeyboardType.Phone,
-                imeAction = ImeAction.Next,
-                visualTransformation = PhoneVisualTransformation,
-            )
+                TotemTextField(
+                    value = uiState.phone,
+                    onValueChange = viewModel::onPhoneChanged,
+                    label = "Telefone",
+                    enabled = !uiState.isLoading,
+                    isError = uiState.phoneError != null,
+                    errorMessage = uiState.phoneError,
+                    keyboardType = KeyboardType.Phone,
+                    imeAction = imeActionFor(SelfRegisterField.PHONE),
+                    keyboardActions = keyboardActionsFor(SelfRegisterField.PHONE),
+                    visualTransformation = PhoneVisualTransformation,
+                )
+            }
 
-            Spacer(Modifier.height(16.dp))
+            if (SelfRegisterField.COMPANY in visibleFields) {
+                Spacer(Modifier.height(16.dp))
 
-            TotemTextField(
-                value = uiState.company,
-                onValueChange = viewModel::onCompanyChanged,
-                label = "Empresa",
-                enabled = !uiState.isLoading,
-                imeAction = ImeAction.Next,
-                maxLength = 120,
-            )
+                TotemTextField(
+                    value = uiState.company,
+                    onValueChange = viewModel::onCompanyChanged,
+                    label = "Empresa",
+                    enabled = !uiState.isLoading,
+                    imeAction = imeActionFor(SelfRegisterField.COMPANY),
+                    keyboardActions = keyboardActionsFor(SelfRegisterField.COMPANY),
+                    maxLength = 120,
+                )
+            }
 
-            Spacer(Modifier.height(16.dp))
+            if (SelfRegisterField.JOB_TITLE in visibleFields) {
+                Spacer(Modifier.height(16.dp))
 
-            TotemTextField(
-                value = uiState.jobTitle,
-                onValueChange = viewModel::onJobTitleChanged,
-                label = "Cargo",
-                enabled = !uiState.isLoading,
-                imeAction = ImeAction.Done,
-                maxLength = 120,
-                keyboardActions = KeyboardActions(onDone = { if (!uiState.isLoading) submit() }),
-            )
+                TotemTextField(
+                    value = uiState.jobTitle,
+                    onValueChange = viewModel::onJobTitleChanged,
+                    label = "Cargo",
+                    enabled = !uiState.isLoading,
+                    imeAction = imeActionFor(SelfRegisterField.JOB_TITLE),
+                    keyboardActions = keyboardActionsFor(SelfRegisterField.JOB_TITLE),
+                    maxLength = 120,
+                )
+            }
 
             AnimatedVisibility(visible = uiState.error != null) {
                 Card(

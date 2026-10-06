@@ -4,6 +4,7 @@ import com.oneid.totem.data.local.TokenStorage
 import com.oneid.totem.data.local.TotemPreferences
 import com.oneid.totem.domain.repository.AccessCodeKeyboard
 import com.oneid.totem.domain.repository.LabelLayout
+import com.oneid.totem.domain.repository.SelfRegisterField
 import io.mockk.MockKAnnotations
 import io.mockk.every
 import io.mockk.impl.annotations.MockK
@@ -176,6 +177,55 @@ class PrinterConfigRepositoryTest {
         repository.load()
 
         assertTrue(repository.settingsSecurityCodeEnabledValue)
+    }
+
+    @Test
+    fun `load restores saved selfRegisterAutoCheckIn`() {
+        every { tokenStorage.getPrinterIp() } returns null
+        every { prefs.selfRegisterAutoCheckIn } returns false
+
+        repository.load()
+
+        assertFalse(repository.selfRegisterAutoCheckInValue)
+    }
+
+    @Test
+    fun `setSelfRegisterAutoCheckIn updates value and persists`() = runTest {
+        repository.setSelfRegisterAutoCheckIn(false)
+
+        assertFalse(repository.selfRegisterAutoCheckInValue)
+        assertFalse(repository.selfRegisterAutoCheckIn.first())
+        verify { prefs.selfRegisterAutoCheckIn = false }
+    }
+
+    @Test
+    fun `all self-register optional fields are visible by default`() {
+        assertEquals(SelfRegisterField.entries.toSet(), repository.selfRegisterVisibleFieldsValue)
+    }
+
+    @Test
+    fun `load restores saved self-register visible fields`() {
+        every { tokenStorage.getPrinterIp() } returns null
+        every { prefs.selfRegisterVisibleFields } returns setOf(SelfRegisterField.PHONE)
+
+        repository.load()
+
+        assertEquals(setOf(SelfRegisterField.PHONE), repository.selfRegisterVisibleFieldsValue)
+    }
+
+    @Test
+    fun `setSelfRegisterFieldVisible hides and shows a field and persists`() = runTest {
+        repository.setSelfRegisterFieldVisible(SelfRegisterField.DOCUMENT, false)
+
+        val withoutDocument = setOf(SelfRegisterField.PHONE, SelfRegisterField.COMPANY, SelfRegisterField.JOB_TITLE)
+        assertEquals(withoutDocument, repository.selfRegisterVisibleFieldsValue)
+        assertEquals(withoutDocument, repository.selfRegisterVisibleFields.first())
+        verify { prefs.selfRegisterVisibleFields = withoutDocument }
+
+        repository.setSelfRegisterFieldVisible(SelfRegisterField.DOCUMENT, true)
+
+        assertEquals(SelfRegisterField.entries.toSet(), repository.selfRegisterVisibleFieldsValue)
+        verify { prefs.selfRegisterVisibleFields = SelfRegisterField.entries.toSet() }
     }
 
     @Test

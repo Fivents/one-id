@@ -4,6 +4,7 @@ import com.oneid.totem.data.local.TokenStorage
 import com.oneid.totem.data.local.TotemPreferences
 import com.oneid.totem.domain.repository.AccessCodeKeyboard
 import com.oneid.totem.domain.repository.LabelLayout
+import com.oneid.totem.domain.repository.SelfRegisterField
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -23,6 +24,7 @@ class PrinterConfigRepository @Inject constructor(
     private val _settingsSecurityCodeEnabled = MutableStateFlow(false)
     private val _checkInHintMessage = MutableStateFlow("")
     private val _selfRegisterAutoCheckIn = MutableStateFlow(true)
+    private val _selfRegisterVisibleFields = MutableStateFlow(SelfRegisterField.entries.toSet())
 
     val printerIp: StateFlow<String> = _printerIp.asStateFlow()
 
@@ -56,6 +58,10 @@ class PrinterConfigRepository @Inject constructor(
 
     val selfRegisterAutoCheckInValue: Boolean get() = _selfRegisterAutoCheckIn.value
 
+    val selfRegisterVisibleFields: StateFlow<Set<SelfRegisterField>> = _selfRegisterVisibleFields.asStateFlow()
+
+    val selfRegisterVisibleFieldsValue: Set<SelfRegisterField> get() = _selfRegisterVisibleFields.value
+
     fun load() {
         val saved = tokenStorage.getPrinterIp()
         if (!saved.isNullOrBlank()) {
@@ -77,6 +83,7 @@ class PrinterConfigRepository @Inject constructor(
         _settingsSecurityCodeEnabled.value = prefs.settingsSecurityCodeEnabled
         _checkInHintMessage.value = prefs.checkInHintMessage
         _selfRegisterAutoCheckIn.value = prefs.selfRegisterAutoCheckIn
+        _selfRegisterVisibleFields.value = prefs.selfRegisterVisibleFields
     }
 
     fun setIp(ip: String) {
@@ -114,6 +121,16 @@ class PrinterConfigRepository @Inject constructor(
     fun setSelfRegisterAutoCheckIn(enabled: Boolean) {
         _selfRegisterAutoCheckIn.value = enabled
         prefs.selfRegisterAutoCheckIn = enabled
+    }
+
+    fun setSelfRegisterFieldVisible(field: SelfRegisterField, visible: Boolean) {
+        val updated = if (visible) {
+            _selfRegisterVisibleFields.value + field
+        } else {
+            _selfRegisterVisibleFields.value - field
+        }
+        _selfRegisterVisibleFields.value = updated
+        prefs.selfRegisterVisibleFields = updated
     }
 
     fun setCheckInHintMessage(message: String) {
