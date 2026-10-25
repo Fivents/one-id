@@ -3,6 +3,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withAuth, withRBAC } from '@/core/infrastructure/http/middlewares';
 import type { RouteContext } from '@/core/infrastructure/http/types';
 import { prisma } from '@/core/infrastructure/prisma-client';
+import {
+  resolveParticipantDocument,
+  resolveParticipantEmail,
+  resolveParticipantName,
+} from '@/core/utils/participant-identity';
 
 import { getAuthorizedEvent } from '../../../_lib/access';
 
@@ -40,14 +45,15 @@ export const GET = withAuth(
     });
 
     const result = participants.map((p) => ({
-      name: p.person.name,
-      email: p.person.email,
-      document: p.person.document,
-      phone: p.person.phone,
-      jobTitle: p.person.jobTitle,
-      birthDate: p.person.birthDate,
-      notes: p.person.notes,
-      deletedAt: p.person.deletedAt,
+      name: resolveParticipantName(p),
+      email: resolveParticipantEmail(p),
+      document: resolveParticipantDocument(p),
+      // Person-only columns: a ticket slot with no identity simply has nothing to export here.
+      phone: p.person?.phone ?? null,
+      jobTitle: p.person?.jobTitle ?? p.jobTitle ?? null,
+      birthDate: p.person?.birthDate ?? null,
+      notes: p.person?.notes ?? null,
+      deletedAt: p.person?.deletedAt ?? null,
       company: p.company,
       accessCode: p.accessCode,
       qrCodeValue: p.qrCodeValue,

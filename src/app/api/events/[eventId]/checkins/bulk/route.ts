@@ -2,10 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { z } from 'zod/v4';
 
+import { enqueueMirrorCheckIn } from '@/core/application/services/sympla/enqueue-mirror-checkin';
 import { withAuth, withRBAC } from '@/core/infrastructure/http/middlewares';
 import type { RouteContext } from '@/core/infrastructure/http/types';
 import { getUserAuth } from '@/core/infrastructure/http/types';
 import { prisma } from '@/core/infrastructure/prisma-client';
+import {
+  resolveParticipantDocument,
+  resolveParticipantEmail,
+  resolveParticipantName,
+} from '@/core/utils/participant-identity';
 
 import { getAuthorizedEvent } from '../../../_lib/access';
 
@@ -92,8 +98,8 @@ export const POST = withAuth(
       }
 
       if (data.identifiers?.length) {
-        const byEmail = indexBy(participants, (p) => p.person.email?.trim().toLowerCase() || null);
-        const byDocument = indexBy(participants, (p) => onlyDigits(p.person.document ?? '') || null);
+        const byEmail = indexBy(participants, (p) => resolveParticipantEmail(p)?.toLowerCase() || null);
+        const byDocument = indexBy(participants, (p) => onlyDigits(resolveParticipantDocument(p) ?? '') || null);
         const byAccessCode = indexBy(participants, (p) => p.accessCode?.trim().toUpperCase() || null);
 
         for (const identifier of data.identifiers) {
@@ -146,9 +152,11 @@ export const POST = withAuth(
       const toCreate = targets.filter((participant) => participant.checkIns.length === 0);
       const skipped = targets
         .filter((participant) => participant.checkIns.length > 0)
-        .map((participant) => ({ participantId: participant.id, name: participant.person.name }));
+        .map((participant) => ({ participantId: participant.id, name: resolveParticipantName(participant) }));
 
       let createdCount = 0;
+
+      let createdCheckInIds: string[] = [];
 
       if (toCreate.length > 0) {
         const latestSession = await prisma.session.findFirst({
@@ -176,6 +184,8 @@ export const POST = withAuth(
             select: { id: true, eventParticipantId: true, method: true },
           });
 
+          createdCheckInIds = created.map((checkIn) => checkIn.id);
+
           // One audit row per check-in: the check-ins listing resolves `handledBy` by matching
           // `metadata.checkInId` / `metadata.eventParticipantId`.
           await tx.auditLog.createMany({
@@ -198,6 +208,12 @@ export const POST = withAuth(
 
           return created.length;
         });
+      }
+
+      // After the commit, never inside it: a rolled-back transaction would otherwise leave
+      // jobs pointing at check-ins that do not exist.
+      for (const checkInId of createdCheckInIds) {
+        await enqueueMirrorCheckIn(checkInId, eventOrResponse.organizationId);
       }
 
       return NextResponse.json({ created: createdCount, skipped, errors }, { status: 200 });

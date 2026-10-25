@@ -6,7 +6,8 @@ export type DocumentType = 'PASSPORT' | 'ID_CARD' | 'DRIVER_LICENSE' | 'OTHER';
 export interface PersonProps {
   id: string;
   name: string;
-  email: string;
+  /** Nullable: a ticket can arrive without an e-mail, and its Person then has none. */
+  email?: string | null;
   document?: string | null;
   documentType?: DocumentType | null;
   phone?: string | null;
@@ -36,7 +37,7 @@ export class PersonEntity extends BaseEntity {
     return this.props.name;
   }
 
-  get email(): string {
+  get email(): string | null | undefined {
     return this.props.email;
   }
 
@@ -97,7 +98,7 @@ export class PersonEntity extends BaseEntity {
   }
 
   get emailDomain(): string {
-    return this.props.email.split('@')[1] ?? '';
+    return this.props.email?.split('@')[1] ?? '';
   }
 
   hasDocument(): boolean {

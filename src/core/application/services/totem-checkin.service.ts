@@ -7,13 +7,22 @@ import type {
   ICooldownService,
   IVectorDbRepository,
 } from '@/core/domain/contracts';
+import { evaluateGatePolicy } from '@/core/domain/value-objects/gate-policy';
 import type { PrismaClient } from '@/generated/prisma/client';
+
+import { enqueueMirrorCheckIn } from './sympla/enqueue-mirror-checkin';
 
 // ── Types ────────────────────────────────────────────────────────────
 
 const FACE_EMBEDDING_DIMENSION = 512;
 const PERSON_COOLDOWN_MS = 5_000;
 const MIN_SEARCH_THRESHOLD = 0.5;
+
+/**
+ * Sympla ticket_status values that mean the ticket is no longer valid. Sympla uses single
+ * letters ('C' cancelled, 'R' refunded) and occasionally the spelled-out form.
+ */
+const CANCELLED_TICKET_STATUSES = ['C', 'R', 'CANCELED', 'CANCELLED', 'REFUNDED'];
 
 export interface CheckInInput {
   embedding: number[];
@@ -264,6 +273,69 @@ export class TotemCheckInService {
         });
       }
 
+      // ── Gate policy ───────────────────────────────────────────────
+      // Read from the slot the match landed on, using the same evaluation as the credential
+      // paths; a rule that held at one door and not another would be miserable to debug.
+      const gateSlot = await this.db.eventParticipant.findUnique({
+        where: { id: bestMatch.eventParticipantId },
+        select: { sectorName: true, ticketName: true },
+      });
+
+      const gateDecision = evaluateGatePolicy(context.gatePolicy, {
+        sectorName: gateSlot?.sectorName ?? null,
+        ticketName: gateSlot?.ticketName ?? null,
+      });
+
+      if (!gateDecision.allowed) {
+        failureReason = gateDecision.reason;
+        return this.deny(
+          'CHECKIN_WRONG_GATE',
+          gateDecision.reason === 'SECTOR_NOT_ALLOWED'
+            ? 'Este ingresso não é válido nesta portaria.'
+            : 'Este tipo de ingresso não é aceito nesta portaria.',
+          403,
+          context,
+          totemId,
+          { eventParticipantId: bestMatch.eventParticipantId },
+        );
+      }
+
+      // ── Ticket ambiguity ──────────────────────────────────────────
+      // A Person can now hold several tickets for the same event (bulk purchase). The vector
+      // search partitions by person, so which of those slots it returns is arbitrary — checking
+      // one in at random would mark the wrong ticket used. A face identifies a human, not a
+      // ticket, so when it is ambiguous the only honest answer is to ask for the ticket itself.
+      const eligibleSlots = await this.db.eventParticipant.findMany({
+        where: {
+          eventId: context.event.id,
+          personId: topMatch.personId,
+          deletedAt: null,
+          // A cancelled or refunded ticket is not a candidate for anything.
+          OR: [{ ticketStatus: null }, { ticketStatus: { notIn: CANCELLED_TICKET_STATUSES } }],
+          checkIns: { none: {} },
+        },
+        select: { id: true },
+        take: 2,
+      });
+
+      if (eligibleSlots.length > 1) {
+        failureReason = 'AMBIGUOUS_TICKET';
+        return this.deny(
+          'CHECKIN_AMBIGUOUS_TICKET',
+          'Identificamos mais de um ingresso neste nome. Use o QR code ou o código do ingresso.',
+          409,
+          context,
+          totemId,
+          { eventParticipantId: bestMatch.eventParticipantId },
+        );
+      }
+
+      // Exactly one slot is still open — that is the one to use, even if the arbitrary pick
+      // from the vector search landed on an already-used sibling.
+      if (eligibleSlots.length === 1) {
+        bestMatch.eventParticipantId = eligibleSlots[0].id;
+      }
+
       // ── Duplicate check ───────────────────────────────────────────
       const duplicate = await this.db.checkIn.findFirst({
         where: {
@@ -348,6 +420,8 @@ export class TotemCheckInService {
           totemEventSubscriptionId: context.totemEventSubscriptionId,
         },
       });
+
+      await enqueueMirrorCheckIn(checkIn.id, context.organizationId);
 
       // ── FASE 3: Register successful check-in (resets cooldown) ────────
       if (this.cooldownService) {

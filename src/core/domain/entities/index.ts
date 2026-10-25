@@ -18,6 +18,8 @@ export * from './print-config.entity';
 export * from './print-job.entity';
 export * from './session.entity';
 export * from './subscription.entity';
+export * from './sympla-connection.entity';
+export * from './sympla-event-link.entity';
 export * from './totem.entity';
 export * from './totem-event-subscription.entity';
 export * from './totem-organization-subscription.entity';

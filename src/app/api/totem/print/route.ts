@@ -2,12 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { z } from 'zod/v4';
 
-import { PrismaPrintJobRepository } from '@/core/infrastructure/repositories/prisma-print-job.repository';
-import { PrismaPrintConfigRepository } from '@/core/infrastructure/repositories/prisma-print-config.repository';
+import { PrintJobService } from '@/core/application/services/print-job.service';
 import { withAuth, withTotemAuth, withTotemRoutingGuard } from '@/core/infrastructure/http/middlewares';
 import { getTotemAuth } from '@/core/infrastructure/http/types';
 import { prisma } from '@/core/infrastructure/prisma-client';
-import { PrintJobService } from '@/core/application/services/print-job.service';
+import { PrismaPrintConfigRepository } from '@/core/infrastructure/repositories/prisma-print-config.repository';
+import { PrismaPrintJobRepository } from '@/core/infrastructure/repositories/prisma-print-job.repository';
+import { resolveParticipantName } from '@/core/utils/participant-identity';
 
 import { resolveActiveTotemEventContextByTotemId } from '../_lib/active-totem-context';
 
@@ -42,6 +43,10 @@ export const POST = withAuth(
             jobTitle: true,
             accessCode: true,
             qrCodeValue: true,
+            attendeeFullName: true,
+            ticketName: true,
+            sectorName: true,
+            seatLabel: true,
             eventId: true,
             event: {
               select: {
@@ -89,11 +94,14 @@ export const POST = withAuth(
           },
           {
             id: eventParticipant.id,
-            name: eventParticipant.person.name,
+            name: resolveParticipantName(eventParticipant),
             company: eventParticipant.company,
             jobTitle: eventParticipant.jobTitle,
             accessCode: eventParticipant.accessCode,
             qrCodeValue: eventParticipant.qrCodeValue,
+            ticketName: eventParticipant.ticketName,
+            sectorName: eventParticipant.sectorName,
+            seatLabel: eventParticipant.seatLabel,
           },
           { name: context.event.name },
           printConfig,
@@ -108,7 +116,7 @@ export const POST = withAuth(
             paperHeight: printConfig.paperHeight,
             printerDpi: printConfig.printerDpi,
             copies: printConfig.copies,
-            participantName: eventParticipant.person.name,
+            participantName: resolveParticipantName(eventParticipant),
             company: eventParticipant.company,
             jobTitle: eventParticipant.jobTitle,
             qrCodeValue: eventParticipant.qrCodeValue,

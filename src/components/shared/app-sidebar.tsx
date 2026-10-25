@@ -14,6 +14,7 @@ import {
   LayoutDashboard,
   LogOut,
   Monitor,
+  Plug,
   Settings,
   Shield,
   Users,
@@ -82,6 +83,7 @@ export function AppSidebar() {
   const organizationEventsHref = organizationId ? `/organizations/${organizationId}/events` : null;
   const organizationPeopleHref = organizationId ? `/organizations/${organizationId}/people` : null;
   const organizationTotemsHref = organizationId ? `/organizations/${organizationId}/totems` : null;
+  const organizationIntegrationsHref = organizationId ? `/organizations/${organizationId}/integrations` : null;
 
   const filteredNavItems = navItems.filter((item) => role && item.roles.includes(role));
 
@@ -180,6 +182,21 @@ export function AppSidebar() {
                   <SidebarMenuButton disabled aria-disabled>
                     <Monitor className="h-4 w-4" />
                     <span>{t('nav.sidebar.totems')}</span>
+                  </SidebarMenuButton>
+                )}
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                {organizationIntegrationsHref ? (
+                  <SidebarMenuButton asChild isActive={pathname.startsWith(organizationIntegrationsHref)}>
+                    <Link href={organizationIntegrationsHref}>
+                      <Plug className="h-4 w-4" />
+                      <span>{t('nav.sidebar.integrations')}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                ) : (
+                  <SidebarMenuButton disabled aria-disabled>
+                    <Plug className="h-4 w-4" />
+                    <span>{t('nav.sidebar.integrations')}</span>
                   </SidebarMenuButton>
                 )}
               </SidebarMenuItem>

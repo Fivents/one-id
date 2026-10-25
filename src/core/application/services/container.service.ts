@@ -7,14 +7,19 @@ import type {
   IEmbeddingEncryptionService,
   IFaceQualityService,
   IMultiTenantAuditService,
+  ISecretCipher,
+  ISymplaConnectionRepository,
+  ISymplaEventLinkRepository,
   ITemplateAggregationService,
 } from '@/core/domain/contracts';
 import { env } from '@/core/infrastructure/environment/env';
+import { JobQueue } from '@/core/infrastructure/jobs';
 import { prisma } from '@/core/infrastructure/prisma-client';
 import { BcryptPasswordHasher } from '@/core/infrastructure/providers/bcrypt-password-hasher';
 import { EmbeddingEncryptionService } from '@/core/infrastructure/providers/embedding-encryption.service';
 import { GoogleOAuthProvider } from '@/core/infrastructure/providers/google-oauth.provider';
 import { JoseTokenProvider } from '@/core/infrastructure/providers/jose-token-provider';
+import { SecretCipherService } from '@/core/infrastructure/providers/secret-cipher.service';
 import { PrismaAuditLogRepository } from '@/core/infrastructure/repositories/prisma-audit-log.repository';
 import { PrismaAuthIdentityRepository } from '@/core/infrastructure/repositories/prisma-auth-identity.repository';
 import { PrismaCheckInRepository } from '@/core/infrastructure/repositories/prisma-check-in.repository';
@@ -33,6 +38,8 @@ import { PrismaPlanFeatureRepository } from '@/core/infrastructure/repositories/
 import { PrismaPrintConfigRepository } from '@/core/infrastructure/repositories/prisma-print-config.repository';
 import { PrismaSessionRepository } from '@/core/infrastructure/repositories/prisma-session.repository';
 import { PrismaSubscriptionRepository } from '@/core/infrastructure/repositories/prisma-subscription.repository';
+import { PrismaSymplaConnectionRepository } from '@/core/infrastructure/repositories/prisma-sympla-connection.repository';
+import { PrismaSymplaEventLinkRepository } from '@/core/infrastructure/repositories/prisma-sympla-event-link.repository';
 import { PrismaTotemRepository } from '@/core/infrastructure/repositories/prisma-totem.repository';
 import { PrismaTotemEventSubscriptionRepository } from '@/core/infrastructure/repositories/prisma-totem-event-subscription.repository';
 import { PrismaTotemOrganizationSubscriptionRepository } from '@/core/infrastructure/repositories/prisma-totem-organization-subscription.repository';
@@ -44,6 +51,16 @@ import { ConfidenceThresholdService } from './confidence-threshold.service';
 import { CooldownService } from './cooldown.service';
 import { FaceQualityService } from './face-quality.service';
 import { MultiTenantAuditService } from './multi-tenant-audit.service';
+import {
+  SymplaCheckInMirrorService,
+  SymplaGateFallbackService,
+  SymplaMetricsService,
+  SymplaParticipantSyncService,
+  SymplaReconcileService,
+  SymplaSchedulerService,
+  SymplaSyncService,
+} from './sympla';
+import { SymplaClientProvider } from './sympla-client.provider';
 import { TemplateAggregationService } from './template-aggregation.service';
 
 /**
@@ -90,6 +107,18 @@ class ContainerService {
   private checkInMetricsService: ICheckInMetricsService | null = null;
   // FASE 5: Security - Embedding Encryption
   private embeddingEncryptionService: IEmbeddingEncryptionService | null = null;
+  // Third-party credentials at rest (Sympla token)
+  private secretCipher: ISecretCipher | null = null;
+  private symplaConnectionRepository: ISymplaConnectionRepository | null = null;
+  private symplaEventLinkRepository: ISymplaEventLinkRepository | null = null;
+  private symplaClientProvider: SymplaClientProvider | null = null;
+  private symplaSyncService: SymplaSyncService | null = null;
+  private symplaSchedulerService: SymplaSchedulerService | null = null;
+  private jobQueue: JobQueue | null = null;
+  private symplaCheckInMirrorService: SymplaCheckInMirrorService | null = null;
+  private symplaReconcileService: SymplaReconcileService | null = null;
+  private symplaGateFallbackService: SymplaGateFallbackService | null = null;
+  private symplaMetricsService: SymplaMetricsService | null = null;
   // FASE 5: Compliance - Multi-Tenant Audit
   private multiTenantAuditService: IMultiTenantAuditService | null = null;
 
@@ -326,6 +355,101 @@ class ContainerService {
       this.embeddingEncryptionService = new EmbeddingEncryptionService();
     }
     return this.embeddingEncryptionService;
+  }
+
+  getSecretCipher(): ISecretCipher {
+    if (!this.secretCipher) {
+      this.secretCipher = new SecretCipherService(env.SYMPLA_TOKEN_KEY);
+    }
+    return this.secretCipher;
+  }
+
+  getSymplaConnectionRepository(): ISymplaConnectionRepository {
+    if (!this.symplaConnectionRepository) {
+      this.symplaConnectionRepository = new PrismaSymplaConnectionRepository(this.prismaClient);
+    }
+    return this.symplaConnectionRepository;
+  }
+
+  getSymplaClientProvider(): SymplaClientProvider {
+    if (!this.symplaClientProvider) {
+      this.symplaClientProvider = new SymplaClientProvider(
+        this.getSymplaConnectionRepository(),
+        this.getSecretCipher(),
+      );
+    }
+    return this.symplaClientProvider;
+  }
+
+  getSymplaEventLinkRepository(): ISymplaEventLinkRepository {
+    if (!this.symplaEventLinkRepository) {
+      this.symplaEventLinkRepository = new PrismaSymplaEventLinkRepository(this.prismaClient);
+    }
+    return this.symplaEventLinkRepository;
+  }
+
+  getSymplaSyncService(): SymplaSyncService {
+    if (!this.symplaSyncService) {
+      this.symplaSyncService = new SymplaSyncService(
+        this.prismaClient,
+        this.getSymplaClientProvider(),
+        this.getSymplaConnectionRepository(),
+      );
+    }
+    return this.symplaSyncService;
+  }
+
+  getSymplaSchedulerService(): SymplaSchedulerService {
+    if (!this.symplaSchedulerService) {
+      this.symplaSchedulerService = new SymplaSchedulerService(this.prismaClient, this.getJobQueue());
+    }
+    return this.symplaSchedulerService;
+  }
+
+  getJobQueue(): JobQueue {
+    if (!this.jobQueue) {
+      this.jobQueue = new JobQueue(this.prismaClient);
+    }
+    return this.jobQueue;
+  }
+
+  getSymplaCheckInMirrorService(): SymplaCheckInMirrorService {
+    if (!this.symplaCheckInMirrorService) {
+      this.symplaCheckInMirrorService = new SymplaCheckInMirrorService(
+        this.prismaClient,
+        this.getSymplaClientProvider(),
+      );
+    }
+    return this.symplaCheckInMirrorService;
+  }
+
+  getSymplaGateFallbackService(): SymplaGateFallbackService {
+    if (!this.symplaGateFallbackService) {
+      this.symplaGateFallbackService = new SymplaGateFallbackService(
+        this.prismaClient,
+        this.getSymplaClientProvider(),
+        new SymplaParticipantSyncService(this.prismaClient),
+      );
+    }
+    return this.symplaGateFallbackService;
+  }
+
+  getSymplaMetricsService(): SymplaMetricsService {
+    if (!this.symplaMetricsService) {
+      this.symplaMetricsService = new SymplaMetricsService(this.prismaClient);
+    }
+    return this.symplaMetricsService;
+  }
+
+  getSymplaReconcileService(): SymplaReconcileService {
+    if (!this.symplaReconcileService) {
+      this.symplaReconcileService = new SymplaReconcileService(
+        this.prismaClient,
+        this.getJobQueue(),
+        this.getSymplaSyncService(),
+      );
+    }
+    return this.symplaReconcileService;
   }
 
   getMultiTenantAuditService(): IMultiTenantAuditService {

@@ -24,6 +24,10 @@ type Feedback = {
   title: string;
   description: string;
   participantName?: string;
+  /** Sympla ticket details, shown when the event is linked. */
+  ticketName?: string | null;
+  sectorName?: string | null;
+  seatLabel?: string | null;
 };
 
 export default function TotemQrPage() {
@@ -96,6 +100,9 @@ export default function TotemQrPage() {
         title: 'Check-in realizado!',
         description: 'Seja bem-vindo(a) ao evento',
         participantName: response.data.participant.name,
+        ticketName: response.data.participant.ticketName ?? null,
+        sectorName: response.data.participant.sectorName ?? null,
+        seatLabel: response.data.participant.seatLabel ?? null,
       });
       setIsSubmitting(false);
     },
@@ -296,8 +303,27 @@ export default function TotemQrPage() {
               <h1 className="text-3xl font-bold text-white">{feedback.title}</h1>
               <p className="mt-2 text-slate-400">{feedback.description}</p>
               {feedback.participantName && (
-                <div className="mt-6">
+                <div className="mt-6 space-y-3">
                   <p className="text-2xl font-semibold text-emerald-400">{feedback.participantName}</p>
+                  {(feedback.ticketName || feedback.sectorName || feedback.seatLabel) && (
+                    <div className="flex flex-wrap items-center justify-center gap-2">
+                      {feedback.ticketName && (
+                        <span className="rounded-full bg-emerald-500/15 px-3 py-1 text-sm font-medium text-emerald-300 ring-1 ring-emerald-500/30">
+                          {feedback.ticketName}
+                        </span>
+                      )}
+                      {feedback.sectorName && (
+                        <span className="rounded-full bg-cyan-500/15 px-3 py-1 text-sm font-medium text-cyan-300 ring-1 ring-cyan-500/30">
+                          {feedback.sectorName}
+                        </span>
+                      )}
+                      {feedback.seatLabel && (
+                        <span className="rounded-full bg-slate-500/15 px-3 py-1 text-sm font-medium text-slate-200 ring-1 ring-slate-400/30">
+                          {feedback.seatLabel}
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
               <div className="mt-8 flex items-center gap-2 text-sm text-slate-500">

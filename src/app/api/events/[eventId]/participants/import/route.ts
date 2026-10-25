@@ -5,6 +5,7 @@ import { withAuth, withRBAC } from '@/core/infrastructure/http/middlewares';
 import type { RouteContext } from '@/core/infrastructure/http/types';
 import { prisma } from '@/core/infrastructure/prisma-client';
 import { generateCheckInCredential, resolveTotemAccessCodeLength } from '@/core/utils/checkin-credentials';
+import { buildAttendeeSnapshot } from '@/core/utils/participant-identity';
 
 import { getAuthorizedEvent } from '../../../_lib/access';
 
@@ -99,7 +100,7 @@ export const POST = withAuth(
             const person = await prisma.person.create({
               data: {
                 name: p.name,
-                email: p.email || '',
+                email: p.email || null,
                 organizationId: event.organizationId,
                 ...(p.document ? { document: p.document } : {}),
                 ...(p.phone ? { phone: p.phone } : {}),
@@ -143,6 +144,9 @@ export const POST = withAuth(
                 jobTitle: p.jobTitle || null,
                 qrCodeValue,
                 accessCode,
+                // Straight from the spreadsheet row: that is the attendee as declared, which
+                // is what the slot should remember even if the Person is later edited.
+                ...buildAttendeeSnapshot({ name: p.name, email: p.email, document: p.document }),
               },
             });
 

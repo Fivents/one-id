@@ -11,6 +11,18 @@ const TEMPLATE_COLUMNS = [
   'Ativo',
 ] as const;
 
+/** Shape the people export endpoint returns, and the only shape the spreadsheet writer needs. */
+export interface ExcelPersonExportRow {
+  name: string;
+  email: string;
+  document?: string | null;
+  phone?: string | null;
+  jobTitle?: string | null;
+  birthDate?: Date | string | null;
+  notes?: string | null;
+  deletedAt?: Date | string | null;
+}
+
 export interface ExcelPersonRow {
   nome: string;
   email: string;
@@ -96,19 +108,7 @@ export const excelPeople = {
     XLSX.writeFile(wb, 'modelo-importacao-pessoas.xlsx');
   },
 
-  exportToExcel(
-    people: Array<{
-      name: string;
-      email: string;
-      document?: string | null;
-      phone?: string | null;
-      jobTitle?: string | null;
-      birthDate?: Date | string | null;
-      notes?: string | null;
-      deletedAt?: Date | string | null;
-    }>,
-    organizationName: string,
-  ): void {
+  exportToExcel(people: ExcelPersonExportRow[], organizationName: string): void {
     const wb = XLSX.utils.book_new();
 
     const data = people.map((p) => [

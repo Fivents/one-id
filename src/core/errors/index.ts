@@ -16,6 +16,7 @@ export * from './plan-features';
 export * from './plans';
 export * from './print-configs';
 export * from './subscriptions';
+export * from './sympla';
 export * from './totem-event-subscriptions';
 export * from './totem-org-subscriptions';
 export * from './totem-sessions';

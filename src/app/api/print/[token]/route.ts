@@ -5,6 +5,7 @@ import * as jose from 'jose';
 import { LabelGeneratorService } from '@/core/application/services/label-generator.service';
 import { env } from '@/core/infrastructure/environment/env';
 import { prisma } from '@/core/infrastructure/prisma-client';
+import { resolveParticipantName } from '@/core/utils/participant-identity';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,6 +37,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ toke
       jobTitle: true,
       accessCode: true,
       qrCodeValue: true,
+      attendeeFullName: true,
+      ticketName: true,
+      sectorName: true,
+      seatLabel: true,
       event: {
         select: {
           name: true,
@@ -69,9 +74,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ toke
   const html = await generator.generateBadgeHtml(
     {
       eventName: eventParticipant.event.name,
-      participantName: eventParticipant.person.name,
+      participantName: resolveParticipantName(eventParticipant),
       company: eventParticipant.company,
       jobTitle: eventParticipant.jobTitle,
+      ticketName: eventParticipant.ticketName,
+      sectorName: eventParticipant.sectorName,
+      seatLabel: eventParticipant.seatLabel,
       qrContent,
       accessCodeDisplay,
       showQrCode: config.showQrCode,

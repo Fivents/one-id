@@ -22,7 +22,6 @@ export default function SaasLayout({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!isLoading) {
-      setIsLoadingTimedOut(false);
       return;
     }
 
@@ -32,6 +31,9 @@ export default function SaasLayout({ children }: { children: ReactNode }) {
 
     return () => {
       window.clearTimeout(timeoutId);
+      // Reset on teardown rather than in the effect body: the flag only means anything while
+      // a load is in flight, and this keeps every setState off the synchronous path.
+      setIsLoadingTimedOut(false);
     };
   }, [isLoading]);
 

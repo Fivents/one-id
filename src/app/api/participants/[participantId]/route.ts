@@ -50,7 +50,13 @@ export const PATCH = withAuth(
 
       const participant = await prisma.eventParticipant.findUnique({
         where: { id: participantId, deletedAt: null },
-        select: { eventId: true, personId: true, accessCode: true, useDocumentAsAccessCode: true },
+        select: {
+          eventId: true,
+          personId: true,
+          accessCode: true,
+          useDocumentAsAccessCode: true,
+          attendeeDocument: true,
+        },
       });
 
       if (!participant) {
@@ -65,12 +71,15 @@ export const PATCH = withAuth(
       const body = await req.json();
       const data = parseWithZod(updateParticipantRequestSchema, body);
 
-      const person = await prisma.person.findUnique({
-        where: { id: participant.personId, deletedAt: null },
-        select: { document: true },
-      });
+      // A ticket slot may carry no identity; its own snapshot is then the document source.
+      const person = participant.personId
+        ? await prisma.person.findUnique({
+            where: { id: participant.personId, deletedAt: null },
+            select: { document: true },
+          })
+        : null;
 
-      const documentAccessCode = normalizeDocumentAsAccessCode(person?.document);
+      const documentAccessCode = normalizeDocumentAsAccessCode(person?.document ?? participant.attendeeDocument);
       const requestedUseDocumentAsAccessCode = data.useDocumentAsAccessCode ?? participant.useDocumentAsAccessCode;
 
       const event = eventOrResponse;

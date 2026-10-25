@@ -8,7 +8,11 @@ export { eventCheckinsClient } from './checkins/checkins-client.service';
 export { type CheckInResponse, checkinsClient } from './checkins-client.service';
 export { eventsClient } from './events/events-client.service';
 export { type NotificationResponse, notificationsClient } from './notifications-client.service';
-export { type OrganizationTotemListResponse, orgTotemsClient } from './org-totems-client.service';
+export {
+  type EventGateCatalogResponse,
+  type OrganizationTotemListResponse,
+  orgTotemsClient,
+} from './org-totems-client.service';
 export {
   type AutoLinkEventResponse,
   type BackfillConfirmResponse,
@@ -23,6 +27,17 @@ export { type ParticipantResponse, participantsClient } from './participants-cli
 export { peopleClient } from './people-client.service';
 export { type PlanResponse, plansClient } from './plans-client.service';
 export { type SubscriptionResponse, subscriptionsClient } from './subscriptions-client.service';
+export {
+  type SymplaBreakdownRow,
+  symplaClient,
+  type SymplaConnectionStatusResponse,
+  type SymplaEventLinkResponse,
+  type SymplaEventMetricsResponse,
+  type SymplaEventOptionResponse,
+  type SymplaSyncError,
+  type SymplaSyncResult,
+  type SymplaUtmRow,
+} from './sympla-client.service';
 export {
   clearTotemToken,
   getEventAIConfig,

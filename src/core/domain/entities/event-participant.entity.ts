@@ -1,5 +1,6 @@
 import { BaseEntity } from './base.entity';
 import type { CodeProvenance } from './organization-people-settings.entity';
+import type { DocumentType } from './person.entity';
 
 export interface EventParticipantProps {
   id: string;
@@ -10,7 +11,12 @@ export interface EventParticipantProps {
   useDocumentAsAccessCode: boolean;
   accessCodeProvenance: CodeProvenance;
   qrCodeProvenance: CodeProvenance;
-  personId: string;
+  attendeeFullName?: string | null;
+  attendeeEmail?: string | null;
+  attendeeDocument?: string | null;
+  attendeeDocumentType?: DocumentType | null;
+  /** Null when the ticket has no identity attached yet — see the attendee snapshot above. */
+  personId?: string | null;
   eventId: string;
   createdAt: Date;
   updatedAt: Date;
@@ -54,7 +60,23 @@ export class EventParticipantEntity extends BaseEntity {
     return this.props.qrCodeProvenance;
   }
 
-  get personId(): string {
+  get attendeeFullName(): string | null | undefined {
+    return this.props.attendeeFullName;
+  }
+
+  get attendeeEmail(): string | null | undefined {
+    return this.props.attendeeEmail;
+  }
+
+  get attendeeDocument(): string | null | undefined {
+    return this.props.attendeeDocument;
+  }
+
+  get attendeeDocumentType(): DocumentType | null | undefined {
+    return this.props.attendeeDocumentType;
+  }
+
+  get personId(): string | null | undefined {
     return this.props.personId;
   }
 
@@ -90,6 +112,10 @@ export class EventParticipantEntity extends BaseEntity {
     return this.props.personId === personId;
   }
 
+  hasIdentity(): boolean {
+    return !!this.props.personId;
+  }
+
   toJSON(): Record<string, unknown> {
     return {
       id: this.id,
@@ -100,6 +126,10 @@ export class EventParticipantEntity extends BaseEntity {
       useDocumentAsAccessCode: this.props.useDocumentAsAccessCode,
       accessCodeProvenance: this.props.accessCodeProvenance,
       qrCodeProvenance: this.props.qrCodeProvenance,
+      attendeeFullName: this.props.attendeeFullName,
+      attendeeEmail: this.props.attendeeEmail,
+      attendeeDocument: this.props.attendeeDocument,
+      attendeeDocumentType: this.props.attendeeDocumentType,
       personId: this.props.personId,
       eventId: this.props.eventId,
       createdAt: this.props.createdAt,

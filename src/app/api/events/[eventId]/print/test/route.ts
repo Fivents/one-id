@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-import { PrintConfigEntity, type QrCodeContentType } from '@/core/domain/entities/print-config.entity';
 import { PrintJobService } from '@/core/application/services/print-job.service';
+import { PrintConfigEntity, type QrCodeContentType } from '@/core/domain/entities/print-config.entity';
 import { withAuth, withRBAC } from '@/core/infrastructure/http/middlewares';
 import type { RouteContext } from '@/core/infrastructure/http/types';
 import { prisma } from '@/core/infrastructure/prisma-client';

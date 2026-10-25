@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 import { prisma } from '@/core/infrastructure/prisma-client';
+import { resolveParticipantName } from '@/core/utils/participant-identity';
 
 interface RouteContext {
   params: Promise<{ slug: string }>;
@@ -93,7 +94,7 @@ export async function GET(_req: NextRequest, context: RouteContext) {
     },
     recentCheckIns: recentCheckIns.map((checkIn) => ({
       id: checkIn.id,
-      name: maskName(checkIn.eventParticipant.person.name),
+      name: maskName(resolveParticipantName(checkIn.eventParticipant)),
       method: checkIn.method,
       checkedInAt: checkIn.checkedInAt,
     })),

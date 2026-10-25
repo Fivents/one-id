@@ -15,7 +15,15 @@ export interface OrganizationTotemListResponse {
     locationName: string;
     startsAt: Date;
     endsAt: Date;
+    /** Gate restriction. Empty arrays mean this gate accepts everything. */
+    allowedSectors: string[];
+    allowedTicketTypes: string[];
   } | null;
+}
+
+export interface EventGateCatalogResponse {
+  sectors: string[];
+  ticketTypes: string[];
 }
 
 class OrgTotemsClientService extends BaseClient {
@@ -30,6 +38,22 @@ class OrgTotemsClientService extends BaseClient {
     ApiResponse<{ id: string; eventId: string; eventName: string; locationName: string; startsAt: Date; endsAt: Date }>
   > {
     return this.post(`/totems/${encodeURIComponent(totemId)}/assign-event`, data);
+  }
+
+  /** Sectors and ticket types known for an event, for the gate-restriction pickers. */
+  async getEventGateCatalog(eventId: string): Promise<ApiResponse<EventGateCatalogResponse>> {
+    return this.get(`/events/${encodeURIComponent(eventId)}/sympla/catalog`);
+  }
+
+  async updateGatePolicy(
+    eventId: string,
+    subscriptionId: string,
+    data: { allowedSectors: string[]; allowedTicketTypes: string[] },
+  ): Promise<ApiResponse<{ id: string; locationName: string }>> {
+    return this.patch(
+      `/events/${encodeURIComponent(eventId)}/gates/${encodeURIComponent(subscriptionId)}`,
+      data,
+    );
   }
 
   async unassignTotemFromEvent(

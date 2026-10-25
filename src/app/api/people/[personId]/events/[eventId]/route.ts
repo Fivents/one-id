@@ -4,6 +4,7 @@ import { withAuth, withRBAC } from '@/core/infrastructure/http/middlewares';
 import type { RouteContext } from '@/core/infrastructure/http/types';
 import { prisma } from '@/core/infrastructure/prisma-client';
 import { generateCheckInCredential, resolveTotemAccessCodeLength } from '@/core/utils/checkin-credentials';
+import { buildAttendeeSnapshot, PERSON_SNAPSHOT_SELECT } from '@/core/utils/participant-identity';
 import { Prisma } from '@/generated/prisma/client';
 
 import { getAuthorizedPerson } from '../../../_lib/access';
@@ -29,7 +30,13 @@ export const POST = withAuth(
 
       const person = await prisma.person.findUnique({
         where: { id: personId },
-        select: { accessCode: true, accessCodeProvenance: true, qrCodeValue: true, qrCodeProvenance: true },
+        select: {
+          accessCode: true,
+          accessCodeProvenance: true,
+          qrCodeValue: true,
+          qrCodeProvenance: true,
+          ...PERSON_SNAPSHOT_SELECT,
+        },
       });
 
       // Participants inherit the Person's own derived/manual code by default, so the code
@@ -72,6 +79,7 @@ export const POST = withAuth(
           accessCode,
           accessCodeProvenance,
           qrCodeProvenance,
+          ...buildAttendeeSnapshot(person),
         },
       });
 

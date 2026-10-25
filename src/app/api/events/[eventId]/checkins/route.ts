@@ -2,10 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { z } from 'zod/v4';
 
+import { enqueueMirrorCheckIn } from '@/core/application/services/sympla/enqueue-mirror-checkin';
 import { withAuth, withRBAC } from '@/core/infrastructure/http/middlewares';
 import type { RouteContext } from '@/core/infrastructure/http/types';
 import { getUserAuth } from '@/core/infrastructure/http/types';
 import { prisma } from '@/core/infrastructure/prisma-client';
+import {
+  resolveParticipantEmail,
+  resolveParticipantName,
+} from '@/core/utils/participant-identity';
 
 import { getAuthorizedEvent } from '../../_lib/access';
 
@@ -125,9 +130,10 @@ export const GET = withAuth(
         return {
           id: checkIn.id,
           participant: {
-            id: checkIn.eventParticipant.person.id,
-            name: checkIn.eventParticipant.person.name,
-            email: checkIn.eventParticipant.person.email,
+            // Falls back to the participant id: a ticket slot may have no Person at all.
+            id: checkIn.eventParticipant.person?.id ?? checkIn.eventParticipant.id,
+            name: resolveParticipantName(checkIn.eventParticipant),
+            email: resolveParticipantEmail(checkIn.eventParticipant),
           },
           method: checkIn.method,
           confidence: checkIn.confidence,
@@ -220,6 +226,8 @@ export const POST = withAuth(
           totemEventSubscriptionId: null,
         },
       });
+
+      await enqueueMirrorCheckIn(checkIn.id, eventOrResponse.organizationId);
 
       const latestSession = await prisma.session.findFirst({
         where: {

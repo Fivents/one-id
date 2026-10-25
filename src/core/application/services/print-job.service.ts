@@ -1,13 +1,12 @@
-import crypto from 'node:crypto';
-
 import * as jose from 'jose';
+import crypto from 'node:crypto';
 
 import type { IPrintJobRepository } from '@/core/domain/contracts/print-job.repository';
 import type { PrintConfigEntity } from '@/core/domain/entities';
 import type { CreatePrintJobData, PrintJobEntity } from '@/core/domain/entities/print-job.entity';
 import { env } from '@/core/infrastructure/environment/env';
 
-import { LabelGeneratorService, type LabelConfig, type LabelData } from './label-generator.service';
+import { type LabelConfig, type LabelData,LabelGeneratorService } from './label-generator.service';
 
 export interface PrintJobResult {
   job: PrintJobEntity;
@@ -20,6 +19,19 @@ interface PrintTokenPayload {
   eventParticipantId: string;
   exp: number;
   iat: number;
+}
+
+/** What a badge needs to know about whoever it is being printed for. */
+export interface BadgeParticipant {
+  id?: string;
+  name: string;
+  company: string | null;
+  jobTitle: string | null;
+  accessCode: string | null;
+  qrCodeValue: string | null;
+  ticketName?: string | null;
+  sectorName?: string | null;
+  seatLabel?: string | null;
 }
 
 export class PrintJobService {
@@ -36,7 +48,7 @@ export class PrintJobService {
   }
 
   async generateBadgeHtml(
-    participant: { id?: string; name: string; company: string | null; jobTitle: string | null; accessCode: string | null; qrCodeValue: string | null },
+    participant: BadgeParticipant,
     event: { name: string },
     printConfig: PrintConfigEntity,
   ): Promise<string> {
@@ -52,6 +64,9 @@ export class PrintJobService {
       accessCodeDisplay,
       showQrCode: printConfig.showQrCode,
       showAccessCode: printConfig.showAccessCode,
+      ticketName: participant.ticketName,
+      sectorName: participant.sectorName,
+      seatLabel: participant.seatLabel,
     };
 
     const labelConfig: LabelConfig = {
@@ -68,7 +83,7 @@ export class PrintJobService {
 
   async executePrint(
     data: CreatePrintJobData,
-    participant: { id?: string; name: string; company: string | null; jobTitle: string | null; accessCode: string | null; qrCodeValue: string | null },
+    participant: BadgeParticipant,
     event: { name: string },
     printConfig: PrintConfigEntity,
   ): Promise<PrintJobResult> {

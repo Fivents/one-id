@@ -2,11 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { z } from 'zod/v4';
 
+import { enqueueMirrorCheckIn } from '@/core/application/services/sympla/enqueue-mirror-checkin';
 import { AppError } from '@/core/errors';
 import { withAuth, withTotemAuth, withTotemRoutingGuard } from '@/core/infrastructure/http/middlewares';
 import { getTotemAuth } from '@/core/infrastructure/http/types';
 import { prisma } from '@/core/infrastructure/prisma-client';
 import { generateCheckInCredential, resolveTotemAccessCodeLength } from '@/core/utils/checkin-credentials';
+import { buildAttendeeSnapshot } from '@/core/utils/participant-identity';
 import { Prisma } from '@/generated/prisma/client';
 
 import { resolveActiveTotemEventContextByTotemId } from '../_lib/active-totem-context';
@@ -56,6 +58,9 @@ export const POST = withAuth(
         const qrCodeValue = generateCheckInCredential(credentialLength);
         const accessCode = generateCheckInCredential(credentialLength);
 
+        let mirrorCheckInId: string | null = null;
+
+
         const result = await prisma.$transaction(async (tx) => {
           let person = await tx.person.findFirst({
             where: {
@@ -97,7 +102,9 @@ export const POST = withAuth(
             },
           });
 
-          let eventParticipant: { id: string; company: string | null; jobTitle: string | null; accessCode: string | null; qrCodeValue: string | null; personId: string };
+          // Widened to the row type: EventParticipant gained the attendee snapshot columns and
+          // personId became nullable, so spelling the shape out by hand only invites drift.
+          let eventParticipant: Awaited<ReturnType<typeof tx.eventParticipant.create>>;
 
           if (existingParticipant) {
             if (existingParticipant.deletedAt) {
@@ -109,6 +116,12 @@ export const POST = withAuth(
                   qrCodeValue,
                   accessCode,
                   deletedAt: null,
+                  ...buildAttendeeSnapshot({
+                    name: data.name,
+                    email: data.email,
+                    document: data.document,
+                    documentType: data.documentType,
+                  }),
                 },
               });
             } else {
@@ -126,6 +139,12 @@ export const POST = withAuth(
                 accessCode,
                 personId: person.id,
                 eventId: activeContext.event.id,
+                ...buildAttendeeSnapshot({
+                  name: data.name,
+                  email: data.email,
+                  document: data.document,
+                  documentType: data.documentType,
+                }),
               },
             });
           }
@@ -181,6 +200,8 @@ export const POST = withAuth(
             },
           });
 
+          mirrorCheckInId = checkIn.id;
+
           return {
             id: checkIn.id as string | null,
             eventParticipantId: eventParticipant.id,
@@ -191,6 +212,12 @@ export const POST = withAuth(
 
         if ('error' in result) {
           return NextResponse.json({ error: result.error, code: result.code }, { status: 409 });
+        }
+
+        // After the commit, never inside it: a rolled-back transaction would otherwise leave a
+        // job pointing at a check-in that does not exist.
+        if (mirrorCheckInId) {
+          await enqueueMirrorCheckIn(mirrorCheckInId, activeContext.organizationId);
         }
 
         return NextResponse.json(result, { status: 201 });

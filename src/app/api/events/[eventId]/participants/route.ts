@@ -14,6 +14,13 @@ import {
   resolveDerivedCodeUnique,
 } from '@/core/utils/derived-code';
 import { parseWithZod } from '@/core/utils/parse-with-zod';
+import {
+  buildAttendeeSnapshot,
+  PERSON_SNAPSHOT_SELECT,
+  resolveParticipantDocument,
+  resolveParticipantEmail,
+  resolveParticipantName,
+} from '@/core/utils/participant-identity';
 import { Prisma } from '@/generated/prisma/client';
 
 import { getAuthorizedEvent } from '../../_lib/access';
@@ -43,6 +50,10 @@ export const GET = withAuth(
             OR: [
               { person: { name: { contains: search, mode: 'insensitive' as const } } },
               { person: { email: { contains: search, mode: 'insensitive' as const } } },
+              // A slot with no Person is only reachable through its own snapshot.
+              { attendeeFullName: { contains: search, mode: 'insensitive' as const } },
+              { attendeeEmail: { contains: search, mode: 'insensitive' as const } },
+              { attendeeDocument: { contains: search, mode: 'insensitive' as const } },
               { company: { contains: search, mode: 'insensitive' as const } },
               { jobTitle: { contains: search, mode: 'insensitive' as const } },
             ],
@@ -85,12 +96,37 @@ export const GET = withAuth(
 
     const totalPages = Math.max(Math.ceil(total / pageSize), 1);
 
+    // Duplicate detection runs across the whole event, not the current page — a bulk order
+    // routinely straddles a page boundary, and a per-page check would miss exactly the case
+    // the badge exists for.
+    const [duplicateDocuments, duplicateEmails] = await Promise.all([
+      prisma.eventParticipant.groupBy({
+        by: ['attendeeDocument'],
+        where: { eventId, deletedAt: null, attendeeDocument: { not: null } },
+        _count: { _all: true },
+        having: { attendeeDocument: { _count: { gt: 1 } } },
+      }),
+      prisma.eventParticipant.groupBy({
+        by: ['attendeeEmail'],
+        where: { eventId, deletedAt: null, attendeeEmail: { not: null } },
+        _count: { _all: true },
+        having: { attendeeEmail: { _count: { gt: 1 } } },
+      }),
+    ]);
+
+    const duplicateDocumentSet = new Set(
+      duplicateDocuments.map((row) => row.attendeeDocument).filter((value): value is string => value !== null),
+    );
+    const duplicateEmailSet = new Set(
+      duplicateEmails.map((row) => row.attendeeEmail).filter((value): value is string => value !== null),
+    );
+
     const result = participants.map((participant) => ({
       id: participant.id,
       personId: participant.personId,
-      name: participant.person.name,
-      email: participant.person.email,
-      document: participant.person.document,
+      name: resolveParticipantName(participant),
+      email: resolveParticipantEmail(participant),
+      document: resolveParticipantDocument(participant),
       company: participant.company,
       jobTitle: participant.jobTitle,
       qrCodeValue: participant.qrCodeValue,
@@ -100,8 +136,18 @@ export const GET = withAuth(
       registeredAt: participant.createdAt,
       hasCheckIn: participant.checkIns.length > 0,
       lastCheckInId: participant.checkIns[0]?.id ?? null,
-      faceId: participant.person.faces[0]?.id ?? null,
-      faceImageUrl: participant.person.faces[0]?.imageUrl ?? null,
+      faceId: participant.person?.faces[0]?.id ?? null,
+      faceImageUrl: participant.person?.faces[0]?.imageUrl ?? null,
+      ticketNumber: participant.ticketNumber,
+      ticketName: participant.ticketName,
+      ticketStatus: participant.ticketStatus,
+      sectorName: participant.sectorName,
+      seatLabel: participant.seatLabel,
+      symplaCheckedIn: participant.symplaCheckedIn,
+      customFields: participant.customFields ?? [],
+      duplicateDocument:
+        participant.attendeeDocument !== null && duplicateDocumentSet.has(participant.attendeeDocument),
+      duplicateEmail: participant.attendeeEmail !== null && duplicateEmailSet.has(participant.attendeeEmail),
     }));
 
     return NextResponse.json({ items: result, page, pageSize, total, totalPages }, { status: 200 });
@@ -386,6 +432,12 @@ export const POST = withAuth(
         return NextResponse.json(restored, { status: 200 });
       }
 
+      // Read once, after personId settles, rather than in each of the three branches above —
+      // the snapshot then cannot drift depending on how the person was resolved.
+      const snapshotPerson = personId
+        ? await prisma.person.findUnique({ where: { id: personId }, select: PERSON_SNAPSHOT_SELECT })
+        : null;
+
       const controller = makeRegisterParticipantController();
       const result = await controller.handle({
         personId: personId!,
@@ -397,6 +449,7 @@ export const POST = withAuth(
         useDocumentAsAccessCode: requestedUseDocumentAsAccessCode,
         accessCodeProvenance,
         qrCodeProvenance,
+        ...buildAttendeeSnapshot(snapshotPerson),
       });
 
       return toNextResponse(result);

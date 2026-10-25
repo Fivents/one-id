@@ -3,8 +3,10 @@ import type {
   IEventParticipantRepository,
   UpdateEventParticipantData,
 } from '@/core/domain/contracts';
-import { type CodeProvenance, EventParticipantEntity } from '@/core/domain/entities';
-import type { PrismaClient } from '@/generated/prisma/client';
+import { type CodeProvenance, type DocumentType, EventParticipantEntity } from '@/core/domain/entities';
+import type { Prisma, PrismaClient } from '@/generated/prisma/client';
+
+type EventParticipantRow = Prisma.EventParticipantGetPayload<object>;
 
 export class PrismaEventParticipantRepository implements IEventParticipantRepository {
   constructor(private readonly db: PrismaClient) {}
@@ -16,21 +18,7 @@ export class PrismaEventParticipantRepository implements IEventParticipantReposi
 
     if (!participant) return null;
 
-    return EventParticipantEntity.create({
-      id: participant.id,
-      company: participant.company,
-      jobTitle: participant.jobTitle,
-      qrCodeValue: participant.qrCodeValue,
-      accessCode: participant.accessCode,
-      useDocumentAsAccessCode: participant.useDocumentAsAccessCode,
-      accessCodeProvenance: participant.accessCodeProvenance as CodeProvenance,
-      qrCodeProvenance: participant.qrCodeProvenance as CodeProvenance,
-      personId: participant.personId,
-      eventId: participant.eventId,
-      createdAt: participant.createdAt,
-      updatedAt: participant.updatedAt,
-      deletedAt: participant.deletedAt,
-    });
+    return this.convert(participant);
   }
 
   async findByEvent(eventId: string): Promise<EventParticipantEntity[]> {
@@ -39,21 +27,7 @@ export class PrismaEventParticipantRepository implements IEventParticipantReposi
     });
 
     return participants.map((p) =>
-      EventParticipantEntity.create({
-        id: p.id,
-        company: p.company,
-        jobTitle: p.jobTitle,
-        qrCodeValue: p.qrCodeValue,
-        accessCode: p.accessCode,
-        useDocumentAsAccessCode: p.useDocumentAsAccessCode,
-        accessCodeProvenance: p.accessCodeProvenance as CodeProvenance,
-        qrCodeProvenance: p.qrCodeProvenance as CodeProvenance,
-        personId: p.personId,
-        eventId: p.eventId,
-        createdAt: p.createdAt,
-        updatedAt: p.updatedAt,
-        deletedAt: p.deletedAt,
-      }),
+      this.convert(p),
     );
   }
 
@@ -64,21 +38,7 @@ export class PrismaEventParticipantRepository implements IEventParticipantReposi
 
     if (!participant) return null;
 
-    return EventParticipantEntity.create({
-      id: participant.id,
-      company: participant.company,
-      jobTitle: participant.jobTitle,
-      qrCodeValue: participant.qrCodeValue,
-      accessCode: participant.accessCode,
-      useDocumentAsAccessCode: participant.useDocumentAsAccessCode,
-      accessCodeProvenance: participant.accessCodeProvenance as CodeProvenance,
-      qrCodeProvenance: participant.qrCodeProvenance as CodeProvenance,
-      personId: participant.personId,
-      eventId: participant.eventId,
-      createdAt: participant.createdAt,
-      updatedAt: participant.updatedAt,
-      deletedAt: participant.deletedAt,
-    });
+    return this.convert(participant);
   }
 
   async create(data: CreateEventParticipantData): Promise<EventParticipantEntity> {
@@ -91,26 +51,16 @@ export class PrismaEventParticipantRepository implements IEventParticipantReposi
         useDocumentAsAccessCode: data.useDocumentAsAccessCode,
         accessCodeProvenance: data.accessCodeProvenance,
         qrCodeProvenance: data.qrCodeProvenance,
-        personId: data.personId,
+        attendeeFullName: data.attendeeFullName ?? null,
+        attendeeEmail: data.attendeeEmail ?? null,
+        attendeeDocument: data.attendeeDocument ?? null,
+        attendeeDocumentType: data.attendeeDocumentType ?? null,
+        personId: data.personId ?? null,
         eventId: data.eventId,
       },
     });
 
-    return EventParticipantEntity.create({
-      id: participant.id,
-      company: participant.company,
-      jobTitle: participant.jobTitle,
-      qrCodeValue: participant.qrCodeValue,
-      accessCode: participant.accessCode,
-      useDocumentAsAccessCode: participant.useDocumentAsAccessCode,
-      accessCodeProvenance: participant.accessCodeProvenance as CodeProvenance,
-      qrCodeProvenance: participant.qrCodeProvenance as CodeProvenance,
-      personId: participant.personId,
-      eventId: participant.eventId,
-      createdAt: participant.createdAt,
-      updatedAt: participant.updatedAt,
-      deletedAt: participant.deletedAt,
-    });
+    return this.convert(participant);
   }
 
   async update(id: string, data: UpdateEventParticipantData): Promise<EventParticipantEntity> {
@@ -124,9 +74,24 @@ export class PrismaEventParticipantRepository implements IEventParticipantReposi
         useDocumentAsAccessCode: data.useDocumentAsAccessCode,
         accessCodeProvenance: data.accessCodeProvenance,
         qrCodeProvenance: data.qrCodeProvenance,
+        attendeeFullName: data.attendeeFullName,
+        attendeeEmail: data.attendeeEmail,
+        attendeeDocument: data.attendeeDocument,
+        attendeeDocumentType: data.attendeeDocumentType,
       },
     });
 
+    return this.convert(participant);
+  }
+
+  async softDelete(id: string): Promise<void> {
+    await this.db.eventParticipant.update({
+      where: { id },
+      data: { deletedAt: new Date() },
+    });
+  }
+
+  private convert(participant: EventParticipantRow): EventParticipantEntity {
     return EventParticipantEntity.create({
       id: participant.id,
       company: participant.company,
@@ -136,18 +101,15 @@ export class PrismaEventParticipantRepository implements IEventParticipantReposi
       useDocumentAsAccessCode: participant.useDocumentAsAccessCode,
       accessCodeProvenance: participant.accessCodeProvenance as CodeProvenance,
       qrCodeProvenance: participant.qrCodeProvenance as CodeProvenance,
+      attendeeFullName: participant.attendeeFullName,
+      attendeeEmail: participant.attendeeEmail,
+      attendeeDocument: participant.attendeeDocument,
+      attendeeDocumentType: participant.attendeeDocumentType as DocumentType | null,
       personId: participant.personId,
       eventId: participant.eventId,
       createdAt: participant.createdAt,
       updatedAt: participant.updatedAt,
       deletedAt: participant.deletedAt,
-    });
-  }
-
-  async softDelete(id: string): Promise<void> {
-    await this.db.eventParticipant.update({
-      where: { id },
-      data: { deletedAt: new Date() },
     });
   }
 }

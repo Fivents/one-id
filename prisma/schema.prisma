@@ -96,6 +96,20 @@ enum PrintJobStatus {
   CANCELLED
 }
 
+enum SymplaSyncStatus {
+  IDLE
+  SYNCING
+  COMPLETED
+  FAILED
+}
+
+enum BackgroundJobStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
 enum AuditAction {
   CHECK_IN
   CHECK_IN_APPROVED
@@ -143,6 +157,15 @@ enum AuditAction {
   SUBSCRIPTION_DELETED
   EVENT_AUTO_LINK_BACKFILL
   PEOPLE_CODE_RECALCULATED
+  SYMPLA_CONNECTION_CREATED
+  SYMPLA_CONNECTION_REMOVED
+  SYMPLA_EVENT_LINKED
+  SYMPLA_EVENT_UNLINKED
+  SYMPLA_SYNC_STARTED
+  SYMPLA_SYNC_COMPLETED
+  SYMPLA_SYNC_FAILED
+  SYMPLA_CHECKIN_MIRRORED
+  SYMPLA_CHECKIN_RECONCILED
 }
 
 enum CodeSourceField {
@@ -182,6 +205,7 @@ model Organization {
   auditLogs                      AuditLog[]
   planChangeRequests             PlanChangeRequest[]
   peopleSettings                 OrganizationPeopleSettings?
+  symplaConnection               SymplaConnection?
 
   @@map("organizations")
 }
@@ -313,6 +337,9 @@ model Event {
 
   status EventStatus @default(DRAFT)
 
+  // Denormalized from SymplaEventLink so list queries and the UI can branch without a join.
+  symplaLinked Boolean @default(false) @map("sympla_linked")
+
   publicSlug String? @unique @map("public_slug")
 
   startsAt DateTime @map("starts_at")
@@ -332,6 +359,11 @@ model Event {
   totemEventSubscriptions TotemEventSubscription[]
   auditLogs               AuditLog[]
   printJobs               PrintJob[]
+  symplaEventLink         SymplaEventLink?
+  presentations           Presentation[]
+  sectors                 Sector[]
+  ticketTypes             TicketType[]
+  symplaOrders            SymplaOrder[]
 
   @@unique([slug, organizationId])
   @@index([organizationId])
@@ -440,6 +472,19 @@ model TotemEventSubscription {
   revokedAt DateTime? @map("revoked_at")
   revokedReason String? @map("revoked_reason")
 
+  // ── Gate policy ──────────────────────────────────────────────────
+  // Which sectors / ticket types this gate accepts, as arrays of names. Null or empty means
+  // "accept everything", so every existing assignment keeps working untouched.
+  //
+  // Lives here rather than on Totem on purpose: a totem serves different events over time and
+  // sectors belong to an event, so a totem-level rule would leak across events and silently
+  // start rejecting the wrong people the moment the device is reassigned.
+  //
+  // Matched by name because that is what a ticket slot carries (sectorName / ticketName,
+  // denormalized from Sympla per participant) — no join, and names survive a re-sync.
+  allowedSectors     Json? @map("allowed_sectors")
+  allowedTicketTypes Json? @map("allowed_ticket_types")
+
   // FASE 3: Performance & Adaptive Thresholds
   confidenceThresholdAdaptive Boolean @default(false) @map("confidence_threshold_adaptive")
   confidenceThresholdMin      Float   @default(0.50) @map("confidence_threshold_min")
@@ -470,8 +515,10 @@ model TotemEventSubscription {
 
 model Person {
   id           String        @id @default(uuid())
+  // Nullable since the Sympla ingestion: a ticket can arrive without an e-mail, and the Person
+  // created for it must be allowed to have none.
   name         String
-  email        String
+  email        String?
   document     String?
   documentType DocumentType? @map("document_type")
   phone        String?
@@ -494,11 +541,13 @@ model Person {
   faces             PersonFace[]
   eventParticipants EventParticipant[]
 
-  @@unique([email, organizationId])
-  @@unique([document, organizationId])
+  // No uniqueness on email/document: a bulk ticket purchase legitimately repeats the buyer's
+  // own contact details across every attendee in the order. Check-in credentials stay unique.
   @@unique([organizationId, qrCodeValue], map: "people_organization_id_qr_code_value_key")
   @@unique([organizationId, accessCode], map: "people_organization_id_access_code_key")
   @@index([organizationId])
+  @@index([organizationId, email])
+  @@index([organizationId, document])
   @@map("people")
 }
 
@@ -554,23 +603,62 @@ model EventParticipant {
   accessCodeProvenance CodeProvenance @default(RANDOM) @map("access_code_provenance")
   qrCodeProvenance     CodeProvenance @default(RANDOM) @map("qr_code_provenance")
 
-  personId String @map("person_id")
-  eventId  String @map("event_id")
+  // Attendee snapshot. Owned by the slot, not by Person — it is what the totem greets and the
+  // badge prints when a ticket carries no identity.
+  attendeeFullName     String?       @map("attendee_full_name")
+  attendeeEmail        String?       @map("attendee_email")
+  attendeeDocument     String?       @map("attendee_document")
+  attendeeDocumentType DocumentType? @map("attendee_document_type")
+
+  // ── Ticket (source: Sympla) ──────────────────────────────────────
+  symplaParticipantId String?   @map("sympla_participant_id")
+  ticketNumber        String?   @map("ticket_number")
+  ticketStatus        String?   @map("ticket_status")
+  ticketName          String?   @map("ticket_name")
+  ticketPrice         Float?    @map("ticket_price")
+  ticketNetValue      Float?    @map("ticket_net_value")
+  sectorName          String?   @map("sector_name")
+  seatLabel           String?   @map("seat_label")
+  symplaCheckedIn     Boolean?  @map("sympla_checked_in")
+  symplaCheckInDate   DateTime? @map("sympla_check_in_date")
+  symplaCheckInId     Int?      @map("sympla_check_in_id")
+
+  // Whatever the organizer collected in the Sympla purchase form: [{ name, value }].
+  // Deliberately schema-less — the fields differ per event and change between editions.
+  customFields Json? @map("custom_fields")
+
+  presentationId String? @map("presentation_id")
+  orderId        String? @map("order_id")
+
+  // Optional: Person is a lazy identity layered on the slot, required only for face
+  // recognition, cross-event history and the organization's contact base.
+  personId String? @map("person_id")
+  eventId  String  @map("event_id")
 
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
 
-  person    Person     @relation(fields: [personId], references: [id], onDelete: Cascade)
-  event     Event      @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  checkIns  CheckIn[]
-  printJobs PrintJob[]
+  person       Person?       @relation(fields: [personId], references: [id], onDelete: Cascade)
+  event        Event         @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  presentation Presentation? @relation(fields: [presentationId], references: [id], onDelete: SetNull)
+  order        SymplaOrder?  @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  checkIns     CheckIn[]
+  printJobs    PrintJob[]
 
-  @@unique([personId, eventId])
+  // No unique on (personId, eventId): one Person may hold several tickets for the same event.
   @@index([personId])
   @@index([eventId])
   @@index([eventId, qrCodeValue])
   @@index([eventId, accessCode])
+  @@index([eventId, attendeeEmail])
+  @@index([eventId, attendeeDocument])
+  // Idempotency anchor of the whole ingestion: re-running a sync can never duplicate a slot.
+  // Multiple NULLs are distinct in Postgres, so non-Sympla participants are unaffected.
+  @@unique([eventId, ticketNumber], map: "event_participants_event_id_ticket_number_key")
+  @@index([eventId, symplaParticipantId])
+  @@index([presentationId])
+  @@index([orderId])
   @@unique([eventId, qrCodeValue], map: "event_participants_event_id_qr_code_value_key")
   @@unique([eventId, accessCode], map: "event_participants_event_id_access_code_key")
   @@map("event_participants")
@@ -888,4 +976,212 @@ model CheckInMetrics {
   @@index([organizationId])
   @@index([hour])
   @@map("check_in_metrics")
+}
+
+
+// ── Sympla Integration ─────────────────────────────────────────────
+
+model SymplaConnection {
+  id String @id @default(uuid())
+
+  organizationId String @unique @map("organization_id")
+
+  // AES-256-GCM envelope: { version, iv, ciphertext, authTag }. Never returned by the API.
+  tokenEncrypted Json @map("token_encrypted")
+
+  isActive Boolean @default(true) @map("is_active")
+
+  lastSyncAt     DateTime?        @map("last_sync_at")
+  lastSyncStatus SymplaSyncStatus @default(IDLE) @map("last_sync_status")
+  lastSyncResult Json?            @map("last_sync_result")
+
+  // Drives the "reconnect your Sympla account" nudge once the token starts failing.
+  consecutiveFailures Int @default(0) @map("consecutive_failures")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("sympla_connections")
+}
+
+// ── Background Jobs ────────────────────────────────────────────────
+
+model BackgroundJob {
+  id String @id @default(uuid())
+
+  kind String
+
+  // Collapses duplicate work (one sync per org, one mirror per check-in).
+  dedupeKey String? @unique @map("dedupe_key")
+
+  payload Json
+  status  BackgroundJobStatus @default(PENDING)
+
+  attempts    Int @default(0)
+  maxAttempts Int @default(5) @map("max_attempts")
+
+  runAt    DateTime  @default(now()) @map("run_at")
+  lockedAt DateTime? @map("locked_at")
+
+  lastError String? @map("last_error")
+
+  organizationId String? @map("organization_id")
+
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  completedAt DateTime? @map("completed_at")
+
+  @@index([status, runAt])
+  @@index([organizationId])
+  @@index([kind])
+  @@map("background_jobs")
+}
+
+
+// ── Sympla catalogue ───────────────────────────────────────────────
+
+model SymplaEventLink {
+  id String @id @default(uuid())
+
+  eventId String @unique @map("event_id")
+
+  symplaEventIdHash String  @map("sympla_event_id_hash")
+  symplaUrl         String? @map("sympla_url")
+  imageUrl          String? @map("image_url")
+  referenceId       Int?    @map("reference_id")
+  categoryPrimary   String? @map("category_primary")
+  categorySecondary String? @map("category_secondary")
+  hostName          String? @map("host_name")
+
+  publishedOnSympla Boolean @default(false) @map("published_on_sympla")
+  cancelledOnSympla Boolean @default(false) @map("cancelled_on_sympla")
+
+  // Watermark for the incremental participant sync (filters on ticket_updated_at).
+  lastSeedAt DateTime? @map("last_seed_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  // One Sympla event cannot back two ONE-ID events: the check-in mirror would race itself.
+  @@unique([symplaEventIdHash], map: "sympla_event_links_sympla_event_id_hash_key")
+  @@map("sympla_event_links")
+}
+
+model Presentation {
+  id String @id @default(uuid())
+
+  eventId String @map("event_id")
+
+  symplaPresentationId Int     @map("sympla_presentation_id")
+  name                 String?
+
+  startsAt DateTime  @map("starts_at")
+  endsAt   DateTime? @map("ends_at")
+
+  isClosed    Boolean @default(false) @map("is_closed")
+  isEnabled   Boolean @default(true) @map("is_enabled")
+  isPublished Boolean @default(true) @map("is_published")
+  isPrivate   Boolean @default(false) @map("is_private")
+
+  presentationUrl String? @map("presentation_url")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  event        Event              @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  sectors      Sector[]
+  participants EventParticipant[]
+
+  @@unique([eventId, symplaPresentationId])
+  @@index([eventId])
+  @@map("presentations")
+}
+
+model Sector {
+  id String @id @default(uuid())
+
+  eventId        String  @map("event_id")
+  presentationId String? @map("presentation_id")
+
+  name           String
+  symplaSectorId Int?    @map("sympla_sector_id")
+  hasOnlineSale  Boolean @default(false) @map("has_online_sale")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  event        Event         @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  presentation Presentation? @relation(fields: [presentationId], references: [id], onDelete: SetNull)
+
+  // Sectors are scoped to a presentation, but the same name repeats across presentations.
+  @@unique([eventId, presentationId, name])
+  @@index([eventId])
+  @@index([presentationId])
+  @@map("sectors")
+}
+
+model TicketType {
+  id String @id @default(uuid())
+
+  eventId String @map("event_id")
+
+  name         String
+  groupId      Int?    @map("group_id")
+  groupName    String? @map("group_name")
+  subgroupId   Int?    @map("subgroup_id")
+  subgroupName String? @map("subgroup_name")
+
+  salePrice Float  @default(0) @map("sale_price")
+  netValue  Float? @map("net_value")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, name])
+  @@index([eventId])
+  @@map("ticket_types")
+}
+
+model SymplaOrder {
+  id String @id @default(uuid())
+
+  eventId String @map("event_id")
+
+  symplaOrderSk String  @map("sympla_order_sk")
+  orderStatus   String? @map("order_status")
+
+  orderDate    DateTime? @map("order_date")
+  approvedDate DateTime? @map("approved_date")
+  updatedDate  DateTime? @map("updated_date")
+
+  buyerFirstName String? @map("buyer_first_name")
+  buyerLastName  String? @map("buyer_last_name")
+  buyerEmail     String? @map("buyer_email")
+
+  totalSalePrice Float @default(0) @map("total_sale_price")
+  totalNetValue  Float @default(0) @map("total_net_value")
+
+  discountCode    String? @map("discount_code")
+  transactionType String? @map("transaction_type")
+  presentationId  Int?    @map("presentation_id")
+
+  invoiceInfo Json? @map("invoice_info")
+  utmTracking Json? @map("utm_tracking")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  event        Event              @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  participants EventParticipant[]
+
+  @@unique([eventId, symplaOrderSk])
+  @@index([eventId])
+  @@index([buyerEmail])
+  @@map("sympla_orders")
 }

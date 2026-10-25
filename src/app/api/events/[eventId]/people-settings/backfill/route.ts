@@ -5,6 +5,7 @@ import type { RouteContext } from '@/core/infrastructure/http/types';
 import { getUserAuth } from '@/core/infrastructure/http/types';
 import { prisma } from '@/core/infrastructure/prisma-client';
 import { generateCheckInCredential, resolveTotemAccessCodeLength } from '@/core/utils/checkin-credentials';
+import { buildAttendeeSnapshot, PERSON_SNAPSHOT_SELECT } from '@/core/utils/participant-identity';
 
 import { getAuthorizedEvent } from '../../../_lib/access';
 
@@ -51,7 +52,14 @@ export const POST = withAuth(
         deletedAt: null,
         eventParticipants: { none: { eventId, deletedAt: null } },
       },
-      select: { id: true, accessCode: true, accessCodeProvenance: true, qrCodeValue: true, qrCodeProvenance: true },
+      select: {
+        id: true,
+        accessCode: true,
+        accessCodeProvenance: true,
+        qrCodeValue: true,
+        qrCodeProvenance: true,
+        ...PERSON_SNAPSHOT_SELECT,
+      },
       orderBy: { id: 'asc' },
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
       take: CHUNK_SIZE,
@@ -66,6 +74,7 @@ export const POST = withAuth(
           data: {
             personId: person.id,
             eventId,
+            ...buildAttendeeSnapshot(person),
             qrCodeValue: person.qrCodeValue ?? generateCheckInCredential(credentialLength),
             accessCode: person.accessCode ?? generateCheckInCredential(credentialLength),
             accessCodeProvenance: person.accessCode ? person.accessCodeProvenance : 'RANDOM',

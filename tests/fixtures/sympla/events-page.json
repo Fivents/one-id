@@ -1,0 +1,34 @@
+{
+  "data": [
+    {
+      "id": "a1b2c3d4e5f6",
+      "reference_id": 4455667,
+      "name": "Tech Summit 2026",
+      "detail": "Dois dias de conteúdo sobre engenharia de plataforma.",
+      "start_date": "2026-10-15 09:00:00",
+      "end_date": "2026-10-16 18:00:00",
+      "private_event": false,
+      "published": true,
+      "cancelled": 0,
+      "image": "https://img.sympla.com.br/eventos/a1b2c3d4e5f6.jpg",
+      "url": "https://www.sympla.com.br/tech-summit-2026__a1b2c3d4e5f6",
+      "address": {
+        "name": "Arena Anhembi",
+        "address": "Av. Paulista",
+        "address_alt": "Perto do metrô",
+        "address_num": "1000",
+        "neighborhood": "Bela Vista",
+        "city": "São Paulo",
+        "state": "SP",
+        "zip_code": "01310-100",
+        "country": "Brasil",
+        "lat": -23.5632,
+        "lon": -46.6541
+      },
+      "host": { "name": "Fivents Produções" },
+      "category_prim": { "name": "Tecnologia" },
+      "category_sec": { "name": "Conferência" }
+    }
+  ],
+  "pagination": { "has_next": false, "quantity": 1, "next_cursor": null }
+}
