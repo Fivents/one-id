@@ -2,7 +2,6 @@ import { AuthTokenResponse } from '@/core/communication/responses/auth/auth.resp
 import {
   IAuthIdentityRepository,
   IGoogleOAuthProvider,
-  IPasswordHasher,
   ISessionRepository,
   ITokenProvider,
   IUserRepository,
@@ -11,6 +10,7 @@ import { isAdminRole } from '@/core/domain/value-objects';
 import { UnauthorizedError } from '@/core/errors';
 
 import { AdminDomainService } from '../../services/admin-domain.service';
+import { issueUserSession } from '../../services/user-session';
 
 export class LoginWithGoogleAdminUseCase {
   constructor(
@@ -18,7 +18,6 @@ export class LoginWithGoogleAdminUseCase {
     private readonly userRepository: IUserRepository,
     private readonly authIdentityRepository: IAuthIdentityRepository,
     private readonly tokenProvider: ITokenProvider,
-    private readonly passwordHasher: IPasswordHasher,
     private readonly sessionRepository: ISessionRepository,
   ) {}
 
@@ -67,25 +66,18 @@ export class LoginWithGoogleAdminUseCase {
       });
     }
 
-    const token = await this.tokenProvider.signUserToken({
-      sub: user.id,
-      name: user.name,
-      email: user.email,
-      role: userWithMembership.role,
-      type: 'admin',
-      organizationId: userWithMembership.organizationId,
-    });
-
-    const tokenHash = await this.passwordHasher.hash(token.slice(-16));
-
-    await this.sessionRepository.createUserSession({
-      userId: user.id,
-      tokenHash,
-      deviceId: meta.deviceId,
-      ipAddress: meta.ipAddress,
-      userAgent: meta.userAgent,
-      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-    });
+    const token = await issueUserSession(
+      { tokenProvider: this.tokenProvider, sessionRepository: this.sessionRepository },
+      {
+        sub: user.id,
+        name: user.name,
+        email: user.email,
+        role: userWithMembership.role,
+        type: 'admin',
+        organizationId: userWithMembership.organizationId,
+      },
+      meta,
+    );
 
     return {
       token,

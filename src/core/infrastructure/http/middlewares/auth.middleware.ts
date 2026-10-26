@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 import { containerService } from '@/core/application/services';
+import { verifyUserSession } from '@/core/application/services/user-session';
 import { getPermissionsForRole } from '@/core/domain/value-objects/permission';
 
 import type { RouteContext, RouteHandler, TotemAuthContext, UserAuthContext } from '../types';
@@ -29,40 +30,48 @@ export function withAuth(handler: RouteHandler): RouteHandler {
     }
 
     const tokenProvider = containerService.getTokenProvider();
+    const sessionRepository = containerService.getSessionRepository();
 
-    // Try user token first, then totem token
+    // Try user token first, then totem token. The route handler runs outside these try
+    // blocks: an exception thrown by the route must surface as itself, not as a 401.
+    let userContext: UserAuthContext | null = null;
     try {
-      const payload = await tokenProvider.verifyUserToken(token);
+      // Checks the session too, so logged-out or revoked tokens stop working immediately.
+      const payload = await verifyUserSession({ tokenProvider, sessionRepository }, token);
 
-      const authContext: UserAuthContext = {
+      userContext = {
         type: 'user',
         userId: payload.sub,
+        sessionId: payload.sid,
         name: payload.name,
         email: payload.email,
         role: payload.role,
         organizationId: payload.organizationId,
         permissions: getPermissionsForRole(payload.role),
       };
-
-      setAuthContext(req, authContext);
-      return handler(req, context);
     } catch {
-      // Not a valid user token, try totem
+      // Not a valid user session, try totem
     }
 
+    if (userContext) {
+      setAuthContext(req, userContext);
+      return handler(req, context);
+    }
+
+    let totemContext: TotemAuthContext;
     try {
       const payload = await tokenProvider.verifyTotemToken(token);
 
-      const authContext: TotemAuthContext = {
+      totemContext = {
         type: 'totem',
         totemId: payload.sub,
         totemName: payload.name,
       };
-
-      setAuthContext(req, authContext);
-      return handler(req, context);
     } catch {
       return NextResponse.json({ error: 'Invalid or expired token.' }, { status: 401 });
     }
+
+    setAuthContext(req, totemContext);
+    return handler(req, context);
   };
 }

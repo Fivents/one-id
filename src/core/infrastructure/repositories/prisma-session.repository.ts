@@ -7,6 +7,7 @@ export class PrismaSessionRepository implements ISessionRepository {
   async createUserSession(data: CreateSessionData): Promise<{ id: string }> {
     const session = await this.db.session.create({
       data: {
+        ...(data.id ? { id: data.id } : {}),
         userId: data.userId,
         tokenHash: data.tokenHash,
         deviceId: data.deviceId,
@@ -56,6 +57,10 @@ export class PrismaSessionRepository implements ISessionRepository {
 
   async revokeUserSession(id: string): Promise<void> {
     await this.db.session.delete({ where: { id } });
+  }
+
+  async expireUserSessionAt(id: string, at: Date): Promise<void> {
+    await this.db.session.updateMany({ where: { id, expiresAt: { gt: at } }, data: { expiresAt: at } });
   }
 
   async revokeUserSessions(userId: string): Promise<void> {

@@ -17,6 +17,8 @@ import {
   PasswordNotConfiguredError,
 } from '@/core/errors';
 
+import { issueUserSession } from '../../services/user-session';
+
 export class LoginWithEmailClientUseCase {
   constructor(
     private readonly userRepository: IUserRepository,
@@ -67,25 +69,18 @@ export class LoginWithEmailClientUseCase {
 
     const userType = 'client' as const;
 
-    const token = await this.tokenProvider.signUserToken({
-      sub: user.id,
-      name: user.name,
-      email: user.email,
-      role: membership.role,
-      type: userType,
-      organizationId: membership.organizationId,
-    });
-
-    const tokenHash = await this.passwordHasher.hash(token.slice(-16));
-
-    await this.sessionRepository.createUserSession({
-      userId: user.id,
-      tokenHash,
-      deviceId: meta.deviceId,
-      ipAddress: meta.ipAddress,
-      userAgent: meta.userAgent,
-      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24h
-    });
+    const token = await issueUserSession(
+      { tokenProvider: this.tokenProvider, sessionRepository: this.sessionRepository },
+      {
+        sub: user.id,
+        name: user.name,
+        email: user.email,
+        role: membership.role,
+        type: userType,
+        organizationId: membership.organizationId,
+      },
+      meta,
+    );
 
     return {
       token,

@@ -19,14 +19,13 @@ export function makeLogoutUseCase(): LogoutUseCase {
 }
 
 export function makeValidateSessionUseCase(): ValidateSessionUseCase {
-  return new ValidateSessionUseCase(containerService.getTokenProvider());
+  return new ValidateSessionUseCase(containerService.getTokenProvider(), containerService.getSessionRepository());
 }
 
 export function makeRefreshSessionUseCase(): RefreshSessionUseCase {
   return new RefreshSessionUseCase(
     containerService.getTokenProvider(),
     containerService.getUserRepository(),
-    containerService.getPasswordHasher(),
     containerService.getSessionRepository(),
   );
 }

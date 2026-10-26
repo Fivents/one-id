@@ -9,7 +9,6 @@ import { LoginWithGoogleAdminUseCase } from '@/core/application/use-cases/auth/l
  * - userRepository (singleton)
  * - authIdentityRepository (singleton)
  * - tokenProvider (singleton)
- * - passwordHasher (singleton)
  * - sessionRepository (singleton)
  */
 export function makeLoginWithGoogleAdminUseCase(): LoginWithGoogleAdminUseCase {
@@ -18,7 +17,6 @@ export function makeLoginWithGoogleAdminUseCase(): LoginWithGoogleAdminUseCase {
     containerService.getUserRepository(),
     containerService.getAuthIdentityRepository(),
     containerService.getTokenProvider(),
-    containerService.getPasswordHasher(),
     containerService.getSessionRepository(),
   );
 }

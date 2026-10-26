@@ -7,6 +7,8 @@ export interface UserTokenPayload {
   role: Role;
   type: 'admin' | 'client';
   organizationId?: string;
+  /** Session id. Required when signing; absent only on tokens issued before sessions were enforced. */
+  sid?: string;
 }
 
 export interface TotemTokenPayload {

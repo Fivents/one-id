@@ -8,11 +8,14 @@ import { getUserAuth } from '@/core/infrastructure/http/types';
 export const POST = withAuth(async (req: NextRequest) => {
   const auth = getUserAuth(req);
 
-  const controller = makeLogoutController();
-  const result = await controller.handle(auth.userId);
+  // withAuth only lets session-backed tokens through, so sessionId is always present here.
+  if (auth.sessionId) {
+    const controller = makeLogoutController();
+    const result = await controller.handle(auth.sessionId);
 
-  if (result.statusCode !== 204) {
-    return toNextResponse(result);
+    if (result.statusCode !== 204) {
+      return toNextResponse(result);
+    }
   }
 
   const response = NextResponse.json({ success: true });

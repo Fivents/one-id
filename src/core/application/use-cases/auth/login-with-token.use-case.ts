@@ -2,6 +2,8 @@ import { AuthTokenResponse } from '@/core/communication/responses/auth/auth.resp
 import { ISessionRepository, ITokenProvider, IUserRepository } from '@/core/domain/contracts';
 import { UserNotFoundError } from '@/core/errors';
 
+import { issueUserSession, verifyUserSession } from '../../services/user-session';
+
 export class LoginWithTokenUseCase {
   constructor(
     private readonly tokenProvider: ITokenProvider,
@@ -13,7 +15,8 @@ export class LoginWithTokenUseCase {
     token: string,
     meta: { ipAddress: string; userAgent: string; deviceId: string },
   ): Promise<AuthTokenResponse> {
-    const payload = await this.tokenProvider.verifyUserToken(token);
+    const deps = { tokenProvider: this.tokenProvider, sessionRepository: this.sessionRepository };
+    const payload = await verifyUserSession(deps, token);
 
     const user = await this.userRepository.findByEmailWithMembership(payload.email);
 
@@ -21,23 +24,18 @@ export class LoginWithTokenUseCase {
       throw new UserNotFoundError();
     }
 
-    const newToken = await this.tokenProvider.signUserToken({
-      sub: user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      type: payload.type,
-      organizationId: user.organizationId,
-    });
-
-    await this.sessionRepository.createUserSession({
-      userId: user.id,
-      tokenHash: newToken.slice(-16),
-      deviceId: meta.deviceId,
-      ipAddress: meta.ipAddress,
-      userAgent: meta.userAgent,
-      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-    });
+    const newToken = await issueUserSession(
+      deps,
+      {
+        sub: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        type: payload.type,
+        organizationId: user.organizationId,
+      },
+      meta,
+    );
 
     return {
       token: newToken,

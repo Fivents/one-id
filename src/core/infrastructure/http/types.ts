@@ -7,6 +7,8 @@ import { AppError, ErrorCode } from '@/core/errors';
 export interface UserAuthContext {
   type: 'user';
   userId: string;
+  /** Session behind the token; logout revokes exactly this one. */
+  sessionId?: string;
   name: string;
   email: string;
   role: Role;
