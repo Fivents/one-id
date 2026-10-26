@@ -15,6 +15,7 @@ import {
 } from '@/core/application/client-services/totem/print.client';
 import { sendCheckIn } from '@/core/application/client-services/totem/totem-client.service';
 
+import { getCheckInErrorMessage, getCheckInErrorTitle } from '../_lib/checkin-error-message';
 import { useTotemSession } from '../_lib/use-totem-session';
 
 type Feedback = {
@@ -93,8 +94,8 @@ export default function TotemCodePage() {
     if (!response.success) {
       setFeedback({
         type: 'error',
-        title: 'Código inválido',
-        description: response.error.message,
+        title: getCheckInErrorTitle(response.error, 'Código inválido'),
+        description: getCheckInErrorMessage(response.error),
       });
       setIsSubmitting(false);
       return;

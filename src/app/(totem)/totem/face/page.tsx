@@ -38,6 +38,7 @@ import {
 } from '@/core/application/client-services/totem/print.client';
 import { sendCheckIn } from '@/core/application/client-services/totem/totem-client.service';
 
+import { getCheckInErrorMessage } from '../_lib/checkin-error-message';
 import { useTotemSession } from '../_lib/use-totem-session';
 
 type Feedback =
@@ -321,7 +322,7 @@ export default function TotemFacePage() {
             return;
           }
 
-          throw new Error(response.error.message);
+          throw new Error(getCheckInErrorMessage(response.error));
         }
 
         notRecognizedStreakRef.current = 0;

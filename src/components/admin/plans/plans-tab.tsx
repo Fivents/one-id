@@ -177,8 +177,13 @@ export function PlansTab() {
           />
         </div>
         <Select value={filterStatus} onValueChange={setFilterStatus}>
-          <SelectTrigger className="w-[150px]">
-            <SelectValue />
+          <SelectTrigger className="w-[190px]" aria-label={t('common.labels.status')}>
+            <span className="flex min-w-0 items-center gap-1.5">
+              <span className="text-muted-foreground shrink-0">{t('common.labels.status')}:</span>
+              <span className="truncate">
+                <SelectValue />
+              </span>
+            </span>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">{t('common.labels.all')}</SelectItem>
@@ -187,7 +192,7 @@ export function PlansTab() {
           </SelectContent>
         </Select>
         <Select value={filterCategory} onValueChange={setFilterCategory}>
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger className="w-[200px]" aria-label={t('adminPlans.filters.allCategories')}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>

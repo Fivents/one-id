@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 
 import { CreateEventModal, EditEventModal, EventsTable } from '@/components/organizations/events';
 import { useConfirm } from '@/components/shared/confirm-dialog';
+import { PageHeader } from '@/components/shared/page-header';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
@@ -152,49 +153,46 @@ function EventsPageContent() {
     [confirm, publishEvent, activateEvent, completeEvent, cancelEvent, t],
   );
 
+  const canCreateEvent = role === 'ORG_OWNER' || role === 'EVENT_MANAGER' || isSuperAdmin();
+
   if (isLoadingPage || !isAuthenticated || (!isSuperAdmin() && !hasPermission('EVENT_VIEW'))) {
     return null;
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="bg-primary/10 flex h-10 w-10 items-center justify-center rounded-lg">
-            <Calendar className="text-primary h-5 w-5" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">{t('pages.organizationEvents.title')}</h1>
-            <p className="text-muted-foreground text-sm">
-              {t('pages.organizationEvents.subtitlePrefix')}{' '}
-              {activeOrganization?.name ?? t('pages.organizationEvents.subtitleFallback')}
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          {organizations.length > 0 && (
-            <Select value={organizationId} onValueChange={handleOrganizationChange}>
-              <SelectTrigger className="w-64">
-                <SelectValue placeholder={t('pages.organizationEvents.selectOrganization')} />
-              </SelectTrigger>
-              <SelectContent>
-                {organizations.map((organization) => (
-                  <SelectItem key={organization.id} value={organization.id}>
-                    {organization.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
+      <PageHeader
+        icon={Calendar}
+        title={t('pages.organizationEvents.title')}
+        description={`${t('pages.organizationEvents.subtitlePrefix')} ${
+          activeOrganization?.name ?? t('pages.organizationEvents.subtitleFallback')
+        }`}
+        actions={
+          <>
+            {organizations.length > 1 && (
+              <Select value={organizationId} onValueChange={handleOrganizationChange}>
+                <SelectTrigger className="w-full sm:w-56" aria-label={t('pages.organizationEvents.selectOrganization')}>
+                  <SelectValue placeholder={t('pages.organizationEvents.selectOrganization')} />
+                </SelectTrigger>
+                <SelectContent>
+                  {organizations.map((organization) => (
+                    <SelectItem key={organization.id} value={organization.id}>
+                      {organization.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
 
-          {(role === 'ORG_OWNER' || role === 'EVENT_MANAGER' || isSuperAdmin()) && (
-            <Button onClick={() => setCreateModalOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              {t('pages.organizationEvents.createEvent')}
-            </Button>
-          )}
-        </div>
-      </div>
+            {canCreateEvent && (
+              <Button onClick={() => setCreateModalOpen(true)}>
+                <Plus className="h-4 w-4" />
+                {t('pages.organizationEvents.createEvent')}
+              </Button>
+            )}
+          </>
+        }
+      />
 
       <EventsTable
         organizationId={organizationId}
@@ -206,6 +204,7 @@ function EventsPageContent() {
         onActivate={(event) => handleStatusChange(event, 'activate')}
         onComplete={(event) => handleStatusChange(event, 'complete')}
         onCancel={(event) => handleStatusChange(event, 'cancel')}
+        onCreate={canCreateEvent ? () => setCreateModalOpen(true) : undefined}
       />
 
       <CreateEventModal open={createModalOpen} onOpenChange={setCreateModalOpen} organizationId={organizationId} />

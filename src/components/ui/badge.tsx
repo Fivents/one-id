@@ -17,6 +17,13 @@ const badgeVariants = cva(
         outline: 'border-border text-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground',
         ghost: '[a&]:hover:bg-accent [a&]:hover:text-accent-foreground',
         link: 'text-primary underline-offset-4 [a&]:hover:underline',
+        // Soft semantic tints for statuses. Text shades are picked per theme to keep AA contrast.
+        success: 'bg-emerald-500/10 text-emerald-700 ring-1 ring-inset ring-emerald-600/20 dark:text-emerald-300',
+        warning: 'bg-amber-500/10 text-amber-800 ring-1 ring-inset ring-amber-600/25 dark:text-amber-300',
+        info: 'bg-sky-500/10 text-sky-700 ring-1 ring-inset ring-sky-600/20 dark:text-sky-300',
+        danger: 'bg-rose-500/10 text-rose-700 ring-1 ring-inset ring-rose-600/20 dark:text-rose-300',
+        brand: 'bg-primary/10 text-violet-700 ring-1 ring-inset ring-primary/20 dark:text-violet-300',
+        neutral: 'bg-muted text-muted-foreground ring-1 ring-inset ring-border',
       },
     },
     defaultVariants: {

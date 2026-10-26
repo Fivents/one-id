@@ -99,13 +99,17 @@ export default function TotemMethodPage() {
 
       {/* Main content */}
       <div className="mt-8 flex flex-1 flex-col items-center justify-center px-4">
-        <div className="mb-6 text-center">
-          <h2 className="text-2xl font-bold text-white">Como deseja fazer check-in?</h2>
-          <p className="mt-2 text-slate-400">Selecione uma das opções disponíveis</p>
+        <div className="mb-8 text-center">
+          <p className="mb-4 inline-flex max-w-full items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-sm text-slate-300">
+            <span className="size-1.5 shrink-0 rounded-full bg-emerald-400" aria-hidden />
+            <span className="truncate">{session.activeEvent.name}</span>
+          </p>
+          <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">Como deseja fazer check-in?</h1>
+          <p className="mt-2 text-slate-400">Toque em uma das opções para começar</p>
         </div>
 
         {/* Method cards */}
-        <div className="grid gap-4 sm:grid-cols-3">
+        <nav aria-label="Métodos de check-in" className="grid w-full max-w-4xl gap-4 sm:grid-cols-3">
           {methods.map((method) => {
             const Icon = method.icon;
             const isDisabled = !method.enabled;
@@ -131,7 +135,11 @@ export default function TotemMethodPage() {
             }
 
             return (
-              <Link key={method.href} href={method.href} className="group relative block">
+              <Link
+                key={method.href}
+                href={method.href}
+                className="group focus-visible:ring-primary/60 relative block rounded-2xl outline-none focus-visible:ring-4"
+              >
                 {/* Glow effect */}
                 <div
                   className={`absolute -inset-[1px] rounded-2xl bg-gradient-to-br ${method.gradient} opacity-0 blur transition-opacity duration-300 group-hover:opacity-30`}
@@ -143,7 +151,7 @@ export default function TotemMethodPage() {
                 />
 
                 {/* Card content */}
-                <div className="relative flex h-full flex-col items-center rounded-2xl bg-slate-900/95 p-6 text-center transition-transform duration-200 group-active:scale-[0.98]">
+                <div className="relative flex h-full flex-col items-center rounded-2xl bg-slate-900/95 p-6 text-center transition-transform duration-150 ease-out group-active:scale-[0.97] sm:p-8">
                   {/* Icon container */}
                   <div
                     className={`relative flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br ${method.gradient} shadow-lg transition-transform duration-300 group-hover:scale-110`}
@@ -156,15 +164,16 @@ export default function TotemMethodPage() {
                   <p className="mt-1 text-sm text-slate-400">{method.description}</p>
 
                   {/* Arrow indicator */}
-                  <div className="text-primary mt-4 flex items-center gap-1 text-sm font-medium opacity-0 transition-all duration-300 group-hover:translate-x-1 group-hover:opacity-100">
+                  {/* Always visible: kiosks are touch screens, a hover-only cue would never appear. */}
+                  <div className="mt-5 flex items-center gap-1 rounded-full bg-white/5 px-4 py-1.5 text-sm font-medium text-slate-200 transition-colors duration-200 group-hover:bg-white/10">
                     Iniciar
-                    <ChevronRight className="h-4 w-4" />
+                    <ChevronRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" />
                   </div>
                 </div>
               </Link>
             );
           })}
-        </div>
+        </nav>
       </div>
 
       {/* Footer */}

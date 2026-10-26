@@ -78,16 +78,16 @@ export default function TotemLoginPage() {
           <Skeleton className="h-5 w-48" />
           <Skeleton className="h-4 w-32" />
         </div>
-        <p className="text-sm text-muted-foreground">Validando sessão do totem...</p>
+        <p className="text-muted-foreground text-sm">Validando sessão do totem...</p>
       </div>
     );
   }
 
   return (
     <div className="flex flex-1 flex-col items-center justify-center px-4">
-      <Card className="totem-glass w-full max-w-sm border-border/50 shadow-xl">
-        <CardHeader className="items-center text-center">
-          <div className="mb-2 flex h-14 w-14 items-center justify-center rounded-xl bg-primary shadow-md">
+      <Card className="totem-glass border-border/50 w-full max-w-sm shadow-xl">
+        <CardHeader className="justify-items-center text-center">
+          <div className="bg-primary mb-2 flex h-14 w-14 items-center justify-center rounded-xl shadow-md">
             <Image src="/png/logo-white.png" alt="OneID" width={32} height={32} />
           </div>
           <CardTitle className="text-xl">Totem Check-in</CardTitle>
@@ -123,7 +123,7 @@ export default function TotemLoginPage() {
                   aria-invalid={!!error}
                   aria-describedby={error ? 'totem-error' : undefined}
                 />
-                <KeyRound className="absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground" />
+                <KeyRound className="text-muted-foreground absolute top-1/2 left-3.5 size-4 -translate-y-1/2" />
               </div>
               {error && (
                 <p id="totem-error" className="text-destructive text-sm">
@@ -147,8 +147,8 @@ export default function TotemLoginPage() {
             </Button>
           </form>
 
-          <div className="mt-6 flex items-center justify-center gap-2 text-xs text-muted-foreground">
-            <div className="h-1.5 w-1.5 animate-pulse rounded-full bg-success" />
+          <div className="text-muted-foreground mt-6 flex items-center justify-center gap-2 text-xs">
+            <div className="bg-success h-1.5 w-1.5 animate-pulse rounded-full" />
             <span>Conexão segura</span>
           </div>
         </CardContent>

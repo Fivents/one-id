@@ -2,12 +2,12 @@ import { Badge } from '@/components/ui/badge';
 import type { EventStatus } from '@/core/domain/entities/event.entity';
 import { useI18n } from '@/i18n';
 
-const STATUS_STYLES: Record<EventStatus, string> = {
-  DRAFT: 'bg-gray-400/10 text-gray-500',
-  PUBLISHED: 'bg-blue-500/10 text-blue-600',
-  ACTIVE: 'bg-emerald-500/10 text-emerald-600',
-  COMPLETED: 'bg-purple-500/10 text-purple-600',
-  CANCELED: 'bg-rose-500/10 text-rose-600',
+const STATUS_VARIANTS: Record<EventStatus, 'neutral' | 'info' | 'success' | 'brand' | 'danger'> = {
+  DRAFT: 'neutral',
+  PUBLISHED: 'info',
+  ACTIVE: 'success',
+  COMPLETED: 'brand',
+  CANCELED: 'danger',
 };
 
 const STATUS_KEYS: Record<EventStatus, string> = {
@@ -21,7 +21,8 @@ const STATUS_KEYS: Record<EventStatus, string> = {
 export function EventStatusBadge({ status }: { status: EventStatus }) {
   const { t } = useI18n();
   return (
-    <Badge variant="outline" className={STATUS_STYLES[status]}>
+    <Badge variant={STATUS_VARIANTS[status]}>
+      {status === 'ACTIVE' && <span aria-hidden className="size-1.5 animate-pulse rounded-full bg-current" />}
       {t(STATUS_KEYS[status])}
     </Badge>
   );

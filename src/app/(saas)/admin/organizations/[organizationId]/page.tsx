@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 
+import { useBreadcrumbLabel } from '@/components/shared/app-breadcrumb';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -64,6 +65,7 @@ function OrganizationDetailContent() {
     fetchAvailablePlans,
   } = useAdminOrganizations();
   const { t, locale } = useI18n();
+  useBreadcrumbLabel(org?.id === organizationId ? org.name : null);
 
   const formatDate = (value: Date | string) =>
     new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(new Date(value));
@@ -238,7 +240,7 @@ function OrganizationDetailContent() {
       {/* Header */}
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" asChild>
-          <Link href="/admin/organizations">
+          <Link href="/admin/organizations" aria-label={t('common.actions.back')} title={t('common.actions.back')}>
             <ArrowLeft className="h-4 w-4" />
           </Link>
         </Button>
@@ -249,10 +251,7 @@ function OrganizationDetailContent() {
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-2xl font-bold tracking-tight">{org.name}</h1>
-              <Badge
-                variant="outline"
-                className={org.isActive ? 'bg-emerald-500/10 text-emerald-600' : 'bg-gray-400/10 text-gray-500'}
-              >
+              <Badge variant={org.isActive ? 'success' : 'neutral'}>
                 {org.isActive ? t('common.status.active') : t('common.status.inactive')}
               </Badge>
             </div>
@@ -292,7 +291,12 @@ function OrganizationDetailContent() {
             <div className="flex items-center justify-between">
               <CardTitle>{t('organizations.detail.info')}</CardTitle>
               {!isEditingInfo && (
-                <Button variant="ghost" size="icon" onClick={() => setIsEditingInfo(true)}>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label={`${t('common.actions.edit')}: ${t('organizations.detail.info')}`}
+                  onClick={() => setIsEditingInfo(true)}
+                >
                   <Pencil className="h-4 w-4" />
                 </Button>
               )}
@@ -355,9 +359,14 @@ function OrganizationDetailContent() {
             <div className="flex items-center justify-between">
               <CardTitle className="flex items-center gap-2">
                 <CreditCard className="h-4 w-4" />
-                Subscription
+                {t('organizations.detail.plan')}
               </CardTitle>
-              <Button variant="ghost" size="icon" onClick={handleOpenSubscriptionModal}>
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label={`${t('common.actions.edit')}: ${t('organizations.detail.plan')}`}
+                onClick={handleOpenSubscriptionModal}
+              >
                 {org.subscription ? <Pencil className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
               </Button>
             </div>
@@ -413,7 +422,7 @@ function OrganizationDetailContent() {
                         <TableCell className="font-medium">{member.userName}</TableCell>
                         <TableCell className="text-muted-foreground">{member.userEmail}</TableCell>
                         <TableCell>
-                          <Badge variant="outline">{member.role}</Badge>
+                          <Badge variant="neutral">{t(`nav.roleLabels.${member.role}`)}</Badge>
                         </TableCell>
                         <TableCell className="text-muted-foreground">{formatDate(member.createdAt)}</TableCell>
                       </TableRow>
@@ -435,6 +444,7 @@ function OrganizationDetailContent() {
                       variant="outline"
                       size="icon"
                       disabled={membersPage === 1}
+                      aria-label={t('pages.eventDetail.previous')}
                       onClick={() => setMembersPage((p) => p - 1)}
                     >
                       <ChevronLeft className="h-4 w-4" />
@@ -443,6 +453,7 @@ function OrganizationDetailContent() {
                       variant="outline"
                       size="icon"
                       disabled={membersPage === paginatedMembers.totalPages}
+                      aria-label={t('pages.eventDetail.next')}
                       onClick={() => setMembersPage((p) => p + 1)}
                     >
                       <ChevronRight className="h-4 w-4" />

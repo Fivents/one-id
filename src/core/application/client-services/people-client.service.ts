@@ -92,6 +92,14 @@ class PeopleClientService extends BaseClient {
     return this.post('/people/bulk-delete', { organizationId, personIds });
   }
 
+  async deleteAllPeople(params: {
+    organizationId: string;
+    search?: string;
+    expectedCount: number;
+  }): Promise<ApiResponse<{ success: true; deleted: number }>> {
+    return this.post('/people/bulk-delete', { all: true, ...params });
+  }
+
   async bulkHardDelete(organizationId: string, personIds: string[]): Promise<ApiResponse<{ success: boolean }>> {
     return this.post('/people/bulk-hard-delete', { organizationId, personIds });
   }

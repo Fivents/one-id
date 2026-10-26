@@ -41,7 +41,7 @@ export function LabelPrintConfirmationModal({
   title = 'Imprimir etiqueta',
   description = 'Deseja imprimir a etiqueta agora?',
   confirmLabel = 'Imprimir',
-  cancelLabel = 'Agora nao',
+  cancelLabel = 'Agora não',
   variant = 'default',
 }: LabelPrintConfirmationModalProps) {
   const [secondsLeft, setSecondsLeft] = useState(timeoutSeconds);
@@ -119,7 +119,7 @@ export function LabelPrintConfirmationModal({
               <div className="flex items-center gap-3">
                 {/* Mini label simulation - landscape */}
                 <div
-                  className="flex-shrink-0 rounded-sm border shadow-sm flex"
+                  className="flex flex-shrink-0 rounded-sm border shadow-sm"
                   style={{
                     width: '78px',
                     height: '48px',
@@ -170,7 +170,7 @@ export function LabelPrintConfirmationModal({
               />
             </div>
             <p className={isTotem ? 'text-xs text-slate-400' : 'text-muted-foreground text-xs'}>
-              {isPrinting ? 'Enviando para impressora...' : `Retorno automatico em ${secondsLeft}s`}
+              {isPrinting ? 'Enviando para impressora...' : `Retorno automático em ${secondsLeft}s`}
             </p>
           </div>
 
@@ -185,8 +185,8 @@ export function LabelPrintConfirmationModal({
               className={isTotem ? 'mt-0.5 h-4 w-4 text-amber-300' : 'text-muted-foreground mt-0.5 h-4 w-4'}
             />
             <p className={isTotem ? 'text-xs text-slate-300' : 'text-muted-foreground text-xs'}>
-              A impressao ocorre de forma silenciosa no dispositivo conectado. Caso nao exista impressora, uma mensagem
-              informativa sera exibida.
+              A impressão ocorre de forma silenciosa no dispositivo conectado. Caso não exista impressora, uma mensagem
+              informativa será exibida.
             </p>
           </div>
         </div>

@@ -25,6 +25,8 @@ import { Prisma } from '@/generated/prisma/client';
 
 import { getAuthorizedEvent } from '../../_lib/access';
 
+import { buildParticipantsWhere } from './_lib/participants-filters';
+
 export const GET = withAuth(
   withRBAC(['PARTICIPANT_VIEW'], async (req: NextRequest, context: RouteContext) => {
     const { eventId } = await context.params;
@@ -42,26 +44,10 @@ export const GET = withAuth(
     // Optional, additive filter used by the manual check-in picker; omitted = previous behaviour.
     const checkedInParam = req.nextUrl.searchParams.get('checkedIn');
 
-    const where = {
-      eventId,
-      deletedAt: null,
-      ...(search
-        ? {
-            OR: [
-              { person: { name: { contains: search, mode: 'insensitive' as const } } },
-              { person: { email: { contains: search, mode: 'insensitive' as const } } },
-              // A slot with no Person is only reachable through its own snapshot.
-              { attendeeFullName: { contains: search, mode: 'insensitive' as const } },
-              { attendeeEmail: { contains: search, mode: 'insensitive' as const } },
-              { attendeeDocument: { contains: search, mode: 'insensitive' as const } },
-              { company: { contains: search, mode: 'insensitive' as const } },
-              { jobTitle: { contains: search, mode: 'insensitive' as const } },
-            ],
-          }
-        : {}),
-      ...(checkedInParam === 'false' ? { checkIns: { none: {} } } : {}),
-      ...(checkedInParam === 'true' ? { checkIns: { some: {} } } : {}),
-    };
+    const where = buildParticipantsWhere(eventId, {
+      search,
+      checkedIn: checkedInParam === 'true' ? true : checkedInParam === 'false' ? false : undefined,
+    });
 
     const [total, participants] = await Promise.all([
       prisma.eventParticipant.count({ where }),

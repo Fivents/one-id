@@ -2,22 +2,28 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 
 import {
+  ArrowLeft,
   Calendar,
   CheckCircle2,
+  ChevronDown,
   Copy,
   Download,
   ExternalLink,
   FileSpreadsheet,
   Globe,
+  Hand,
+  KeyRound,
   Link2,
   MapPin,
-  MonitorSmartphone,
+  MoreHorizontal,
   Pencil,
   Plus,
   Printer,
+  QrCode,
   RotateCcw,
   ScanFace,
   Search,
@@ -34,12 +40,18 @@ import {
   ImportCheckInsDialog,
   ManualCheckInDialog,
 } from '@/components/organizations/events';
+import { EventOverviewPanel } from '@/components/organizations/events/event-overview-panel';
 import { EventPeopleSettingsDialog } from '@/components/organizations/events/event-people-settings-dialog';
 import { ImportEventParticipantsDialog } from '@/components/organizations/events/import-event-participants-dialog';
 import { SymplaLinkCard } from '@/components/organizations/events/sympla-link-card';
 import { SymplaMetricsCard } from '@/components/organizations/events/sympla-metrics-card';
+import { SymplaSyncStatus } from '@/components/organizations/events/sympla-sync-status';
+import { TotemStatusBadge } from '@/components/organizations/totems/totem-status-badge';
+import { useBreadcrumbLabel } from '@/components/shared/app-breadcrumb';
 import { useConfirm } from '@/components/shared/confirm-dialog';
 import { LabelPrintConfirmationModal } from '@/components/shared/label-print-confirmation-modal';
+import { DEFAULT_PAGE_SIZE, ListPagination, type PageSize } from '@/components/shared/list-pagination';
+import { PageHeader } from '@/components/shared/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -52,6 +64,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -91,11 +110,14 @@ import type { CodeSourceFieldOption } from '@/core/communication/requests/organi
 import type { EventResponse } from '@/core/communication/responses/event';
 import { AI_CONFIG_CONSTRAINTS, DEFAULT_AI_CONFIG } from '@/core/domain/constants/ai-config.constants';
 import { getValidTransitions, isFinalStatus } from '@/core/domain/constants/event-transitions.constants';
+import type { TotemStatus } from '@/core/domain/entities/totem.entity';
 import type { EventAddress } from '@/core/domain/value-objects';
 import { excelEventCheckins } from '@/core/utils/excel-event-checkins';
 import type { ParticipantExportRow } from '@/core/utils/excel-event-participants';
 import { excelEventParticipants } from '@/core/utils/excel-event-participants';
+import { getNameInitials } from '@/core/utils/get-name-initials';
 import { useI18n } from '@/i18n';
+import { formatDateTimeRange } from '@/lib/utils';
 
 function formatDateTime(value: Date | string, locale: string) {
   return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
@@ -110,7 +132,6 @@ function calculateCheckInRate(total: number, checkedIn: number) {
   return `${Math.round((checkedIn / total) * 100)}%`;
 }
 
-const PARTICIPANTS_PAGE_SIZE = 20;
 const CHECKINS_PAGE_SIZE = 20;
 
 const CODE_SOURCE_FIELD_LABELS: Record<CodeSourceFieldOption, string> = {
@@ -197,12 +218,13 @@ export default function EventDetailPage() {
   const [participantsMeta, setParticipantsMeta] = useState<PaginatedEventParticipantsResponse>({
     items: [],
     page: 1,
-    pageSize: PARTICIPANTS_PAGE_SIZE,
+    pageSize: DEFAULT_PAGE_SIZE,
     total: 0,
     totalPages: 1,
   });
   const [participantsSearch, setParticipantsSearch] = useState('');
   const [participantsPage, setParticipantsPage] = useState(1);
+  const [participantsPageSize, setParticipantsPageSize] = useState<PageSize>(DEFAULT_PAGE_SIZE);
   const [createParticipantOpen, setCreateParticipantOpen] = useState(false);
   const [participantName, setParticipantName] = useState('');
   const [participantEmail, setParticipantEmail] = useState('');
@@ -324,6 +346,9 @@ export default function EventDetailPage() {
   const [peopleSettingsOpen, setPeopleSettingsOpen] = useState(false);
 
   const canView = isSuperAdmin() || hasPermission('EVENT_VIEW');
+  const canManageParticipants = isSuperAdmin() || hasPermission('PARTICIPANT_MANAGE');
+
+  useBreadcrumbLabel(event?.name);
 
   const stats = useMemo(() => {
     const totalParticipants = participantsMeta.total;
@@ -360,7 +385,7 @@ export default function EventDetailPage() {
     (method: string) => {
       switch (method) {
         case 'FACE_RECOGNITION':
-          return 'Reconhecimento Facial';
+          return t('pages.eventDetail.facialRecognitionTitle');
         case 'QR_CODE':
           return t('pages.eventDetail.qrCode');
         case 'ACCESS_CODE':
@@ -434,7 +459,7 @@ export default function EventDetailPage() {
     try {
       const response = await eventsClient.listEventParticipants(eventId, {
         page: participantsPage,
-        pageSize: PARTICIPANTS_PAGE_SIZE,
+        pageSize: participantsPageSize,
         search: participantsSearch,
       });
       if (!response.success) throw new Error(response.error.message);
@@ -446,7 +471,46 @@ export default function EventDetailPage() {
     } finally {
       setIsLoadingParticipants(false);
     }
-  }, [eventId, participantsPage, participantsSearch, t]);
+  }, [eventId, participantsPage, participantsPageSize, participantsSearch, t]);
+
+  // Removes every participant matching the current search, across all pages. The server
+  // re-checks the count inside a transaction, so the number typed here is the number removed.
+  const handleDeleteAllParticipants = useCallback(async () => {
+    const total = participantsMeta.total;
+    if (total === 0) return;
+
+    const term = participantsSearch.trim();
+    const count = total.toLocaleString(locale);
+    const accepted = await confirm.confirm({
+      title: t('nav.shell.listDeleteAllTitle', { count }),
+      description: term
+        ? t('nav.shell.listDeleteAllDescriptionFiltered', { count, search: term })
+        : t('nav.shell.listDeleteAllDescription', { count }),
+      confirmLabel: t('nav.shell.listDeleteAllConfirm'),
+      variant: 'destructive',
+      requireText: String(total),
+    });
+    if (!accepted) return;
+
+    const response = await eventsClient.deleteAllEventParticipants(eventId, {
+      search: term || undefined,
+      expectedCount: total,
+    });
+    if (!response.success) {
+      const actual = response.error.meta?.actual;
+      toast.error(
+        response.error.code === 'BULK_DELETE_COUNT_MISMATCH' && typeof actual === 'number'
+          ? t('nav.shell.listDeleteAllChanged', { expected: count, actual: actual.toLocaleString(locale) })
+          : t('nav.shell.listDeleteAllError'),
+      );
+      await loadParticipants();
+      return;
+    }
+
+    toast.success(t('nav.shell.listDeleteAllSuccess', { count: response.data.deleted.toLocaleString(locale) }));
+    setParticipantsPage(1);
+    await loadParticipants();
+  }, [confirm, eventId, loadParticipants, locale, participantsMeta.total, participantsSearch, t]);
 
   const handleDownloadTemplateParticipants = useCallback(() => {
     excelEventParticipants.generateTemplate();
@@ -1407,18 +1471,36 @@ export default function EventDetailPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold tracking-tight">{event.name}</h1>
-            <EventStatusBadge status={event.status} />
-          </div>
-          <p className="text-muted-foreground text-sm">{event.slug}</p>
-        </div>
+      <div className="space-y-3">
+        <Link
+          href={`/organizations/${organizationId}/events`}
+          className="text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 -ml-1 inline-flex items-center gap-1 rounded-md px-1 py-0.5 text-sm transition-colors outline-none focus-visible:ring-2"
+        >
+          <ArrowLeft className="size-4" aria-hidden />
+          {t('pages.eventDetail.backToEvents')}
+        </Link>
+        <PageHeader
+          title={event.name}
+          meta={<EventStatusBadge status={event.status} />}
+          description={
+            <span className="flex flex-wrap items-center gap-x-4 gap-y-1">
+              <span className="inline-flex items-center gap-1.5">
+                <Calendar className="size-3.5" aria-hidden />
+                {formatDateTimeRange(event.startsAt, event.endsAt, locale)}
+              </span>
+              {(event.addressDetails?.formattedAddress ?? event.address) && (
+                <span className="inline-flex min-w-0 items-center gap-1.5">
+                  <MapPin className="size-3.5 shrink-0" aria-hidden />
+                  <span className="truncate">{event.addressDetails?.formattedAddress ?? event.address}</span>
+                </span>
+              )}
+            </span>
+          }
+        />
       </div>
 
       <Tabs defaultValue="overview">
-        <TabsList>
+        <TabsList className="mb-2">
           <TabsTrigger value="overview">{t('pages.eventDetail.tabOverview')}</TabsTrigger>
           <TabsTrigger value="participants">{t('pages.eventDetail.tabParticipants')}</TabsTrigger>
           <TabsTrigger value="totems">{t('pages.eventDetail.tabTotems')}</TabsTrigger>
@@ -1427,246 +1509,314 @@ export default function EventDetailPage() {
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
-          <div className="grid gap-4 md:grid-cols-4">
-            <StatCard
-              title={t('pages.eventDetail.statParticipants')}
-              value={stats.totalParticipants}
-              icon={<User className="h-4 w-4" />}
-            />
-            <StatCard
-              title={t('pages.eventDetail.statCheckins')}
-              value={stats.checkedIn}
-              icon={<CheckCircle2 className="h-4 w-4" />}
-            />
-            <StatCard
-              title={t('pages.eventDetail.statTotems')}
-              value={stats.totalTotems}
-              icon={<MonitorSmartphone className="h-4 w-4" />}
-            />
-            <StatCard
-              title={t('pages.eventDetail.statRate')}
-              value={stats.checkInRate}
-              icon={<ScanFace className="h-4 w-4" />}
-            />
-          </div>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>{t('pages.eventDetail.eventDetailsTitle')}</CardTitle>
-              <CardDescription>{t('pages.eventDetail.eventDetailsDescription')}</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <InfoRow
-                label={t('pages.eventDetail.startDate')}
-                value={formatDateTime(event.startsAt, locale)}
-                icon={<Calendar className="h-4 w-4" />}
-              />
-              <InfoRow
-                label={t('pages.eventDetail.endDate')}
-                value={formatDateTime(event.endsAt, locale)}
-                icon={<Calendar className="h-4 w-4" />}
-              />
-              <InfoRow
-                label={t('pages.eventDetail.timezone')}
-                value={event.timezone}
-                icon={<Calendar className="h-4 w-4" />}
-              />
-              <InfoRow
-                label={t('pages.eventDetail.location')}
-                value={event.addressDetails?.formattedAddress ?? event.address ?? '—'}
-                icon={<MapPin className="h-4 w-4" />}
-              />
-            </CardContent>
-          </Card>
+          <EventOverviewPanel event={event} totemsCount={stats.totalTotems} getMethodLabel={getCheckInMethodLabel} />
+          {/* Only for linked events: without Sympla there is no ticket type, sector or UTM to
+              break anything down by, and an all-dashes table would just be noise. */}
+          {isSymplaLinked && <SymplaMetricsCard eventId={eventId} />}
         </TabsContent>
 
         <TabsContent value="participants" className="space-y-4">
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between gap-3">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 <div>
                   <CardTitle>{t('pages.eventDetail.participantsTitle')}</CardTitle>
                   <CardDescription>
                     {t('pages.eventDetail.participantsDescription').replace('{count}', String(participantsMeta.total))}
                   </CardDescription>
+                  {isSymplaLinked && (
+                    <div className="mt-2">
+                      <SymplaSyncStatus
+                        eventId={eventId}
+                        organizationId={event.organizationId}
+                        autoSync={event.status === 'ACTIVE'}
+                        onSynced={() => void loadParticipants()}
+                      />
+                    </div>
+                  )}
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <Button
-                    size="sm"
-                    variant="outline"
-                    title="Configurações de código de acesso/QR deste evento"
+                    size="icon-sm"
+                    variant="ghost"
+                    title={t('pages.eventDetail.codeSettingsHint')}
+                    aria-label={t('pages.eventDetail.codeSettingsHint')}
                     onClick={() => setPeopleSettingsOpen(true)}
                   >
                     <Settings className="h-4 w-4" />
                   </Button>
-                  <Button size="sm" variant="outline" onClick={handleDownloadTemplateParticipants}>
-                    <Download className="mr-2 h-4 w-4" />
-                    {t('pages.eventDetail.downloadTemplate')}
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={() => setImportParticipantsOpen(true)}>
-                    <Upload className="mr-2 h-4 w-4" />
-                    {t('pages.eventDetail.importSpreadsheet')}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={handleExportParticipants}
-                    disabled={isExportingParticipants || participants.length === 0}
-                  >
-                    <FileSpreadsheet className="mr-2 h-4 w-4" />
-                    {t('pages.eventDetail.exportSpreadsheet')}
-                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button size="sm" variant="outline">
+                        <FileSpreadsheet className="h-4 w-4" />
+                        {t('pages.eventDetail.spreadsheetMenu')}
+                        <ChevronDown className="h-3.5 w-3.5 opacity-60" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => setImportParticipantsOpen(true)}>
+                        <Upload className="h-4 w-4" />
+                        {t('pages.eventDetail.importSpreadsheet')}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={handleExportParticipants}
+                        disabled={isExportingParticipants || participants.length === 0}
+                      >
+                        <FileSpreadsheet className="h-4 w-4" />
+                        {t('pages.eventDetail.exportSpreadsheet')}
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={handleDownloadTemplateParticipants}>
+                        <Download className="h-4 w-4" />
+                        {t('pages.eventDetail.downloadTemplate')}
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                   <Button size="sm" variant="outline" onClick={() => setLinkPersonOpen(true)}>
-                    <Link2 className="mr-2 h-4 w-4" />
+                    <Link2 className="h-4 w-4" />
                     {t('pages.eventDetail.linkPerson')}
                   </Button>
                   <Button size="sm" onClick={() => setCreateParticipantOpen(true)}>
-                    <Plus className="mr-2 h-4 w-4" />
+                    <Plus className="h-4 w-4" />
                     {t('pages.eventDetail.addParticipant')}
                   </Button>
                 </div>
               </div>
             </CardHeader>
             <CardContent>
-              <div className="relative mb-4 max-w-md">
-                <Search className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
-                <Input
-                  value={participantsSearch}
-                  onChange={(e) => {
-                    setParticipantsSearch(e.target.value);
-                    setParticipantsPage(1);
-                  }}
-                  placeholder={t('pages.eventDetail.searchParticipants')}
-                  className="pl-9"
-                />
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                <div className="relative w-full max-w-md">
+                  <Search className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
+                  <Input
+                    value={participantsSearch}
+                    onChange={(e) => {
+                      setParticipantsSearch(e.target.value);
+                      setParticipantsPage(1);
+                    }}
+                    placeholder={t('pages.eventDetail.searchParticipants')}
+                    aria-label={t('pages.eventDetail.searchParticipants')}
+                    className="pl-9"
+                  />
+                </div>
+                {canManageParticipants && participantsMeta.total > 0 && (
+                  <Button
+                    variant="destructive-ghost"
+                    size="sm"
+                    onClick={() => void handleDeleteAllParticipants()}
+                    disabled={isLoadingParticipants}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    {t('nav.shell.listDeleteAll')}
+                    <span className="tabular-nums">({participantsMeta.total.toLocaleString(locale)})</span>
+                  </Button>
+                )}
               </div>
 
               {isLoadingParticipants ? (
                 <Skeleton className="h-40" />
               ) : participants.length === 0 ? (
-                <p className="text-muted-foreground py-8 text-center text-sm">
-                  {t('pages.eventDetail.noParticipants')}
-                </p>
+                participantsSearch.trim() ? (
+                  <p className="text-muted-foreground py-10 text-center text-sm">
+                    {t('pages.eventDetail.emptyParticipantsSearch', { search: participantsSearch.trim() })}
+                  </p>
+                ) : (
+                  <div className="flex flex-col items-center rounded-lg border border-dashed px-6 py-12 text-center">
+                    <span className="bg-primary/10 text-primary mb-4 flex size-11 items-center justify-center rounded-2xl">
+                      <User className="size-5" />
+                    </span>
+                    <p className="font-medium">{t('pages.eventDetail.noParticipants')}</p>
+                    <p className="text-muted-foreground mt-1 max-w-sm text-sm">
+                      {t('pages.eventDetail.emptyParticipantsHint')}
+                    </p>
+                    <div className="mt-5 flex flex-wrap justify-center gap-2">
+                      <Button size="sm" variant="outline" onClick={() => setImportParticipantsOpen(true)}>
+                        <Upload className="h-4 w-4" />
+                        {t('pages.eventDetail.importSpreadsheet')}
+                      </Button>
+                      <Button size="sm" onClick={() => setCreateParticipantOpen(true)}>
+                        <Plus className="h-4 w-4" />
+                        {t('pages.eventDetail.addParticipant')}
+                      </Button>
+                    </div>
+                  </div>
+                )
               ) : (
-                <div className="rounded-lg border">
+                <div className="overflow-hidden rounded-lg border">
                   <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>{t('pages.eventDetail.participant')}</TableHead>
-                        <TableHead>{t('pages.eventDetail.emailRequired').replace(' *', '')}</TableHead>
-                        <TableHead>{t('pages.eventDetail.company')}</TableHead>
-                        <TableHead>{t('pages.eventDetail.jobTitle')}</TableHead>
-                        <TableHead>{t('pages.eventDetail.registeredAt')}</TableHead>
-                        <TableHead>{t('pages.eventDetail.face')}</TableHead>
-                        <TableHead>{t('pages.eventDetail.accessCode')}</TableHead>
-                        <TableHead>{t('pages.eventDetail.qrCode')}</TableHead>
+                    <TableHeader className="bg-muted/40">
+                      <TableRow className="hover:bg-transparent">
+                        <TableHead className="pl-4">{t('pages.eventDetail.participant')}</TableHead>
+                        <TableHead className="hidden lg:table-cell">{t('pages.eventDetail.companyColumn')}</TableHead>
+                        <TableHead className="hidden lg:table-cell">
+                          {t('pages.eventDetail.credentialsColumn')}
+                        </TableHead>
                         {isSymplaLinked && (
                           <>
                             <TableHead>{t('integrations.sympla.participants.ticket')}</TableHead>
-                            <TableHead>{t('integrations.sympla.participants.ticketType')}</TableHead>
-                            <TableHead>{t('integrations.sympla.participants.sector')}</TableHead>
-                            <TableHead>{t('integrations.sympla.participants.seat')}</TableHead>
+                            <TableHead className="hidden md:table-cell">
+                              {t('integrations.sympla.participants.sector')}
+                            </TableHead>
                           </>
                         )}
+                        <TableHead className="hidden 2xl:table-cell">{t('pages.eventDetail.registeredAt')}</TableHead>
                         <TableHead>{t('pages.eventDetail.checkinStatus')}</TableHead>
-                        <TableHead className="w-24">{t('pages.eventDetail.actions')}</TableHead>
+                        <TableHead className="w-12">
+                          <span className="sr-only">{t('pages.eventDetail.actions')}</span>
+                        </TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {participants.map((participant) => (
                         <TableRow key={participant.id}>
-                          <TableCell className="font-medium">
-                            <div className="flex items-center gap-2">
-                              <span>{participant.name}</span>
-                              {(participant.duplicateDocument || participant.duplicateEmail) && (
-                                <Badge
-                                  variant="outline"
-                                  className="bg-amber-500/10 text-amber-600"
-                                  title={t('integrations.sympla.participants.duplicateTooltip')}
-                                >
-                                  {t('integrations.sympla.participants.duplicate')}
-                                </Badge>
-                              )}
+                          <TableCell className="max-w-[280px] py-2.5 pl-4">
+                            <div className="flex items-center gap-3">
+                              <span
+                                className={`relative flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
+                                  participant.faceId
+                                    ? 'bg-primary/10 text-violet-700 dark:text-violet-300'
+                                    : 'bg-muted text-muted-foreground'
+                                }`}
+                                title={
+                                  participant.faceId
+                                    ? t('pages.eventDetail.faceRegistered')
+                                    : t('pages.eventDetail.faceMissing')
+                                }
+                              >
+                                {getNameInitials(participant.name)}
+                                {participant.faceId && (
+                                  <span className="bg-card absolute -right-0.5 -bottom-0.5 flex size-3.5 items-center justify-center rounded-full">
+                                    <ScanFace className="text-primary size-3" aria-hidden />
+                                  </span>
+                                )}
+                                <span className="sr-only">
+                                  {participant.faceId
+                                    ? t('pages.eventDetail.faceRegistered')
+                                    : t('pages.eventDetail.faceMissing')}
+                                </span>
+                              </span>
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => setViewParticipant(participant)}
+                                    className="hover:text-primary focus-visible:ring-ring/50 truncate rounded-sm text-left font-medium transition-colors outline-none focus-visible:ring-2"
+                                  >
+                                    {participant.name}
+                                  </button>
+                                  {(participant.duplicateDocument || participant.duplicateEmail) && (
+                                    <Badge
+                                      variant="warning"
+                                      title={t('integrations.sympla.participants.duplicateTooltip')}
+                                    >
+                                      {t('integrations.sympla.participants.duplicate')}
+                                    </Badge>
+                                  )}
+                                </div>
+                                <p className="text-muted-foreground truncate text-xs">{participant.email}</p>
+                              </div>
                             </div>
                           </TableCell>
-                          <TableCell className="text-muted-foreground">{participant.email}</TableCell>
-                          <TableCell className="text-muted-foreground">{participant.company ?? '—'}</TableCell>
-                          <TableCell className="text-muted-foreground">{participant.jobTitle ?? '—'}</TableCell>
-                          <TableCell className="text-muted-foreground">
-                            {formatDate(participant.registeredAt, locale)}
+                          <TableCell className="hidden max-w-[200px] lg:table-cell">
+                            <p className="truncate text-sm">{participant.company ?? '—'}</p>
+                            {participant.jobTitle && (
+                              <p className="text-muted-foreground truncate text-xs">{participant.jobTitle}</p>
+                            )}
                           </TableCell>
-                          <TableCell>
-                            <Badge
-                              variant="outline"
-                              className={
-                                participant.faceId
-                                  ? 'bg-emerald-500/10 text-emerald-600'
-                                  : 'bg-gray-400/10 text-gray-500'
-                              }
-                            >
-                              {participant.faceId ? t('pages.eventDetail.withImage') : t('pages.eventDetail.noImage')}
-                            </Badge>
+                          <TableCell className="hidden font-mono text-xs lg:table-cell">
+                            <p title={t('pages.eventDetail.accessCode')}>{participant.accessCode ?? '—'}</p>
+                            <p className="text-muted-foreground" title={t('pages.eventDetail.qrCode')}>
+                              {participant.qrCodeValue ?? '—'}
+                            </p>
                           </TableCell>
-                          <TableCell className="text-muted-foreground">{participant.accessCode ?? '—'}</TableCell>
-                          <TableCell className="text-muted-foreground">{participant.qrCodeValue ?? '—'}</TableCell>
                           {isSymplaLinked && (
                             <>
-                              <TableCell className="text-muted-foreground font-mono text-xs">
-                                {participant.ticketNumber ?? '—'}
+                              <TableCell className="max-w-[180px]">
+                                <p
+                                  className="truncate text-sm"
+                                  title={t('integrations.sympla.participants.ticketType')}
+                                >
+                                  {participant.ticketName ?? '—'}
+                                </p>
+                                {participant.ticketNumber && (
+                                  <p className="text-muted-foreground truncate font-mono text-xs">
+                                    {participant.ticketNumber}
+                                  </p>
+                                )}
                               </TableCell>
-                              <TableCell className="text-muted-foreground">
-                                {participant.ticketName ?? '—'}
-                              </TableCell>
-                              <TableCell className="text-muted-foreground">
-                                {participant.sectorName ?? '—'}
-                              </TableCell>
-                              <TableCell className="text-muted-foreground">
-                                {participant.seatLabel ?? '—'}
+                              <TableCell className="hidden max-w-[180px] md:table-cell">
+                                <p className="truncate text-sm">{participant.sectorName ?? '—'}</p>
+                                {participant.seatLabel && (
+                                  <p
+                                    className="text-muted-foreground truncate text-xs"
+                                    title={t('integrations.sympla.participants.seat')}
+                                  >
+                                    {participant.seatLabel}
+                                  </p>
+                                )}
                               </TableCell>
                             </>
                           )}
+                          <TableCell className="text-muted-foreground hidden 2xl:table-cell">
+                            {formatDate(participant.registeredAt, locale)}
+                          </TableCell>
                           <TableCell>
-                            <Badge
-                              variant="outline"
-                              className={
-                                participant.hasCheckIn
-                                  ? 'bg-emerald-500/10 text-emerald-600'
-                                  : 'bg-gray-400/10 text-gray-500'
-                              }
-                            >
+                            <Badge variant={participant.hasCheckIn ? 'success' : 'neutral'}>
+                              {participant.hasCheckIn && <CheckCircle2 aria-hidden />}
                               {participant.hasCheckIn
                                 ? t('pages.eventDetail.checkedIn')
                                 : t('pages.eventDetail.pending')}
                             </Badge>
                           </TableCell>
-                          <TableCell className="flex gap-2">
-                            <Button variant="ghost" size="icon" onClick={() => setViewParticipant(participant)}>
-                              <User className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="icon" onClick={() => setEditParticipant(participant)}>
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="icon" onClick={() => setRegisterFaceParticipant(participant)}>
-                              <ScanFace className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              disabled={!participant.hasCheckIn || !canPrintLabels}
-                              onClick={() => setPrintLabelParticipant(participant)}
-                              title={
-                                !canPrintLabels
-                                  ? 'Impressão não configurada'
-                                  : !participant.hasCheckIn
-                                    ? 'Participante sem check-in'
-                                    : 'Imprimir etiqueta'
-                              }
-                            >
-                              <Printer className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="icon" onClick={() => handleDeleteParticipant(participant)}>
-                              <Trash2 className="text-destructive h-4 w-4" />
-                            </Button>
+                          <TableCell className="pr-3">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  aria-label={`${t('pages.eventDetail.participantActions')}: ${participant.name}`}
+                                >
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-52">
+                                <DropdownMenuItem onClick={() => setViewParticipant(participant)}>
+                                  <User className="h-4 w-4" />
+                                  {t('common.actions.viewDetails')}
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setEditParticipant(participant)}>
+                                  <Pencil className="h-4 w-4" />
+                                  {t('common.actions.edit')}
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setRegisterFaceParticipant(participant)}>
+                                  <ScanFace className="h-4 w-4" />
+                                  {t('pages.eventDetail.registerFaceAction')}
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  disabled={!participant.hasCheckIn || !canPrintLabels}
+                                  onClick={() => setPrintLabelParticipant(participant)}
+                                >
+                                  <Printer className="h-4 w-4" />
+                                  <span className="flex flex-col">
+                                    {t('pages.eventDetail.printLabelAction')}
+                                    {(!canPrintLabels || !participant.hasCheckIn) && (
+                                      <span className="text-muted-foreground text-xs">
+                                        {!canPrintLabels
+                                          ? t('pages.eventDetail.printNotConfigured')
+                                          : t('pages.eventDetail.printNeedsCheckin')}
+                                      </span>
+                                    )}
+                                  </span>
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  variant="destructive"
+                                  onClick={() => handleDeleteParticipant(participant)}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                  {t('pages.eventDetail.deleteParticipantTitle')}
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -1675,34 +1825,18 @@ export default function EventDetailPage() {
                 </div>
               )}
 
-              <div className="mt-4 flex items-center justify-between">
-                <p className="text-muted-foreground text-sm">
-                  {t('pages.eventDetail.results').replace('{count}', String(participantsMeta.total))}
-                </p>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={participantsMeta.page <= 1}
-                    onClick={() => setParticipantsPage((current) => Math.max(current - 1, 1))}
-                  >
-                    {t('pages.eventDetail.previous')}
-                  </Button>
-                  <span className="text-sm">
-                    {t('pages.eventDetail.pageOf')
-                      .replace('{page}', String(participantsMeta.page))
-                      .replace('{total}', String(participantsMeta.totalPages))}
-                  </span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={participantsMeta.page >= participantsMeta.totalPages}
-                    onClick={() => setParticipantsPage((current) => current + 1)}
-                  >
-                    {t('pages.eventDetail.next')}
-                  </Button>
-                </div>
-              </div>
+              <ListPagination
+                page={participantsMeta.page}
+                totalPages={participantsMeta.totalPages}
+                total={participantsMeta.total}
+                pageSize={participantsPageSize}
+                onPageChange={setParticipantsPage}
+                onPageSizeChange={(size) => {
+                  setParticipantsPageSize(size);
+                  setParticipantsPage(1);
+                }}
+                disabled={isLoadingParticipants}
+              />
             </CardContent>
           </Card>
         </TabsContent>
@@ -1729,15 +1863,15 @@ export default function EventDetailPage() {
               ) : totems.length === 0 ? (
                 <p className="text-muted-foreground py-8 text-center text-sm">{t('pages.eventDetail.noTotems')}</p>
               ) : (
-                <div className="rounded-lg border">
+                <div className="overflow-hidden rounded-lg border">
                   <Table>
-                    <TableHeader>
-                      <TableRow>
+                    <TableHeader className="bg-muted/40">
+                      <TableRow className="hover:bg-transparent">
                         <TableHead>{t('pages.eventDetail.totemName')}</TableHead>
                         <TableHead>{t('pages.eventDetail.location')}</TableHead>
                         <TableHead>{t('pages.eventDetail.status')}</TableHead>
                         <TableHead>{t('pages.eventDetail.lastHeartbeat')}</TableHead>
-                        <TableHead className="w-24">{t('pages.eventDetail.actions')}</TableHead>
+                        <TableHead className="w-24 text-right">{t('pages.eventDetail.actions')}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -1746,27 +1880,32 @@ export default function EventDetailPage() {
                           <TableCell className="font-medium">{totem.totemName}</TableCell>
                           <TableCell className="text-muted-foreground">{totem.locationName}</TableCell>
                           <TableCell>
-                            <Badge
-                              variant="outline"
-                              className={
-                                totem.totemStatus === 'ACTIVE'
-                                  ? 'bg-emerald-500/10 text-emerald-600'
-                                  : 'bg-gray-400/10 text-gray-500'
-                              }
-                            >
-                              {totem.totemStatus}
-                            </Badge>
+                            <TotemStatusBadge status={totem.totemStatus as TotemStatus} />
                           </TableCell>
                           <TableCell className="text-muted-foreground">
                             {totem.lastHeartbeat ? formatDateTime(totem.lastHeartbeat, locale) : '—'}
                           </TableCell>
-                          <TableCell className="flex gap-2">
-                            <Button variant="ghost" size="icon" onClick={() => setChangeLocationSub(totem)}>
-                              <MapPin className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="icon" onClick={() => handleRemoveTotem(totem)}>
-                              <Trash2 className="text-destructive h-4 w-4" />
-                            </Button>
+                          <TableCell>
+                            <div className="flex justify-end gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                title={t('pages.eventDetail.changeLocationTitle')}
+                                aria-label={`${t('pages.eventDetail.changeLocationTitle')}: ${totem.totemName}`}
+                                onClick={() => setChangeLocationSub(totem)}
+                              >
+                                <MapPin className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="destructive-ghost"
+                                size="icon-sm"
+                                title={t('pages.eventDetail.removeTotemTitle')}
+                                aria-label={`${t('pages.eventDetail.removeTotemTitle')}: ${totem.totemName}`}
+                                onClick={() => handleRemoveTotem(totem)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -1779,30 +1918,38 @@ export default function EventDetailPage() {
         </TabsContent>
 
         <TabsContent value="checkins" className="space-y-4">
-          {/* Only for linked events: without Sympla there is no ticket type, sector or UTM to
-              break anything down by, and an all-dashes table would just be noise. */}
-          {isSymplaLinked && <SymplaMetricsCard eventId={eventId} />}
-
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between gap-3">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <CardTitle>{t('pages.eventDetail.checkinsTitle')}</CardTitle>
                   <CardDescription>
                     {t('pages.eventDetail.checkinsDescription').replace('{count}', String(checkInsTotal))}
                   </CardDescription>
                 </div>
-                <div className="flex gap-2">
-                  <Button size="sm" variant="outline" onClick={() => excelEventCheckins.generateTemplate()}>
-                    <Download className="mr-2 h-4 w-4" />
-                    {t('pages.eventDetail.downloadTemplate')}
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={() => setImportCheckInsOpen(true)}>
-                    <Upload className="mr-2 h-4 w-4" />
-                    {t('pages.eventDetail.importSpreadsheet')}
-                  </Button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button size="sm" variant="outline">
+                        <FileSpreadsheet className="h-4 w-4" />
+                        {t('pages.eventDetail.spreadsheetMenu')}
+                        <ChevronDown className="h-3.5 w-3.5 opacity-60" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => setImportCheckInsOpen(true)}>
+                        <Upload className="h-4 w-4" />
+                        {t('pages.eventDetail.importSpreadsheet')}
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => excelEventCheckins.generateTemplate()}>
+                        <Download className="h-4 w-4" />
+                        {t('pages.eventDetail.downloadTemplate')}
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                   <Button size="sm" onClick={() => setManualCheckInOpen(true)}>
-                    <Plus className="mr-2 h-4 w-4" />
+                    <Plus className="h-4 w-4" />
                     {t('pages.eventDetail.manualAppCheckin')}
                   </Button>
                 </div>
@@ -1822,9 +1969,25 @@ export default function EventDetailPage() {
               {isLoadingCheckIns ? (
                 <Skeleton className="h-40" />
               ) : checkIns.length === 0 ? (
-                <p className="text-muted-foreground py-8 text-center text-sm">
-                  {checkInsSearch ? t('pages.eventDetail.noCheckinsMatchSearch') : t('pages.eventDetail.noCheckins')}
-                </p>
+                checkInsSearch ? (
+                  <p className="text-muted-foreground py-10 text-center text-sm">
+                    {t('pages.eventDetail.noCheckinsMatchSearch')}
+                  </p>
+                ) : (
+                  <div className="flex flex-col items-center rounded-lg border border-dashed px-6 py-12 text-center">
+                    <span className="bg-primary/10 text-primary mb-4 flex size-11 items-center justify-center rounded-2xl">
+                      <CheckCircle2 className="size-5" />
+                    </span>
+                    <p className="font-medium">{t('pages.eventDetail.noCheckins')}</p>
+                    <p className="text-muted-foreground mt-1 max-w-sm text-sm">
+                      {t('pages.eventDetail.emptyCheckinsHint')}
+                    </p>
+                    <Button size="sm" className="mt-5" onClick={() => setManualCheckInOpen(true)}>
+                      <Plus className="h-4 w-4" />
+                      {t('pages.eventDetail.manualAppCheckin')}
+                    </Button>
+                  </div>
+                )
               ) : (
                 <div className="space-y-3">
                   {selectedCheckInIds.size > 0 && (
@@ -1846,10 +2009,10 @@ export default function EventDetailPage() {
                     </div>
                   )}
 
-                  <div className="rounded-lg border">
+                  <div className="overflow-hidden rounded-lg border">
                     <Table>
-                      <TableHeader>
-                        <TableRow>
+                      <TableHeader className="bg-muted/40">
+                        <TableRow className="hover:bg-transparent">
                           <TableHead className="w-10">
                             <Checkbox
                               checked={allCheckInsOnPageSelected}
@@ -1875,21 +2038,30 @@ export default function EventDetailPage() {
                                 aria-label={checkIn.participant.name}
                               />
                             </TableCell>
-                            <TableCell className="font-medium">{checkIn.participant.name}</TableCell>
-                            <TableCell className="text-muted-foreground">
-                              {getCheckInMethodLabel(checkIn.method)}
+                            <TableCell>
+                              <p className="font-medium">{checkIn.participant.name}</p>
+                              <p className="text-muted-foreground text-xs">{checkIn.participant.email}</p>
+                            </TableCell>
+                            <TableCell>
+                              <span className="inline-flex items-center gap-1.5 text-sm">
+                                <CheckInMethodIcon method={checkIn.method} />
+                                {getCheckInMethodLabel(checkIn.method)}
+                              </span>
                             </TableCell>
                             <TableCell className="text-muted-foreground">
                               {checkIn.confidence ? `${Math.round(checkIn.confidence * 100)}%` : '—'}
                             </TableCell>
-                            <TableCell className="text-muted-foreground">{checkIn.locationName || 'APP'}</TableCell>
+                            <TableCell className="text-muted-foreground">
+                              {checkIn.locationName || t('pages.eventDetail.appSource')}
+                            </TableCell>
                             <TableCell className="text-muted-foreground">
                               {formatDateTime(checkIn.checkedInAt, locale)}
                             </TableCell>
                             <TableCell>
                               <Button
-                                variant="ghost"
+                                variant="destructive-ghost"
                                 size="sm"
+                                className="text-muted-foreground hover:text-destructive focus-visible:text-destructive"
                                 disabled={invalidatingCheckInId === checkIn.id}
                                 onClick={() => handleInvalidateCheckIn(checkIn.id, checkIn.participant.name)}
                               >
@@ -2003,7 +2175,7 @@ export default function EventDetailPage() {
               <form onSubmit={handleSaveSettings} className="space-y-4">
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
-                    <Label htmlFor="settings-name">{t('pages.eventDetail.nameRequired')}</Label>
+                    <Label htmlFor="settings-name">{t('common.labels.name')} *</Label>
                     <Input
                       id="settings-name"
                       value={settingsName}
@@ -2031,7 +2203,7 @@ export default function EventDetailPage() {
                       <SelectContent>
                         {validStatusTransitions.map((status) => (
                           <SelectItem key={status} value={status}>
-                            {status}
+                            {t(`common.status.${status.toLowerCase()}`)}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -2087,28 +2259,36 @@ export default function EventDetailPage() {
                         <p className="text-sm font-medium">Reconhecimento facial</p>
                         <p className="text-muted-foreground text-xs">Check-in por reconhecimento facial</p>
                       </div>
-                      <Switch checked={faceEnabled} onCheckedChange={setFaceEnabled} />
+                      <Switch
+                        aria-label="Reconhecimento facial"
+                        checked={faceEnabled}
+                        onCheckedChange={setFaceEnabled}
+                      />
                     </div>
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm font-medium">QR Code</p>
                         <p className="text-muted-foreground text-xs">Check-in por leitura de QR Code</p>
                       </div>
-                      <Switch checked={qrEnabled} onCheckedChange={setQrEnabled} />
+                      <Switch aria-label="QR Code" checked={qrEnabled} onCheckedChange={setQrEnabled} />
                     </div>
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm font-medium">Código de acesso</p>
                         <p className="text-muted-foreground text-xs">Check-in por código de acesso</p>
                       </div>
-                      <Switch checked={codeEnabled} onCheckedChange={setCodeEnabled} />
+                      <Switch aria-label="Código de acesso" checked={codeEnabled} onCheckedChange={setCodeEnabled} />
                     </div>
                     <div className="flex items-center justify-between rounded-lg pt-2">
                       <div>
                         <p className="text-sm font-medium">Auto-cadastro</p>
                         <p className="text-muted-foreground text-xs">Participante pode se cadastrar no totem</p>
                       </div>
-                      <Switch checked={allowSelfRegistration} onCheckedChange={setAllowSelfRegistration} />
+                      <Switch
+                        aria-label="Auto-cadastro"
+                        checked={allowSelfRegistration}
+                        onCheckedChange={setAllowSelfRegistration}
+                      />
                     </div>
                   </div>
                 )}
@@ -2127,7 +2307,11 @@ export default function EventDetailPage() {
                           Imprime o crachá após qualquer check-in (facial, QR ou código)
                         </p>
                       </div>
-                      <Switch checked={printConfigEnabled} onCheckedChange={setPrintConfigEnabled} />
+                      <Switch
+                        aria-label="Impressão automática"
+                        checked={printConfigEnabled}
+                        onCheckedChange={setPrintConfigEnabled}
+                      />
                     </div>
                   )}
 
@@ -2139,6 +2323,7 @@ export default function EventDetailPage() {
                           <p className="text-muted-foreground text-xs">Imprime o QR Code no crachá</p>
                         </div>
                         <Switch
+                          aria-label="Mostrar QR Code"
                           checked={printConfigDraft.showQrCode}
                           onCheckedChange={(checked) => updatePrintConfigField('showQrCode', checked)}
                         />
@@ -2149,6 +2334,7 @@ export default function EventDetailPage() {
                           <p className="text-muted-foreground text-xs">Imprime o código de acesso no crachá</p>
                         </div>
                         <Switch
+                          aria-label="Mostrar código de acesso"
                           checked={printConfigDraft.showAccessCode}
                           onCheckedChange={(checked) => updatePrintConfigField('showAccessCode', checked)}
                         />
@@ -2441,7 +2627,7 @@ export default function EventDetailPage() {
                     </Label>
                   </div>
 
-                  <div className="flex justify-between gap-2">
+                  <div className="flex flex-wrap justify-between gap-2">
                     <Button type="button" variant="outline" onClick={handleResetAIConfig} disabled={isSavingAIConfig}>
                       <RotateCcw className="mr-2 h-4 w-4" />
                       {t('pages.eventDetail.resetToDefaults')}
@@ -2541,7 +2727,7 @@ export default function EventDetailPage() {
           <form onSubmit={handleCreateParticipant} className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="participant-name">{t('pages.eventDetail.nameRequired')}</Label>
+                <Label htmlFor="participant-name">{t('common.labels.name')} *</Label>
                 <Input
                   id="participant-name"
                   value={participantName}
@@ -2550,7 +2736,7 @@ export default function EventDetailPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="participant-email">{t('pages.eventDetail.emailRequired')}</Label>
+                <Label htmlFor="participant-email">{t('common.labels.email')} *</Label>
                 <Input
                   id="participant-email"
                   type="email"
@@ -2571,14 +2757,14 @@ export default function EventDetailPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>{t('pages.eventDetail.documentType')}</Label>
+                <Label htmlFor="participant-document-type">{t('pages.eventDetail.documentType')}</Label>
                 <Select
                   value={participantDocumentType}
                   onValueChange={(value) =>
                     setParticipantDocumentType(value as 'PASSPORT' | 'ID_CARD' | 'DRIVER_LICENSE' | 'OTHER' | '')
                   }
                 >
-                  <SelectTrigger>
+                  <SelectTrigger id="participant-document-type" className="w-full">
                     <SelectValue placeholder={t('pages.eventDetail.selectDocumentType')} />
                   </SelectTrigger>
                   <SelectContent>
@@ -2862,14 +3048,8 @@ export default function EventDetailPage() {
             <DialogDescription>{t('pages.eventDetail.participantDetailsDescription')}</DialogDescription>
           </DialogHeader>
           <div className="space-y-2 text-sm">
-            <InfoRow
-              label={t('pages.eventDetail.nameRequired').replace(' *', '')}
-              value={viewParticipant?.name ?? ''}
-            />
-            <InfoRow
-              label={t('pages.eventDetail.emailRequired').replace(' *', '')}
-              value={viewParticipant?.email ?? ''}
-            />
+            <InfoRow label={t('common.labels.name')} value={viewParticipant?.name ?? ''} />
+            <InfoRow label={t('common.labels.email')} value={viewParticipant?.email ?? ''} />
             <InfoRow label={t('pages.eventDetail.company')} value={viewParticipant?.company ?? '—'} />
             <InfoRow label={t('pages.eventDetail.jobTitle')} value={viewParticipant?.jobTitle ?? '—'} />
             <InfoRow label="QR Code" value={viewParticipant?.qrCodeValue ?? '—'} />
@@ -3159,20 +3339,6 @@ export default function EventDetailPage() {
   );
 }
 
-function StatCard({ title, value, icon }: { title: string; value: number | string; icon: React.ReactNode }) {
-  return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardTitle className="text-sm font-medium">{title}</CardTitle>
-        <div className="text-muted-foreground">{icon}</div>
-      </CardHeader>
-      <CardContent>
-        <div className="text-2xl font-bold">{value}</div>
-      </CardContent>
-    </Card>
-  );
-}
-
 function InfoRow({ label, value, icon }: { label: string; value: string; icon?: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between">
@@ -3185,17 +3351,33 @@ function InfoRow({ label, value, icon }: { label: string; value: string; icon?: 
   );
 }
 
+const CHECK_IN_METHOD_ICONS: Record<string, typeof ScanFace> = {
+  FACE_RECOGNITION: ScanFace,
+  QR_CODE: QrCode,
+  ACCESS_CODE: KeyRound,
+  MANUAL: Hand,
+};
+
+function CheckInMethodIcon({ method }: { method: string }) {
+  const Icon = CHECK_IN_METHOD_ICONS[method] ?? Hand;
+  return <Icon className="text-muted-foreground size-4" aria-hidden />;
+}
+
 function DetailUnavailable({ message, onBack }: { message: string; onBack: () => void }) {
+  const { t } = useI18n();
   return (
-    <Card>
+    <Card className="mx-auto max-w-lg">
       <CardHeader>
-        <CardTitle>Nao foi possivel carregar os detalhes do evento</CardTitle>
-        <CardDescription>Verifique suas permissoes e tente novamente.</CardDescription>
+        <CardTitle>{t('pages.eventDetail.unavailableTitle')}</CardTitle>
+        <CardDescription>{t('pages.eventDetail.unavailableDescription')}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <p className="text-sm text-rose-600">{message}</p>
+        <p className="text-destructive text-sm">{message}</p>
         <div className="flex gap-2">
-          <Button onClick={onBack}>Voltar para eventos</Button>
+          <Button onClick={onBack}>
+            <ArrowLeft className="size-4" />
+            {t('pages.eventDetail.backToEvents')}
+          </Button>
         </div>
       </CardContent>
     </Card>
@@ -3204,12 +3386,19 @@ function DetailUnavailable({ message, onBack }: { message: string; onBack: () =>
 
 function DetailSkeleton() {
   return (
-    <div className="space-y-6">
-      <div className="space-y-2">
-        <Skeleton className="h-6 w-48" />
-        <Skeleton className="h-4 w-32" />
+    <div className="space-y-6" aria-busy="true">
+      <div className="space-y-3">
+        <Skeleton className="h-4 w-28" />
+        <Skeleton className="h-8 w-72" />
+        <Skeleton className="h-4 w-56" />
       </div>
-      <Skeleton className="h-40" />
+      <Skeleton className="h-9 w-96 max-w-full" />
+      <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
+        <Skeleton className="h-32" />
+        <Skeleton className="h-32" />
+        <Skeleton className="h-32" />
+        <Skeleton className="h-32" />
+      </div>
       <Skeleton className="h-64" />
     </div>
   );

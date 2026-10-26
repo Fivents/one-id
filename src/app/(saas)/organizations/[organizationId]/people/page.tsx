@@ -6,10 +6,13 @@ import { useParams, useRouter } from 'next/navigation';
 
 import {
   AlertTriangle,
+  Calendar,
+  ChevronDown,
   Edit,
   FileDown,
   FileSpreadsheet,
   FileUp,
+  MoreHorizontal,
   ScanFace,
   Search,
   Settings,
@@ -22,8 +25,11 @@ import { toast } from 'sonner';
 import { ImportPeopleDialog } from '@/components/organizations/people/import-people-dialog';
 import { PeopleSettingsDialog } from '@/components/organizations/people/people-settings-dialog';
 import { useConfirm } from '@/components/shared/confirm-dialog';
+import { DEFAULT_PAGE_SIZE, ListPagination, type PageSize } from '@/components/shared/list-pagination';
+import { PageHeader } from '@/components/shared/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Dialog,
   DialogContent,
@@ -32,9 +38,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -49,9 +63,8 @@ import { extractFaceEmbedding } from '@/core/application/client-services/totem/f
 import { useApp, useAuth, useOrganization, usePermissions } from '@/core/application/contexts';
 import type { CodeSourceFieldOption } from '@/core/communication/requests/organization-people-settings';
 import { excelPeople } from '@/core/utils/excel-people';
+import { getNameInitials } from '@/core/utils/get-name-initials';
 import { useI18n } from '@/i18n';
-
-const PAGE_SIZE = 20;
 
 const CODE_SOURCE_FIELD_LABELS: Record<CodeSourceFieldOption, string> = {
   NONE: '',
@@ -80,41 +93,6 @@ async function readImageFileAsDataUrl(file: File): Promise<string> {
     reader.onerror = () => reject(new Error('Failed to read image file.'));
     reader.readAsDataURL(file);
   });
-}
-
-function Pagination({
-  page,
-  totalPages,
-  total,
-  onPageChange,
-}: {
-  page: number;
-  totalPages: number;
-  total: number;
-  onPageChange: (page: number) => void;
-}) {
-  const { t } = useI18n();
-
-  return (
-    <div className="flex items-center justify-between pt-2">
-      <p className="text-muted-foreground text-sm">
-        {t('pages.organizationPeople.results').replace('{count}', String(total))}
-      </p>
-      <div className="flex items-center gap-2">
-        <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => onPageChange(page - 1)}>
-          {t('pages.organizationPeople.previous')}
-        </Button>
-        <span className="text-sm">
-          {t('pages.organizationPeople.pageOf')
-            .replace('{page}', String(page))
-            .replace('{totalPages}', String(totalPages))}
-        </span>
-        <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => onPageChange(page + 1)}>
-          {t('pages.organizationPeople.next')}
-        </Button>
-      </div>
-    </div>
-  );
 }
 
 export default function OrganizationPeoplePage() {
@@ -147,19 +125,20 @@ export default function OrganizationPeoplePage() {
 
   const [activePage, setActivePage] = useState(1);
   const [deletedPage, setDeletedPage] = useState(1);
+  const [pageSize, setPageSize] = useState<PageSize>(DEFAULT_PAGE_SIZE);
 
   const [isLoading, setIsLoading] = useState(false);
   const [activePeople, setActivePeople] = useState<PaginatedPeopleResponse>({
     items: [],
     page: 1,
-    pageSize: PAGE_SIZE,
+    pageSize: DEFAULT_PAGE_SIZE,
     total: 0,
     totalPages: 1,
   });
   const [deletedPeople, setDeletedPeople] = useState<PaginatedPeopleResponse>({
     items: [],
     page: 1,
-    pageSize: PAGE_SIZE,
+    pageSize: DEFAULT_PAGE_SIZE,
     total: 0,
     totalPages: 1,
   });
@@ -218,7 +197,7 @@ export default function OrganizationPeoplePage() {
           const response = await peopleClient.listPeople({
             organizationId,
             page: activePage,
-            pageSize: PAGE_SIZE,
+            pageSize,
             search,
           });
 
@@ -229,7 +208,7 @@ export default function OrganizationPeoplePage() {
           const response = await peopleClient.listPeople({
             organizationId,
             page: deletedPage,
-            pageSize: PAGE_SIZE,
+            pageSize,
             search,
             deleted: true,
           });
@@ -245,7 +224,7 @@ export default function OrganizationPeoplePage() {
         setIsLoading(false);
       }
     },
-    [organizationId, activePage, deletedPage, search, t],
+    [organizationId, activePage, deletedPage, pageSize, search, t],
   );
 
   const loadPersonEvents = useCallback(
@@ -601,6 +580,47 @@ export default function OrganizationPeoplePage() {
     await loadPeople('deleted');
   }, [canManage, confirm, selectedActiveIds, organizationId, loadPeople, t]);
 
+  // Deletes every active person matching the current search, across all pages. The server
+  // re-checks the count inside a transaction, so the number typed here is the number removed.
+  const handleDeleteAll = useCallback(async () => {
+    const total = activePeople.total;
+    if (!canManage || total === 0) return;
+
+    const term = search.trim();
+    const count = total.toLocaleString(locale);
+    const accepted = await confirm.confirm({
+      title: t('nav.shell.listDeleteAllTitle', { count }),
+      description: term
+        ? t('nav.shell.listDeleteAllDescriptionFiltered', { count, search: term })
+        : t('nav.shell.listDeleteAllDescription', { count }),
+      confirmLabel: t('nav.shell.listDeleteAllConfirm'),
+      variant: 'destructive',
+      requireText: String(total),
+    });
+    if (!accepted) return;
+
+    const response = await peopleClient.deleteAllPeople({
+      organizationId,
+      search: term || undefined,
+      expectedCount: total,
+    });
+    if (!response.success) {
+      const actual = response.error.meta?.actual;
+      toast.error(
+        response.error.code === 'BULK_DELETE_COUNT_MISMATCH' && typeof actual === 'number'
+          ? t('nav.shell.listDeleteAllChanged', { expected: count, actual: actual.toLocaleString(locale) })
+          : t('nav.shell.listDeleteAllError'),
+      );
+      await loadPeople('active');
+      return;
+    }
+
+    toast.success(t('nav.shell.listDeleteAllSuccess', { count: response.data.deleted.toLocaleString(locale) }));
+    setActivePage(1);
+    await loadPeople('active');
+    await loadPeople('deleted');
+  }, [activePeople.total, canManage, confirm, loadPeople, locale, organizationId, search, t]);
+
   const handleBulkHardDelete = useCallback(async () => {
     if (!canManage || selectedDeletedIds.size === 0) return;
 
@@ -847,80 +867,101 @@ export default function OrganizationPeoplePage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="bg-primary/10 flex h-10 w-10 items-center justify-center rounded-lg">
-            <Users className="text-primary h-5 w-5" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">{t('pages.organizationPeople.title')}</h1>
-            <p className="text-muted-foreground text-sm">
-              {t('pages.organizationPeople.subtitlePrefix')}{' '}
-              {activeOrganization?.name ?? t('pages.organizationPeople.subtitleFallback')}
-            </p>
-          </div>
+      <PageHeader
+        icon={Users}
+        title={t('pages.organizationPeople.title')}
+        description={`${t('pages.organizationPeople.subtitlePrefix')} ${
+          activeOrganization?.name ?? t('pages.organizationPeople.subtitleFallback')
+        }`}
+        actions={
+          <>
+            {organizations.length > 1 && (
+              <Select value={organizationId} onValueChange={handleOrganizationChange}>
+                <SelectTrigger className="w-full sm:w-56" aria-label={t('pages.organizationPeople.selectOrganization')}>
+                  <SelectValue placeholder={t('pages.organizationPeople.selectOrganization')} />
+                </SelectTrigger>
+                <SelectContent>
+                  {organizations.map((organization) => (
+                    <SelectItem key={organization.id} value={organization.id}>
+                      {organization.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+
+            {canManage && (
+              <>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  title={t('pages.organizationPeople.peopleSettingsHint')}
+                  aria-label={t('pages.organizationPeople.peopleSettingsHint')}
+                  onClick={() => setSettingsOpen(true)}
+                >
+                  <Settings className="h-4 w-4" />
+                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline">
+                      <FileSpreadsheet className="h-4 w-4" />
+                      {t('pages.organizationPeople.peopleSpreadsheetMenu')}
+                      <ChevronDown className="h-3.5 w-3.5 opacity-60" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => setImportOpen(true)}>
+                      <FileUp className="h-4 w-4" />
+                      {t('pages.organizationPeople.importSpreadsheet')}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleExport}>
+                      <FileSpreadsheet className="h-4 w-4" />
+                      {t('pages.organizationPeople.exportSpreadsheet')}
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleDownloadTemplate}>
+                      <FileDown className="h-4 w-4" />
+                      {t('pages.organizationPeople.downloadTemplate')}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <Button
+                  onClick={() => {
+                    resetForm();
+                    setCreateOpen(true);
+                  }}
+                >
+                  <UserPlus className="h-4 w-4" />
+                  {t('pages.organizationPeople.newPerson')}
+                </Button>
+              </>
+            )}
+          </>
+        }
+      />
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="relative w-full max-w-md">
+          <Search className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
+          <Input
+            value={search}
+            onChange={(event) => {
+              setSearch(event.target.value);
+              setActivePage(1);
+              setDeletedPage(1);
+            }}
+            placeholder={t('pages.organizationPeople.searchPlaceholder')}
+            aria-label={t('pages.organizationPeople.searchPlaceholder')}
+            className="pl-9"
+          />
         </div>
-
-        <div className="flex items-center gap-2">
-          {canManage && (
-            <>
-              <Button variant="outline" size="icon" title="Configurações" onClick={() => setSettingsOpen(true)}>
-                <Settings className="h-4 w-4" />
-              </Button>
-              <Button variant="outline" onClick={handleDownloadTemplate}>
-                <FileDown className="mr-2 h-4 w-4" />
-                {t('pages.organizationPeople.downloadTemplate')}
-              </Button>
-              <Button variant="outline" onClick={handleExport}>
-                <FileSpreadsheet className="mr-2 h-4 w-4" />
-                {t('pages.organizationPeople.exportSpreadsheet')}
-              </Button>
-              <Button variant="outline" onClick={() => setImportOpen(true)}>
-                <FileUp className="mr-2 h-4 w-4" />
-                {t('pages.organizationPeople.importSpreadsheet')}
-              </Button>
-            </>
-          )}
-
-          <Select value={organizationId} onValueChange={handleOrganizationChange}>
-            <SelectTrigger className="w-64">
-              <SelectValue placeholder={t('pages.organizationPeople.selectOrganization')} />
-            </SelectTrigger>
-            <SelectContent>
-              {organizations.map((organization) => (
-                <SelectItem key={organization.id} value={organization.id}>
-                  {organization.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          {canManage && (
-            <Button
-              onClick={() => {
-                resetForm();
-                setCreateOpen(true);
-              }}
-            >
-              <UserPlus className="mr-2 h-4 w-4" />
-              {t('pages.organizationPeople.newPerson')}
-            </Button>
-          )}
-        </div>
-      </div>
-
-      <div className="relative max-w-md">
-        <Search className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
-        <Input
-          value={search}
-          onChange={(event) => {
-            setSearch(event.target.value);
-            setActivePage(1);
-            setDeletedPage(1);
-          }}
-          placeholder={t('pages.organizationPeople.searchPlaceholder')}
-          className="pl-9"
-        />
+        {canManage && tab === 'active' && activePeople.total > 0 && (
+          <Button variant="destructive-ghost" size="sm" onClick={() => void handleDeleteAll()} disabled={isLoading}>
+            <Trash2 className="h-4 w-4" />
+            {t('nav.shell.listDeleteAll')}
+            <span className="tabular-nums">({activePeople.total.toLocaleString(locale)})</span>
+          </Button>
+        )}
       </div>
 
       <Tabs
@@ -947,56 +988,71 @@ export default function OrganizationPeoplePage() {
             </div>
           )}
 
-          <div className="rounded-lg border">
+          <div className="bg-card overflow-hidden rounded-xl border">
             <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-10">
-                    <input
-                      type="checkbox"
+              <TableHeader className="bg-muted/40">
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="w-10 pl-4">
+                    <Checkbox
                       checked={allActiveSelected}
-                      onChange={() => {
+                      onCheckedChange={() => {
                         if (allActiveSelected) {
                           setSelectedActiveIds(new Set());
                         } else {
                           setSelectedActiveIds(new Set(activePeople.items.map((person) => person.id)));
                         }
                       }}
-                      className="h-4 w-4"
+                      aria-label={t('pages.eventDetail.selectAllOnPage')}
                     />
                   </TableHead>
                   <TableHead>{t('pages.organizationPeople.thName')}</TableHead>
-                  <TableHead>{t('pages.organizationPeople.thEmail')}</TableHead>
-                  <TableHead>{t('pages.organizationPeople.thDocument')}</TableHead>
-                  <TableHead>{t('pages.organizationPeople.thPhone')}</TableHead>
-                  <TableHead>{t('pages.organizationPeople.thEvents')}</TableHead>
-                  <TableHead>{t('pages.organizationPeople.thFace')}</TableHead>
-                  <TableHead>{t('pages.organizationPeople.thCode')}</TableHead>
-                  <TableHead>{t('pages.organizationPeople.thQR')}</TableHead>
-                  <TableHead>{t('pages.organizationPeople.thActions')}</TableHead>
+                  <TableHead className="hidden lg:table-cell">
+                    {t('pages.organizationPeople.peopleContactColumn')}
+                  </TableHead>
+                  <TableHead className="hidden text-center sm:table-cell">
+                    {t('pages.organizationPeople.thEvents')}
+                  </TableHead>
+                  <TableHead className="hidden md:table-cell">
+                    {t('pages.organizationPeople.peopleCredentialsColumn')}
+                  </TableHead>
+                  <TableHead className="w-12">
+                    <span className="sr-only">{t('pages.organizationPeople.thActions')}</span>
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading ? (
-                  <TableRow>
-                    <TableCell colSpan={8} className="text-muted-foreground py-8 text-center">
-                      {t('pages.organizationPeople.loading')}
-                    </TableCell>
-                  </TableRow>
+                  Array.from({ length: 6 }).map((_, index) => (
+                    <TableRow key={index}>
+                      <TableCell colSpan={6} className="py-3 pl-4">
+                        <div className="flex items-center gap-3">
+                          <Skeleton className="size-8 rounded-full" />
+                          <div className="space-y-1.5">
+                            <Skeleton className="h-3.5 w-40" />
+                            <Skeleton className="h-3 w-56" />
+                          </div>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
                 ) : activePeople.items.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={8} className="text-muted-foreground py-8 text-center">
-                      {t('pages.organizationPeople.noPeopleFound')}
+                  <TableRow className="hover:bg-transparent">
+                    <TableCell colSpan={6} className="py-14 text-center">
+                      <div className="flex flex-col items-center gap-3">
+                        <span className="bg-primary/10 text-primary flex size-11 items-center justify-center rounded-2xl">
+                          <Users className="size-5" />
+                        </span>
+                        <p className="text-muted-foreground text-sm">{t('pages.organizationPeople.noPeopleFound')}</p>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ) : (
                   activePeople.items.map((person) => (
-                    <TableRow key={person.id}>
-                      <TableCell>
-                        <input
-                          type="checkbox"
+                    <TableRow key={person.id} data-state={selectedActiveIds.has(person.id) ? 'selected' : undefined}>
+                      <TableCell className="pl-4">
+                        <Checkbox
                           checked={selectedActiveIds.has(person.id)}
-                          onChange={() => {
+                          onCheckedChange={() => {
                             setSelectedActiveIds((prev) => {
                               const next = new Set(prev);
                               if (next.has(person.id)) next.delete(person.id);
@@ -1004,93 +1060,142 @@ export default function OrganizationPeoplePage() {
                               return next;
                             });
                           }}
-                          className="h-4 w-4"
+                          aria-label={person.name}
                         />
                       </TableCell>
-                      <TableCell className="font-medium">{person.name}</TableCell>
-                      <TableCell>{person.email}</TableCell>
-                      <TableCell>{person.document ?? '—'}</TableCell>
-                      <TableCell>{person.phone ?? '—'}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{person.eventsCount}</Badge>
+                      <TableCell className="max-w-[300px] py-2.5">
+                        <div className="flex items-center gap-3">
+                          <span
+                            className={`relative flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
+                              person.faceId
+                                ? 'bg-primary/10 text-violet-700 dark:text-violet-300'
+                                : 'bg-muted text-muted-foreground'
+                            }`}
+                            title={
+                              person.faceId
+                                ? t('pages.organizationPeople.peopleFaceRegistered')
+                                : t('pages.organizationPeople.peopleFaceMissing')
+                            }
+                          >
+                            {getNameInitials(person.name)}
+                            {person.faceId && (
+                              <span className="bg-card absolute -right-0.5 -bottom-0.5 flex size-3.5 items-center justify-center rounded-full">
+                                <ScanFace className="text-primary size-3" aria-hidden />
+                              </span>
+                            )}
+                            <span className="sr-only">
+                              {person.faceId
+                                ? t('pages.organizationPeople.peopleFaceRegistered')
+                                : t('pages.organizationPeople.peopleFaceMissing')}
+                            </span>
+                          </span>
+                          <div className="min-w-0">
+                            {canManage ? (
+                              <button
+                                type="button"
+                                onClick={() => openEditModal(person)}
+                                className="hover:text-primary focus-visible:ring-ring/50 block max-w-full truncate rounded-sm text-left font-medium transition-colors outline-none focus-visible:ring-2"
+                              >
+                                {person.name}
+                              </button>
+                            ) : (
+                              <p className="truncate font-medium">{person.name}</p>
+                            )}
+                            <p className="text-muted-foreground truncate text-xs">{person.email}</p>
+                          </div>
+                        </div>
                       </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant="outline"
-                          className={
-                            person.faceId ? 'bg-emerald-500/10 text-emerald-600' : 'bg-gray-400/10 text-gray-500'
-                          }
-                        >
-                          {person.faceId
-                            ? t('pages.organizationPeople.withImage')
-                            : t('pages.organizationPeople.noImage')}
-                        </Badge>
+                      <TableCell className="hidden text-sm lg:table-cell">
+                        {person.document || person.phone ? (
+                          <>
+                            {person.document && <p className="truncate">{person.document}</p>}
+                            {person.phone && <p className="text-muted-foreground truncate text-xs">{person.phone}</p>}
+                          </>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
                       </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
+                      <TableCell className="hidden text-center sm:table-cell">
+                        <span className="bg-muted inline-flex min-w-7 justify-center rounded-full px-2 py-0.5 text-xs font-medium tabular-nums">
+                          {person.eventsCount}
+                        </span>
+                      </TableCell>
+                      <TableCell className="hidden font-mono text-xs md:table-cell">
+                        <div className="flex items-center gap-1" title={t('pages.organizationPeople.thCode')}>
                           {person.accessCode ?? '—'}
                           {peopleSettings.accessCodeSource !== 'NONE' && person.accessCodeProvenance === 'RANDOM' && (
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+                                <AlertTriangle
+                                  className="h-3.5 w-3.5 text-amber-500"
+                                  aria-label={t('pages.organizationPeople.peopleRandomCodeHint')}
+                                />
                               </TooltipTrigger>
-                              <TooltipContent>
-                                Código gerado pelo sistema: o campo configurado para código de acesso está vazio
-                                nesta pessoa.
-                              </TooltipContent>
+                              <TooltipContent>{t('pages.organizationPeople.peopleRandomCodeHint')}</TooltipContent>
                             </Tooltip>
                           )}
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
+                        <div
+                          className="text-muted-foreground flex items-center gap-1"
+                          title={t('pages.organizationPeople.thQR')}
+                        >
                           {person.qrCodeValue ?? '—'}
                           {peopleSettings.qrCodeSource !== 'NONE' && person.qrCodeProvenance === 'RANDOM' && (
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+                                <AlertTriangle
+                                  className="h-3.5 w-3.5 text-amber-500"
+                                  aria-label={t('pages.organizationPeople.peopleRandomQrHint')}
+                                />
                               </TooltipTrigger>
-                              <TooltipContent>
-                                QR-code gerado pelo sistema: o campo configurado para QR-code está vazio nesta
-                                pessoa.
-                              </TooltipContent>
+                              <TooltipContent>{t('pages.organizationPeople.peopleRandomQrHint')}</TooltipContent>
                             </Tooltip>
                           )}
                         </div>
                       </TableCell>
-                      <TableCell className="flex gap-2">
+                      <TableCell className="pr-3">
                         {canManage && (
-                          <>
-                            <Button variant="outline" size="sm" onClick={() => openEditModal(person)}>
-                              <Edit className="mr-1 h-3.5 w-3.5" />
-                              {t('pages.organizationPeople.edit')}
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                setManageEventsPerson(person);
-                                loadPersonEvents(person.id);
-                              }}
-                            >
-                              {t('pages.organizationPeople.events')}
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                setManageFacePerson(person);
-                                setFaceImageUrl('');
-                                setFaceImageDataUrl('');
-                              }}
-                            >
-                              <ScanFace className="mr-1 h-3.5 w-3.5" />
-                              {t('pages.organizationPeople.face')}
-                            </Button>
-                            <Button variant="destructive" size="sm" onClick={() => handleSoftDelete(person)}>
-                              {t('pages.organizationPeople.delete')}
-                            </Button>
-                          </>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                aria-label={`${t('pages.organizationPeople.peoplePersonActions')}: ${person.name}`}
+                              >
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-48">
+                              <DropdownMenuItem onClick={() => openEditModal(person)}>
+                                <Edit className="h-4 w-4" />
+                                {t('pages.organizationPeople.edit')}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  setManageEventsPerson(person);
+                                  loadPersonEvents(person.id);
+                                }}
+                              >
+                                <Calendar className="h-4 w-4" />
+                                {t('pages.organizationPeople.peopleManageEvents')}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  setManageFacePerson(person);
+                                  setFaceImageUrl('');
+                                  setFaceImageDataUrl('');
+                                }}
+                              >
+                                <ScanFace className="h-4 w-4" />
+                                {t('pages.organizationPeople.peopleRegisterFace')}
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem variant="destructive" onClick={() => handleSoftDelete(person)}>
+                                <Trash2 className="h-4 w-4" />
+                                {t('pages.organizationPeople.delete')}
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         )}
                       </TableCell>
                     </TableRow>
@@ -1100,11 +1205,18 @@ export default function OrganizationPeoplePage() {
             </Table>
           </div>
 
-          <Pagination
+          <ListPagination
             page={activePeople.page}
             totalPages={activePeople.totalPages}
             total={activePeople.total}
+            pageSize={pageSize}
             onPageChange={setActivePage}
+            onPageSizeChange={(size) => {
+              setPageSize(size);
+              setActivePage(1);
+              setDeletedPage(1);
+            }}
+            disabled={isLoading}
           />
         </TabsContent>
 
@@ -1121,7 +1233,7 @@ export default function OrganizationPeoplePage() {
             </div>
           )}
 
-          <div className="rounded-lg border">
+          <div className="bg-card overflow-hidden rounded-xl border">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -1187,7 +1299,8 @@ export default function OrganizationPeoplePage() {
                       </TableCell>
                       <TableCell>
                         {canManage && (
-                          <Button variant="destructive" size="sm" onClick={() => handleHardDelete(person)}>
+                          <Button variant="destructive-ghost" size="sm" onClick={() => handleHardDelete(person)}>
+                            <Trash2 className="h-3.5 w-3.5" />
                             {t('pages.organizationPeople.hardDelete')}
                           </Button>
                         )}
@@ -1199,11 +1312,18 @@ export default function OrganizationPeoplePage() {
             </Table>
           </div>
 
-          <Pagination
+          <ListPagination
             page={deletedPeople.page}
             totalPages={deletedPeople.totalPages}
             total={deletedPeople.total}
+            pageSize={pageSize}
             onPageChange={setDeletedPage}
+            onPageSizeChange={(size) => {
+              setPageSize(size);
+              setActivePage(1);
+              setDeletedPage(1);
+            }}
+            disabled={isLoading}
           />
         </TabsContent>
       </Tabs>
@@ -1609,11 +1729,7 @@ export default function OrganizationPeoplePage() {
         </DialogContent>
       </Dialog>
 
-      <ImportPeopleDialog
-        open={importOpen}
-        onOpenChange={setImportOpen}
-        organizationId={organizationId}
-      />
+      <ImportPeopleDialog open={importOpen} onOpenChange={setImportOpen} organizationId={organizationId} />
 
       <PeopleSettingsDialog
         open={settingsOpen}

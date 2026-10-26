@@ -14,6 +14,7 @@ import {
   OrganizationsTable,
   ToggleStatusModal,
 } from '@/components/admin/organizations';
+import { PageHeader } from '@/components/shared/page-header';
 import { Button } from '@/components/ui/button';
 import {
   AdminOrganizationsProvider,
@@ -71,21 +72,17 @@ function AdminOrganizationsPageContent() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="bg-primary/10 flex h-10 w-10 items-center justify-center rounded-lg">
-            <Building2 className="text-primary h-5 w-5" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">{t('organizations.list.title')}</h1>
-            <p className="text-muted-foreground text-sm">{t('organizations.list.description')}</p>
-          </div>
-        </div>
-        <Button onClick={() => setCreateModalOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          {t('organizations.list.newOrg')}
-        </Button>
-      </div>
+      <PageHeader
+        icon={Building2}
+        title={t('organizations.list.title')}
+        description={t('organizations.list.description')}
+        actions={
+          <Button onClick={() => setCreateModalOpen(true)}>
+            <Plus className="h-4 w-4" />
+            {t('organizations.list.newOrg')}
+          </Button>
+        }
+      />
 
       <OrganizationFilters />
 

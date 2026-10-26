@@ -12,13 +12,13 @@ import {
 import { supportedLocales, useI18n } from '@/i18n';
 
 export function LanguageSwitcher() {
-  const { locale, setLocale } = useI18n();
+  const { locale, setLocale, t } = useI18n();
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon">
-          <Languages className="h-5 w-5" />
+        <Button variant="ghost" size="icon" aria-label={t('nav.shell.language')} title={t('nav.shell.language')}>
+          <Languages className="h-[18px] w-[18px]" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">

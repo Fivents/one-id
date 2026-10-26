@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 
-import { CheckCircle, Edit, Eye, MoreHorizontal, Play, Send, Trash2, XCircle } from 'lucide-react';
+import { CalendarPlus, CheckCircle, Edit, Eye, MoreHorizontal, Play, Plus, Send, Trash2, XCircle } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -16,6 +16,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { EventSummaryResponse } from '@/core/communication/responses/event';
 import { useI18n } from '@/i18n';
+import { formatDateTimeRange } from '@/lib/utils';
 
 import { EventStatusBadge } from './event-status-badge';
 
@@ -29,6 +30,8 @@ interface EventsTableProps {
   onActivate: (event: EventSummaryResponse) => void;
   onComplete: (event: EventSummaryResponse) => void;
   onCancel: (event: EventSummaryResponse) => void;
+  /** When provided, the empty state offers to create the first event. */
+  onCreate?: () => void;
 }
 
 function canPublish(status: EventSummaryResponse['status']) {
@@ -57,58 +60,83 @@ export function EventsTable({
   onActivate,
   onComplete,
   onCancel,
+  onCreate,
 }: EventsTableProps) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   if (isLoading) {
     return <EventsTableSkeleton />;
   }
 
   if (events.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-16">
-        <p className="text-muted-foreground text-sm">{t('pages.organizationEvents.noEventsTitle')}</p>
-        <p className="text-muted-foreground text-sm">{t('pages.organizationEvents.noEventsDescription')}</p>
+      <div className="bg-card flex flex-col items-center justify-center rounded-xl border border-dashed px-6 py-16 text-center">
+        <div className="bg-primary/10 text-primary mb-4 flex size-12 items-center justify-center rounded-2xl">
+          <CalendarPlus className="size-6" />
+        </div>
+        <p className="font-medium">{t('pages.organizationEvents.noEventsTitle')}</p>
+        <p className="text-muted-foreground mt-1 max-w-sm text-sm">
+          {t('pages.organizationEvents.noEventsDescription')}
+        </p>
+        {onCreate && (
+          <Button className="mt-5" onClick={onCreate}>
+            <Plus className="size-4" />
+            {t('pages.organizationEvents.createEvent')}
+          </Button>
+        )}
       </div>
     );
   }
 
   return (
-    <div className="rounded-lg border">
+    <div className="bg-card overflow-hidden rounded-xl border">
       <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>{t('pages.eventsTable.columnName')}</TableHead>
-            <TableHead>{t('pages.eventsTable.columnSlug')}</TableHead>
+        <TableHeader className="bg-muted/40">
+          <TableRow className="hover:bg-transparent">
+            <TableHead className="pl-4">{t('pages.eventsTable.columnName')}</TableHead>
             <TableHead>{t('pages.eventsTable.columnStatus')}</TableHead>
-            <TableHead>{t('pages.eventsTable.columnStartDate')}</TableHead>
-            <TableHead>{t('pages.eventsTable.columnEndDate')}</TableHead>
-            <TableHead>{t('pages.eventsTable.columnParticipants')}</TableHead>
-            <TableHead>{t('pages.eventsTable.columnCheckins')}</TableHead>
-            <TableHead>{t('pages.eventsTable.columnTotems')}</TableHead>
-            <TableHead>{t('pages.eventsTable.columnCreatedAt')}</TableHead>
-            <TableHead className="w-17.5">{t('pages.eventsTable.columnActions')}</TableHead>
+            <TableHead>{t('pages.eventsTable.columnPeriod')}</TableHead>
+            <TableHead className="text-right">{t('pages.eventsTable.columnParticipants')}</TableHead>
+            <TableHead className="text-right">{t('pages.eventsTable.columnCheckins')}</TableHead>
+            <TableHead className="text-right">{t('pages.eventsTable.columnTotems')}</TableHead>
+            <TableHead className="hidden xl:table-cell">{t('pages.eventsTable.columnCreatedAt')}</TableHead>
+            <TableHead className="w-12">
+              <span className="sr-only">{t('pages.eventsTable.columnActions')}</span>
+            </TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {events.map((event) => (
-            <TableRow key={event.id}>
-              <TableCell className="font-medium">{event.name}</TableCell>
-              <TableCell>
-                <code className="bg-muted rounded px-1.5 py-0.5 font-mono text-xs">{event.slug}</code>
+            <TableRow key={event.id} className="group">
+              <TableCell className="max-w-[320px] py-3 pl-4">
+                <Link
+                  href={`/organizations/${organizationId}/events/${event.id}`}
+                  className="group-hover:text-primary focus-visible:ring-ring/50 block truncate rounded-sm font-medium transition-colors outline-none focus-visible:ring-2"
+                >
+                  {event.name}
+                </Link>
+                <span className="text-muted-foreground block truncate font-mono text-xs">{event.slug}</span>
               </TableCell>
               <TableCell>
                 <EventStatusBadge status={event.status} />
               </TableCell>
-              <TableCell className="text-muted-foreground">{new Date(event.startsAt).toLocaleString()}</TableCell>
-              <TableCell className="text-muted-foreground">{new Date(event.endsAt).toLocaleString()}</TableCell>
-              <TableCell className="text-muted-foreground">{event.participantsCount}</TableCell>
-              <TableCell className="text-muted-foreground">{event.checkInsCount}</TableCell>
-              <TableCell className="text-muted-foreground">{event.totemsCount}</TableCell>
-              <TableCell className="text-muted-foreground">{new Date(event.createdAt).toLocaleDateString()}</TableCell>
+              <TableCell className="text-muted-foreground">
+                {formatDateTimeRange(event.startsAt, event.endsAt, locale)}
+              </TableCell>
+              <TableCell className="text-right">{event.participantsCount.toLocaleString(locale)}</TableCell>
+              <TableCell className="text-right">{event.checkInsCount.toLocaleString(locale)}</TableCell>
+              <TableCell className="text-muted-foreground text-right">{event.totemsCount}</TableCell>
+              <TableCell className="text-muted-foreground hidden xl:table-cell">
+                {new Date(event.createdAt).toLocaleDateString(locale)}
+              </TableCell>
               <TableCell>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      aria-label={`${t('nav.shell.moreActions')}: ${event.name}`}
+                    >
                       <MoreHorizontal className="h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
@@ -161,11 +189,11 @@ export function EventsTable({
 
 function EventsTableSkeleton() {
   return (
-    <div className="rounded-lg border">
+    <div className="bg-card overflow-hidden rounded-xl border">
       <Table>
         <TableHeader>
           <TableRow>
-            {Array.from({ length: 10 }).map((_, index) => (
+            {Array.from({ length: 8 }).map((_, index) => (
               <TableHead key={index}>
                 <Skeleton className="h-4 w-20" />
               </TableHead>
@@ -175,7 +203,7 @@ function EventsTableSkeleton() {
         <TableBody>
           {Array.from({ length: 5 }).map((_, index) => (
             <TableRow key={index}>
-              {Array.from({ length: 10 }).map((__, cell) => (
+              {Array.from({ length: 8 }).map((__, cell) => (
                 <TableCell key={cell}>
                   <Skeleton className="h-4 w-24" />
                 </TableCell>

@@ -7,6 +7,7 @@ import { Loader2, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Table } from '@/components/ui/table';
 import {
   type SymplaBreakdownRow,
   symplaClient,
@@ -86,40 +87,38 @@ function Breakdown({
     <div className="space-y-3">
       <p className="text-sm font-medium">{title}</p>
 
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-muted-foreground text-left text-xs">
-              <th className="pb-2 font-normal">&nbsp;</th>
-              <th className="pb-2 pr-4 text-right font-normal">{columnLabels.tickets}</th>
-              <th className="pb-2 pr-4 text-right font-normal">{columnLabels.checkedIn}</th>
-              <th className="pb-2 pr-4 text-right font-normal">{columnLabels.rate}</th>
-              <th className="pb-2 text-right font-normal">{columnLabels.revenue}</th>
+      <Table>
+        <thead>
+          <tr className="text-muted-foreground text-left text-xs">
+            <th className="pb-2 font-normal">&nbsp;</th>
+            <th className="pr-4 pb-2 text-right font-normal">{columnLabels.tickets}</th>
+            <th className="pr-4 pb-2 text-right font-normal">{columnLabels.checkedIn}</th>
+            <th className="pr-4 pb-2 text-right font-normal">{columnLabels.rate}</th>
+            <th className="pb-2 text-right font-normal">{columnLabels.revenue}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.label} className="border-t">
+              <td className="py-2 pr-4">
+                <div className="min-w-[8rem] space-y-1">
+                  <span className="font-medium">{row.label}</span>
+                  <RateMeter value={row.checkInRate} />
+                </div>
+              </td>
+              <td className="py-2 pr-4 text-right tabular-nums">
+                {formatCount(row.valid, locale)}
+                {row.cancelled > 0 && (
+                  <span className="text-muted-foreground"> (−{formatCount(row.cancelled, locale)})</span>
+                )}
+              </td>
+              <td className="py-2 pr-4 text-right tabular-nums">{formatCount(row.checkedIn, locale)}</td>
+              <td className="py-2 pr-4 text-right tabular-nums">{formatPercent(row.checkInRate, locale)}</td>
+              <td className="py-2 text-right tabular-nums">{formatMoney(row.revenue, locale)}</td>
             </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => (
-              <tr key={row.label} className="border-t">
-                <td className="py-2 pr-4">
-                  <div className="min-w-[8rem] space-y-1">
-                    <span className="font-medium">{row.label}</span>
-                    <RateMeter value={row.checkInRate} />
-                  </div>
-                </td>
-                <td className="py-2 pr-4 text-right tabular-nums">
-                  {formatCount(row.valid, locale)}
-                  {row.cancelled > 0 && (
-                    <span className="text-muted-foreground"> (−{formatCount(row.cancelled, locale)})</span>
-                  )}
-                </td>
-                <td className="py-2 pr-4 text-right tabular-nums">{formatCount(row.checkedIn, locale)}</td>
-                <td className="py-2 pr-4 text-right tabular-nums">{formatPercent(row.checkInRate, locale)}</td>
-                <td className="py-2 text-right tabular-nums">{formatMoney(row.revenue, locale)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+          ))}
+        </tbody>
+      </Table>
     </div>
   );
 }
@@ -176,11 +175,7 @@ export function SymplaMetricsCard({ eventId }: SymplaMetricsCardProps) {
             <CardDescription>{t('integrations.sympla.metrics.description')}</CardDescription>
           </div>
           <Button variant="outline" size="sm" onClick={reload} disabled={isLoading}>
-            {isLoading ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <RefreshCw className="mr-2 h-4 w-4" />
-            )}
+            {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
             {t('integrations.sympla.metrics.refresh')}
           </Button>
         </div>
@@ -245,36 +240,30 @@ export function SymplaMetricsCard({ eventId }: SymplaMetricsCardProps) {
               {metrics.byUtmSource.length === 0 ? (
                 <p className="text-muted-foreground text-sm">{t('integrations.sympla.metrics.empty')}</p>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="text-muted-foreground text-left text-xs">
-                        <th className="pb-2 pr-4 font-normal">{t('integrations.sympla.metrics.source')}</th>
-                        <th className="pb-2 pr-4 font-normal">{t('integrations.sympla.metrics.campaign')}</th>
-                        <th className="pb-2 pr-4 text-right font-normal">
-                          {t('integrations.sympla.metrics.orders')}
-                        </th>
-                        <th className="pb-2 pr-4 text-right font-normal">{columnLabels.tickets}</th>
-                        <th className="pb-2 pr-4 text-right font-normal">{columnLabels.rate}</th>
-                        <th className="pb-2 text-right font-normal">{columnLabels.revenue}</th>
+                <Table>
+                  <thead>
+                    <tr className="text-muted-foreground text-left text-xs">
+                      <th className="pr-4 pb-2 font-normal">{t('integrations.sympla.metrics.source')}</th>
+                      <th className="pr-4 pb-2 font-normal">{t('integrations.sympla.metrics.campaign')}</th>
+                      <th className="pr-4 pb-2 text-right font-normal">{t('integrations.sympla.metrics.orders')}</th>
+                      <th className="pr-4 pb-2 text-right font-normal">{columnLabels.tickets}</th>
+                      <th className="pr-4 pb-2 text-right font-normal">{columnLabels.rate}</th>
+                      <th className="pb-2 text-right font-normal">{columnLabels.revenue}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {metrics.byUtmSource.map((row) => (
+                      <tr key={`${row.source}:${row.campaign}`} className="border-t">
+                        <td className="py-2 pr-4 font-medium">{row.source}</td>
+                        <td className="text-muted-foreground py-2 pr-4">{row.campaign}</td>
+                        <td className="py-2 pr-4 text-right tabular-nums">{formatCount(row.orders, locale)}</td>
+                        <td className="py-2 pr-4 text-right tabular-nums">{formatCount(row.tickets, locale)}</td>
+                        <td className="py-2 pr-4 text-right tabular-nums">{formatPercent(row.checkInRate, locale)}</td>
+                        <td className="py-2 text-right tabular-nums">{formatMoney(row.revenue, locale)}</td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {metrics.byUtmSource.map((row) => (
-                        <tr key={`${row.source}:${row.campaign}`} className="border-t">
-                          <td className="py-2 pr-4 font-medium">{row.source}</td>
-                          <td className="text-muted-foreground py-2 pr-4">{row.campaign}</td>
-                          <td className="py-2 pr-4 text-right tabular-nums">{formatCount(row.orders, locale)}</td>
-                          <td className="py-2 pr-4 text-right tabular-nums">{formatCount(row.tickets, locale)}</td>
-                          <td className="py-2 pr-4 text-right tabular-nums">
-                            {formatPercent(row.checkInRate, locale)}
-                          </td>
-                          <td className="py-2 text-right tabular-nums">{formatMoney(row.revenue, locale)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                    ))}
+                  </tbody>
+                </Table>
               )}
             </div>
           </>

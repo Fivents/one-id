@@ -52,9 +52,14 @@
 }
 
 :root {
-  --radius: 0.5rem;
+  --radius: 0.625rem;
 
-  --background: oklch(1 0 0);
+  /* Motion */
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+  --duration-fast: 150ms;
+  --duration-base: 220ms;
+
+  --background: oklch(0.985 0.004 286);
   --foreground: oklch(0.141 0.048 270);
 
   --card: oklch(1 0 0);
@@ -71,16 +76,16 @@
   --secondary-foreground: oklch(0.21 0.055 270);
 
   --muted: oklch(0.955 0.016 286);
-  --muted-foreground: oklch(0.52 0.04 270);
+  --muted-foreground: oklch(0.5 0.035 270);
 
   /* Accent em violeta mais suave para hover/highlight */
   --accent: oklch(0.93 0.04 300);
   --accent-foreground: oklch(0.3 0.1 300);
 
-  --destructive: oklch(0.577 0.245 27.325);
+  --destructive: oklch(0.53 0.22 27);
 
-  --border: oklch(0.9 0.02 286);
-  --input: oklch(0.9 0.02 286);
+  --border: oklch(0.915 0.014 286);
+  --input: oklch(0.89 0.016 286);
   --ring: oklch(0.558 0.228 300);
 
   /* Semânticas */
@@ -95,13 +100,13 @@
   --chart-5: oklch(0.65 0.22 22); /* vermelho (destructive) */
 
   /* Sidebar levemente distinta do background */
-  --sidebar: oklch(0.97 0.012 286);
+  --sidebar: oklch(1 0 0);
   --sidebar-foreground: oklch(0.141 0.048 270);
   --sidebar-primary: oklch(0.558 0.228 300);
   --sidebar-primary-foreground: oklch(0.98 0.004 286);
-  --sidebar-accent: oklch(0.91 0.04 300);
-  --sidebar-accent-foreground: oklch(0.3 0.1 300);
-  --sidebar-border: oklch(0.88 0.02 286);
+  --sidebar-accent: oklch(0.955 0.03 300);
+  --sidebar-accent-foreground: oklch(0.36 0.14 300);
+  --sidebar-border: oklch(0.915 0.014 286);
   --sidebar-ring: oklch(0.558 0.228 300);
 }
 
@@ -123,7 +128,7 @@
   --secondary-foreground: oklch(0.97 0.004 286);
 
   --muted: oklch(0.22 0.048 270);
-  --muted-foreground: oklch(0.64 0.04 270);
+  --muted-foreground: oklch(0.7 0.035 270);
 
   --accent: oklch(0.28 0.08 300);
   --accent-foreground: oklch(0.87 0.06 300);
@@ -146,7 +151,7 @@
   --chart-5: oklch(0.65 0.22 22);
 
   /* Sidebar dark — um tom acima do background */
-  --sidebar: oklch(0.18 0.055 270);
+  --sidebar: oklch(0.16 0.05 270);
   --sidebar-foreground: oklch(0.97 0.004 286);
   --sidebar-primary: oklch(0.62 0.228 300);
   --sidebar-primary-foreground: oklch(0.97 0.004 286);
@@ -166,6 +171,55 @@
   button:not(:disabled),
   [role='button']:not(:disabled) {
     cursor: pointer;
+  }
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+  ::selection {
+    background: color-mix(in oklch, var(--primary) 22%, transparent);
+  }
+  .tabular-nums,
+  td {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* Sonner's rich colors put mid-tone text on pale tints (≈3–4.3:1). Darker text keeps the
+   light-theme toasts at WCAG AA; the extra :root raises specificity over the library's rule. */
+:root [data-sonner-toaster][data-sonner-theme='light'] {
+  --success-text: hsl(140 100% 22%);
+  --info-text: hsl(210 92% 35%);
+  --warning-text: hsl(31 92% 28%);
+  --error-text: hsl(360 100% 38%);
+}
+
+/* Entrance used by the SaaS shell on every route change. Transform+opacity only. */
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@utility animate-page-in {
+  animation: page-in var(--duration-base) var(--ease-out-soft) both;
+}
+
+/* Users who ask for less motion get static UI: ambient loops stop, transitions become instant. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
 

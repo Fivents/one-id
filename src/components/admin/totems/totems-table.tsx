@@ -144,11 +144,13 @@ function TotemRow({
 
   // Status badge based on session (online/offline) or manual maintenance
   const isOnline = totem.hasActiveSession;
-  const statusVariant = {
-    ACTIVE: isOnline ? 'bg-emerald-500 text-white' : 'bg-gray-400 text-white',
-    INACTIVE: 'bg-gray-400 text-white',
-    MAINTENANCE: 'bg-yellow-500 text-white',
-  }[totem.status];
+  const statusVariant = (
+    {
+      ACTIVE: isOnline ? 'success' : 'neutral',
+      INACTIVE: 'neutral',
+      MAINTENANCE: 'warning',
+    } as const
+  )[totem.status];
 
   const statusLabel = {
     ACTIVE: isOnline ? t('adminTotems.columns.online') : t('adminTotems.columns.offline'),
@@ -159,7 +161,7 @@ function TotemRow({
   return (
     <TableRow>
       <TableCell>
-        <Checkbox checked={selected} onCheckedChange={onToggleSelection} />
+        <Checkbox checked={selected} onCheckedChange={onToggleSelection} aria-label={totem.name} />
       </TableCell>
       <TableCell className="font-medium">{totem.name}</TableCell>
       <TableCell>
@@ -170,7 +172,10 @@ function TotemRow({
         )}
       </TableCell>
       <TableCell>
-        <Badge variant="outline" className={statusVariant}>
+        <Badge variant={statusVariant}>
+          {totem.status === 'ACTIVE' && isOnline && (
+            <span aria-hidden className="size-1.5 animate-pulse rounded-full bg-current" />
+          )}
           {statusLabel}
         </Badge>
       </TableCell>
@@ -190,7 +195,12 @@ function TotemRow({
       <TableCell>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              aria-label={`${t('nav.shell.moreActions')}: ${totem.name}`}
+            >
               <MoreHorizontal className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>

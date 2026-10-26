@@ -130,7 +130,7 @@ export function LoginForm() {
     emailForm.formState.isSubmitting || passwordForm.formState.isSubmitting || totemForm.formState.isSubmitting;
 
   return (
-    <Card className="relative w-full max-w-md">
+    <Card className="relative w-full max-w-md shadow-[0_8px_30px_-12px_oklch(0.2_0.05_270/0.18)]">
       <div className="absolute top-4 right-4">
         <LanguageSwitcher />
         <ThemeToggle />

@@ -73,9 +73,9 @@ export function buildCheckInWhere(eventId: string, filters: ParsedCheckInFilters
     eventParticipant: {
       eventId,
       deletedAt: null,
-      person: {
-        deletedAt: null,
-      },
+      // A to-one relation filter excludes rows whose relation is null, so `person: { deletedAt: null }`
+      // alone silently dropped every Sympla ticket that has no Person yet. Same fix as the totem lookup.
+      OR: [{ personId: null }, { person: { deletedAt: null } }],
     },
     ...(filters.search
       ? {
@@ -94,6 +94,9 @@ export function buildCheckInWhere(eventId: string, filters: ParsedCheckInFilters
                 },
               },
             },
+            // Personless tickets are only findable through their own snapshot.
+            { eventParticipant: { attendeeFullName: { contains: filters.search, mode: 'insensitive' as const } } },
+            { eventParticipant: { attendeeEmail: { contains: filters.search, mode: 'insensitive' as const } } },
           ],
         }
       : {}),

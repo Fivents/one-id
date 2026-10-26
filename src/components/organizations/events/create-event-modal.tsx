@@ -174,6 +174,29 @@ export function CreateEventModal({ open, onOpenChange, organizationId }: CreateE
             />
           </div>
 
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="event-start">{t('common.labels.startDate')} *</Label>
+              <Input
+                id="event-start"
+                type="datetime-local"
+                value={startsAt}
+                onChange={(e) => setStartsAt(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="event-end">{t('common.labels.endDate')} *</Label>
+              <Input
+                id="event-end"
+                type="datetime-local"
+                value={endsAt}
+                onChange={(e) => setEndsAt(e.target.value)}
+                required
+              />
+            </div>
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="event-description">{t('common.labels.description')}</Label>
             <Textarea
@@ -198,29 +221,6 @@ export function CreateEventModal({ open, onOpenChange, organizationId }: CreateE
             onAddressChange={setAddress}
             onAddressDetailsChange={setAddressDetails}
           />
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="event-start">{t('common.labels.startDate')} *</Label>
-              <Input
-                id="event-start"
-                type="datetime-local"
-                value={startsAt}
-                onChange={(e) => setStartsAt(e.target.value)}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="event-end">{t('common.labels.endDate')} *</Label>
-              <Input
-                id="event-end"
-                type="datetime-local"
-                value={endsAt}
-                onChange={(e) => setEndsAt(e.target.value)}
-                required
-              />
-            </div>
-          </div>
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

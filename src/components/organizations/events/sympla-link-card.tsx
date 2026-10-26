@@ -159,9 +159,7 @@ export function SymplaLinkCard({ eventId, organizationId, canManage }: SymplaLin
         </div>
         {!isLoading && (
           <Badge variant={isLinked ? 'default' : 'secondary'}>
-            {isLinked
-              ? t('integrations.sympla.statusConnected')
-              : t('integrations.sympla.statusDisconnected')}
+            {isLinked ? t('integrations.sympla.statusConnected') : t('integrations.sympla.statusDisconnected')}
           </Badge>
         )}
       </div>
@@ -192,11 +190,7 @@ export function SymplaLinkCard({ eventId, organizationId, canManage }: SymplaLin
           <div className="flex flex-wrap gap-2">
             {canManage && (
               <Button variant="outline" size="sm" onClick={() => void handleSync()} disabled={isSyncing}>
-                {isSyncing ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <RefreshCw className="mr-2 h-4 w-4" />
-                )}
+                {isSyncing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
                 {isSyncing ? t('integrations.sympla.event.syncing') : t('integrations.sympla.event.syncNow')}
               </Button>
             )}
@@ -227,7 +221,7 @@ export function SymplaLinkCard({ eventId, organizationId, canManage }: SymplaLin
               <div className="space-y-2">
                 <Label htmlFor="sympla-event">{t('integrations.sympla.event.selectEvent')}</Label>
                 <Select value={selected} onValueChange={setSelected} disabled={options.length === 0}>
-                  <SelectTrigger id="sympla-event">
+                  <SelectTrigger id="sympla-event" className="w-full max-w-md">
                     <SelectValue
                       placeholder={
                         options.length === 0
@@ -244,9 +238,7 @@ export function SymplaLinkCard({ eventId, organizationId, canManage }: SymplaLin
                         disabled={option.linkedEventId !== null}
                       >
                         {option.name}
-                        {option.linkedEventId !== null
-                          ? ` (${t('integrations.sympla.event.alreadyLinked')})`
-                          : ''}
+                        {option.linkedEventId !== null ? ` (${t('integrations.sympla.event.alreadyLinked')})` : ''}
                       </SelectItem>
                     ))}
                   </SelectContent>

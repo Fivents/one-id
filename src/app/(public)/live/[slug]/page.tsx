@@ -26,6 +26,11 @@ type EventStatus = 'ACTIVE' | 'PUBLISHED' | 'COMPLETED' | 'DRAFT' | 'CANCELED';
 
 type CheckInMethod = 'FACE_RECOGNITION' | 'QR_CODE' | 'ACCESS_CODE' | 'MANUAL';
 
+// The public screen is pt-BR only; group thousands and use a decimal comma like the rest of the copy.
+function formatNumber(value: number, maximumFractionDigits = 0): string {
+  return value.toLocaleString('pt-BR', { maximumFractionDigits });
+}
+
 interface LiveData {
   organizationName: string;
   event: {
@@ -36,6 +41,8 @@ interface LiveData {
   };
   metrics: {
     totalParticipants: number;
+    /** Absent on responses from before the field existed; fall back to the record count. */
+    presentParticipants?: number;
     totalCheckIns: number;
     checkInRate: number;
     checkInsLastMinute: number;
@@ -58,15 +65,15 @@ function getRelativeTime(dateStr: string): string {
   const diffSec = Math.floor(diffMs / 1000);
 
   if (diffSec < 5) return 'agora';
-  if (diffSec < 60) return `ha ${diffSec}s`;
+  if (diffSec < 60) return `há ${diffSec}s`;
 
   const diffMin = Math.floor(diffSec / 60);
-  if (diffMin === 1) return 'ha 1 min';
-  if (diffMin < 60) return `ha ${diffMin} min`;
+  if (diffMin === 1) return 'há 1 min';
+  if (diffMin < 60) return `há ${diffMin} min`;
 
   const diffHour = Math.floor(diffMin / 60);
-  if (diffHour === 1) return 'ha 1h';
-  return `ha ${diffHour}h`;
+  if (diffHour === 1) return 'há 1h';
+  return `há ${diffHour}h`;
 }
 
 function formatDateTime(dateStr: string): string {
@@ -79,18 +86,20 @@ function formatDateTime(dateStr: string): string {
   });
 }
 
-function getStatusConfig(status: EventStatus): { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline'; className: string } {
+type StatusVariant = 'success' | 'info' | 'brand' | 'neutral' | 'danger';
+
+function getStatusConfig(status: EventStatus): { label: string; variant: StatusVariant } {
   switch (status) {
     case 'ACTIVE':
-      return { label: 'Ativo', variant: 'default', className: 'bg-success/15 text-success border-success/30 hover:bg-success/20' };
+      return { label: 'Ativo', variant: 'success' };
     case 'PUBLISHED':
-      return { label: 'Publicado', variant: 'secondary', className: '' };
+      return { label: 'Publicado', variant: 'info' };
     case 'COMPLETED':
-      return { label: 'Concluido', variant: 'outline', className: 'text-muted-foreground border-muted-foreground/30' };
+      return { label: 'Concluído', variant: 'brand' };
     case 'DRAFT':
-      return { label: 'Rascunho', variant: 'outline', className: 'text-warning border-warning/30' };
+      return { label: 'Rascunho', variant: 'neutral' };
     case 'CANCELED':
-      return { label: 'Cancelado', variant: 'destructive', className: '' };
+      return { label: 'Cancelado', variant: 'danger' };
   }
 }
 
@@ -114,7 +123,7 @@ function getMethodLabel(method: CheckInMethod): string {
     case 'QR_CODE':
       return 'QR Code';
     case 'ACCESS_CODE':
-      return 'Codigo';
+      return 'Código';
     case 'MANUAL':
       return 'Manual';
   }
@@ -144,7 +153,7 @@ export default function PublicLivePage({ params }: PageProps) {
       const response = await fetch(`/api/public/live/${slug}`);
       if (!response.ok) {
         if (response.status === 404) {
-          setError('Evento nao encontrado ou link expirado.');
+          setError('Evento não encontrado ou link expirado.');
         } else {
           setError('Falha ao carregar dados.');
         }
@@ -189,12 +198,12 @@ export default function PublicLivePage({ params }: PageProps) {
       <div className="flex min-h-[60svh] items-center justify-center">
         <Card className="w-full max-w-md">
           <CardContent className="flex flex-col items-center gap-4 pt-6 text-center">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10">
-              <AlertCircle className="h-6 w-6 text-destructive" />
+            <div className="bg-destructive/10 flex h-12 w-12 items-center justify-center rounded-full">
+              <AlertCircle className="text-destructive h-6 w-6" />
             </div>
             <div>
               <p className="font-medium">{error}</p>
-              <p className="mt-1 text-sm text-muted-foreground">Tente novamente ou verifique o link.</p>
+              <p className="text-muted-foreground mt-1 text-sm">Tente novamente ou verifique o link.</p>
             </div>
             <button
               onClick={() => {
@@ -202,7 +211,7 @@ export default function PublicLivePage({ params }: PageProps) {
                 setError(null);
                 fetchData();
               }}
-              className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+              className="bg-primary text-primary-foreground hover:bg-primary/90 inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium"
             >
               <RefreshCw className="h-4 w-4" />
               Tentar novamente
@@ -229,21 +238,18 @@ export default function PublicLivePage({ params }: PageProps) {
 
       <MetricsGrid
         totalParticipants={data.metrics.totalParticipants}
-        totalCheckIns={data.metrics.totalCheckIns}
+        totalCheckIns={data.metrics.presentParticipants ?? data.metrics.totalCheckIns}
         checkInRate={data.metrics.checkInRate}
         checkInsLastMinute={data.metrics.checkInsLastMinute}
       />
 
       <ProgressSection
-        totalCheckIns={data.metrics.totalCheckIns}
+        totalCheckIns={data.metrics.presentParticipants ?? data.metrics.totalCheckIns}
         totalParticipants={data.metrics.totalParticipants}
         checkInRate={data.metrics.checkInRate}
       />
 
-      <RecentCheckInsSection
-        checkIns={data.recentCheckIns}
-        newCheckInId={newCheckInId}
-      />
+      <RecentCheckInsSection checkIns={data.recentCheckIns} newCheckInId={newCheckInId} />
 
       <Footer />
     </div>
@@ -261,7 +267,7 @@ function Header({
 }: {
   organizationName: string;
   eventName: string;
-  statusConfig: { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline'; className: string };
+  statusConfig: { label: string; variant: StatusVariant };
   startsAt: string;
   endsAt: string;
   updatedAt: string;
@@ -269,11 +275,11 @@ function Header({
 }) {
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary shadow-sm">
+      <div className="text-muted-foreground flex items-center gap-2 text-sm">
+        <div className="bg-primary flex h-7 w-7 items-center justify-center rounded-md shadow-sm">
           <Image src="/png/logo-white.png" alt="OneID" width={16} height={16} />
         </div>
-        <span className="font-medium text-foreground">OneID</span>
+        <span className="text-foreground font-medium">OneID</span>
         <span aria-hidden="true">·</span>
         <span>{organizationName}</span>
       </div>
@@ -281,20 +287,18 @@ function Header({
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{eventName}</h1>
-          <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-            <Badge className={statusConfig.className} variant={statusConfig.variant}>
-              {statusConfig.label}
-            </Badge>
-            <span className="hidden sm:inline" aria-hidden="true">·</span>
+          <div className="text-muted-foreground mt-2 flex flex-wrap items-center gap-2 text-sm">
+            <Badge variant={statusConfig.variant}>{statusConfig.label}</Badge>
+            <span className="hidden sm:inline" aria-hidden="true">
+              ·
+            </span>
             <span>
-              {formatDateTime(startsAt)}
-              {' '}-{' '}
-              {formatDateTime(endsAt)}
+              {formatDateTime(startsAt)} - {formatDateTime(endsAt)}
             </span>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        <div className="text-muted-foreground flex items-center gap-2 text-xs">
           <div className={`h-2 w-2 rounded-full ${isRefreshing ? 'bg-primary animate-pulse' : 'bg-success'}`} />
           <span>{getRelativeTime(updatedAt)}</span>
         </div>
@@ -318,23 +322,23 @@ function MetricsGrid({
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
       <MetricCard
         title="Participantes"
-        value={totalParticipants}
-        icon={<Users className="h-5 w-5 text-primary" />}
+        value={formatNumber(totalParticipants)}
+        icon={<Users className="text-primary h-5 w-5" />}
       />
       <MetricCard
-        title="Check-ins"
-        value={totalCheckIns}
-        icon={<CheckCircle className="h-5 w-5 text-success" />}
+        title="Presentes"
+        value={formatNumber(totalCheckIns)}
+        icon={<CheckCircle className="text-success h-5 w-5" />}
       />
       <MetricCard
-        title="Taxa"
-        value={`${checkInRate}%`}
-        icon={<Activity className="h-5 w-5 text-warning" />}
+        title="Taxa de presença"
+        value={`${formatNumber(checkInRate, 1)}%`}
+        icon={<Activity className="text-warning h-5 w-5" />}
       />
       <MetricCard
-        title="1 min"
+        title="No último minuto"
         value={checkInsLastMinute}
-        icon={<Clock className="h-5 w-5 text-chart-2" />}
+        icon={<Clock className="text-chart-2 h-5 w-5" />}
         highlight={checkInsLastMinute > 0}
       />
     </div>
@@ -353,13 +357,13 @@ function MetricCard({
   highlight?: boolean;
 }) {
   return (
-    <Card className={`bg-card/80 backdrop-blur-sm ${highlight ? 'ring-1 ring-success/50' : 'shadow-sm'}`}>
+    <Card className={`bg-card/80 backdrop-blur-sm ${highlight ? 'ring-success/50 ring-1' : 'shadow-sm'}`}>
       <CardContent className="flex items-start justify-between pt-4">
         <div className="space-y-1">
           <p className="text-2xl font-bold tracking-tight">{value}</p>
-          <p className="text-xs text-muted-foreground">{title}</p>
+          <p className="text-muted-foreground text-xs">{title}</p>
         </div>
-        <div className="rounded-lg bg-background/50 p-2">{icon}</div>
+        <div className="bg-background/50 rounded-lg p-2">{icon}</div>
       </CardContent>
     </Card>
   );
@@ -375,29 +379,21 @@ function ProgressSection({
   checkInRate: number;
 }) {
   return (
-    <Card className="bg-card/80 backdrop-blur-sm shadow-sm">
+    <Card className="bg-card/80 shadow-sm backdrop-blur-sm">
       <CardContent className="pt-6">
         <div className="mb-2 flex items-center justify-between">
           <span className="text-sm font-medium">Progresso do check-in</span>
-          <span className="text-sm text-muted-foreground">
-            {totalCheckIns}
-            {' '}
-            de
-            {' '}
-            {totalParticipants}
-            {' '}
-            participantes
+          <span className="text-muted-foreground text-sm">
+            {formatNumber(totalCheckIns)} de {formatNumber(totalParticipants)} participantes
           </span>
         </div>
-        <div className="relative h-2.5 overflow-hidden rounded-full bg-muted">
+        <div className="bg-muted relative h-2.5 overflow-hidden rounded-full">
           <div
-            className="h-full rounded-full bg-gradient-to-r from-primary to-primary/60 transition-all duration-700 ease-out"
+            className="from-primary to-primary/60 h-full rounded-full bg-gradient-to-r transition-all duration-700 ease-out"
             style={{ width: `${Math.min(checkInRate, 100)}%` }}
           />
         </div>
-        <p className="mt-1 text-xs text-muted-foreground">
-          {checkInRate}% de taxa de credenciamento
-        </p>
+        <p className="text-muted-foreground mt-1 text-xs">{formatNumber(checkInRate, 1)}% de taxa de credenciamento</p>
       </CardContent>
     </Card>
   );
@@ -411,15 +407,15 @@ function RecentCheckInsSection({
   newCheckInId: string | null;
 }) {
   return (
-    <Card className="bg-card/80 backdrop-blur-sm shadow-sm">
+    <Card className="bg-card/80 shadow-sm backdrop-blur-sm">
       <CardHeader>
-        <CardTitle className="text-lg">Ultimos check-ins</CardTitle>
-        <CardDescription>Ultimos 10 participantes credenciados</CardDescription>
+        <CardTitle className="text-lg">Últimos check-ins</CardTitle>
+        <CardDescription>Últimos 10 participantes credenciados</CardDescription>
       </CardHeader>
       <CardContent>
         {checkIns.length === 0 ? (
-          <div className="flex flex-col items-center gap-3 py-12 text-muted-foreground">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+          <div className="text-muted-foreground flex flex-col items-center gap-3 py-12">
+            <div className="bg-muted flex h-12 w-12 items-center justify-center rounded-full">
               <User className="h-6 w-6" />
             </div>
             <p className="text-sm font-medium">Nenhum check-in realizado ainda</p>
@@ -434,19 +430,17 @@ function RecentCheckInsSection({
               return (
                 <div
                   key={checkIn.id}
-                  className={`flex items-center justify-between rounded-lg border bg-card/50 p-3 transition-all duration-500 ${
-                    isNew
-                      ? 'border-primary/30 bg-primary/5 shadow-sm'
-                      : 'border-transparent'
+                  className={`bg-card/50 flex items-center justify-between rounded-lg border p-3 transition-all duration-500 ${
+                    isNew ? 'border-primary/30 bg-primary/5 shadow-sm' : 'border-transparent'
                   }`}
                 >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary/60 text-sm font-medium text-primary-foreground">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <div className="from-primary to-primary/60 text-primary-foreground flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br text-sm font-medium">
                       {checkIn.name.charAt(0)}
                     </div>
                     <div className="min-w-0">
-                      <p className="truncate font-medium text-sm">{checkIn.name}</p>
-                      <p className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <p className="truncate text-sm font-medium">{checkIn.name}</p>
+                      <p className="text-muted-foreground flex items-center gap-1 text-xs">
                         <ShieldCheck className="h-3 w-3" />
                         Nome protegido
                       </p>
@@ -454,11 +448,11 @@ function RecentCheckInsSection({
                   </div>
 
                   <div className="flex shrink-0 items-center gap-3">
-                    <Badge variant="outline" className="gap-1 border-border text-xs font-normal">
+                    <Badge variant="outline" className="border-border gap-1 text-xs font-normal">
                       <MethodIcon className="h-3 w-3" />
                       {getMethodLabel(checkIn.method)}
                     </Badge>
-                    <span className="text-xs text-muted-foreground whitespace-nowrap">
+                    <span className="text-muted-foreground text-xs whitespace-nowrap">
                       {getRelativeTime(checkIn.checkedInAt)}
                     </span>
                   </div>
@@ -474,17 +468,17 @@ function RecentCheckInsSection({
 
 function Footer() {
   return (
-    <div className="border-t border-border/50 pt-6">
-      <div className="flex flex-col items-center gap-2 text-center text-xs text-muted-foreground">
+    <div className="border-border/50 border-t pt-6">
+      <div className="text-muted-foreground flex flex-col items-center gap-2 text-center text-xs">
         <div className="flex items-center gap-2">
-          <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary shadow-sm">
+          <div className="bg-primary flex h-6 w-6 items-center justify-center rounded-md shadow-sm">
             <Image src="/png/logo-white.png" alt="OneID" width={14} height={14} />
           </div>
-          <span className="text-sm font-medium text-foreground">OneID by Fivents</span>
+          <span className="text-foreground text-sm font-medium">OneID by Fivents</span>
         </div>
         <p>Credenciamento inteligente para eventos</p>
         <div className="flex items-center gap-1">
-          <div className="h-1.5 w-1.5 animate-pulse rounded-full bg-success" />
+          <div className="bg-success h-1.5 w-1.5 animate-pulse rounded-full" />
           <span>Dados atualizados em tempo real</span>
         </div>
       </div>

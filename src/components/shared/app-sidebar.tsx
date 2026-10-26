@@ -15,7 +15,6 @@ import {
   LogOut,
   Monitor,
   Plug,
-  Settings,
   Shield,
   Users,
 } from 'lucide-react';
@@ -56,6 +55,13 @@ interface NavItem {
   roles: Role[];
 }
 
+const adminNavItems: Array<Omit<NavItem, 'roles'>> = [
+  { titleKey: 'nav.sidebar.organizations', href: '/admin/organizations', icon: Building2 },
+  { titleKey: 'nav.sidebar.plans', href: '/admin/plans', icon: CreditCard },
+  { titleKey: 'nav.sidebar.users', href: '/admin/users', icon: Users },
+  { titleKey: 'nav.sidebar.totems', href: '/admin/totems', icon: Monitor },
+];
+
 const navItems: NavItem[] = [
   {
     titleKey: 'nav.sidebar.dashboard',
@@ -87,6 +93,13 @@ export function AppSidebar() {
 
   const filteredNavItems = navItems.filter((item) => role && item.roles.includes(role));
 
+  const organizationNavItems: Array<{ titleKey: string; href: string | null; icon: NavItem['icon'] }> = [
+    { titleKey: 'nav.sidebar.people', href: organizationPeopleHref, icon: Users },
+    { titleKey: 'nav.sidebar.events', href: organizationEventsHref, icon: Calendar },
+    { titleKey: 'nav.sidebar.totems', href: organizationTotemsHref, icon: Monitor },
+    { titleKey: 'nav.sidebar.integrations', href: organizationIntegrationsHref, icon: Plug },
+  ];
+
   async function handleLogout() {
     // Navigate immediately to login to avoid blank screen while server logout completes
     router.push('/login');
@@ -103,27 +116,29 @@ export function AppSidebar() {
   return (
     <Sidebar>
       <SidebarHeader className="border-sidebar-border border-b px-4 py-3">
-        <Link href="/dashboard" className="flex items-center gap-2">
-          <div className="bg-primary/10 ring-primary/20 flex h-8 w-8 items-center justify-center rounded-lg ring-1">
+        <Link
+          href="/dashboard"
+          className="focus-visible:ring-ring/50 flex items-center gap-2.5 rounded-md outline-none focus-visible:ring-2"
+        >
+          <div className="bg-primary/10 ring-primary/20 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ring-1">
             <Image src="/png/logo-blue.png" alt="Fivents Logo" width={20} height={20} className="block dark:hidden" />
             <Image src="/png/logo-white.png" alt="Fivents Logo" width={20} height={20} className="hidden dark:block" />
           </div>
           <div className="flex flex-col">
-            <span className="text-sm font-semibold">OneID</span>
+            <span className="text-sm leading-tight font-semibold tracking-tight">OneID</span>
             <span className="text-muted-foreground text-xs">by Fivents</span>
           </div>
         </Link>
       </SidebarHeader>
 
-      <SidebarContent>
+      <SidebarContent className="gap-0 py-2">
         {isSuperAdmin() && (
           <SidebarGroup>
-            <SidebarGroupLabel>{t('nav.sidebar.dashboard')}</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
                 {filteredNavItems.map((item) => (
                   <SidebarMenuItem key={item.href}>
-                    <SidebarMenuButton asChild isActive={pathname.startsWith(item.href)}>
+                    <SidebarMenuButton asChild isActive={pathname.startsWith(item.href)} tooltip={t(item.titleKey)}>
                       <Link href={item.href}>
                         <item.icon className="h-4 w-4" />
                         <span>{t(item.titleKey)}</span>
@@ -140,66 +155,23 @@ export function AppSidebar() {
           <SidebarGroupLabel>{t('nav.sidebar.organizationSection')}</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              <SidebarMenuItem>
-                {organizationPeopleHref ? (
-                  <SidebarMenuButton asChild isActive={pathname.startsWith(organizationPeopleHref)}>
-                    <Link href={organizationPeopleHref}>
-                      <Users className="h-4 w-4" />
-                      <span>{t('nav.sidebar.people')}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                ) : (
-                  <SidebarMenuButton disabled aria-disabled>
-                    <Users className="h-4 w-4" />
-                    <span>{t('nav.sidebar.people')}</span>
-                  </SidebarMenuButton>
-                )}
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                {organizationEventsHref ? (
-                  <SidebarMenuButton asChild isActive={pathname.startsWith(organizationEventsHref)}>
-                    <Link href={organizationEventsHref}>
-                      <Calendar className="h-4 w-4" />
-                      <span>{t('nav.sidebar.events')}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                ) : (
-                  <SidebarMenuButton disabled aria-disabled>
-                    <Calendar className="h-4 w-4" />
-                    <span>{t('nav.sidebar.events')}</span>
-                  </SidebarMenuButton>
-                )}
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                {organizationTotemsHref ? (
-                  <SidebarMenuButton asChild isActive={pathname.startsWith(organizationTotemsHref)}>
-                    <Link href={organizationTotemsHref}>
-                      <Monitor className="h-4 w-4" />
-                      <span>{t('nav.sidebar.totems')}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                ) : (
-                  <SidebarMenuButton disabled aria-disabled>
-                    <Monitor className="h-4 w-4" />
-                    <span>{t('nav.sidebar.totems')}</span>
-                  </SidebarMenuButton>
-                )}
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                {organizationIntegrationsHref ? (
-                  <SidebarMenuButton asChild isActive={pathname.startsWith(organizationIntegrationsHref)}>
-                    <Link href={organizationIntegrationsHref}>
-                      <Plug className="h-4 w-4" />
-                      <span>{t('nav.sidebar.integrations')}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                ) : (
-                  <SidebarMenuButton disabled aria-disabled>
-                    <Plug className="h-4 w-4" />
-                    <span>{t('nav.sidebar.integrations')}</span>
-                  </SidebarMenuButton>
-                )}
-              </SidebarMenuItem>
+              {organizationNavItems.map((item) => (
+                <SidebarMenuItem key={item.titleKey}>
+                  {item.href ? (
+                    <SidebarMenuButton asChild isActive={pathname.startsWith(item.href)} tooltip={t(item.titleKey)}>
+                      <Link href={item.href}>
+                        <item.icon className="h-4 w-4" />
+                        <span>{t(item.titleKey)}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  ) : (
+                    <SidebarMenuButton disabled aria-disabled>
+                      <item.icon className="h-4 w-4" />
+                      <span>{t(item.titleKey)}</span>
+                    </SidebarMenuButton>
+                  )}
+                </SidebarMenuItem>
+              ))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
@@ -209,38 +181,16 @@ export function AppSidebar() {
             <SidebarGroupLabel>{t('nav.sidebar.adminSection')}</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={pathname.startsWith('/admin/organizations')}>
-                    <Link href="/admin/organizations">
-                      <Building2 className="h-4 w-4" />
-                      <span>{t('nav.sidebar.organizations')}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={pathname.startsWith('/admin/plans')}>
-                    <Link href="/admin/plans">
-                      <CreditCard className="h-4 w-4" />
-                      <span>{t('nav.sidebar.plans')}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={pathname.startsWith('/admin/users')}>
-                    <Link href="/admin/users">
-                      <Users className="h-4 w-4" />
-                      <span>{t('nav.sidebar.users')}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={pathname.startsWith('/admin/totems')}>
-                    <Link href="/admin/totems">
-                      <Monitor className="h-4 w-4" />
-                      <span>{t('nav.sidebar.totems')}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
+                {adminNavItems.map((item) => (
+                  <SidebarMenuItem key={item.href}>
+                    <SidebarMenuButton asChild isActive={pathname.startsWith(item.href)} tooltip={t(item.titleKey)}>
+                      <Link href={item.href}>
+                        <item.icon className="h-4 w-4" />
+                        <span>{t(item.titleKey)}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
@@ -273,12 +223,10 @@ export function AppSidebar() {
                 </SidebarMenuButton>
               </DropdownMenuTrigger>
               <DropdownMenuContent side="top" className="w-56">
-                <DropdownMenuItem asChild>
-                  <Link href="/settings">
-                    <Settings className="mr-2 h-4 w-4" />
-                    {t('nav.sidebar.settings')}
-                  </Link>
-                </DropdownMenuItem>
+                <div className="px-2 py-1.5">
+                  <p className="truncate text-sm font-medium">{user.name}</p>
+                  <p className="text-muted-foreground truncate text-xs">{user.email}</p>
+                </div>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive">
                   <LogOut className="mr-2 h-4 w-4" />

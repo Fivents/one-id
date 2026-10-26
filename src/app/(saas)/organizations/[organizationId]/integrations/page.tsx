@@ -8,6 +8,7 @@ import { AlertTriangle, Loader2, Plug } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { useConfirm } from '@/components/shared/confirm-dialog';
+import { PageHeader } from '@/components/shared/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -141,17 +142,14 @@ export default function IntegrationsPage() {
   const showTokenField = canManage && (!isConnected || isEditingToken);
 
   return (
-    <div className="space-y-6 p-6">
-      <div>
-        <h1 className="text-2xl font-semibold">{t('integrations.title')}</h1>
-        <p className="text-muted-foreground text-sm">{t('integrations.description')}</p>
-      </div>
+    <div className="space-y-6">
+      <PageHeader icon={Plug} title={t('integrations.title')} description={t('integrations.description')} />
 
-      <Card>
+      <Card className="max-w-3xl">
         <CardHeader>
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-start gap-3">
-              <div className="bg-muted rounded-lg p-2">
+              <div className="bg-muted text-muted-foreground flex size-10 shrink-0 items-center justify-center rounded-xl">
                 <Plug className="h-5 w-5" />
               </div>
               <div>
@@ -214,18 +212,12 @@ export default function IntegrationsPage() {
                   {status.lastSyncResult && (
                     <>
                       <div>
-                        <p className="text-muted-foreground text-xs">
-                          {t('integrations.sympla.participantsSynced')}
-                        </p>
-                        <p className="text-sm font-medium tabular-nums">
-                          {status.lastSyncResult.participantsSynced}
-                        </p>
+                        <p className="text-muted-foreground text-xs">{t('integrations.sympla.participantsSynced')}</p>
+                        <p className="text-sm font-medium tabular-nums">{status.lastSyncResult.participantsSynced}</p>
                       </div>
                       <div>
                         <p className="text-muted-foreground text-xs">{t('integrations.sympla.syncErrors')}</p>
-                        <p className="text-sm font-medium tabular-nums">
-                          {status.lastSyncResult.errors.length}
-                        </p>
+                        <p className="text-sm font-medium tabular-nums">{status.lastSyncResult.errors.length}</p>
                       </div>
                     </>
                   )}
@@ -275,15 +267,9 @@ export default function IntegrationsPage() {
                   )}
 
                   {status?.connected && status.isActive && (
-                    <Button
-                      variant="destructive"
-                      onClick={() => void handleDisconnect()}
-                      disabled={isDisconnecting}
-                    >
+                    <Button variant="destructive" onClick={() => void handleDisconnect()} disabled={isDisconnecting}>
                       {isDisconnecting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                      {isDisconnecting
-                        ? t('integrations.sympla.disconnecting')
-                        : t('integrations.sympla.disconnect')}
+                      {isDisconnecting ? t('integrations.sympla.disconnecting') : t('integrations.sympla.disconnect')}
                     </Button>
                   )}
                 </div>

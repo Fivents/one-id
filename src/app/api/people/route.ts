@@ -11,13 +11,11 @@ import { prisma } from '@/core/infrastructure/prisma-client';
 import { resolveTotemAccessCodeLength } from '@/core/utils/checkin-credentials';
 import { type CodeSourceField, resolveDerivedCodeUnique } from '@/core/utils/derived-code';
 import { parseWithZod } from '@/core/utils/parse-with-zod';
-import {
-  buildAttendeeSnapshot,
-  type PersonSnapshotSource,
-} from '@/core/utils/participant-identity';
+import { buildAttendeeSnapshot, type PersonSnapshotSource } from '@/core/utils/participant-identity';
 import { Prisma } from '@/generated/prisma/client';
 
 import { assertOrganizationAccess } from './_lib/access';
+import { buildPeopleWhere } from './_lib/people-filters';
 
 async function linkPersonToAutoLinkEvents(
   organizationId: string,
@@ -75,42 +73,7 @@ export const GET = withAuth(
       return accessError;
     }
 
-    const where = {
-      organizationId,
-      deletedAt: includeDeleted ? { not: null as Date | null } : null,
-      ...(search
-        ? {
-            OR: [
-              { name: { contains: search, mode: 'insensitive' as const } },
-              { email: { contains: search, mode: 'insensitive' as const } },
-              { document: { contains: search, mode: 'insensitive' as const } },
-              { phone: { contains: search, mode: 'insensitive' as const } },
-            ],
-          }
-        : {}),
-      ...(eventId
-        ? {
-            eventParticipants: {
-              some: {
-                eventId,
-                deletedAt: null,
-              },
-            },
-          }
-        : {}),
-      ...(excludeEventId
-        ? {
-            NOT: {
-              eventParticipants: {
-                some: {
-                  eventId: excludeEventId,
-                  deletedAt: null,
-                },
-              },
-            },
-          }
-        : {}),
-    };
+    const where = buildPeopleWhere({ organizationId, search, eventId, excludeEventId, includeDeleted });
 
     const [total, people] = await Promise.all([
       prisma.person.count({ where }),

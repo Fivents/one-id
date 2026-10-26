@@ -31,37 +31,41 @@ export const GET = withAuth(
           by: ['totemEventSubscriptionId'],
           where,
           _count: { id: true },
-          orderBy: { _count: { totemEventSubscriptionId: 'desc' } },
+          orderBy: { _count: { id: 'desc' } },
           take: 5,
         }),
       ]);
 
       const usageWithNames = await Promise.all(
-        totemUsage
-          .filter((item) => item.totemEventSubscriptionId)
-          .map(async (item) => {
-            const subscription = await prisma.totemEventSubscription.findUnique({
-              where: { id: item.totemEventSubscriptionId! },
-              select: {
-                id: true,
-                locationName: true,
-                totemOrganizationSubscription: {
-                  select: {
-                    totem: {
-                      select: { id: true, name: true },
-                    },
+        totemUsage.map(async (item) => {
+          // The null group is check-ins made in the app (manual or imported), not by a totem.
+          // It used to be dropped, so the per-totem breakdown never added up to the total.
+          if (!item.totemEventSubscriptionId) {
+            return { totemId: null, totemName: 'App', locationName: '—', count: item._count.id };
+          }
+
+          const subscription = await prisma.totemEventSubscription.findUnique({
+            where: { id: item.totemEventSubscriptionId },
+            select: {
+              id: true,
+              locationName: true,
+              totemOrganizationSubscription: {
+                select: {
+                  totem: {
+                    select: { id: true, name: true },
                   },
                 },
               },
-            });
+            },
+          });
 
-            return {
-              totemId: subscription?.totemOrganizationSubscription.totem.id ?? null,
-              totemName: subscription?.totemOrganizationSubscription.totem.name ?? 'Unknown',
-              locationName: subscription?.locationName ?? '—',
-              count: item._count.id,
-            };
-          }),
+          return {
+            totemId: subscription?.totemOrganizationSubscription.totem.id ?? null,
+            totemName: subscription?.totemOrganizationSubscription.totem.name ?? 'Unknown',
+            locationName: subscription?.locationName ?? '—',
+            count: item._count.id,
+          };
+        }),
       );
 
       return NextResponse.json(

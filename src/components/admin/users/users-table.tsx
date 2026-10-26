@@ -150,11 +150,9 @@ function UserRow({
       </TableCell>
       <TableCell>
         {user.isSuperAdmin ? (
-          <Badge variant="default">{t('users.labels.superAdmin')}</Badge>
+          <Badge variant="brand">{t('users.labels.superAdmin')}</Badge>
         ) : (
-          <Badge variant="outline" className="bg-emerald-500 text-white">
-            {t('common.status.active')}
-          </Badge>
+          <Badge variant="success">{t('common.status.active')}</Badge>
         )}
       </TableCell>
       <TableCell className="text-muted-foreground">{new Date(user.createdAt).toLocaleDateString()}</TableCell>
@@ -162,7 +160,12 @@ function UserRow({
         {!user.isSuperAdmin && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                aria-label={`${t('nav.shell.moreActions')}: ${user.name}`}
+              >
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>

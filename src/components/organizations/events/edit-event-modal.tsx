@@ -138,6 +138,29 @@ export function EditEventModal({ event, open, onOpenChange }: EditEventModalProp
             <p className="text-muted-foreground text-xs">{t('organizations.form.slugImmutableHint')}</p>
           </div>
 
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="edit-event-start">{t('common.labels.startDate')} *</Label>
+              <Input
+                id="edit-event-start"
+                type="datetime-local"
+                value={startsAt}
+                onChange={(e) => setStartsAt(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-event-end">{t('common.labels.endDate')} *</Label>
+              <Input
+                id="edit-event-end"
+                type="datetime-local"
+                value={endsAt}
+                onChange={(e) => setEndsAt(e.target.value)}
+                required
+              />
+            </div>
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="edit-event-description">{t('common.labels.description')}</Label>
             <Textarea
@@ -162,29 +185,6 @@ export function EditEventModal({ event, open, onOpenChange }: EditEventModalProp
             onAddressChange={setAddress}
             onAddressDetailsChange={setAddressDetails}
           />
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="edit-event-start">{t('common.labels.startDate')} *</Label>
-              <Input
-                id="edit-event-start"
-                type="datetime-local"
-                value={startsAt}
-                onChange={(e) => setStartsAt(e.target.value)}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-event-end">{t('common.labels.endDate')} *</Label>
-              <Input
-                id="edit-event-end"
-                type="datetime-local"
-                value={endsAt}
-                onChange={(e) => setEndsAt(e.target.value)}
-                required
-              />
-            </div>
-          </div>
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

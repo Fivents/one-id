@@ -5,8 +5,28 @@ import * as React from 'react';
 import { cn } from '@/lib/utils';
 
 function Table({ className, ...props }: React.ComponentProps<'table'>) {
+  const containerRef = React.useRef<HTMLDivElement>(null);
+  const [isScrollable, setIsScrollable] = React.useState(false);
+
+  // A horizontally scrolling region must be reachable by keyboard, but a tab stop on every
+  // table that fits would just be noise — so it only becomes focusable when it overflows.
+  React.useEffect(() => {
+    const element = containerRef.current;
+    if (!element || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(() => {
+      setIsScrollable(element.scrollWidth > element.clientWidth + 1);
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
   return (
-    <div data-slot="table-container" className="relative w-full overflow-x-auto">
+    <div
+      ref={containerRef}
+      data-slot="table-container"
+      tabIndex={isScrollable ? 0 : undefined}
+      className="focus-visible:ring-ring/50 relative w-full overflow-x-auto rounded-[inherit] outline-none focus-visible:ring-[3px]"
+    >
       <table data-slot="table" className={cn('w-full caption-bottom text-sm', className)} {...props} />
     </div>
   );

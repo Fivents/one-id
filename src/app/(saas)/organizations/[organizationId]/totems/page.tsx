@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { GatePolicyDialog } from '@/components/organizations/totems/gate-policy-dialog';
 import { TotemStatusBadge } from '@/components/organizations/totems/totem-status-badge';
 import { useConfirm } from '@/components/shared/confirm-dialog';
+import { PageHeader } from '@/components/shared/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -245,43 +246,37 @@ export default function OrganizationTotemsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="bg-primary/10 flex h-10 w-10 items-center justify-center rounded-lg">
-            <MonitorCheck className="text-primary h-5 w-5" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">{t('pages.organizationTotems.title')}</h1>
-            <p className="text-muted-foreground text-sm">
-              {t('pages.organizationTotems.subtitlePrefix')}{' '}
-              {activeOrganization?.name ?? t('pages.organizationTotems.subtitleFallback')}
-            </p>
-          </div>
-        </div>
+      <PageHeader
+        icon={MonitorCheck}
+        title={t('pages.organizationTotems.title')}
+        description={`${t('pages.organizationTotems.subtitlePrefix')} ${
+          activeOrganization?.name ?? t('pages.organizationTotems.subtitleFallback')
+        }`}
+        actions={
+          organizations.length > 1 && (
+            <Select value={organizationId} onValueChange={handleOrganizationChange}>
+              <SelectTrigger className="w-full sm:w-56" aria-label={t('pages.organizationTotems.selectOrganization')}>
+                <SelectValue placeholder={t('pages.organizationTotems.selectOrganization')} />
+              </SelectTrigger>
+              <SelectContent>
+                {organizations.map((organization) => (
+                  <SelectItem key={organization.id} value={organization.id}>
+                    {organization.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )
+        }
+      />
 
-        {organizations.length > 0 && (
-          <Select value={organizationId} onValueChange={handleOrganizationChange}>
-            <SelectTrigger className="w-64">
-              <SelectValue placeholder={t('pages.organizationTotems.selectOrganization')} />
-            </SelectTrigger>
-            <SelectContent>
-              {organizations.map((organization) => (
-                <SelectItem key={organization.id} value={organization.id}>
-                  {organization.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
-      </div>
-
-      <div className="rounded-md border">
+      <div className="bg-card overflow-hidden rounded-xl border">
         <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t('pages.organizationTotems.thTotem')}</TableHead>
+          <TableHeader className="bg-muted/40">
+            <TableRow className="hover:bg-transparent">
+              <TableHead className="pl-4">{t('pages.organizationTotems.thTotem')}</TableHead>
               <TableHead>{t('pages.organizationTotems.thStatus')}</TableHead>
-              <TableHead>{t('pages.organizationTotems.thOrgAssignment')}</TableHead>
+              <TableHead className="hidden 2xl:table-cell">{t('pages.organizationTotems.thOrgAssignment')}</TableHead>
               <TableHead>{t('pages.organizationTotems.thActiveEvent')}</TableHead>
               <TableHead>{t('pages.organizationTotems.thLocation')}</TableHead>
               <TableHead className="w-[220px] text-right">{t('pages.organizationTotems.thActions')}</TableHead>
@@ -306,41 +301,44 @@ export default function OrganizationTotemsPage() {
             ) : (
               totems.map((totem) => (
                 <TableRow key={totem.totemOrganizationSubscriptionId}>
-                  <TableCell className="font-medium">{totem.totemName}</TableCell>
+                  <TableCell className="pl-4 font-medium">{totem.totemName}</TableCell>
                   <TableCell>
                     <TotemStatusBadge status={totem.totemStatus} />
                   </TableCell>
-                  <TableCell>
-                    {formatDateTime(totem.startsAt, locale)} - {formatDateTime(totem.endsAt, locale)}
+                  <TableCell className="text-muted-foreground hidden 2xl:table-cell">
+                    {formatDateTime(totem.startsAt, locale)} – {formatDateTime(totem.endsAt, locale)}
                   </TableCell>
-                  <TableCell>{totem.activeEvent?.eventName ?? t('pages.organizationTotems.noActiveEvent')}</TableCell>
+                  <TableCell>
+                    {totem.activeEvent ? (
+                      <span className="font-medium">{totem.activeEvent.eventName}</span>
+                    ) : (
+                      <span className="text-muted-foreground">{t('pages.organizationTotems.noActiveEvent')}</span>
+                    )}
+                  </TableCell>
                   <TableCell>
                     {totem.activeEvent ? (
                       <div className="space-y-1">
                         <span>{totem.activeEvent.locationName}</span>
-                        {totem.activeEvent.allowedSectors.length + totem.activeEvent.allowedTicketTypes.length >
-                        0 ? (
+                        {totem.activeEvent.allowedSectors.length + totem.activeEvent.allowedTicketTypes.length > 0 ? (
                           <div className="flex flex-wrap gap-1">
                             {[...totem.activeEvent.allowedSectors, ...totem.activeEvent.allowedTicketTypes].map(
                               (entry) => (
-                                <Badge key={entry} variant="outline" className="text-xs">
+                                <Badge key={entry} variant="brand">
                                   {entry}
                                 </Badge>
                               ),
                             )}
                           </div>
                         ) : (
-                          <p className="text-muted-foreground text-xs">
-                            {t('integrations.sympla.gate.unrestricted')}
-                          </p>
+                          <p className="text-muted-foreground text-xs">{t('integrations.sympla.gate.unrestricted')}</p>
                         )}
                       </div>
                     ) : (
-                      '-'
+                      <span className="text-muted-foreground">—</span>
                     )}
                   </TableCell>
                   <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
+                    <div className="flex justify-end gap-1.5">
                       {canManage && (
                         <Button variant="outline" size="sm" onClick={() => openAssignModal(totem)}>
                           {t('pages.organizationTotems.assignEvent')}
@@ -352,7 +350,7 @@ export default function OrganizationTotemsPage() {
                         </Button>
                       )}
                       {canManage && totem.activeEvent && (
-                        <Button variant="destructive" size="sm" onClick={() => handleUnassignEvent(totem)}>
+                        <Button variant="destructive-ghost" size="sm" onClick={() => handleUnassignEvent(totem)}>
                           {t('pages.organizationTotems.unassign')}
                         </Button>
                       )}

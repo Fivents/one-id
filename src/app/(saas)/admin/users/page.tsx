@@ -18,6 +18,7 @@ import {
   UserFilters,
   UsersTable,
 } from '@/components/admin/users';
+import { PageHeader } from '@/components/shared/page-header';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AdminUsersProvider, useAdminUsers, useApp, useAuth, usePermissions } from '@/core/application/contexts';
@@ -153,21 +154,17 @@ function AdminUsersPageContent() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="bg-primary/10 flex h-10 w-10 items-center justify-center rounded-lg">
-            <Users className="text-primary h-5 w-5" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">{t('users.list.title')}</h1>
-            <p className="text-muted-foreground text-sm">{t('users.list.description')}</p>
-          </div>
-        </div>
-        <Button onClick={() => setCreateModalOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          {t('users.list.newUser')}
-        </Button>
-      </div>
+      <PageHeader
+        icon={Users}
+        title={t('users.list.title')}
+        description={t('users.list.description')}
+        actions={
+          <Button onClick={() => setCreateModalOpen(true)}>
+            <Plus className="h-4 w-4" />
+            {t('users.list.newUser')}
+          </Button>
+        }
+      />
 
       <Tabs defaultValue="active">
         <TabsList>

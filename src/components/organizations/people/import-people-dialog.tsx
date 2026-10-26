@@ -153,7 +153,7 @@ export function ImportPeopleDialog({ open, onOpenChange, organizationId }: Impor
             <div className="space-y-2">
               <Label>Arquivo (.xlsx)</Label>
               <div
-                className="border-muted-foreground/25 flex cursor-pointer flex-col items-center gap-2 rounded-lg border-2 border-dashed p-6 hover:bg-accent/50"
+                className="border-muted-foreground/25 hover:bg-accent/50 flex cursor-pointer flex-col items-center gap-2 rounded-lg border-2 border-dashed p-6"
                 onClick={() => fileInputRef.current?.click()}
               >
                 <Upload className="text-muted-foreground h-8 w-8" />
@@ -171,10 +171,8 @@ export function ImportPeopleDialog({ open, onOpenChange, organizationId }: Impor
             </div>
 
             {validationErrors.length > 0 && (
-              <div className="bg-destructive/10 rounded-lg border border-destructive p-3">
-                <p className="text-destructive text-sm font-medium">
-                  {validationErrors.length} erro(s) de validação:
-                </p>
+              <div className="bg-destructive/10 border-destructive rounded-lg border p-3">
+                <p className="text-destructive text-sm font-medium">{validationErrors.length} erro(s) de validação:</p>
                 <ul className="mt-1 max-h-32 space-y-1 overflow-y-auto">
                   {validationErrors.map((err, i) => (
                     <li key={i} className="text-destructive text-xs">
@@ -188,7 +186,7 @@ export function ImportPeopleDialog({ open, onOpenChange, organizationId }: Impor
 
             {preview.length > 0 && validationErrors.length === 0 && (
               <div className="space-y-2">
-                <p className="text-sm font-medium">Pré-visualização (primeiras {preview.length} linhas):</p>
+                <p className="text-sm font-medium">Pré-visualização ({preview.length} primeira(s) linha(s)):</p>
                 <div className="max-h-32 overflow-y-auto rounded-lg border">
                   <table className="w-full text-xs">
                     <thead>
@@ -215,14 +213,21 @@ export function ImportPeopleDialog({ open, onOpenChange, organizationId }: Impor
             {preview.length > 0 && validationErrors.length === 0 && (
               <div className="space-y-2">
                 <Label>Estratégia para duplicados:</Label>
-                <RadioGroup value={overwrite ? 'overwrite' : 'skip'} onValueChange={(v) => setOverwrite(v === 'overwrite')}>
+                <RadioGroup
+                  value={overwrite ? 'overwrite' : 'skip'}
+                  onValueChange={(v) => setOverwrite(v === 'overwrite')}
+                >
                   <div className="flex items-center gap-2">
                     <RadioGroupItem value="skip" id="skip" />
-                    <Label htmlFor="skip" className="cursor-pointer">Ignorar duplicados</Label>
+                    <Label htmlFor="skip" className="cursor-pointer">
+                      Ignorar duplicados
+                    </Label>
                   </div>
                   <div className="flex items-center gap-2">
                     <RadioGroupItem value="overwrite" id="overwrite" />
-                    <Label htmlFor="overwrite" className="cursor-pointer">Sobrescrever existentes</Label>
+                    <Label htmlFor="overwrite" className="cursor-pointer">
+                      Sobrescrever existentes
+                    </Label>
                   </div>
                 </RadioGroup>
               </div>
@@ -251,11 +256,7 @@ export function ImportPeopleDialog({ open, onOpenChange, organizationId }: Impor
       </Dialog>
 
       {importResult && (
-        <ImportResultsDialog
-          open={resultsOpen}
-          onOpenChange={handleResultsClose}
-          result={importResult}
-        />
+        <ImportResultsDialog open={resultsOpen} onOpenChange={handleResultsClose} result={importResult} />
       )}
     </>
   );

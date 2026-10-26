@@ -143,6 +143,13 @@ class EventsClientService extends BaseClient {
     return this.patch(`/events/${encodeURIComponent(eventId)}/status`, { status: 'CANCELED' });
   }
 
+  async deleteAllEventParticipants(
+    eventId: string,
+    params: { search?: string; expectedCount: number },
+  ): Promise<ApiResponse<{ success: true; deleted: number }>> {
+    return this.post(`/events/${encodeURIComponent(eventId)}/participants/bulk-delete`, { all: true, ...params });
+  }
+
   async listEventParticipants(
     eventId: string,
     params?: { search?: string; page?: number; pageSize?: number; checkedIn?: boolean },

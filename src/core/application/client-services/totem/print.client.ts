@@ -112,7 +112,7 @@ export async function getSilentPrinterAvailability(): Promise<SilentPrinterAvail
   if (!bridge) {
     return {
       available: false,
-      message: 'Integracao de impressao silenciosa nao encontrada neste dispositivo.',
+      message: 'Integração de impressão silenciosa não encontrada neste dispositivo.',
     };
   }
 
@@ -121,7 +121,7 @@ export async function getSilentPrinterAvailability(): Promise<SilentPrinterAvail
     if (!isAvailable) {
       return {
         available: false,
-        message: 'Servico de impressao silenciosa indisponivel no momento.',
+        message: 'Serviço de impressão silenciosa indisponível no momento.',
       };
     }
   }
@@ -139,7 +139,7 @@ export async function getSilentPrinterAvailability(): Promise<SilentPrinterAvail
   if (!bridge.printHtml) {
     return {
       available: false,
-      message: 'Metodo de impressao silenciosa nao suportado neste dispositivo.',
+      message: 'Método de impressão silenciosa não suportado neste dispositivo.',
     };
   }
 
@@ -167,7 +167,7 @@ export async function printBadgeSilently(
     if (!bridge?.printHtml) {
       return {
         success: false,
-        error: 'Metodo de impressao silenciosa indisponivel.',
+        error: 'Método de impressão silenciosa indisponível.',
         timestamp: new Date(),
       };
     }
@@ -238,15 +238,15 @@ export function printBadgeInIframe(html: string, token: string, timeoutMs = 120_
   setTimeout(cleanup, timeoutMs);
 }
 
-export async function fetchPrintConfig(eventId: string): Promise<{ paperWidth: number; paperHeight: number; printerDpi: number; copies: number } | null> {
+export async function fetchPrintConfig(
+  eventId: string,
+): Promise<{ paperWidth: number; paperHeight: number; printerDpi: number; copies: number } | null> {
   const endpoints = [
     `/api/totem/print-config?eventId=${encodeURIComponent(eventId)}`,
     `/api/events/${eventId}/print-config`,
   ];
   const totemToken = getTotemToken();
-  const headers = totemToken
-    ? { Authorization: `Bearer ${totemToken}` }
-    : undefined;
+  const headers = totemToken ? { Authorization: `Bearer ${totemToken}` } : undefined;
 
   for (const endpoint of endpoints) {
     try {

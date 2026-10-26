@@ -210,7 +210,7 @@ export function EventAddressEditor({
 
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="space-y-2">
-          <Label htmlFor={`${idPrefix}-number`}>Numero</Label>
+          <Label htmlFor={`${idPrefix}-number`}>Número</Label>
           <Input
             id={`${idPrefix}-number`}
             value={effectiveAddressDetails?.number ?? ''}
@@ -233,7 +233,7 @@ export function EventAddressEditor({
                 complement: toNullableString(event.currentTarget.value),
               })
             }
-            placeholder="Sala, bloco, referencia"
+            placeholder="Sala, bloco, referência"
           />
         </div>
       </div>
@@ -296,7 +296,7 @@ export function EventAddressEditor({
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor={`${idPrefix}-country`}>Pais</Label>
+        <Label htmlFor={`${idPrefix}-country`}>País</Label>
         <Input
           id={`${idPrefix}-country`}
           value={effectiveAddressDetails?.country ?? ''}

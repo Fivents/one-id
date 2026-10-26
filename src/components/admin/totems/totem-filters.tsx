@@ -24,8 +24,13 @@ export function TotemFilters() {
       </div>
 
       <Select value={filterStatus} onValueChange={setFilterStatus}>
-        <SelectTrigger className="w-full sm:w-45">
-          <SelectValue placeholder={t('common.labels.status')} />
+        <SelectTrigger className="w-full sm:w-56" aria-label={t('common.labels.status')}>
+          <span className="flex min-w-0 items-center gap-1.5">
+            <span className="text-muted-foreground shrink-0">{t('common.labels.status')}:</span>
+            <span className="truncate">
+              <SelectValue placeholder={t('common.labels.status')} />
+            </span>
+          </span>
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="all">{t('common.labels.all')}</SelectItem>

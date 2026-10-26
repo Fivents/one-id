@@ -38,45 +38,52 @@ export async function GET(_req: NextRequest, context: RouteContext) {
   const now = new Date();
   const oneMinuteAgo = new Date(now.getTime() - 60 * 1000);
 
-  const [totalParticipants, totalCheckIns, checkInsLastMinute, recentCheckIns] = await Promise.all([
-    prisma.eventParticipant.count({
-      where: { eventId: event.id, deletedAt: null },
-    }),
-    prisma.checkIn.count({
-      where: {
-        eventParticipant: { eventId: event.id, deletedAt: null },
-      },
-    }),
-    prisma.checkIn.count({
-      where: {
-        eventParticipant: { eventId: event.id, deletedAt: null },
-        checkedInAt: { gte: oneMinuteAgo },
-      },
-    }),
-    prisma.checkIn.findMany({
-      where: {
-        eventParticipant: { eventId: event.id, deletedAt: null },
-      },
-      orderBy: [{ checkedInAt: 'desc' }, { id: 'desc' }],
-      take: 10,
-      select: {
-        id: true,
-        method: true,
-        checkedInAt: true,
-        eventParticipant: {
-          select: {
-            person: {
-              select: {
-                name: true,
+  const [totalParticipants, presentParticipants, totalCheckIns, checkInsLastMinute, recentCheckIns] = await Promise.all(
+    [
+      prisma.eventParticipant.count({
+        where: { eventId: event.id, deletedAt: null },
+      }),
+      // A participant can check in more than once (re-entry at another gate), so the rate counts
+      // people with at least one check-in, not check-in records — otherwise it can exceed 100%.
+      prisma.eventParticipant.count({
+        where: { eventId: event.id, deletedAt: null, checkIns: { some: {} } },
+      }),
+      prisma.checkIn.count({
+        where: {
+          eventParticipant: { eventId: event.id, deletedAt: null },
+        },
+      }),
+      prisma.checkIn.count({
+        where: {
+          eventParticipant: { eventId: event.id, deletedAt: null },
+          checkedInAt: { gte: oneMinuteAgo },
+        },
+      }),
+      prisma.checkIn.findMany({
+        where: {
+          eventParticipant: { eventId: event.id, deletedAt: null },
+        },
+        orderBy: [{ checkedInAt: 'desc' }, { id: 'desc' }],
+        take: 10,
+        select: {
+          id: true,
+          method: true,
+          checkedInAt: true,
+          eventParticipant: {
+            select: {
+              person: {
+                select: {
+                  name: true,
+                },
               },
             },
           },
         },
-      },
-    }),
-  ]);
+      }),
+    ],
+  );
 
-  const checkInRate = totalParticipants > 0 ? Math.round((totalCheckIns / totalParticipants) * 100) : 0;
+  const checkInRate = totalParticipants > 0 ? Math.round((presentParticipants / totalParticipants) * 100) : 0;
 
   return NextResponse.json({
     organizationName: event.organization.name,
@@ -88,6 +95,7 @@ export async function GET(_req: NextRequest, context: RouteContext) {
     },
     metrics: {
       totalParticipants,
+      presentParticipants,
       totalCheckIns,
       checkInRate,
       checkInsLastMinute,

@@ -94,18 +94,13 @@ function OrganizationRow({
       </TableCell>
       <TableCell className="text-muted-foreground">{organization.email ?? '—'}</TableCell>
       <TableCell>
-        <Badge
-          variant="outline"
-          className={organization.isActive ? 'bg-emerald-500/10 text-emerald-600' : 'bg-gray-400/10 text-gray-500'}
-        >
+        <Badge variant={organization.isActive ? 'success' : 'neutral'}>
           {organization.isActive ? t('common.status.active') : t('common.status.inactive')}
         </Badge>
       </TableCell>
       <TableCell>
         {organization.subscription ? (
-          <Badge variant="outline" className="bg-blue-500/10 text-blue-600">
-            {organization.subscription.planName}
-          </Badge>
+          <Badge variant="info">{organization.subscription.planName}</Badge>
         ) : (
           <span className="text-muted-foreground text-sm">{t('common.labels.noPlan')}</span>
         )}
@@ -116,7 +111,12 @@ function OrganizationRow({
       <TableCell>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              aria-label={`${t('nav.shell.moreActions')}: ${organization.name}`}
+            >
               <MoreHorizontal className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
