@@ -7,14 +7,14 @@ import { withAuth, withRBAC } from '@/core/infrastructure/http/middlewares';
 import type { RouteContext } from '@/core/infrastructure/http/types';
 import { getUserAuth } from '@/core/infrastructure/http/types';
 import { prisma } from '@/core/infrastructure/prisma-client';
-import {
-  resolveParticipantEmail,
-  resolveParticipantName,
-} from '@/core/utils/participant-identity';
+import { resolveParticipantEmail, resolveParticipantName } from '@/core/utils/participant-identity';
 
 import { getAuthorizedEvent } from '../../_lib/access';
 
 import { buildCheckInWhere, parseCheckInFilters } from './_lib/checkins-filters';
+
+// The queue may be drained after the response (see kickJobDrain); give it room to finish.
+export const maxDuration = 60;
 
 const registerAppCheckInSchema = z.object({
   eventParticipantId: z.string().min(1, 'Event participant ID is required.'),

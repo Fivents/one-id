@@ -15,6 +15,9 @@ import {
 
 import { getAuthorizedEvent } from '../../../_lib/access';
 
+// The queue may be drained after the response (see kickJobDrain); give it room to finish.
+export const maxDuration = 60;
+
 const MAX_ENTRIES = 1000;
 
 const identifierSchema = z.object({

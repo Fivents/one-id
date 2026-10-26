@@ -4,9 +4,12 @@ import { containerService } from '@/core/application/services/container.service'
 import { AppError } from '@/core/errors';
 import { withAuth, withRBAC } from '@/core/infrastructure/http/middlewares';
 import type { RouteContext } from '@/core/infrastructure/http/types';
-import { JOB_KIND } from '@/core/infrastructure/jobs';
+import { JOB_KIND, kickJobDrain } from '@/core/infrastructure/jobs';
 
 import { getAuthorizedEvent } from '../../../_lib/access';
+
+// The queue may be drained after the response (see kickJobDrain); give it room to finish.
+export const maxDuration = 60;
 
 /**
  * "Sync now". Enqueues rather than syncing inline: a full pass over a large event runs for
@@ -39,10 +42,11 @@ export const POST = withAuth(
         organizationId: eventOrResponse.organizationId,
       });
 
-      return NextResponse.json(
-        { enqueued: !outcome.deduped, alreadyRunning: outcome.deduped },
-        { status: 202 },
-      );
+      // Run it now instead of waiting for the (daily, on Vercel Hobby) cron. A deduped call
+      // still drains: the pending run may be the one this click is waiting for.
+      kickJobDrain('sympla-sync-now', { force: true });
+
+      return NextResponse.json({ enqueued: !outcome.deduped, alreadyRunning: outcome.deduped }, { status: 202 });
     } catch (error) {
       if (error instanceof AppError) {
         return NextResponse.json({ error: error.message }, { status: error.httpStatus });

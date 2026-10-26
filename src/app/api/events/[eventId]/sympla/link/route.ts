@@ -10,10 +10,14 @@ import { withAuth, withRBAC } from '@/core/infrastructure/http/middlewares';
 import { toNextResponse } from '@/core/infrastructure/http/to-next-response';
 import type { RouteContext } from '@/core/infrastructure/http/types';
 import { getUserAuth } from '@/core/infrastructure/http/types';
+import { kickJobDrain } from '@/core/infrastructure/jobs';
 import { prisma } from '@/core/infrastructure/prisma-client';
 import { parseWithZod } from '@/core/utils/parse-with-zod';
 
 import { getAuthorizedEvent } from '../../../_lib/access';
+
+// The queue may be drained after the response (see kickJobDrain); give it room to finish.
+export const maxDuration = 60;
 
 export const GET = withAuth(
   withRBAC(['EVENT_VIEW'], async (req: NextRequest, context: RouteContext) => {
@@ -50,6 +54,9 @@ export const POST = withAuth(
       const result = await controller.handle(eventId, eventOrResponse.organizationId, data, {
         userId: auth.userId,
       });
+
+      // Linking enqueues the first sync; start it now rather than at the next (daily) cron.
+      if (result.statusCode < 300) kickJobDrain('sympla-link', { force: true });
 
       return toNextResponse(result);
     } catch (error) {

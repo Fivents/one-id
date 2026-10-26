@@ -16,6 +16,9 @@ import { resolveParticipantName } from '@/core/utils/participant-identity';
 
 import { resolveActiveTotemEventContextByTotemId } from '../_lib/active-totem-context';
 
+// The queue may be drained after the response (see kickJobDrain); give it room to finish.
+export const maxDuration = 60;
+
 const faceCheckInSchema = z.object({
   method: z.literal('FACE'),
   embedding: faceEmbeddingSchema,

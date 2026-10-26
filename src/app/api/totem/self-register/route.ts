@@ -13,6 +13,9 @@ import { Prisma } from '@/generated/prisma/client';
 
 import { resolveActiveTotemEventContextByTotemId } from '../_lib/active-totem-context';
 
+// The queue may be drained after the response (see kickJobDrain); give it room to finish.
+export const maxDuration = 60;
+
 const selfRegisterSchema = z.object({
   name: z.string().min(1, 'Name is required.'),
   email: z.string().min(1, 'Email is required.').email('Invalid email address.'),
@@ -26,7 +29,6 @@ const selfRegisterSchema = z.object({
   // Default true preserva o comportamento dos totems que ainda não mandam o campo.
   autoCheckIn: z.boolean().optional().default(true),
 });
-
 
 export const POST = withAuth(
   withTotemAuth(
@@ -59,7 +61,6 @@ export const POST = withAuth(
         const accessCode = generateCheckInCredential(credentialLength);
 
         let mirrorCheckInId: string | null = null;
-
 
         const result = await prisma.$transaction(async (tx) => {
           let person = await tx.person.findFirst({
@@ -264,8 +265,7 @@ export const POST = withAuth(
 
         // Inclui o código do Prisma na mensagem: o catch genérico é o que transforma
         // qualquer falha de banco num 500 sem rastro nenhum no lado do totem.
-        const prismaCode =
-          error instanceof Prisma.PrismaClientKnownRequestError ? ` (prisma ${error.code})` : '';
+        const prismaCode = error instanceof Prisma.PrismaClientKnownRequestError ? ` (prisma ${error.code})` : '';
         console.error(`[totem-self-register] Unhandled error${prismaCode}:`, error);
         return NextResponse.json({ error: 'Internal server error.' }, { status: 500 });
       }

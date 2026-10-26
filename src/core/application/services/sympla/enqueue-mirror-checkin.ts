@@ -6,7 +6,7 @@
  * will catch anything that never got queued.
  */
 
-import { JOB_KIND } from '@/core/infrastructure/jobs';
+import { JOB_KIND, kickJobDrain } from '@/core/infrastructure/jobs';
 import { Logger } from '@/core/utils/logger';
 
 export async function enqueueMirrorCheckIn(checkInId: string, organizationId?: string | null): Promise<void> {
@@ -20,6 +20,9 @@ export async function enqueueMirrorCheckIn(checkInId: string, organizationId?: s
       dedupeKey: `sympla:checkin:${checkInId}`,
       organizationId: organizationId ?? undefined,
     });
+
+    // Throttled per instance: during a burst at the gate one drain mirrors the whole batch.
+    kickJobDrain('checkin-mirror');
   } catch (error) {
     Logger.error('Failed to enqueue a Sympla check-in mirror', {
       checkInId,
