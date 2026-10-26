@@ -93,6 +93,14 @@ describe('user sessions', () => {
     await expect(refresh.execute(legacy, META)).rejects.toThrow();
   });
 
+  it('reports a malformed or forged token as unauthorized (401), not as a server error', async () => {
+    const forged = 'eyJhbGciOiJIUzI1NiJ9.e30.x';
+    await expect(verifyUserSession(deps, forged)).rejects.toMatchObject({ httpStatus: 401 });
+    const otherSecret = new JoseTokenProvider('a-different-secret-that-is-also-long-enough');
+    const foreign = await otherSecret.signUserToken({ ...CLAIMS, sid: 'whatever' });
+    await expect(verifyUserSession(deps, foreign)).rejects.toMatchObject({ httpStatus: 401 });
+  });
+
   it('rejects expired sessions and sessions of another user', async () => {
     const token = await issueUserSession(deps, CLAIMS, META);
     const { sid } = await tokenProvider.verifyUserToken(token);

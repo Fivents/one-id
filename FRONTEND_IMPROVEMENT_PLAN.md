@@ -169,6 +169,13 @@ Achado e corrigido no teste real: `GET /api/notifications` não existia (o app c
 
 Dados que ficaram no "Dev": organização "Dev", evento "Evento Teste UI" (ativo, sem participantes), 5 pessoas em "Excluídos", 2 check-ins de teste removidos junto com os participantes.
 
+### Verificações após o deploy de produção (2026-10-26)
+
+- **Produção (`one-id-lyart.vercel.app`), somente leitura:** `/login`, `/totem` e `/live` respondem; `GET /api/notifications` sem sessão → 401 (rota nova ativa).
+- **Achado de configuração:** `GET /api/cron` responde `CRON_NOT_CONFIGURED`, ou seja, **`CRON_SECRET` não está definido nas variáveis de ambiente da Vercel**. Sem ele o cron diário não faz nada (a Vercel envia esse valor como `Authorization: Bearer` automaticamente quando a variável existe). Depende do usuário.
+- **Corrigido:** token inválido ou expirado no `refresh` gerava 500; agora 401 (`verifyUserSession` converte falha de assinatura/expiração em `UnauthorizedError`). +1 teste.
+- **Reconhecimento facial verificado de ponta a ponta** no build de produção, com rosto sintético (StyleGAN, pessoa inexistente) injetado como câmera: MediaPipe detectou 1 rosto e o ArcFace (modelo local de reserva) gerou embedding de 512 dimensões sem valores inválidos em ~5–8 s. Sucesso mostra o nome e volta sozinho; "não reconhecido" faz 10 tentativas silenciosas (~22 s) e então orienta a usar outro método. Só a API de check-in foi simulada.
+
 ### Componentes e tokens novos
 
 `PageHeader`, `StatCard`, `AppBreadcrumb`, `EventOverviewPanel`, `formatShortDateTime`/`formatDateTimeRange`; variantes de `Badge` (`success`, `warning`, `info`, `danger`, `brand`, `neutral`) e de `Button` (`destructive-ghost`); tokens de movimento; `prefers-reduced-motion` global.
@@ -201,7 +208,7 @@ Dados que ficaram no "Dev": organização "Dev", evento "Evento Teste UI" (ativo
 
 ### Limitações
 
-- Reconhecimento facial não exercitado (câmera falsa, sem rosto/modelo remoto).
+- Reconhecimento facial: verificado com rosto sintético e modelo local de reserva; o download do modelo principal remoto (137 MB) e câmeras físicas não foram testados.
 - Nada foi testado contra o backend real; todas as telas autenticadas foram vistas com dados fictícios. A rota pública alterada não foi executada contra o banco (só typecheck/lint).
 - Importação de planilhas **verificada na interface** com arquivos `.xlsx` reais (participantes, pessoas, check-ins): leitura, prévia, validação (linha sem nome bloqueia) e payload enviado à API (CPF/telefone normalizados). A resposta da API foi simulada. Cadastro de rosto não exercitado.
 - Backend real exercitado no banco de produção, restrito à organização "Dev" (ver seção acima). O disparo de fila da Sympla não foi exercitado contra o banco real (fila global).

@@ -51,7 +51,13 @@ export async function issueUserSession(
  * so they cannot be refreshed forever.
  */
 export async function verifyUserSession(deps: UserSessionDeps, token: string): Promise<UserTokenPayload> {
-  const payload = await deps.tokenProvider.verifyUserToken(token);
+  let payload: UserTokenPayload;
+  try {
+    payload = await deps.tokenProvider.verifyUserToken(token);
+  } catch {
+    // Bad signature, wrong audience or expired: an auth failure (401), not a server error (500).
+    throw new UnauthorizedError('Session is no longer valid.');
+  }
 
   if (!payload.sid) {
     throw new UnauthorizedError('Session is no longer valid.');
